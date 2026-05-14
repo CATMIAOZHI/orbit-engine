@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/shared_memory_mapping.h"
 #include "components/viz/host/host_display_client.h"
+#include "gpu/command_buffer/common/context_result.h"
 #include "ui/base/ozone_buildflags.h"
 #include "ui/gfx/native_ui_types.h"
 
@@ -36,6 +37,10 @@ class CefHostDisplayClientOSR : public viz::HostDisplayClient {
   void CreateLayeredWindowUpdater(
       mojo::PendingReceiver<viz::mojom::LayeredWindowUpdater> receiver)
       override;
+  void SetPreferredRefreshRate(float refresh_rate) override;
+  void DidCompleteSwapWithSize(const gfx::Size& size) override;
+  void OnContextCreationResult(gpu::ContextResult result) override;
+  void SetWideColorEnabled(bool enabled) override;
 
 #if BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_X11)
   void DidCompleteSwapWithNewSize(const gfx::Size& size) override;

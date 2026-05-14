@@ -4,10 +4,14 @@
 
 #include "cef/libcef/browser/browser_guest_util.h"
 
+#include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/printing/print_preview_dialog_controller.h"
 #include "content/browser/browser_plugin/browser_plugin_guest.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/printing/print_preview_dialog_controller.h"
+#endif
 
 namespace {
 
@@ -22,6 +26,7 @@ content::WebContents* GetOwnerForBrowserPluginGuest(
   return nullptr;
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 content::WebContents* GetInitiatorForPrintPreviewDialog(
     const content::WebContents* guest) {
   auto print_preview_controller =
@@ -29,26 +34,24 @@ content::WebContents* GetInitiatorForPrintPreviewDialog(
   return print_preview_controller->GetInitiator(
       const_cast<content::WebContents*>(guest));
 }
+#endif
 
 }  // namespace
 
 content::WebContents* GetOwnerForGuestContents(
     const content::WebContents* guest) {
-  // Maybe it's a guest view. This occurs while loading the PDF viewer.
   if (auto* owner = GetOwnerForBrowserPluginGuest(guest)) {
     return owner;
   }
 
-  // Maybe it's a print preview dialog. This occurs while loading the print
-  // preview dialog.
+#if !BUILDFLAG(IS_ANDROID)
   if (auto* initiator = GetInitiatorForPrintPreviewDialog(guest)) {
-    // Maybe the dialog is parented to a guest view. This occurs while loading
-    // the print preview dialog from inside the PDF viewer.
     if (auto* owner = GetOwnerForBrowserPluginGuest(initiator)) {
       return owner;
     }
     return initiator;
   }
+#endif
 
   return nullptr;
 }
@@ -58,5 +61,9 @@ bool IsBrowserPluginGuest(const content::WebContents* web_contents) {
 }
 
 bool IsPrintPreviewDialog(const content::WebContents* web_contents) {
+#if !BUILDFLAG(IS_ANDROID)
   return !!GetInitiatorForPrintPreviewDialog(web_contents);
+#else
+  return false;
+#endif
 }
