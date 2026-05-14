@@ -321,27 +321,37 @@ includes_win_capi = gypi_paths2.includes_win_capi
 
 group("cef") {
   testonly = true
-  deps = [
-    ":cefsimple",
-    ":cefsimple_capi",
-    ":ceftests",
-    ":libcef_static_unittests",
-  ]
+  deps = []
 
-  if (is_win) {
+  if (is_android) {
+    # On Android, only build libcef and the DLL wrapper.
     deps += [
-      ":bootstrap",
-      ":bootstrapc",
-      ":cefclient_dll",
-      ":cefsimple_dll",
-      ":cefsimple_capi_dll",
-      ":ceftests_dll",
-      "libcef_dll/bootstrap/installer:installer_tests",
+      ":libcef_static",
+      ":libcef_dll_wrapper",
     ]
-  }
+  } else {
+    deps += [
+      ":cefsimple",
+      ":cefsimple_capi",
+      ":ceftests",
+      ":libcef_static_unittests",
+    ]
 
-  if (!is_linux || ozone_platform_x11) {
-    deps += [ ":cefclient" ]
+    if (is_win) {
+      deps += [
+        ":bootstrap",
+        ":bootstrapc",
+        ":cefclient_dll",
+        ":cefsimple_dll",
+        ":cefsimple_capi_dll",
+        ":ceftests_dll",
+        "libcef_dll/bootstrap/installer:installer_tests",
+      ]
+    }
+
+    if (!is_linux || ozone_platform_x11) {
+      deps += [ ":cefclient" ]
+    }
   }
 }
 
@@ -1124,6 +1134,121 @@ source_set("libcef_static") {
       "libcef/browser/native/browser_platform_delegate_native_android.h",
       "libcef/browser/osr/browser_platform_delegate_osr_android.cc",
       "libcef/browser/osr/browser_platform_delegate_osr_android.h",
+    ]
+
+    # Exclude sources that depend on Views UI framework (not available on
+    # Android where toolkit_views=false).
+    sources -= [
+      "libcef/browser/alloy/browser_platform_delegate_alloy.cc",
+      "libcef/browser/alloy/browser_platform_delegate_alloy.h",
+      "libcef/browser/alloy/dialogs/alloy_constrained_window_views_client.cc",
+      "libcef/browser/alloy/dialogs/alloy_constrained_window_views_client.h",
+      "libcef/browser/alloy/dialogs/alloy_web_contents_dialog_helper.cc",
+      "libcef/browser/alloy/dialogs/alloy_web_contents_dialog_helper.h",
+      "libcef/browser/chrome/browser_platform_delegate_chrome.cc",
+      "libcef/browser/chrome/browser_platform_delegate_chrome.h",
+      "libcef/browser/chrome/extensions/chrome_mime_handler_view_guest_delegate_cef.cc",
+      "libcef/browser/chrome/extensions/chrome_mime_handler_view_guest_delegate_cef.h",
+      "libcef/browser/chrome/views/browser_platform_delegate_chrome_child_window.cc",
+      "libcef/browser/chrome/views/browser_platform_delegate_chrome_child_window.h",
+      "libcef/browser/chrome/views/browser_platform_delegate_chrome_views.cc",
+      "libcef/browser/chrome/views/browser_platform_delegate_chrome_views.h",
+      "libcef/browser/chrome/views/chrome_browser_frame_view.cc",
+      "libcef/browser/chrome/views/chrome_browser_frame_view.h",
+      "libcef/browser/chrome/views/chrome_browser_view.cc",
+      "libcef/browser/chrome/views/chrome_browser_view.h",
+      "libcef/browser/chrome/views/chrome_browser_widget.cc",
+      "libcef/browser/chrome/views/chrome_browser_widget.h",
+      "libcef/browser/chrome/views/chrome_child_window.cc",
+      "libcef/browser/chrome/views/chrome_child_window.h",
+      "libcef/browser/chrome/views/toolbar_view_impl.cc",
+      "libcef/browser/chrome/views/toolbar_view_impl.h",
+      "libcef/browser/chrome/views/toolbar_view_view.cc",
+      "libcef/browser/chrome/views/toolbar_view_view.h",
+      "libcef/browser/devtools/devtools_window_runner.cc",
+      "libcef/browser/devtools/devtools_window_runner.h",
+      "libcef/browser/views/browser_platform_delegate_views.cc",
+      "libcef/browser/views/browser_platform_delegate_views.h",
+      "libcef/browser/file_dialog_manager.cc",
+      "libcef/browser/file_dialog_manager.h",
+      "libcef/browser/menu_manager.cc",
+      "libcef/browser/menu_manager.h",
+      "libcef/browser/permission_prompt.cc",
+      "libcef/browser/permission_prompt.h",
+      "libcef/browser/media_router/media_router_manager.cc",
+      "libcef/browser/media_router/media_router_manager.h",
+      "libcef/browser/browser_host_create.cc",
+      "libcef/browser/printing/print_util.cc",
+      "libcef/browser/printing/print_util.h",
+      "libcef/browser/chrome/chrome_browser_host_impl.cc",
+      "libcef/browser/chrome/chrome_browser_host_impl.h",
+      "libcef/browser/chrome/chrome_browser_delegate.cc",
+      "libcef/browser/chrome/chrome_browser_delegate.h",
+    ]
+    # Exclude all Views UI framework files (toolkit_views=false on Android).
+    sources -= [
+      "libcef/browser/views/basic_label_button_impl.cc",
+      "libcef/browser/views/basic_label_button_impl.h",
+      "libcef/browser/views/basic_label_button_view.cc",
+      "libcef/browser/views/basic_label_button_view.h",
+      "libcef/browser/views/basic_panel_impl.cc",
+      "libcef/browser/views/basic_panel_impl.h",
+      "libcef/browser/views/basic_panel_view.cc",
+      "libcef/browser/views/basic_panel_view.h",
+      "libcef/browser/views/box_layout_impl.cc",
+      "libcef/browser/views/box_layout_impl.h",
+      "libcef/browser/views/browser_view_impl.cc",
+      "libcef/browser/views/browser_view_impl.h",
+      "libcef/browser/views/browser_view_view.cc",
+      "libcef/browser/views/browser_view_view.h",
+      "libcef/browser/views/button_impl.h",
+      "libcef/browser/views/button_view.h",
+      "libcef/browser/views/color_provider_tracker.cc",
+      "libcef/browser/views/color_provider_tracker.h",
+      "libcef/browser/views/display_impl.cc",
+      "libcef/browser/views/display_impl.h",
+      "libcef/browser/views/fill_layout_impl.cc",
+      "libcef/browser/views/fill_layout_impl.h",
+      "libcef/browser/views/label_button_impl.h",
+      "libcef/browser/views/label_button_view.h",
+      "libcef/browser/views/layout_adapter.cc",
+      "libcef/browser/views/layout_adapter.h",
+      "libcef/browser/views/layout_impl.h",
+      "libcef/browser/views/layout_util.cc",
+      "libcef/browser/views/layout_util.h",
+      "libcef/browser/views/menu_button_impl.cc",
+      "libcef/browser/views/menu_button_impl.h",
+      "libcef/browser/views/menu_button_view.cc",
+      "libcef/browser/views/menu_button_view.h",
+      "libcef/browser/views/menu_runner_views.cc",
+      "libcef/browser/views/menu_runner_views.h",
+      "libcef/browser/views/overlay_view_host.cc",
+      "libcef/browser/views/overlay_view_host.h",
+      "libcef/browser/views/panel_impl.h",
+      "libcef/browser/views/panel_view.h",
+      "libcef/browser/views/scroll_view_impl.cc",
+      "libcef/browser/views/scroll_view_impl.h",
+      "libcef/browser/views/scroll_view_view.cc",
+      "libcef/browser/views/scroll_view_view.h",
+      "libcef/browser/views/textfield_impl.cc",
+      "libcef/browser/views/textfield_impl.h",
+      "libcef/browser/views/textfield_view.cc",
+      "libcef/browser/views/textfield_view.h",
+      "libcef/browser/views/view_adapter.cc",
+      "libcef/browser/views/view_adapter.h",
+      "libcef/browser/views/view_impl.h",
+      "libcef/browser/views/view_util.cc",
+      "libcef/browser/views/view_util.h",
+      "libcef/browser/views/view_view.h",
+      "libcef/browser/views/widget.cc",
+      "libcef/browser/views/widget_destruction_observer.h",
+      "libcef/browser/views/widget.h",
+      "libcef/browser/views/widget_impl.cc",
+      "libcef/browser/views/widget_impl.h",
+      "libcef/browser/views/window_impl.cc",
+      "libcef/browser/views/window_impl.h",
+      "libcef/browser/views/window_view.cc",
+      "libcef/browser/views/window_view.h",
     ]
   }
 
