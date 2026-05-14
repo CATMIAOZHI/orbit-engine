@@ -67,6 +67,17 @@ bool GetDefaultUserDataDirectory(base::FilePath* result) {
   return true;
 }
 
+#elif BUILDFLAG(IS_ANDROID)
+
+// Based on chrome/common/chrome_paths_android.cc.
+bool GetDefaultUserDataDirectory(base::FilePath* result) {
+  if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, result)) {
+    return false;
+  }
+  *result = result->Append(FILE_PATH_LITERAL("cef_user_data"));
+  return true;
+}
+
 #endif
 
 base::FilePath GetUserDataPath(CefSettings* settings,
