@@ -77,7 +77,9 @@ const char* kAllowedWebUIHosts[] = {
     chrome::kChromeUINetInternalsHost,
     content::kChromeUINetworkErrorHost,
     content::kChromeUINetworkErrorsListingHost,
+#if !BUILDFLAG(IS_ANDROID)
     chrome::kChromeUIPrintHost,
+#endif
     content::kChromeUIProcessInternalsHost,
     content::kChromeUIResourcesHost,
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
