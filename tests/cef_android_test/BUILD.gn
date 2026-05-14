@@ -1,0 +1,15 @@
+# Cefrium Android headless test harness.
+# Uses CEF C API directly to avoid C++20/C++23 module conflicts.
+
+executable("cef_android_test") {
+  testonly = true
+  sources = [ "main.cc" ]
+
+  deps = [ "//cef:libcef" ]
+
+  configs += [ "//cef:libcef_includes_config" ]
+
+  if (is_android) {
+    libs = [ "log" ]
+  }
+}

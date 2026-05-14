@@ -327,10 +327,10 @@ group("cef") {
   deps = []
 
   if (is_android) {
-    # On Android, only build libcef and the DLL wrapper.
     deps += [
       ":libcef",
       ":libcef_dll_wrapper",
+      "tests/cef_android_test",
     ]
   } else {
     deps += [
