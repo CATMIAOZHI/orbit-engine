@@ -1163,6 +1163,7 @@ source_set("libcef_static") {
 
   if (is_android) {
     sources += [
+      "libcef/browser/android/android_stubs.cc",
       "libcef/browser/native/browser_platform_delegate_native_android.cc",
       "libcef/browser/native/browser_platform_delegate_native_android.h",
       "libcef/browser/osr/browser_platform_delegate_osr_android.cc",
