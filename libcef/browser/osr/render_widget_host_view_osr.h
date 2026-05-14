@@ -198,6 +198,15 @@ class CefRenderWidgetHostViewOSR
       input::RenderWidgetHostViewInput* target_view,
       gfx::PointF* transformed_point) override;
   void DidNavigate() override;
+  bool IsTouchSequencePotentiallyActiveOnViz() override;
+  void RequestInputBackForDragAndDrop(
+      content::WeakDocumentPtr source_document,
+      blink::mojom::DragDataPtr drag_data,
+      blink::DragOperationsMask drag_operations_mask,
+      SkBitmap bitmap,
+      gfx::Vector2d cursor_offset_in_dip,
+      gfx::Rect drag_obj_rect_in_dip,
+      blink::mojom::DragEventSourceInfoPtr event_info) override;
   void SelectionChanged(const std::u16string& text,
                         size_t offset,
                         const gfx::Range& range) override;

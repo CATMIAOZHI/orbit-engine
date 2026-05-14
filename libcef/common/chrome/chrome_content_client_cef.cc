@@ -8,8 +8,11 @@
 #include "cef/libcef/common/app_manager.h"
 #include "chrome/common/media/cdm_registration.h"
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#include "media/media_buildflags.h"
 #if BUILDFLAG(ENABLE_CDM_HOST_VERIFICATION)
 #include "cef/libcef/common/cdm_host_file_path.h"
+#endif
 #endif
 
 ChromeContentClientCef::ChromeContentClientCef() = default;
@@ -22,10 +25,12 @@ void ChromeContentClientCef::AddContentDecryptionModules(
     RegisterCdmInfo(cdms);
   }
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 #if BUILDFLAG(ENABLE_CDM_HOST_VERIFICATION)
   if (cdm_host_file_paths) {
     cef::AddCdmHostFilePaths(cdm_host_file_paths);
   }
+#endif
 #endif
 }
 
