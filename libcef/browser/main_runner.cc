@@ -144,11 +144,13 @@ void CefMainRunner::RunMessageLoop() {
     keep_alive_ = std::make_unique<ScopedKeepAlive>(
         KeepAliveOrigin::APP_CONTROLLER, KeepAliveRestartOption::DISABLED);
 
+#if !BUILDFLAG(IS_ANDROID)
     // The QuitClosure will be executed from BrowserProcessImpl::Unpin() via
     // KeepAliveRegistry when the last ScopedKeepAlive is released.
     // ScopedKeepAlives are also held by Browser objects.
     static_cast<BrowserProcessImpl*>(g_browser_process)
         ->SetQuitClosure(run_loop.QuitClosure());
+#endif
   }
 
   // Blocks until QuitMessageLoop() is called.
@@ -172,7 +174,7 @@ int CefMainRunner::RunAsHelperProcess(const CefMainArgs& args,
   base::CommandLine command_line(base::CommandLine::NO_PROGRAM);
 #if BUILDFLAG(IS_WIN)
   command_line.ParseFromString(::GetCommandLineW());
-#else
+#elif !BUILDFLAG(IS_ANDROID)
   command_line.InitFromArgv(args.argc, args.argv);
 #endif
 
@@ -242,11 +244,19 @@ int CefMainRunner::RunAsHelperProcess(const CefMainArgs& args,
   main_params.instance = args.instance;
   main_params.sandbox_info =
       static_cast<sandbox::SandboxInterfaceInfo*>(windows_sandbox_info);
-#else
+#elif !BUILDFLAG(IS_ANDROID)
   main_params.argc = args.argc;
   main_params.argv = const_cast<const char**>(args.argv);
 #endif
+#if !BUILDFLAG(IS_ANDROID)
   return content::ContentMain(std::move(main_params));
+#else
+  // On Android, content::ContentMain is not used directly. The content layer
+  // is initialized through ContentMainRunner::Initialize() + Run() instead,
+  // which is handled by ContentMainInitialize/ContentMainRun below.
+  return content::ContentMainInitialize(std::move(main_params),
+                                        content::ContentMainRunner::Create().get());
+#endif
 }
 
 int CefMainRunner::ContentMainInitialize(const CefMainArgs& args,
@@ -272,7 +282,7 @@ int CefMainRunner::ContentMainInitialize(const CefMainArgs& args,
   main_params.instance = args.instance;
   main_params.sandbox_info =
       static_cast<sandbox::SandboxInterfaceInfo*>(windows_sandbox_info);
-#else
+#elif !BUILDFLAG(IS_ANDROID)
   main_params.argc = args.argc;
   main_params.argv = const_cast<const char**>(args.argv);
 #endif

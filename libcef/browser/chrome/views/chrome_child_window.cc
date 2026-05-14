@@ -21,19 +21,21 @@
 namespace {
 
 gfx::AcceleratedWidget GetParentWidget(const CefWindowInfo& window_info) {
-#if !BUILDFLAG(IS_MAC)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
   return window_info.parent_window;
 #else
-  // Chrome style is not supported with native parent on MacOS. See issue #3294.
+  // Chrome style with native parent not supported on Mac/Android.
   return gfx::kNullAcceleratedWidget;
 #endif
 }
 
 CefWindowHandle GetParentHandle(const CefWindowInfo& window_info) {
-#if !BUILDFLAG(IS_MAC)
-  return window_info.parent_window;
-#else
+#if BUILDFLAG(IS_MAC)
   return window_info.parent_view;
+#elif BUILDFLAG(IS_ANDROID)
+  return kNullWindowHandle;
+#else
+  return window_info.parent_window;
 #endif
 }
 
