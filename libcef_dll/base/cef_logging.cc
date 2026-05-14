@@ -38,7 +38,7 @@ namespace {
 #if defined(OS_POSIX)
 // From base/posix/safe_strerror.cc
 
-#if defined(__GLIBC__) || defined(OS_NACL)
+#if defined(__GLIBC__) || defined(OS_NACL) || defined(OS_ANDROID)
 #define USE_HISTORICAL_STRERRO_R 1
 #else
 #define USE_HISTORICAL_STRERRO_R 0
