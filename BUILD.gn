@@ -2193,7 +2193,18 @@ if (is_mac) {
     }
 
     if (is_android) {
-      ldflags = [ "-Wl,--allow-multiple-definition" ]
+      ldflags = [
+        "-Wl,--allow-multiple-definition",
+        # Export cef_* symbols for consumers of libcef.so.
+        "-Wl,--version-script=" +
+            rebase_path("//cef/libcef_dll/libcef.lst"),
+        # Demote undefined symbols from desktop features (Views, printing,
+        # media router, context menus) to warnings instead of errors.
+        # These symbols are referenced but never called at runtime in the
+        # Android headless/OSR configuration.
+        "-Wl,--warn-unresolved-symbols",
+        "-Wl,--error-limit=0",
+      ]
     }
   }
 }
