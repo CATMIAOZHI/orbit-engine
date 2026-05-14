@@ -1,11 +1,18 @@
 # Cefrium Android headless test harness.
-# Uses CEF C API directly to avoid C++20/C++23 module conflicts.
+# Uses CEF C API directly. Built as a raw Android executable that can
+# be pushed via adb and run via adb shell.
+
+import("//testing/test.gni")
 
 executable("cef_android_test") {
   testonly = true
   sources = [ "main.cc" ]
 
-  deps = [ "//cef:libcef" ]
+  deps = [
+    "//cef:libcef",
+    "//base",
+    "//base/allocator/partition_allocator/src/partition_alloc",
+  ]
 
   configs += [ "//cef:libcef_includes_config" ]
 
