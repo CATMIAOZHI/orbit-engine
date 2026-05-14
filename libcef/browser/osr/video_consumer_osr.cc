@@ -134,7 +134,7 @@ void CefVideoConsumerOSR::OnFrameCaptured(
     // The info->pixel_format will tell if the texture is RGBA or BGRA
     // On Linux, X11 lacks support for RGBA_8888 so it might be BGRA.
     // On Windows and macOS, it should always be RGBA.
-    auto pixel_format = info->pixel_format == media::PIXEL_FORMAT_ABGR
+    [[maybe_unused]] auto pixel_format = info->pixel_format == media::PIXEL_FORMAT_ABGR
                             ? CEF_COLOR_TYPE_RGBA_8888
                             : CEF_COLOR_TYPE_BGRA_8888;
 
