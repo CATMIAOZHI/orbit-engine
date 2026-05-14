@@ -63,7 +63,9 @@ bool GetCefKeyEvent(const input::NativeWebKeyboardEvent& event,
   return true;
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 bool GetCefKeyEvent(const ui::KeyEvent& event, CefKeyEvent& cef_event) {
   input::NativeWebKeyboardEvent native_event(event);
   return GetCefKeyEvent(native_event, cef_event);
 }
+#endif
