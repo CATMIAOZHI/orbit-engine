@@ -24,6 +24,7 @@
 #include "cef/libcef/browser/osr/touch_selection_controller_client_osr.h"
 #include "cef/libcef/browser/osr/video_consumer_osr.h"
 #include "cef/libcef/browser/thread_util.h"
+#include "content/public/browser/weak_document_ptr.h"
 #include "components/input/cursor_manager.h"
 #include "components/input/render_widget_host_input_event_router.h"
 #include "components/input/switches.h"
@@ -1927,4 +1928,19 @@ void CefRenderWidgetHostViewOSR::UpdateBackgroundColorFromRenderer(
   bool opaque = SkColorGetA(color) == SK_AlphaOPAQUE;
   GetRootLayer()->SetFillsBoundsOpaquely(opaque);
   GetRootLayer()->SetColor(color);
+}
+
+bool CefRenderWidgetHostViewOSR::IsTouchSequencePotentiallyActiveOnViz() {
+  return false;
+}
+
+void CefRenderWidgetHostViewOSR::RequestInputBackForDragAndDrop(
+    content::WeakDocumentPtr source_document,
+    blink::mojom::DragDataPtr drag_data,
+    blink::DragOperationsMask drag_operations_mask,
+    SkBitmap bitmap,
+    gfx::Vector2d cursor_offset_in_dip,
+    gfx::Rect drag_obj_rect_in_dip,
+    blink::mojom::DragEventSourceInfoPtr event_info) {
+  // Drag and drop is not supported in off-screen rendering mode.
 }

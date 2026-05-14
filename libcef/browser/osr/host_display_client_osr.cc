@@ -140,6 +140,26 @@ void CefHostDisplayClientOSR::CreateLayeredWindowUpdater(
   layered_window_updater_->SetActive(active_);
 }
 
+void CefHostDisplayClientOSR::SetPreferredRefreshRate(float refresh_rate) {
+  // Off-screen rendering uses its own frame scheduling via
+  // SendExternalBeginFrame, so the preferred refresh rate from the
+  // display compositor is not applicable.
+}
+
+void CefHostDisplayClientOSR::DidCompleteSwapWithSize(
+    const gfx::Size& size) {
+  // No-op for OSR. Swap completion is handled by the layered window updater.
+}
+
+void CefHostDisplayClientOSR::OnContextCreationResult(
+    gpu::ContextResult result) {
+  // No-op for OSR. Context creation is managed by the compositor.
+}
+
+void CefHostDisplayClientOSR::SetWideColorEnabled(bool enabled) {
+  // No-op for OSR. Wide color gamut is not relevant for software rendering.
+}
+
 #if BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_X11)
 void CefHostDisplayClientOSR::DidCompleteSwapWithNewSize(
     const gfx::Size& size) {}
