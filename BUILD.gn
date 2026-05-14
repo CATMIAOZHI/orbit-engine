@@ -326,7 +326,7 @@ group("cef") {
   if (is_android) {
     # On Android, only build libcef and the DLL wrapper.
     deps += [
-      ":libcef_static",
+      ":libcef",
       ":libcef_dll_wrapper",
     ]
   } else {
@@ -2192,13 +2192,13 @@ if (is_mac) {
 
       if (!is_debug && !use_partition_alloc_as_malloc) {
         # Only export necessary symbols from libcef.so.
-        # Don't do this in Debug builds because it causes the resulting
-        # application to crash.
-        # Also need to do this for ASAN builds to work around
-        # https://crbug.com/832808.
         ldflags += [ "-Wl,--version-script=" +
                      rebase_path("//cef/libcef_dll/libcef.lst") ]
       }
+    }
+
+    if (is_android) {
+      ldflags = [ "-Wl,--allow-multiple-definition" ]
     }
   }
 }
