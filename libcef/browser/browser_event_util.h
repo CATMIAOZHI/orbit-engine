@@ -20,7 +20,9 @@ class KeyEvent;
 bool GetCefKeyEvent(const input::NativeWebKeyboardEvent& event,
                     CefKeyEvent& cef_event);
 
+#if !BUILDFLAG(IS_ANDROID)
 // Convert a ui::KeyEvent to a CefKeyEvent.
 bool GetCefKeyEvent(const ui::KeyEvent& event, CefKeyEvent& cef_event);
+#endif
 
 #endif  // CEF_LIBCEF_BROWSER_BROWSER_EVENT_UTIL_H_
