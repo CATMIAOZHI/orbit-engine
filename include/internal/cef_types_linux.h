@@ -35,7 +35,7 @@
 #include "include/base/cef_build.h"
 #endif
 
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_ANDROID)
 
 #include "include/internal/cef_export.h"
 #include "include/internal/cef_string.h"
@@ -215,6 +215,6 @@ typedef struct _cef_accelerated_paint_info_t {
 }
 #endif
 
-#endif  // OS_LINUX
+#endif  // OS_LINUX || OS_ANDROID
 
 #endif  // CEF_INCLUDE_INTERNAL_CEF_TYPES_LINUX_H_
