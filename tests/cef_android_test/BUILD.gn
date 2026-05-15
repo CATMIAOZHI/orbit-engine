@@ -55,14 +55,17 @@ android_assets("cefrium_test_assets") {
   testonly = true
   sources = [
     "$root_out_dir/cef.pak",
-    "$root_out_dir/cef_100_percent.pak",
-    "$root_out_dir/cef_200_percent.pak",
+    "$root_out_dir/chrome_100_percent.pak",
+    "$root_out_dir/chrome_200_percent.pak",
   ]
+  renaming_sources = [ "$root_out_dir/locales/en-US.pak" ]
+  renaming_destinations = [ "stored-locales/en-US.pak" ]
   disable_compression = true
   deps = [
     "//cef:cef_pak_android",
     "//cef:cef_100_percent_pak_android",
     "//cef:cef_200_percent_pak_android",
+    "//cef:cef_locale_en_us_android",
     "//gin:v8_snapshot_assets",
     "//third_party/icu:icu_assets",
   ]
