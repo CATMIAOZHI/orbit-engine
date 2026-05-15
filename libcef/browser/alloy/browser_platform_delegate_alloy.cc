@@ -17,8 +17,10 @@
 #include "components/performance_manager/embedder/performance_manager_registry.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/public/browser/render_view_host.h"
+#if !BUILDFLAG(IS_ANDROID)
 #include "extensions/browser/process_manager.h"
 #include "pdf/pdf_features.h"
+#endif
 #include "third_party/blink/public/mojom/frame/find_in_page.mojom.h"
 
 namespace {
