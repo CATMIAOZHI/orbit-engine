@@ -5,16 +5,23 @@
 #include "cef/libcef/browser/chrome/chrome_browser_main_extra_parts_cef.h"
 
 #include "base/task/thread_pool.h"
+#include "build/build_config.h"
+#if !BUILDFLAG(IS_ANDROID)
 #include "cef/libcef/browser/alloy/dialogs/alloy_constrained_window_views_client.h"
+#endif
 #include "cef/libcef/browser/chrome/chrome_context_menu_handler.h"
 #include "cef/libcef/browser/chrome/chrome_startup_browser_creator.h"
 #include "cef/libcef/browser/context.h"
 #include "cef/libcef/browser/file_dialog_runner.h"
+#if !BUILDFLAG(IS_ANDROID)
 #include "cef/libcef/browser/permission_prompt.h"
+#endif
 #include "cef/libcef/common/app_manager.h"
 #include "chrome/browser/profiles/profile.h"
+#if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/views/chrome_constrained_window_views_client.h"
 #include "components/constrained_window/constrained_window_views.h"
+#endif
 
 #if BUILDFLAG(IS_LINUX)
 #include "base/linux_util.h"
@@ -75,7 +82,9 @@ void ChromeBrowserMainExtraPartsCef::PreMainMessageLoopRun() {
 
   context_menu::RegisterCallbacks();
   file_dialog_runner::RegisterFactory();
+#if !BUILDFLAG(IS_ANDROID)
   permission_prompt::RegisterCreateCallback();
+#endif
 
 #if BUILDFLAG(IS_WIN)
   const auto& settings = CefContext::Get()->settings();
@@ -86,9 +95,11 @@ void ChromeBrowserMainExtraPartsCef::PreMainMessageLoopRun() {
 }
 
 void ChromeBrowserMainExtraPartsCef::ToolkitInitialized() {
+#if !BUILDFLAG(IS_ANDROID)
   // Override the default Chrome client.
   SetConstrainedWindowViewsClient(CreateAlloyConstrainedWindowViewsClient(
       CreateChromeConstrainedWindowViewsClient()));
+#endif
 
 #if BUILDFLAG(IS_LINUX)
   auto printing_delegate = new CefPrintingContextLinuxDelegate();

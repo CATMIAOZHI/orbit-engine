@@ -1,0 +1,51 @@
+diff --git a/gin/v8_initializer.cc b/gin/v8_initializer.cc
+index f32f4077d5..f6d33e76dd 100644
+--- a/gin/v8_initializer.cc
++++ b/gin/v8_initializer.cc
+@@ -48,7 +48,10 @@
+ 
+ #if defined(V8_USE_EXTERNAL_STARTUP_DATA)
+ #if BUILDFLAG(IS_ANDROID)
++#include <limits.h>
++#include <unistd.h>
+ #include "base/android/apk_assets.h"
++#include "third_party/jni_zero/jni_zero.h"
+ #elif BUILDFLAG(IS_MAC)
+ #include "base/apple/foundation_util.h"
+ #endif
+@@ -126,6 +129,17 @@ const char* GetSnapshotFileName(const V8SnapshotFileType file_type) {
+ 
+ void GetV8FilePath(const char* file_name, base::FilePath* path_out) {
+ #if BUILDFLAG(IS_ANDROID)
++  if (!jni_zero::IsVMInitialized()) {
++    // No JVM (headless/CEF mode). Load from the executable's directory.
++    // Cannot use PathService::Get(DIR_EXE) as it may call JNI on Android.
++    char exe_path[PATH_MAX];
++    ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
++    if (len > 0) {
++      exe_path[len] = '\0';
++      *path_out = base::FilePath(exe_path).DirName().AppendASCII(file_name);
++    }
++    return;
++  }
+   // This is the path within the .apk.
+   *path_out =
+       base::FilePath(FILE_PATH_LITERAL("assets")).AppendASCII(file_name);
+@@ -161,7 +175,16 @@ base::File OpenV8File(const char* file_name,
+   GetV8FilePath(file_name, &path);
+ 
+ #if BUILDFLAG(IS_ANDROID)
+-  base::File file(base::android::OpenApkAsset(path.value(), region_out));
++  base::File file;
++  if (jni_zero::IsVMInitialized()) {
++    file = base::File(base::android::OpenApkAsset(path.value(), region_out));
++  } else {
++    // No JVM available (headless/CEF mode). Open from filesystem directly.
++    file.Initialize(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
++    if (file.IsValid()) {
++      *region_out = base::MemoryMappedFile::Region::kWholeFile;
++    }
++  }
+ #else
+   // Re-try logic here is motivated by http://crbug.com/479537
+   // for A/V on Windows (https://support.microsoft.com/en-us/kb/316609).
