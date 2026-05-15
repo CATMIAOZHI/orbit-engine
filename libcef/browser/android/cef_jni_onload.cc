@@ -16,11 +16,21 @@
 #include <jni.h>
 
 #include "base/android/jni_android.h"
+#include "base/at_exit.h"
+
+// Allow our AtExitManager to shadow the Zygote's one.
+class CefAtExitManager : public base::AtExitManager {
+ public:
+  CefAtExitManager() : AtExitManager(/*shadow=*/true) {}
+};
+
+static CefAtExitManager* g_at_exit_manager = nullptr;
 
 extern "C" {
 
 __attribute__((visibility("default")))
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+  g_at_exit_manager = new CefAtExitManager();
   base::android::InitVM(vm);
   return JNI_VERSION_1_4;
 }
