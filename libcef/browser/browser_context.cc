@@ -374,11 +374,15 @@ network::mojom::NetworkContext* CefBrowserContext::GetNetworkContext() {
 
 CefMediaRouterManager* CefBrowserContext::GetMediaRouterManager() {
   CEF_REQUIRE_UIT();
+#if !BUILDFLAG(IS_ANDROID)
   if (!media_router_manager_) {
     media_router_manager_ =
         std::make_unique<CefMediaRouterManager>(AsBrowserContext());
   }
   return media_router_manager_.get();
+#else
+  return nullptr;
+#endif
 }
 
 CefRefPtr<CefRequestContextImpl> CefBrowserContext::GetAnyRequestContext(

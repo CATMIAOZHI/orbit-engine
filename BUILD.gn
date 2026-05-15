@@ -327,6 +327,7 @@ group("cef") {
     deps += [
       ":libcef",
       ":libcef_dll_wrapper",
+      ":cef_resources_android",
       "tests/cef_android_test",
     ]
   } else {
@@ -1139,8 +1140,16 @@ source_set("libcef_static") {
       "libcef/browser/menu_manager.h",
       "libcef/browser/permission_prompt.cc",
       "libcef/browser/permission_prompt.h",
+      "libcef/browser/media_router/media_route_impl.cc",
+      "libcef/browser/media_router/media_route_impl.h",
+      "libcef/browser/media_router/media_router_impl.cc",
+      "libcef/browser/media_router/media_router_impl.h",
       "libcef/browser/media_router/media_router_manager.cc",
       "libcef/browser/media_router/media_router_manager.h",
+      "libcef/browser/media_router/media_sink_impl.cc",
+      "libcef/browser/media_router/media_sink_impl.h",
+      "libcef/browser/media_router/media_source_impl.cc",
+      "libcef/browser/media_router/media_source_impl.h",
       "libcef/browser/browser_host_create.cc",
       "libcef/browser/printing/print_util.cc",
       "libcef/browser/printing/print_util.h",
@@ -1148,6 +1157,7 @@ source_set("libcef_static") {
       "libcef/browser/chrome/chrome_browser_host_impl.h",
       "libcef/browser/chrome/chrome_browser_delegate.cc",
       "libcef/browser/chrome/chrome_browser_delegate.h",
+      "libcef/browser/alloy/dialogs/alloy_web_contents_dialog_helper.cc",
     ]
     # Exclude all Views UI framework files (toolkit_views=false on Android).
     sources -= [
@@ -1241,7 +1251,7 @@ source_set("libcef_static") {
       "//chrome/app/chrome_main_mac.h",
       "//chrome/app/chrome_main_mac.mm",
     ]
-  } else {
+  } else if (!is_android) {
     sources += [
       "libcef/browser/chrome/chrome_web_contents_view_delegate_cef.cc",
     ]
@@ -1842,6 +1852,98 @@ action("make_colorids_header") {
   args = rebase_path(outputs + inputs, root_build_dir)
 }
 
+# Android resource packing. On desktop this is done by //chrome:packed_resources
+# which is not available on Android. We create a minimal set of pak files for
+# headless/OSR use.
+if (is_android) {
+  repack("cef_pak_android") {
+    output = "$root_out_dir/cef.pak"
+    sources = [
+      "$root_gen_dir/cef/cef_resources.pak",
+      "$root_gen_dir/content/content_resources.pak",
+      "$root_gen_dir/net/net_resources.pak",
+      "$root_gen_dir/third_party/blink/public/resources/blink_resources.pak",
+      "$root_gen_dir/ui/webui/resources/webui_resources.pak",
+      "$root_gen_dir/components/components_resources.pak",
+      "$root_gen_dir/mojo/public/js/mojo_bindings_resources.pak",
+      "$root_gen_dir/base/tracing/protos/tracing_proto_resources.pak",
+    ]
+    deps = [
+      ":cef_resources",
+      "//content:content_resources",
+      "//net:net_resources",
+      "//third_party/blink/public:resources",
+      "//ui/webui/resources",
+      "//components/resources",
+      "//mojo/public/js:resources",
+      "//base/tracing/protos:chrome_track_event_resources",
+    ]
+  }
+
+  repack("cef_100_percent_pak_android") {
+    output = "$root_out_dir/cef_100_percent.pak"
+    sources = [
+      "$root_gen_dir/components/components_resources_100_percent.pak",
+      "$root_gen_dir/third_party/blink/public/resources/blink_scaled_resources_100_percent.pak",
+      "$root_gen_dir/ui/resources/ui_resources_100_percent.pak",
+    ]
+    deps = [
+      "//components/resources:components_scaled_resources",
+      "//third_party/blink/public:scaled_resources_100_percent",
+      "//ui/resources:ui_resources_grd",
+    ]
+  }
+
+  repack("cef_200_percent_pak_android") {
+    output = "$root_out_dir/cef_200_percent.pak"
+    sources = [
+      "$root_gen_dir/components/components_resources_200_percent.pak",
+      "$root_gen_dir/third_party/blink/public/resources/blink_scaled_resources_200_percent.pak",
+      "$root_gen_dir/ui/resources/ui_resources_200_percent.pak",
+    ]
+    deps = [
+      "//components/resources:components_scaled_resources",
+      "//third_party/blink/public:scaled_resources_200_percent",
+      "//ui/resources:ui_resources_grd",
+    ]
+  }
+
+  # Combined locale pak for Android (en-US only for now).
+  # On desktop this is done by chrome_repack_locales.gni.
+  repack("cef_locale_en_us_android") {
+    output = "$root_out_dir/locales/en-US.pak"
+    sources = [
+      "$root_gen_dir/cef/cef_strings_en-US.pak",
+      "$root_gen_dir/chrome/branded_strings_en-US.pak",
+      "$root_gen_dir/chrome/generated_resources_en-US.pak",
+      "$root_gen_dir/chrome/locale_settings_en-US.pak",
+      "$root_gen_dir/components/strings/components_strings_en-US.pak",
+      "$root_gen_dir/third_party/blink/public/strings/blink_strings_en-US.pak",
+      "$root_gen_dir/ui/strings/app_locale_settings_en-US.pak",
+      "$root_gen_dir/ui/strings/ui_strings_en-US.pak",
+    ]
+    deps = [
+      ":cef_strings",
+      "//chrome/app:branded_strings",
+      "//chrome/app:generated_resources",
+      "//chrome/app/resources:locale_settings",
+      "//components/strings:components_strings",
+      "//third_party/blink/public/strings",
+      "//ui/strings:app_locale_settings",
+      "//ui/strings:ui_strings",
+    ]
+  }
+
+  group("cef_resources_android") {
+    deps = [
+      ":cef_pak_android",
+      ":cef_100_percent_pak_android",
+      ":cef_200_percent_pak_android",
+      ":cef_locale_en_us_android",
+    ]
+  }
+}
+
 # Generate pack files and associated CEF header files.
 group("cef_make_headers") {
   deps = [
@@ -2088,12 +2190,6 @@ if (is_mac) {
         # Export cef_* symbols for consumers of libcef.so.
         "-Wl,--version-script=" +
             rebase_path("//cef/libcef_dll/libcef.lst"),
-        # Demote undefined symbols from desktop features (Views, printing,
-        # media router, context menus) to warnings instead of errors.
-        # These symbols are referenced but never called at runtime in the
-        # Android headless/OSR configuration.
-        "-Wl,--warn-unresolved-symbols",
-        "-Wl,--error-limit=0",
       ]
     }
   }

@@ -179,8 +179,9 @@ gfx::Point CefBrowserPlatformDelegateOsr::GetScreenPoint(
     if (handler->GetScreenPoint(browser_.get(), view.x(), view.y(), screenX,
                                 screenY)) {
       gfx::Point screen_point(screenX, screenY);
-#if !BUILDFLAG(IS_MAC)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
       // Mac always operates in DIP coordinates so |want_dip_coords| is ignored.
+      // Android does not use Aura display detection for DIP conversion.
       if (want_dip_coords) {
         // Convert to DIP coordinates.
         const auto& display = view_util::GetDisplayNearestPoint(
