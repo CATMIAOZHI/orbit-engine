@@ -8,7 +8,10 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "build/build_config.h"
+#if !BUILDFLAG(IS_ANDROID)
 #include "cef/libcef/browser/alloy/dialogs/alloy_web_contents_dialog_helper.h"
+#endif
 #include "cef/libcef/browser/browser_platform_delegate.h"
 #include "components/find_in_page/find_notification_details.h"
 #include "content/public/browser/web_contents.h"
@@ -64,8 +67,10 @@ class CefBrowserPlatformDelegateAlloy : public CefBrowserPlatformDelegate {
   // creation.
   std::unique_ptr<content::WebContents> owned_web_contents_;
 
+#if !BUILDFLAG(IS_ANDROID)
   // Used for the print preview dialog.
   std::unique_ptr<AlloyWebContentsDialogHelper> web_contents_dialog_helper_;
+#endif
 
   // The last find result. This object contains details about the number of
   // matches, the find selection rectangle, etc.

@@ -21,7 +21,7 @@
 #endif
 
 int main(int argc, char* argv[]) {
-  LOGI("Cefrium test starting (C API)");
+  LOGI("Cefrium test starting");
 
   cef_main_args_t main_args;
   main_args.argc = argc;
@@ -33,7 +33,8 @@ int main(int argc, char* argv[]) {
     return exit_code;
   }
 
-  LOGI("CefExecuteProcess returned %d, continuing as browser process", exit_code);
+  LOGI("CefExecuteProcess returned %d, continuing as browser process",
+       exit_code);
 
   // Configure settings.
   cef_settings_t settings;
