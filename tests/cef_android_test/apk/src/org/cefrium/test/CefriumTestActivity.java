@@ -8,6 +8,8 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 
+import org.chromium.base.ContextUtils;
+
 /**
  * Minimal Activity that initializes CEF and logs the result.
  * This is the Phase 2 test harness — proves CefInitialize works on Android.
@@ -21,10 +23,16 @@ public class CefriumTestActivity extends Activity {
 
         Log.i(TAG, "CefriumTestActivity.onCreate");
 
-        // Load the native library (libcef.so and our JNI bridge).
+        // Register application context with Chromium's base library.
+        ContextUtils.initApplicationContext(getApplicationContext());
+
+        // Load native libraries. libcef.so provides JNI_OnLoad which registers
+        // the JVM with Chromium. libcefrium_test.so provides the JNI bridge.
         try {
+            System.loadLibrary("cef");
+            Log.i(TAG, "libcef.so loaded (JNI_OnLoad registered JVM)");
             System.loadLibrary("cefrium_test");
-            Log.i(TAG, "Native library loaded");
+            Log.i(TAG, "libcefrium_test.so loaded");
         } catch (UnsatisfiedLinkError e) {
             Log.e(TAG, "Failed to load native library: " + e.getMessage());
             finish();

@@ -3,7 +3,9 @@
 # found in the LICENSE file.
 
 {
-  /* Only export necessary symbols from libcef.so. */
-  global: cef_*;
+  /* Export CEF C API and Android JNI entry point from libcef.so. */
+  global:
+    cef_*;
+    JNI_OnLoad;
   local: *;
 };
