@@ -17,6 +17,7 @@
 
 #include "base/android/jni_android.h"
 #include "base/at_exit.h"
+#include "ui/base/resource/resource_bundle_android.h"
 
 // Allow our AtExitManager to shadow the Zygote's one.
 class CefAtExitManager : public base::AtExitManager {
@@ -32,6 +33,10 @@ __attribute__((visibility("default")))
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   g_at_exit_manager = new CefAtExitManager();
   base::android::InitVM(vm);
+
+  // Tell Chromium that locale paks are in the APK's stored-locales/ directory.
+  ui::SetLocalePaksStoredInApk(true);
+
   return JNI_VERSION_1_4;
 }
 
