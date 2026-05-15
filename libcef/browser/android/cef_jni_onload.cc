@@ -6,7 +6,9 @@
 //
 // Called automatically by the Android runtime when the library is loaded
 // via System.loadLibrary(). Registers the JVM with Chromium's base layer
-// so that all JNI calls throughout libcef.so use the correct JavaVM pointer.
+// and initializes JNI native method registration so that all JNI calls
+// throughout libcef.so use the correct JavaVM pointer and find their
+// Java counterparts.
 //
 // This is the Android equivalent of DllMain on Windows — a platform-specific
 // library entry point that CEF needs but the C API does not expose directly.
@@ -19,6 +21,13 @@ extern "C" {
 
 __attribute__((visibility("default")))
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+  // Register the JVM pointer with Chromium's base layer.
+  // This makes jni_zero::AttachCurrentThread() work throughout libcef.so.
+  //
+  // We intentionally do NOT call content::android::OnJNIOnLoadInit() here
+  // because it creates an AtExitManager that conflicts with the one from
+  // the Android Zygote process. CEF handles its own content initialization
+  // in CefMainRunner::ContentMainInitialize().
   base::android::InitVM(vm);
   return JNI_VERSION_1_4;
 }
