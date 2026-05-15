@@ -2014,7 +2014,7 @@ if (is_android) {
   }
 
   repack("cef_100_percent_pak_android") {
-    output = "$root_out_dir/cef_100_percent.pak"
+    output = "$root_out_dir/chrome_100_percent.pak"
     sources = [
       "$root_gen_dir/components/components_resources_100_percent.pak",
       "$root_gen_dir/third_party/blink/public/resources/blink_scaled_resources_100_percent.pak",
@@ -2028,7 +2028,7 @@ if (is_android) {
   }
 
   repack("cef_200_percent_pak_android") {
-    output = "$root_out_dir/cef_200_percent.pak"
+    output = "$root_out_dir/chrome_200_percent.pak"
     sources = [
       "$root_gen_dir/components/components_resources_200_percent.pak",
       "$root_gen_dir/third_party/blink/public/resources/blink_scaled_resources_200_percent.pak",
