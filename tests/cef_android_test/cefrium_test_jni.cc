@@ -9,9 +9,6 @@
 
 #include <string>
 
-// base::android for proper JVM initialization with JNI registration.
-#include "base/android/jni_android.h"
-#include "base/android/library_loader/library_loader_hooks.h"
 #include "include/capi/cef_app_capi.h"
 #include "include/capi/cef_browser_capi.h"
 #include "include/internal/cef_types.h"
@@ -24,18 +21,9 @@
 
 static bool g_cef_initialized = false;
 
-// Called by the VM when the shared library is loaded.
-// Sets g_jvm so that jni_zero::IsVMInitialized() returns true and
-// jni_zero::AttachCurrentThread() can obtain a JNIEnv.
-// We do NOT call jni_zero::InitVM() because it requires JNI multiplexing
-// hash alignment that is auto-generated per-APK. CEF will handle its own
-// JNI class registration during CefInitialize.
-extern "C" __attribute__((visibility("default")))
-JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
-  base::android::InitVM(vm);
-  LOGI("JNI_OnLoad: Chromium JNI initialized");
-  return JNI_VERSION_1_4;
-}
+// JNI_OnLoad is handled by libcef.so (cef_jni_onload.cc).
+// When System.loadLibrary("cefrium_test") loads libcefrium_test.so,
+// Android loads libcef.so as a dependency first and calls its JNI_OnLoad.
 
 extern "C" __attribute__((visibility("default"))) JNIEXPORT jint JNICALL
 Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
