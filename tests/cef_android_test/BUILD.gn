@@ -30,7 +30,10 @@ shared_library("libcefrium_test") {
 generate_jni_registration("cefrium_jni_registration") {
   testonly = true
   java_targets = [ ":cefrium_test_apk" ]
-  native_deps = [ ":libcefrium_test" ]
+  native_deps = [
+    ":libcefrium_test",
+    "//cef:libcef",
+  ]
 
   # CEF includes Chrome native code but not all Chrome Java classes.
   # Allow mismatches between native JNI refs and available Java classes.
