@@ -491,8 +491,10 @@ void AlloyBrowserHostImpl::WindowDestroyed() {
   DCHECK(!window_destroyed_);
   window_destroyed_ = true;
 
+#if !BUILDFLAG(IS_ANDROID)
   // Destroy objects that may reference the window.
   menu_manager_.reset(nullptr);
+#endif
 
   CloseBrowser(true);
 }
@@ -511,9 +513,11 @@ void AlloyBrowserHostImpl::DestroyBrowser() {
   if (javascript_dialog_manager_.get()) {
     javascript_dialog_manager_->Destroy();
   }
+#if !BUILDFLAG(IS_ANDROID)
   if (menu_manager_.get()) {
     menu_manager_->Destroy();
   }
+#endif
 
   // Disassociate the platform delegate from this browser. This will trigger
   // WebContents destruction in most cases.
@@ -521,9 +525,13 @@ void AlloyBrowserHostImpl::DestroyBrowser() {
 
   // Delete objects created by the platform delegate that may be referenced by
   // the WebContents.
+#if !BUILDFLAG(IS_ANDROID)
   file_dialog_manager_.reset(nullptr);
+#endif
   javascript_dialog_manager_.reset(nullptr);
+#if !BUILDFLAG(IS_ANDROID)
   menu_manager_.reset(nullptr);
+#endif
 
   // Delete the audio capturer
   if (recently_audible_timer_) {
@@ -537,9 +545,11 @@ void AlloyBrowserHostImpl::DestroyBrowser() {
 
 void AlloyBrowserHostImpl::CancelContextMenu() {
   CEF_REQUIRE_UIT();
+#if !BUILDFLAG(IS_ANDROID)
   if (menu_manager_) {
     menu_manager_->CancelContextMenu();
   }
+#endif
 }
 
 bool AlloyBrowserHostImpl::MaybeAllowNavigation(
@@ -1100,11 +1110,15 @@ void AlloyBrowserHostImpl::RunFileChooser(
 bool AlloyBrowserHostImpl::ShowContextMenu(
     const content::ContextMenuParams& params) {
   CEF_REQUIRE_UIT();
+#if !BUILDFLAG(IS_ANDROID)
   if (!menu_manager_.get() && platform_delegate_) {
     menu_manager_ = std::make_unique<CefMenuManager>(
         this, platform_delegate_->CreateMenuRunner());
   }
   return menu_manager_->CreateContextMenu(params);
+#else
+  return false;
+#endif
 }
 
 void AlloyBrowserHostImpl::UpdatePreferredSize(content::WebContents* source,

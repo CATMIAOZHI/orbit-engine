@@ -312,6 +312,7 @@ class CefContextMenuObserver : public RenderViewContextMenuObserver,
   base::WeakPtrFactory<CefContextMenuObserver> weak_ptr_factory_{this};
 };
 
+#if !BUILDFLAG(IS_ANDROID)
 std::unique_ptr<RenderViewContextMenuObserver> MenuCreatedCallback(
     RenderViewContextMenu* context_menu) {
   auto browser = CefBrowserHostBase::GetBrowserForContents(
@@ -341,14 +342,17 @@ bool MenuShowHandlerCallback(RenderViewContextMenu* context_menu) {
   }
   return false;
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
 void RegisterCallbacks() {
+#if !BUILDFLAG(IS_ANDROID)
   RenderViewContextMenu::RegisterMenuCreatedCallback(
       base::BindRepeating(&MenuCreatedCallback));
   RenderViewContextMenu::RegisterMenuShowHandlerCallback(
       base::BindRepeating(&MenuShowHandlerCallback));
+#endif
 }
 
 bool HandleContextMenu(content::WebContents* opener,

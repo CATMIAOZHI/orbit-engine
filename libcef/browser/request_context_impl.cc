@@ -520,9 +520,13 @@ void CefRequestContextImpl::ResolveHost(
 
 CefRefPtr<CefMediaRouter> CefRequestContextImpl::GetMediaRouter(
     CefRefPtr<CefCompletionCallback> callback) {
+#if !BUILDFLAG(IS_ANDROID)
   CefRefPtr<CefMediaRouterImpl> media_router = new CefMediaRouterImpl();
   InitializeMediaRouterInternal(media_router, callback);
   return media_router.get();
+#else
+  return nullptr;
+#endif
 }
 
 CefRefPtr<CefValue> CefRequestContextImpl::GetWebsiteSetting(
@@ -645,6 +649,7 @@ void CefRequestContextImpl::SetChromeColorScheme(cef_color_variant_t variant,
 }
 
 cef_color_variant_t CefRequestContextImpl::GetChromeColorSchemeMode() {
+#if !BUILDFLAG(IS_ANDROID)
   if (!VerifyBrowserContext()) {
     return CEF_COLOR_VARIANT_SYSTEM;
   }
@@ -661,10 +666,12 @@ cef_color_variant_t CefRequestContextImpl::GetChromeColorSchemeMode() {
   }
 
   DCHECK(false);  // Not reached.
+#endif
   return CEF_COLOR_VARIANT_SYSTEM;
 }
 
 cef_color_t CefRequestContextImpl::GetChromeColorSchemeColor() {
+#if !BUILDFLAG(IS_ANDROID)
   if (!VerifyBrowserContext()) {
     return 0;
   }
@@ -674,11 +681,13 @@ cef_color_t CefRequestContextImpl::GetChromeColorSchemeColor() {
   if (const auto& user_color = theme_service->GetUserColor()) {
     return *user_color;
   }
+#endif
 
   return 0;
 }
 
 cef_color_variant_t CefRequestContextImpl::GetChromeColorSchemeVariant() {
+#if !BUILDFLAG(IS_ANDROID)
   if (!VerifyBrowserContext()) {
     return CEF_COLOR_VARIANT_SYSTEM;
   }
@@ -699,6 +708,7 @@ cef_color_variant_t CefRequestContextImpl::GetChromeColorSchemeVariant() {
   }
 
   DCHECK(false);  // Not reached.
+#endif
   return CEF_COLOR_VARIANT_SYSTEM;
 }
 
@@ -993,6 +1003,9 @@ void CefRequestContextImpl::SetChromeColorSchemeInternal(
     cef_color_variant_t variant,
     cef_color_t user_color,
     CefBrowserContext::Getter browser_context_getter) {
+#if BUILDFLAG(IS_ANDROID)
+  return;
+#else
   auto* browser_context = browser_context_getter.Run();
   if (!browser_context) {
     return;
@@ -1062,6 +1075,7 @@ void CefRequestContextImpl::SetChromeColorSchemeInternal(
       theme_service->UseDeviceTheme(false);
     }
   }
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void CefRequestContextImpl::InitializeCookieManagerInternal(
@@ -1081,6 +1095,7 @@ void CefRequestContextImpl::InitializeCookieManagerInternal(
 void CefRequestContextImpl::InitializeMediaRouterInternal(
     CefRefPtr<CefMediaRouterImpl> media_router,
     CefRefPtr<CefCompletionCallback> callback) {
+#if !BUILDFLAG(IS_ANDROID)
   GetBrowserContext(content::GetUIThreadTaskRunner({}),
                     base::BindOnce(
                         [](CefRefPtr<CefMediaRouterImpl> media_router,
@@ -1090,6 +1105,7 @@ void CefRequestContextImpl::InitializeMediaRouterInternal(
                                                    callback);
                         },
                         media_router, callback));
+#endif
 }
 
 CefBrowserContext* CefRequestContextImpl::browser_context() const {

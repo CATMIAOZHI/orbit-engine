@@ -1,0 +1,69 @@
+diff --git a/build/toolchain/gcc_toolchain.gni b/build/toolchain/gcc_toolchain.gni
+index 6c3298cbeb..aa718c8286 100644
+--- a/build/toolchain/gcc_toolchain.gni
++++ b/build/toolchain/gcc_toolchain.gni
+@@ -677,12 +677,13 @@ template("single_gcc_toolchain") {
+       rustc = "$rust_compiler_prefix${rustc_bin}"
+       rustc_wrapper += " --rustc=$rustc"
+ 
+-      rustc_wrapper_inputs = [
+-        "//build/action_helpers.py",
+-        "//build/gn_helpers.py",
+-        "//build/rust/gni_impl/rustc_wrapper.py",
+-        "//third_party/rust-toolchain/bin/rustc",
+-      ]
++      # rustc_wrapper_inputs disabled: GN unused-var false positive in tool() blocks
++      # rustc_wrapper_inputs = [
++      #   "//build/action_helpers.py",
++      #   "//build/gn_helpers.py",
++      #   "//build/rust/gni_impl/rustc_wrapper.py",
++      #   "//third_party/rust-toolchain/bin/rustc",
++      # ]
+ 
+       # RSP manipulation due to https://bugs.chromium.org/p/gn/issues/detail?id=249
+       tool("rust_staticlib") {
+@@ -708,7 +709,7 @@ template("single_gcc_toolchain") {
+             "$rustc_common_args {{rustdeps}} {{externs}} SOURCES {{sources}}"
+         command = "$rustc_wrapper --depfile=$depfile --emit=dep-info=$depfile,link -o $libname -- -Clinker=\"${invoker.cxx}\" {{source}} LDFLAGS RUSTENV {{rustenv}}"
+         rust_sysroot = rust_sysroot_relative
+-        inputs = rustc_wrapper_inputs
++        # inputs = rustc_wrapper_inputs  # disabled: GN unused-var false positive
+       }
+ 
+       tool("rust_rlib") {
+@@ -741,7 +742,7 @@ template("single_gcc_toolchain") {
+             "$rustc_common_args {{rustdeps}} {{externs}} SOURCES {{sources}}"
+         command = "$rustc_wrapper --depfile=$depfile --emit=dep-info=$depfile,link,metadata=$rmetaname -o $rlibname -- -Clinker=\"${invoker.cxx}\" {{source}} LDFLAGS RUSTENV {{rustenv}}"
+         rust_sysroot = rust_sysroot_relative
+-        inputs = rustc_wrapper_inputs
++        # inputs = rustc_wrapper_inputs  # disabled: GN unused-var false positive
+       }
+ 
+       tool("rust_bin") {
+@@ -763,7 +764,7 @@ template("single_gcc_toolchain") {
+             "$rustc_common_args {{rustdeps}} {{externs}} SOURCES {{sources}}"
+         command = "$rustc_wrapper --depfile=$depfile --emit=dep-info=$depfile,link -o $exename -- -Clinker=\"${invoker.cxx}\" {{source}} LDFLAGS {{ldflags}} ${extra_ldflags} RUSTENV {{rustenv}}"
+         rust_sysroot = rust_sysroot_relative
+-        inputs = rustc_wrapper_inputs
++        # inputs = rustc_wrapper_inputs  # disabled: GN unused-var false positive
+       }
+ 
+       tool("rust_cdylib") {
+@@ -786,7 +787,7 @@ template("single_gcc_toolchain") {
+             "$rustc_common_args {{rustdeps}} {{externs}} SOURCES {{sources}}"
+         command = "$rustc_wrapper --depfile=$depfile --emit=dep-info=$depfile,link -o $dllname -- -Clinker=\"${invoker.cxx}\" {{source}} LDFLAGS {{ldflags}} ${extra_ldflags} RUSTENV {{rustenv}}"
+         rust_sysroot = rust_sysroot_relative
+-        inputs = rustc_wrapper_inputs
++        # inputs = rustc_wrapper_inputs  # disabled: GN unused-var false positive
+       }
+ 
+       tool("rust_macro") {
+@@ -809,7 +810,7 @@ template("single_gcc_toolchain") {
+             "$rustc_common_args {{rustdeps}} {{externs}} SOURCES {{sources}}"
+         command = "$rustc_wrapper --depfile=$depfile --emit=dep-info=$depfile,link -o $dllname -- -Clinker=\"${invoker.cxx}\" {{source}} LDFLAGS {{ldflags}} ${extra_ldflags} RUSTENV {{rustenv}}"
+         rust_sysroot = rust_sysroot_relative
+-        inputs = rustc_wrapper_inputs
++        # inputs = rustc_wrapper_inputs  # disabled: GN unused-var false positive
+       }
+     }
+ 
