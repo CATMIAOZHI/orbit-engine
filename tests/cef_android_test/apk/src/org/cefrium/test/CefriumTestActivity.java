@@ -32,14 +32,13 @@ public class CefriumTestActivity extends Activity {
         // Initialize path utilities before loading native libraries.
         PathUtils.setPrivateDataDirectorySuffix("cefrium");
 
-        // Load native libraries via Chromium's LibraryLoader.
-        // This handles: JNI_OnLoad, AndroidInfo initialization, PathUtils,
-        // and all other base layer initialization that raw System.loadLibrary skips.
+        // Load native libraries directly. libcef.so's JNI_OnLoad registers
+        // the JVM with Chromium's jni_zero layer.
         try {
-            LibraryLoader.getInstance().setLibraryProcessType(
-                LibraryProcessType.PROCESS_BROWSER);
-            LibraryLoader.getInstance().ensureInitialized();
-            Log.i(TAG, "Chromium LibraryLoader initialized");
+            System.loadLibrary("cef");
+            Log.i(TAG, "libcef.so loaded");
+            System.loadLibrary("cefrium_test");
+            Log.i(TAG, "libcefrium_test.so loaded");
         } catch (UnsatisfiedLinkError e) {
             Log.e(TAG, "Failed to load native library: " + e.getMessage());
             finish();
