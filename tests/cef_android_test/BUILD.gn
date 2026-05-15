@@ -1,22 +1,70 @@
-# Cefrium Android headless test harness.
-# Uses CEF C API directly. Built as a raw Android executable that can
-# be pushed via adb and run via adb shell.
+# Cefrium Android test APK.
+# Minimal Android app that loads libcef.so, calls CefInitialize,
+# and logs the result. Phase 2 test harness.
 
-import("//testing/test.gni")
+import("//build/config/android/rules.gni")
 
-executable("cef_android_test") {
+# Native shared library that bridges Java → CEF C API.
+shared_library("libcefrium_test") {
   testonly = true
-  sources = [ "main.cc" ]
+  sources = [ "cefrium_test_jni.cc" ]
 
   deps = [
     "//cef:libcef",
     "//base",
-    "//base/allocator/partition_allocator/src/partition_alloc",
+    "//content/public/app",
+    "//third_party/jni_zero",
   ]
 
   configs += [ "//cef:libcef_includes_config" ]
+  libs = [ "log" ]
+  ldflags = [
+    "-Wl,--version-script=" +
+        rebase_path("libcefrium_test.lst", root_build_dir),
+  ]
+}
 
-  if (is_android) {
-    libs = [ "log" ]
-  }
+# Java library for the test activity.
+android_library("cefrium_test_java") {
+  testonly = true
+  sources = [
+    "apk/src/org/cefrium/test/CefriumTestActivity.java",
+  ]
+}
+
+# Assets: pak files, ICU data, V8 snapshot.
+android_assets("cefrium_test_assets") {
+  testonly = true
+  sources = [
+    "$root_out_dir/cef.pak",
+    "$root_out_dir/cef_100_percent.pak",
+    "$root_out_dir/cef_200_percent.pak",
+  ]
+  disable_compression = true
+  deps = [
+    "//cef:cef_pak_android",
+    "//cef:cef_100_percent_pak_android",
+    "//cef:cef_200_percent_pak_android",
+    "//gin:v8_snapshot_assets",
+    "//third_party/icu:icu_assets",
+  ]
+}
+
+# The APK itself.
+android_apk("cefrium_test_apk") {
+  testonly = true
+  apk_name = "CefriumTest"
+  android_manifest = "apk/AndroidManifest.xml"
+
+  deps = [
+    ":cefrium_test_assets",
+    ":cefrium_test_java",
+    "//base:base_java",
+    "//content/public/android:content_java",
+    "//net/android:net_java",
+    "//ui/android:ui_java",
+    "//third_party/jni_zero:jni_zero_java",
+  ]
+
+  shared_libraries = [ ":libcefrium_test" ]
 }
