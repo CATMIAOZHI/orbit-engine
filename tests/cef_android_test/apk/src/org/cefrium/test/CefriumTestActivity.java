@@ -8,10 +8,10 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
 
+import org.chromium.base.ApplicationStatus;
+import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.PathUtils;
-import org.chromium.base.library_loader.LibraryLoader;
-import org.chromium.base.library_loader.LibraryProcessType;
 
 /**
  * Minimal Activity that initializes CEF and logs the result.
@@ -29,8 +29,12 @@ public class CefriumTestActivity extends Activity {
         // Register application context with Chromium's base library.
         ContextUtils.initApplicationContext(getApplicationContext());
 
-        // Initialize path utilities before loading native libraries.
+        // Initialize Chromium base utilities before loading native libraries.
+        if (!CommandLine.isInitialized()) {
+            CommandLine.init(null);
+        }
         PathUtils.setPrivateDataDirectorySuffix("cefrium");
+        ApplicationStatus.initialize(getApplication());
 
         // Load native libraries directly. libcef.so's JNI_OnLoad registers
         // the JVM with Chromium's jni_zero layer.
