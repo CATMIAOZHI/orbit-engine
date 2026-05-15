@@ -21,13 +21,6 @@ extern "C" {
 
 __attribute__((visibility("default")))
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
-  // Register the JVM pointer with Chromium's base layer.
-  // This makes jni_zero::AttachCurrentThread() work throughout libcef.so.
-  //
-  // We intentionally do NOT call content::android::OnJNIOnLoadInit() here
-  // because it creates an AtExitManager that conflicts with the one from
-  // the Android Zygote process. CEF handles its own content initialization
-  // in CefMainRunner::ContentMainInitialize().
   base::android::InitVM(vm);
   return JNI_VERSION_1_4;
 }
