@@ -1107,12 +1107,8 @@ source_set("libcef_static") {
     # Exclude sources that depend on Views UI framework (not available on
     # Android where toolkit_views=false).
     sources -= [
-      "libcef/browser/alloy/browser_platform_delegate_alloy.cc",
-      "libcef/browser/alloy/browser_platform_delegate_alloy.h",
       "libcef/browser/alloy/dialogs/alloy_constrained_window_views_client.cc",
       "libcef/browser/alloy/dialogs/alloy_constrained_window_views_client.h",
-      "libcef/browser/alloy/dialogs/alloy_web_contents_dialog_helper.cc",
-      "libcef/browser/alloy/dialogs/alloy_web_contents_dialog_helper.h",
       "libcef/browser/chrome/browser_platform_delegate_chrome.cc",
       "libcef/browser/chrome/browser_platform_delegate_chrome.h",
       "libcef/browser/chrome/extensions/chrome_mime_handler_view_guest_delegate_cef.cc",
