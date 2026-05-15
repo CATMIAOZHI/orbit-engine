@@ -30,6 +30,7 @@ android_library("cefrium_test_java") {
   sources = [
     "apk/src/org/cefrium/test/CefriumTestActivity.java",
   ]
+  deps = [ "//base:base_java" ]
 }
 
 # Assets: pak files, ICU data, V8 snapshot.
