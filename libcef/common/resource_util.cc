@@ -25,6 +25,12 @@
 #include "cef/libcef/common/util_mac.h"
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+#include <limits.h>
+#include <unistd.h>
+#include "third_party/jni_zero/jni_zero.h"
+#endif
+
 namespace resource_util {
 
 namespace {
@@ -71,8 +77,13 @@ bool GetDefaultUserDataDirectory(base::FilePath* result) {
 
 // Based on chrome/common/chrome_paths_android.cc.
 bool GetDefaultUserDataDirectory(base::FilePath* result) {
-  if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, result)) {
-    return false;
+  if (jni_zero::IsVMInitialized()) {
+    if (!base::PathService::Get(base::DIR_ANDROID_APP_DATA, result)) {
+      return false;
+    }
+  } else {
+    // No JVM (headless/CEF mode). Use /data/local/tmp as fallback.
+    *result = base::FilePath(FILE_PATH_LITERAL("/data/local/tmp"));
   }
   *result = result->Append(FILE_PATH_LITERAL("cef_user_data"));
   return true;
@@ -128,6 +139,19 @@ base::FilePath GetResourcesDir() {
 
 base::FilePath GetResourcesDir() {
   base::FilePath pak_dir;
+#if BUILDFLAG(IS_ANDROID)
+  if (!jni_zero::IsVMInitialized()) {
+    // No JVM (headless/CEF mode). Resources are next to the executable.
+    // Cannot use PathService::Get(DIR_EXE) as it may call JNI on Android.
+    char exe_path[PATH_MAX];
+    ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+    if (len > 0) {
+      exe_path[len] = '\0';
+      return base::FilePath(exe_path).DirName();
+    }
+    return base::FilePath(FILE_PATH_LITERAL("/data/local/tmp/cefrium"));
+  }
+#endif
   base::PathService::Get(base::DIR_ASSETS, &pak_dir);
   return pak_dir;
 }

@@ -175,4 +175,53 @@ CefRefPtr<CefWindow> CefWindow::CreateTopLevelWindow(
   return nullptr;
 }
 
+// =============================================================================
+// CefMediaRouter — media routing is not available on Android.
+// =============================================================================
+
+#include "cef/include/cef_media_router.h"
+
+// static
+CefRefPtr<CefMediaRouter> CefMediaRouter::GetGlobalMediaRouter(
+    CefRefPtr<CefCompletionCallback> callback) {
+  return nullptr;
+}
+
+// =============================================================================
+// CefBrowserCreateParams — methods defined in browser_host_create.cc which
+// is excluded from the Android build. These are the correct Android
+// implementations, not stubs.
+// =============================================================================
+
+#include "cef/libcef/browser/browser_host_base.h"
+
+// static
+void CefBrowserCreateParams::InitWindowInfo(CefWindowInfo* window_info,
+                                            CefBrowserHostBase* opener) {
+  // Android does not initialize window info the same way as desktop.
+  if (opener->IsAlloyStyle()) {
+    window_info->runtime_style = CEF_RUNTIME_STYLE_ALLOY;
+  }
+}
+
+void CefBrowserCreateParams::MaybeSetWindowInfo(
+    const CefWindowInfo& new_window_info,
+    bool allow_alloy_style,
+    bool allow_chrome_style) {
+  // On Android, only Alloy style is supported.
+  if (allow_alloy_style) {
+    window_info = std::make_unique<CefWindowInfo>(new_window_info);
+  }
+}
+
+bool CefBrowserCreateParams::IsChromeStyle() const {
+  // Chrome style (Views-based) is not available on Android.
+  return false;
+}
+
+bool CefBrowserCreateParams::IsWindowless() const {
+  return window_info && window_info->windowless_rendering_enabled && client &&
+         client->GetRenderHandler().get();
+}
+
 #endif  // BUILDFLAG(IS_ANDROID)
