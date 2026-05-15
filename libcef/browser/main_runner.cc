@@ -60,17 +60,12 @@ bool CefMainRunner::Initialize(CefSettings* settings,
                                bool* initialized,
                                base::OnceClosure context_initialized) {
 #if BUILDFLAG(IS_ANDROID)
-  // On Android, ContentMainRunnerImpl skips AtExitManager creation
-  // (assumes JNI_OnLoad handles it). For headless/CEF mode without
-  // JVM, we create it here inside libcef.so's address space.
-  if (!exit_manager_) {
-    exit_manager_ = std::make_unique<base::AtExitManager>();
-  }
-
-  // When running without a JVM (headless mode), replace the Android
-  // message pump (which requires JNI/Looper) with a default one
-  // based on epoll/select.
+  // When running without a JVM (headless mode), create AtExitManager
+  // and replace the Android message pump.
   if (!jni_zero::IsVMInitialized()) {
+    if (!exit_manager_) {
+      exit_manager_ = std::make_unique<base::AtExitManager>();
+    }
     base::MessagePump::OverrideMessagePumpForUIFactory(
         []() -> std::unique_ptr<base::MessagePump> {
           return std::make_unique<base::MessagePumpEpoll>();
