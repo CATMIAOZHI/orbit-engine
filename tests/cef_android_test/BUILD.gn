@@ -3,6 +3,7 @@
 # and logs the result. Phase 2 test harness.
 
 import("//build/config/android/rules.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 # Native shared library that bridges Java → CEF C API.
 shared_library("libcefrium_test") {
@@ -22,6 +23,19 @@ shared_library("libcefrium_test") {
     "-Wl,--version-script=" +
         rebase_path("libcefrium_test.lst", root_build_dir),
   ]
+}
+
+# Generate JNI registration (GEN_JNI class) for all Java→native bindings
+# used by the CEF shared library and its dependencies.
+generate_jni_registration("cefrium_jni_registration") {
+  testonly = true
+  java_targets = [ ":cefrium_test_apk" ]
+  native_deps = [ ":libcefrium_test" ]
+
+  # CEF includes Chrome native code but not all Chrome Java classes.
+  # Allow mismatches between native JNI refs and available Java classes.
+  add_stubs_for_missing_jni = true
+  remove_uncalled_jni = true
 }
 
 # Java library for the test activity.
@@ -61,6 +75,7 @@ android_apk("cefrium_test_apk") {
     ":cefrium_test_assets",
     ":cefrium_test_java",
     "//base:base_java",
+    "//chrome/android:base_module_java",
     "//content/public/android:content_java",
     "//net/android:net_java",
     "//ui/android:ui_java",
@@ -68,4 +83,5 @@ android_apk("cefrium_test_apk") {
   ]
 
   shared_libraries = [ ":libcefrium_test" ]
+  srcjar_deps = [ ":cefrium_jni_registration" ]
 }
