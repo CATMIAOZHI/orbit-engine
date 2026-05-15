@@ -400,10 +400,12 @@ class CefRenderWidgetHostViewOSR
 
   int frame_rate_threshold_us_ = 0;
 
+#if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<ui::Compositor> compositor_;
   std::unique_ptr<content::DelegatedFrameHost> delegated_frame_host_;
   std::unique_ptr<content::DelegatedFrameHostClient>
       delegated_frame_host_client_;
+#endif
   std::unique_ptr<ui::Layer> root_layer_;
 
   // Used to allocate LocalSurfaceIds when this is embedding external content.
