@@ -9,6 +9,9 @@ import android.os.Bundle;
 import android.util.Log;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.base.PathUtils;
+import org.chromium.base.library_loader.LibraryLoader;
+import org.chromium.base.library_loader.LibraryProcessType;
 
 /**
  * Minimal Activity that initializes CEF and logs the result.
@@ -26,13 +29,17 @@ public class CefriumTestActivity extends Activity {
         // Register application context with Chromium's base library.
         ContextUtils.initApplicationContext(getApplicationContext());
 
-        // Load native libraries. libcef.so provides JNI_OnLoad which registers
-        // the JVM with Chromium. libcefrium_test.so provides the JNI bridge.
+        // Initialize path utilities before loading native libraries.
+        PathUtils.setPrivateDataDirectorySuffix("cefrium");
+
+        // Load native libraries via Chromium's LibraryLoader.
+        // This handles: JNI_OnLoad, AndroidInfo initialization, PathUtils,
+        // and all other base layer initialization that raw System.loadLibrary skips.
         try {
-            System.loadLibrary("cef");
-            Log.i(TAG, "libcef.so loaded (JNI_OnLoad registered JVM)");
-            System.loadLibrary("cefrium_test");
-            Log.i(TAG, "libcefrium_test.so loaded");
+            LibraryLoader.getInstance().setLibraryProcessType(
+                LibraryProcessType.PROCESS_BROWSER);
+            LibraryLoader.getInstance().ensureInitialized();
+            Log.i(TAG, "Chromium LibraryLoader initialized");
         } catch (UnsatisfiedLinkError e) {
             Log.e(TAG, "Failed to load native library: " + e.getMessage());
             finish();
