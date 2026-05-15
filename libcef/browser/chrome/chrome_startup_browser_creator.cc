@@ -15,6 +15,7 @@ namespace startup_browser_creator {
 
 namespace {
 
+#if !BUILDFLAG(IS_ANDROID)
 bool ProcessCommandLineCallback(const base::CommandLine& command_line,
                                 const base::FilePath& cur_dir) {
   bool handled = false;
@@ -31,12 +32,15 @@ bool ProcessCommandLineCallback(const base::CommandLine& command_line,
 
   return handled;
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
 void RegisterProcessCommandLineCallback() {
+#if !BUILDFLAG(IS_ANDROID)
   StartupBrowserCreator::RegisterProcessCommandLineCallback(
       base::BindRepeating(&ProcessCommandLineCallback));
+#endif
 }
 
 }  // namespace startup_browser_creator

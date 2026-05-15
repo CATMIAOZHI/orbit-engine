@@ -8,12 +8,16 @@
 #include "build/build_config.h"
 #include "cef/libcef/browser/browser_host_base.h"
 #include "cef/libcef/browser/browser_platform_delegate.h"
+#if !BUILDFLAG(IS_ANDROID)
 #include "cef/libcef/browser/chrome/browser_platform_delegate_chrome.h"
 #include "cef/libcef/browser/chrome/views/browser_platform_delegate_chrome_child_window.h"
 #include "cef/libcef/browser/chrome/views/browser_platform_delegate_chrome_views.h"
 #include "cef/libcef/browser/chrome/views/chrome_child_window.h"
+#endif
 #include "cef/libcef/browser/context.h"
+#if !BUILDFLAG(IS_ANDROID)
 #include "cef/libcef/browser/views/browser_platform_delegate_views.h"
+#endif
 
 #if BUILDFLAG(IS_WIN)
 #include "cef/libcef/browser/native/browser_platform_delegate_native_win.h"
@@ -79,6 +83,7 @@ std::unique_ptr<CefBrowserPlatformDelegate> CefBrowserPlatformDelegate::Create(
   const SkColor background_color = CefContext::Get()->GetBackgroundColor(
       &create_params.settings, is_windowless ? STATE_ENABLED : STATE_DISABLED);
 
+#if !BUILDFLAG(IS_ANDROID)
   if (create_params.IsChromeStyle()) {
     CefWindowInfo window_info;
     if (create_params.window_info) {
@@ -114,7 +119,9 @@ std::unique_ptr<CefBrowserPlatformDelegate> CefBrowserPlatformDelegate::Create(
     return std::make_unique<CefBrowserPlatformDelegateViews>(
         std::move(native_delegate),
         static_cast<CefBrowserViewImpl*>(create_params.browser_view.get()));
-  } else if (create_params.window_info) {
+  } else
+#endif  // !BUILDFLAG(IS_ANDROID)
+  if (create_params.window_info) {
     std::unique_ptr<CefBrowserPlatformDelegateNative> native_delegate =
         CreateNativeDelegate(*create_params.window_info, background_color);
     if (is_windowless) {
