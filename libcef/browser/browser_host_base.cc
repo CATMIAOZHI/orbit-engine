@@ -505,6 +505,7 @@ void CefBrowserHostBase::RunFileDialog(
     return;
   }
 
+#if !BUILDFLAG(IS_ANDROID)
   if (!callback || !EnsureFileDialogManager()) {
     LOG(ERROR) << "File dialog canceled due to invalid state.";
     if (callback) {
@@ -515,6 +516,11 @@ void CefBrowserHostBase::RunFileDialog(
 
   file_dialog_manager_->RunFileDialog(mode, title, default_file_path,
                                       accept_filters, callback);
+#else
+  if (callback) {
+    callback->OnFileDialogDismissed({});
+  }
+#endif
 }
 
 void CefBrowserHostBase::StartDownload(const CefString& url) {
@@ -1489,12 +1495,16 @@ void CefBrowserHostBase::ViewText(const std::string& text) {
 void CefBrowserHostBase::RunFileChooserForBrowser(
     const blink::mojom::FileChooserParams& params,
     CefFileDialogManager::RunFileChooserCallback callback) {
+#if !BUILDFLAG(IS_ANDROID)
   if (!EnsureFileDialogManager()) {
     LOG(ERROR) << "File dialog canceled due to invalid state.";
     std::move(callback).Run({});
     return;
   }
   file_dialog_manager_->RunFileChooser(params, std::move(callback));
+#else
+  std::move(callback).Run({});
+#endif
 }
 
 void CefBrowserHostBase::RunSelectFile(
@@ -1507,6 +1517,7 @@ void CefBrowserHostBase::RunSelectFile(
     int file_type_index,
     const base::FilePath::StringType& default_extension,
     gfx::NativeWindow owning_window) {
+#if !BUILDFLAG(IS_ANDROID)
   if (!EnsureFileDialogManager()) {
     LOG(ERROR) << "File dialog canceled due to invalid state.";
     listener->FileSelectionCanceled();
@@ -1515,13 +1526,18 @@ void CefBrowserHostBase::RunSelectFile(
   file_dialog_manager_->RunSelectFile(listener, std::move(policy), type, title,
                                       default_path, file_types, file_type_index,
                                       default_extension, owning_window);
+#else
+  listener->FileSelectionCanceled();
+#endif
 }
 
 void CefBrowserHostBase::SelectFileListenerDestroyed(
     ui::SelectFileDialog::Listener* listener) {
+#if !BUILDFLAG(IS_ANDROID)
   if (file_dialog_manager_) {
     file_dialog_manager_->SelectFileListenerDestroyed(listener);
   }
+#endif
 }
 
 content::JavaScriptDialogManager*
@@ -1580,11 +1596,13 @@ void CefBrowserHostBase::OnBeforeClose() {
 void CefBrowserHostBase::OnBrowserDestroyed() {
   CEF_REQUIRE_UIT();
 
+#if !BUILDFLAG(IS_ANDROID)
   // Destroy any platform constructs.
   if (file_dialog_manager_) {
     file_dialog_manager_->Destroy();
     file_dialog_manager_.reset();
   }
+#endif
 
   for (auto& observer : observers_) {
     observer.OnBrowserDestroyed(this);
@@ -1735,8 +1753,12 @@ bool CefBrowserHostBase::EnsureFileDialogManager() {
     return false;
   }
 
+#if !BUILDFLAG(IS_ANDROID)
   if (!file_dialog_manager_) {
     file_dialog_manager_ = std::make_unique<CefFileDialogManager>(this);
   }
   return true;
+#else
+  return false;
+#endif
 }

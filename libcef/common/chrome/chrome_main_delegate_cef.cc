@@ -456,7 +456,7 @@ void ChromeMainDelegateCef::PreSandboxStartup() {
   if (process_type.empty()) {
 #if BUILDFLAG(IS_MAC)
     util_mac::PreSandboxStartup();
-#elif BUILDFLAG(IS_POSIX)
+#elif BUILDFLAG(IS_LINUX)
     util_linux::PreSandboxStartup();
 #endif
   }

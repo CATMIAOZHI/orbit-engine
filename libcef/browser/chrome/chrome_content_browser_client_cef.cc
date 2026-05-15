@@ -746,7 +746,11 @@ ChromeContentBrowserClientCef::GetWebContentsViewDelegate(
 
   // Used to customize context menu behavior for Alloy style. Called during
   // WebContents::Create() so we don't yet have an associated BrowserHost.
+#if !BUILDFLAG(IS_ANDROID)
   return CreateWebContentsViewDelegate(web_contents);
+#else
+  return nullptr;
+#endif
 }
 
 CefRefPtr<CefRequestContextImpl>
@@ -769,9 +773,10 @@ ChromeContentBrowserClientCef::user_blocking_task_runner() const {
   return browser_main_parts_->user_blocking_task_runner();
 }
 
-#if !BUILDFLAG(IS_MAC)
+#if !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
 // Defined in a separate .mm file on MacOS to work around
 // ChromeWebContentsViewDelegateViewsMac containing ObjC references.
+// Not available on Android (Views-based delegates not supported).
 
 // static
 std::unique_ptr<content::WebContentsViewDelegate>

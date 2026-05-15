@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "base/at_exit.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "cef/include/cef_app.h"
@@ -103,7 +104,12 @@ class CefMainRunner final {
 
   std::unique_ptr<ChromeMainDelegateCef> main_delegate_;
 
+#if BUILDFLAG(IS_ANDROID)
+  // AtExitManager for headless Android mode (no JVM/JNI_OnLoad).
+  std::unique_ptr<base::AtExitManager> exit_manager_;
+#else
   std::unique_ptr<ScopedKeepAlive> keep_alive_;
+#endif
   bool do_message_loop_work_called_ = false;
 
   raw_ptr<CefSettings> settings_ = nullptr;

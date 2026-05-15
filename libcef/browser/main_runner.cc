@@ -5,8 +5,14 @@
 
 #include "cef/libcef/browser/main_runner.h"
 
+#include "base/at_exit.h"
 #include "base/base_switches.h"
 #include "base/command_line.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "base/message_loop/message_pump.h"
+#include "base/message_loop/message_pump_epoll.h"
+#include "third_party/jni_zero/jni_zero.h"
+#endif
 #include "base/debug/debugger.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
@@ -53,6 +59,25 @@ bool CefMainRunner::Initialize(CefSettings* settings,
                                void* windows_sandbox_info,
                                bool* initialized,
                                base::OnceClosure context_initialized) {
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, ContentMainRunnerImpl skips AtExitManager creation
+  // (assumes JNI_OnLoad handles it). For headless/CEF mode without
+  // JVM, we create it here inside libcef.so's address space.
+  if (!exit_manager_) {
+    exit_manager_ = std::make_unique<base::AtExitManager>();
+  }
+
+  // When running without a JVM (headless mode), replace the Android
+  // message pump (which requires JNI/Looper) with a default one
+  // based on epoll/select.
+  if (!jni_zero::IsVMInitialized()) {
+    base::MessagePump::OverrideMessagePumpForUIFactory(
+        []() -> std::unique_ptr<base::MessagePump> {
+          return std::make_unique<base::MessagePumpEpoll>();
+        });
+  }
+#endif
+
   settings_ = settings;
   application_ = application;
 
@@ -123,7 +148,9 @@ void CefMainRunner::Shutdown(base::OnceClosure shutdown_on_ui_thread,
   std::move(finalize_shutdown).Run();
 
   main_delegate_.reset();
+#if !BUILDFLAG(IS_ANDROID)
   keep_alive_.reset();
+#endif
   settings_ = nullptr;
   application_ = nullptr;
 }
@@ -155,8 +182,10 @@ void CefMainRunner::RunMessageLoop() {
     // UI thread before terminating the message loop (e.g. from
     // CefQuitMessageLoop or FinishShutdownOnUIThread when running with
     // multi-threaded message loop).
+#if !BUILDFLAG(IS_ANDROID)
     keep_alive_ = std::make_unique<ScopedKeepAlive>(
         KeepAliveOrigin::APP_CONTROLLER, KeepAliveRestartOption::DISABLED);
+#endif
 
 #if !BUILDFLAG(IS_ANDROID)
     // The QuitClosure will be executed from BrowserProcessImpl::Unpin() via
@@ -385,7 +414,9 @@ void CefMainRunner::BeforeMainInitialize(const CefMainArgs& args) {
 
 bool CefMainRunner::HandleMainMessageLoopQuit() {
   // May be called multiple times. See comments in RunMainMessageLoopBefore.
+#if !BUILDFLAG(IS_ANDROID)
   keep_alive_.reset();
+#endif
 
   // If we're initialized it means that the BrowserProcessImpl was created and
   // registered as a KeepAliveStateObserver, in which case we wait for all
@@ -473,7 +504,9 @@ void CefMainRunner::FinishShutdownOnUIThread() {
   if (multi_threaded_message_loop_) {
     // Don't wait for this to be called in ChromeMainDelegate::ProcessExiting.
     // It is safe to call multiple times.
+#if !BUILDFLAG(IS_ANDROID)
     ChromeProcessSingleton::DeleteInstance();
+#endif
   }
 
   static_cast<content::ContentMainRunnerImpl*>(main_runner_.get())

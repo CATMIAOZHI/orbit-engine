@@ -104,9 +104,11 @@ void CefBrowserPlatformDelegateAlloy::BrowserCreated(
 
   AttachHelpers(web_contents_);
 
+#if !BUILDFLAG(IS_ANDROID)
   // Used for print preview and JavaScript dialogs.
   web_contents_dialog_helper_ =
       std::make_unique<AlloyWebContentsDialogHelper>(web_contents_, this);
+#endif
 }
 
 void CefBrowserPlatformDelegateAlloy::BrowserDestroyed(
@@ -120,7 +122,11 @@ void CefBrowserPlatformDelegateAlloy::BrowserDestroyed(
 
 web_modal::WebContentsModalDialogHost*
 CefBrowserPlatformDelegateAlloy::GetWebContentsModalDialogHost() const {
+#if !BUILDFLAG(IS_ANDROID)
   return web_contents_dialog_helper_.get();
+#else
+  return nullptr;
+#endif
 }
 
 void CefBrowserPlatformDelegateAlloy::SendCaptureLostEvent() {
@@ -155,9 +161,11 @@ void CefBrowserPlatformDelegateAlloy::NotifyMoveOrResizeStarted() {
 
 base::RepeatingClosure
 CefBrowserPlatformDelegateAlloy::GetBoundsChangedCallback() {
+#if !BUILDFLAG(IS_ANDROID)
   if (web_contents_dialog_helper_) {
     return web_contents_dialog_helper_->GetBoundsChangedCallback();
   }
+#endif
 
   return base::RepeatingClosure();
 }
