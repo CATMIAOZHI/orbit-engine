@@ -17,6 +17,8 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.PathUtils;
+import org.chromium.base.library_loader.LibraryLoader;
+import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.ui.base.ResourceBundle;
 
 /**
@@ -28,25 +30,24 @@ public class CefriumTestActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        Log.i(TAG, "CefriumTestActivity.onCreate");
-
-        // Register application context with Chromium's base library.
+        // Initialize Chromium base utilities BEFORE super.onCreate() so that
+        // lifecycle callbacks find ApplicationStatus properly configured.
         ContextUtils.initApplicationContext(getApplicationContext());
-
-        // Initialize Chromium base utilities before loading native libraries.
         if (!CommandLine.isInitialized()) {
             CommandLine.init(null);
         }
         PathUtils.setPrivateDataDirectorySuffix("cefrium");
         ApplicationStatus.initialize(getApplication());
 
+        super.onCreate(savedInstanceState);
+
+        Log.i(TAG, "CefriumTestActivity.onCreate");
+
         // Register available locale paks with Chromium's ResourceBundle.
         ResourceBundle.setAvailablePakLocales(new String[]{"en-US"});
 
-        // Load native libraries directly. libcef.so's JNI_OnLoad registers
-        // the JVM with Chromium's jni_zero layer.
+        // Load native libraries. libcef.so's JNI_OnLoad registers the JVM
+        // and JNI natives with Chromium's base layer.
         try {
             System.loadLibrary("cef");
             Log.i(TAG, "libcef.so loaded");
