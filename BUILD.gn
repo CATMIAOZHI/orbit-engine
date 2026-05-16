@@ -1959,23 +1959,31 @@ if (is_android) {
     output = "$root_out_dir/resources.pak"
     sources = [
       "$root_gen_dir/cef/cef_resources.pak",
+      "$root_gen_dir/chrome/browser_resources.pak",
+      "$root_gen_dir/chrome/chrome_unscaled_resources.pak",
+      "$root_gen_dir/chrome/common_resources.pak",
+      "$root_gen_dir/components/components_resources.pak",
       "$root_gen_dir/content/content_resources.pak",
+      "$root_gen_dir/mojo/public/js/mojo_bindings_resources.pak",
       "$root_gen_dir/net/net_resources.pak",
       "$root_gen_dir/third_party/blink/public/resources/blink_resources.pak",
-      "$root_gen_dir/ui/webui/resources/webui_resources.pak",
-      "$root_gen_dir/components/components_resources.pak",
-      "$root_gen_dir/mojo/public/js/mojo_bindings_resources.pak",
+      "$root_gen_dir/third_party/blink/public/resources/inspector_overlay_resources.pak",
       "$root_gen_dir/base/tracing/protos/tracing_proto_resources.pak",
+      "$root_gen_dir/ui/webui/resources/webui_resources.pak",
     ]
     deps = [
       ":cef_resources",
+      "//base/tracing/protos:chrome_track_event_resources",
+      "//chrome/app/theme:chrome_unscaled_resources",
+      "//chrome/browser:resources",
+      "//chrome/common:resources",
+      "//components/resources",
       "//content:content_resources",
+      "//mojo/public/js:resources",
       "//net:net_resources",
+      "//third_party/blink/public:devtools_inspector_resources",
       "//third_party/blink/public:resources",
       "//ui/webui/resources",
-      "//components/resources",
-      "//mojo/public/js:resources",
-      "//base/tracing/protos:chrome_track_event_resources",
     ]
   }
 
@@ -2016,6 +2024,7 @@ if (is_android) {
       "$root_gen_dir/chrome/branded_strings_en-US.pak",
       "$root_gen_dir/chrome/generated_resources_en-US.pak",
       "$root_gen_dir/chrome/locale_settings_en-US.pak",
+      "$root_gen_dir/components/strings/components_locale_settings_en-US.pak",
       "$root_gen_dir/components/strings/components_strings_en-US.pak",
       "$root_gen_dir/third_party/blink/public/strings/blink_strings_en-US.pak",
       "$root_gen_dir/ui/strings/app_locale_settings_en-US.pak",
@@ -2026,6 +2035,7 @@ if (is_android) {
       "//chrome/app:branded_strings",
       "//chrome/app:generated_resources",
       "//chrome/app/resources:locale_settings",
+      "//components/strings:components_locale_settings",
       "//components/strings:components_strings",
       "//third_party/blink/public/strings",
       "//ui/strings:app_locale_settings",
