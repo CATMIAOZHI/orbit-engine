@@ -5,8 +5,13 @@
 package org.cefrium.test;
 
 import android.app.Activity;
+import android.content.res.AssetManager;
 import android.os.Bundle;
 import android.util.Log;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.CommandLine;
@@ -35,6 +40,10 @@ public class CefriumTestActivity extends Activity {
         }
         PathUtils.setPrivateDataDirectorySuffix("cefrium");
         ApplicationStatus.initialize(getApplication());
+
+        // Extract locale pak from APK assets to disk so Chromium can mmap it.
+        extractAssetToFile("stored-locales/en-US.pak",
+            new File(getFilesDir(), "locales/en-US.pak"));
 
         // Load native libraries directly. libcef.so's JNI_OnLoad registers
         // the JVM with Chromium's jni_zero layer.
@@ -74,4 +83,20 @@ public class CefriumTestActivity extends Activity {
     // JNI methods implemented in cefrium_test_jni.cc
     private static native int nativeInitCef(String cacheDir, String dataDir);
     private static native void nativeShutdownCef();
+
+    private void extractAssetToFile(String assetPath, File outFile) {
+        if (outFile.exists()) return;
+        outFile.getParentFile().mkdirs();
+        try (InputStream in = getAssets().open(assetPath);
+             FileOutputStream out = new FileOutputStream(outFile)) {
+            byte[] buf = new byte[8192];
+            int len;
+            while ((len = in.read(buf)) > 0) {
+                out.write(buf, 0, len);
+            }
+            Log.i(TAG, "Extracted " + assetPath + " to " + outFile);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to extract " + assetPath + ": " + e);
+        }
+    }
 }
