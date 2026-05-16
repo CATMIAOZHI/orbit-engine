@@ -20,6 +20,7 @@
 
 #include "base/android/jni_android.h"
 #include "content/public/app/content_jni_onload.h"
+#include "ui/base/resource/resource_bundle_android.h"
 
 extern "C" {
 
@@ -30,6 +31,9 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   if (!content::android::OnJNIOnLoadInit()) {
     return -1;
   }
+
+  // Locale paks are stored in APK assets/stored-locales/.
+  ui::SetLocalePaksStoredInApk(true);
 
   return JNI_VERSION_1_4;
 }
