@@ -1,0 +1,15 @@
+diff --git a/base/android/java/src/org/chromium/base/FeatureMap.java b/base/android/java/src/org/chromium/base/FeatureMap.java
+index 562bd9048a..27886aa385 100644
+--- a/base/android/java/src/org/chromium/base/FeatureMap.java
++++ b/base/android/java/src/org/chromium/base/FeatureMap.java
+@@ -54,6 +54,10 @@ public abstract class FeatureMap {
+     public boolean isEnabledInNative(String featureName) {
+         Boolean testValue = FeatureOverrides.getTestValueForFeatureStrict(featureName);
+         if (testValue != null) return testValue;
++        // Return false (disabled) if native FeatureList is not yet initialized.
++        // This can happen in CEF where Java code queries features during early
++        // initialization before FeatureList::SetInstance is called.
++        if (!FeatureList.isNativeInitialized()) return false;
+         ensureNativeMapInit();
+         return FeatureMapJni.get().isEnabled(mNativeMapPtr, featureName);
+     }
