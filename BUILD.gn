@@ -1858,7 +1858,7 @@ action("make_colorids_header") {
 # headless/OSR use.
 if (is_android) {
   repack("cef_pak_android") {
-    output = "$root_out_dir/cef.pak"
+    output = "$root_out_dir/resources.pak"
     sources = [
       "$root_gen_dir/cef/cef_resources.pak",
       "$root_gen_dir/content/content_resources.pak",

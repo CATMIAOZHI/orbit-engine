@@ -62,6 +62,11 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   cef_string_utf8_to_utf16(cache_dir, strlen(cache_dir),
                            &settings.root_cache_path);
 
+  // Set locales directory to where we extracted the locale pak.
+  std::string locales_dir = std::string(data_dir) + "/locales";
+  cef_string_utf8_to_utf16(locales_dir.c_str(), locales_dir.size(),
+                           &settings.locales_dir_path);
+
   LOGI("Calling cef_initialize...");
   int result = cef_initialize(&main_args, &settings, nullptr, nullptr);
 
