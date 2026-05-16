@@ -17,6 +17,7 @@ import org.chromium.base.ApplicationStatus;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.PathUtils;
+import org.chromium.ui.base.ResourceBundle;
 
 /**
  * Minimal Activity that initializes CEF and logs the result.
@@ -41,9 +42,8 @@ public class CefriumTestActivity extends Activity {
         PathUtils.setPrivateDataDirectorySuffix("cefrium");
         ApplicationStatus.initialize(getApplication());
 
-        // Extract locale pak from APK assets to disk so Chromium can mmap it.
-        extractAssetToFile("stored-locales/en-US.pak",
-            new File(getFilesDir(), "locales/en-US.pak"));
+        // Register available locale paks with Chromium's ResourceBundle.
+        ResourceBundle.setAvailablePakLocales(new String[]{"en-US"});
 
         // Load native libraries directly. libcef.so's JNI_OnLoad registers
         // the JVM with Chromium's jni_zero layer.
