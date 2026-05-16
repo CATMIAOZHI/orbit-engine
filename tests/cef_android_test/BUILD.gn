@@ -54,7 +54,7 @@ android_library("cefrium_test_java") {
 android_assets("cefrium_test_assets") {
   testonly = true
   sources = [
-    "$root_out_dir/cef.pak",
+    "$root_out_dir/resources.pak",
     "$root_out_dir/chrome_100_percent.pak",
     "$root_out_dir/chrome_200_percent.pak",
   ]
