@@ -6,36 +6,30 @@
 //
 // Called automatically by the Android runtime when the library is loaded
 // via System.loadLibrary(). Registers the JVM with Chromium's base layer
-// and initializes JNI native method registration so that all JNI calls
-// throughout libcef.so use the correct JavaVM pointer and find their
-// Java counterparts.
+// and initializes JNI native method registration so that Java→native
+// dispatch via GEN_JNI works correctly.
 //
-// This is the Android equivalent of DllMain on Windows — a platform-specific
-// library entry point that CEF needs but the C API does not expose directly.
+// This follows the same pattern as content_shell's JNI_OnLoad:
+// 1. InitVM — stores the JVM pointer for jni_zero::AttachCurrentThread
+// 2. OnJNIOnLoadInit — creates AtExitManager + registers JNI natives
+//
+// The AtExitManager in OnJNIOnLoadInit uses shadow mode to coexist with
+// the Zygote's AtExitManager (see library_loader_hooks.cc patch).
 
 #include <jni.h>
 
 #include "base/android/jni_android.h"
-#include "base/at_exit.h"
-#include "ui/base/resource/resource_bundle_android.h"
-
-// Allow our AtExitManager to shadow the Zygote's one.
-class CefAtExitManager : public base::AtExitManager {
- public:
-  CefAtExitManager() : AtExitManager(/*shadow=*/true) {}
-};
-
-static CefAtExitManager* g_at_exit_manager = nullptr;
+#include "content/public/app/content_jni_onload.h"
 
 extern "C" {
 
 __attribute__((visibility("default")))
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
-  g_at_exit_manager = new CefAtExitManager();
   base::android::InitVM(vm);
 
-  // Tell Chromium that locale paks are in the APK's stored-locales/ directory.
-  ui::SetLocalePaksStoredInApk(true);
+  if (!content::android::OnJNIOnLoadInit()) {
+    return -1;
+  }
 
   return JNI_VERSION_1_4;
 }
