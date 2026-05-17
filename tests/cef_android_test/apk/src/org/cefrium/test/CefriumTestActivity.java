@@ -58,8 +58,6 @@ public class CefriumTestActivity extends Activity {
         try {
             System.loadLibrary("cef");
             Log.i(TAG, "libcef.so loaded");
-            System.loadLibrary("cefrium_test");
-            Log.i(TAG, "libcefrium_test.so loaded");
         } catch (UnsatisfiedLinkError e) {
             Log.e(TAG, "Failed to load native library: " + e.getMessage());
             finish();

@@ -98,6 +98,6 @@ android_apk("cefrium_test_apk") {
     "//third_party/jni_zero:jni_zero_java",
   ]
 
-  shared_libraries = [ ":libcefrium_test" ]
+  shared_libraries = [ "//cef:libcef" ]
   srcjar_deps = [ ":cefrium_jni_registration" ]
 }
