@@ -208,6 +208,50 @@ CefRefPtr<CefMediaRouter> CefMediaRouter::GetGlobalMediaRouter(
 }
 
 // =============================================================================
+// Stubs for desktop-only symbols referenced by browser_host_base.cc
+// =============================================================================
+
+#include "cef/libcef/browser/devtools/devtools_window_runner.h"
+
+CefDevToolsWindowRunner* CefBrowserHostBase::GetDevToolsWindowRunner() {
+  return nullptr;
+}
+
+void CefDevToolsWindowRunner::ShowDevTools(
+    CefBrowserHostBase*,
+    std::unique_ptr<CefShowDevToolsParams>) {}
+
+namespace chrome {
+bool CanResetZoom(content::WebContents*) { return false; }
+bool CanZoomIn(content::WebContents*) { return false; }
+bool CanZoomOut(content::WebContents*) { return false; }
+}  // namespace chrome
+
+#include "cef/libcef/browser/native/cursor_util.h"
+#include "cef/libcef/browser/views/browser_view_impl.h"
+
+// static
+CefRefPtr<CefBrowserViewImpl> CefBrowserViewImpl::CreateForPopup(
+    const CefBrowserSettings&,
+    CefRefPtr<CefBrowserViewDelegate>,
+    bool, cef_runtime_style_t) {
+  return nullptr;
+}
+
+std::unique_ptr<cursor_util::ScopedCursorHandle>
+cursor_util::ScopedCursorHandle::Create(CefRefPtr<CefBrowser>,
+                                        const ui::Cursor&) {
+  return nullptr;
+}
+
+namespace print_util {
+void Print(content::WebContents*, bool) {}
+void PrintToPDF(content::WebContents*, const CefString&,
+                const CefPdfPrintSettings&,
+                CefRefPtr<CefPdfPrintCallback>) {}
+}  // namespace print_util
+
+// =============================================================================
 // CefBrowserCreateParams — methods normally in browser_host_create.cc
 // =============================================================================
 
