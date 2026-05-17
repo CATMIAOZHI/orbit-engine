@@ -6,6 +6,9 @@ import("//build/config/android/rules.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 
 # Native shared library that bridges Java → CEF C API.
+# This library is intentionally minimal — it only contains the JNI
+# bridge functions. All Chromium code (including GEN_JNI dispatch)
+# lives in libcef.so to avoid duplicate static globals.
 shared_library("libcefrium_test") {
   testonly = true
   sources = [ "cefrium_test_jni.cc" ]
