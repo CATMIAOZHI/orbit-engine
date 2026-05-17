@@ -25,12 +25,16 @@
 #include "cef/include/views/cef_window.h"
 
 // =============================================================================
-// CefBrowserHost — browser creation (from browser_host_create.cc)
-//
-// TODO(cefrium): Implement Android browser creation. This requires an
-// Android-specific CefBrowserHost::CreateBrowser that initializes the
-// content layer without Views/Aura windowing. See TODO.md Group 9.
 // =============================================================================
+// CefBrowserHost — browser creation for Android.
+// browser_host_create.cc cannot be included on Android (desktop-only headers).
+// This implementation creates Alloy-style windowless browsers directly.
+// =============================================================================
+
+#include "cef/libcef/browser/alloy/alloy_browser_host_impl.h"
+#include "cef/libcef/browser/browser_host_base.h"
+#include "cef/libcef/browser/context.h"
+#include "cef/libcef/browser/thread_util.h"
 
 // static
 bool CefBrowserHost::CreateBrowser(
@@ -40,8 +44,17 @@ bool CefBrowserHost::CreateBrowser(
     const CefBrowserSettings& settings,
     CefRefPtr<CefDictionaryValue> extra_info,
     CefRefPtr<CefRequestContext> request_context) {
-  LOG(ERROR) << "CefBrowserHost::CreateBrowser not yet implemented on Android";
-  return false;
+  // On Android, only Alloy style is supported.
+  CefBrowserCreateParams params;
+  params.window_info = std::make_unique<CefWindowInfo>(windowInfo);
+  params.client = client;
+  params.url = url;
+  params.settings = settings;
+  params.extra_info = extra_info;
+  params.request_context = request_context;
+
+  auto browser = AlloyBrowserHostImpl::Create(params);
+  return browser.get() != nullptr;
 }
 
 // static
@@ -52,8 +65,15 @@ CefRefPtr<CefBrowser> CefBrowserHost::CreateBrowserSync(
     const CefBrowserSettings& settings,
     CefRefPtr<CefDictionaryValue> extra_info,
     CefRefPtr<CefRequestContext> request_context) {
-  LOG(ERROR) << "CefBrowserHost::CreateBrowserSync not yet implemented on Android";
-  return nullptr;
+  CefBrowserCreateParams params;
+  params.window_info = std::make_unique<CefWindowInfo>(windowInfo);
+  params.client = client;
+  params.url = url;
+  params.settings = settings;
+  params.extra_info = extra_info;
+  params.request_context = request_context;
+
+  return AlloyBrowserHostImpl::Create(params);
 }
 
 // static
@@ -188,17 +208,11 @@ CefRefPtr<CefMediaRouter> CefMediaRouter::GetGlobalMediaRouter(
 }
 
 // =============================================================================
-// CefBrowserCreateParams — methods defined in browser_host_create.cc which
-// is excluded from the Android build. These are the correct Android
-// implementations, not stubs.
+// CefBrowserCreateParams — methods normally in browser_host_create.cc
 // =============================================================================
 
-#include "cef/libcef/browser/browser_host_base.h"
-
-// static
 void CefBrowserCreateParams::InitWindowInfo(CefWindowInfo* window_info,
                                             CefBrowserHostBase* opener) {
-  // Android does not initialize window info the same way as desktop.
   if (opener->IsAlloyStyle()) {
     window_info->runtime_style = CEF_RUNTIME_STYLE_ALLOY;
   }
@@ -208,14 +222,12 @@ void CefBrowserCreateParams::MaybeSetWindowInfo(
     const CefWindowInfo& new_window_info,
     bool allow_alloy_style,
     bool allow_chrome_style) {
-  // On Android, only Alloy style is supported.
   if (allow_alloy_style) {
     window_info = std::make_unique<CefWindowInfo>(new_window_info);
   }
 }
 
 bool CefBrowserCreateParams::IsChromeStyle() const {
-  // Chrome style (Views-based) is not available on Android.
   return false;
 }
 
