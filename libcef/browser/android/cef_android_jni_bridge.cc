@@ -9,6 +9,7 @@
 #include <string>
 
 #include "cef/include/cef_app.h"
+#include "cef/include/cef_command_line.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_client.h"
 #include "cef/include/cef_life_span_handler.h"
@@ -87,7 +88,9 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   LOGI("cache_dir: %s", cache_dir);
   LOGI("data_dir: %s", data_dir);
 
-  CefMainArgs main_args;
+  // Pass --single-process via argc/argv for Android (no fork/exec).
+  static const char* argv[] = {"cefrium", "--single-process", "--no-sandbox"};
+  CefMainArgs main_args(3, const_cast<char**>(argv));
   int exit_code = CefExecuteProcess(main_args, nullptr, nullptr);
   if (exit_code >= 0) {
     LOGE("CefExecuteProcess returned %d", exit_code);
@@ -102,6 +105,8 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   settings.windowless_rendering_enabled = true;
   settings.multi_threaded_message_loop = false;
   settings.log_severity = LOGSEVERITY_INFO;
+
+  // Android: single-process mode (no fork/exec for child processes).
   CefString(&settings.root_cache_path).FromASCII(cache_dir);
 
   std::string locales_dir = std::string(data_dir) + "/locales";
