@@ -56,6 +56,9 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   settings.no_sandbox = 1;
   settings.windowless_rendering_enabled = 1;
   settings.multi_threaded_message_loop = 0;
+  // external_message_pump causes null deref in first pump iteration.
+  // multi_threaded_message_loop not viable (Android requires main thread UI).
+  // For now, don't pump — just keep the process alive after init.
   settings.log_severity = LOGSEVERITY_INFO;
 
   // Set cache path to the app's private cache directory.
