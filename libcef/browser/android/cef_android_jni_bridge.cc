@@ -8,6 +8,7 @@
 #include <jni.h>
 #include <string>
 
+#include <stdio.h>
 #include "cef/include/cef_app.h"
 #include "cef/include/cef_command_line.h"
 #include "cef/include/cef_browser.h"
@@ -25,10 +26,13 @@
 static bool g_cef_initialized = false;
 
 // Minimal CefRenderHandler for off-screen rendering (required for windowless).
+static bool g_frame_captured = false;
+static char g_png_output_path[512] = {};
+
 class TestRenderHandler : public CefRenderHandler {
  public:
   void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) override {
-    rect = CefRect(0, 0, 1, 1);  // 1x1 pixel — we don't render visually.
+    rect = CefRect(0, 0, 800, 600);
   }
   void OnPaint(CefRefPtr<CefBrowser> browser,
                PaintElementType type,
@@ -36,7 +40,42 @@ class TestRenderHandler : public CefRenderHandler {
                const void* buffer,
                int width,
                int height) override {
-    // Frame received — off-screen rendering works.
+    if (g_frame_captured || width == 0 || height == 0) return;
+    g_frame_captured = true;
+
+    LOGI("OnPaint: %dx%d frame received, saving BMP", width, height);
+
+    // Write as BMP (no external deps needed). BGRA → BMP is trivial.
+    FILE* f = fopen(g_png_output_path, "wb");
+    if (f) {
+      int row_size = width * 4;
+      int data_size = row_size * height;
+      int file_size = 54 + data_size;
+
+      // BMP header
+      uint8_t hdr[54] = {};
+      hdr[0] = 'B'; hdr[1] = 'M';
+      hdr[2] = file_size; hdr[3] = file_size >> 8;
+      hdr[4] = file_size >> 16; hdr[5] = file_size >> 24;
+      hdr[10] = 54;  // data offset
+      hdr[14] = 40;  // DIB header size
+      hdr[18] = width; hdr[19] = width >> 8;
+      hdr[22] = height; hdr[23] = height >> 8;
+      hdr[26] = 1;   // planes
+      hdr[28] = 32;  // bpp
+      fwrite(hdr, 1, 54, f);
+
+      // BMP stores rows bottom-to-top
+      const uint8_t* pixels = static_cast<const uint8_t*>(buffer);
+      for (int y = height - 1; y >= 0; y--) {
+        fwrite(pixels + y * row_size, 1, row_size, f);
+      }
+      fclose(f);
+      LOGI("Frame saved to %s (%dx%d, %d bytes)", g_png_output_path,
+           width, height, file_size);
+    } else {
+      LOGE("Failed to open %s for writing", g_png_output_path);
+    }
   }
   IMPLEMENT_REFCOUNTING(TestRenderHandler);
 };
@@ -49,6 +88,8 @@ class TestLoadHandler : public CefLoadHandler {
                  int httpStatusCode) override {
     if (frame->IsMain()) {
       LOGI("LOAD COMPLETE — OnLoadEnd fired (status %d)", httpStatusCode);
+      // Force a paint by invalidating the view.
+      browser->GetHost()->Invalidate(PET_VIEW);
     }
   }
   IMPLEMENT_REFCOUNTING(TestLoadHandler);
@@ -87,6 +128,9 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
 
   LOGI("cache_dir: %s", cache_dir);
   LOGI("data_dir: %s", data_dir);
+
+  snprintf(g_png_output_path, sizeof(g_png_output_path),
+           "%s/cef_frame.png", data_dir);
 
   // Pass --single-process via argc/argv for Android (no fork/exec).
   static const char* argv[] = {"cefrium", "--single-process", "--no-sandbox"};
