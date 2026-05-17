@@ -10,6 +10,10 @@
 
 #include "cef/include/cef_app.h"
 #include "cef/include/cef_browser.h"
+#include "cef/include/cef_client.h"
+#include "cef/include/cef_life_span_handler.h"
+#include "cef/include/cef_load_handler.h"
+#include "cef/include/cef_render_handler.h"
 
 #include <android/log.h>
 
@@ -18,6 +22,56 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
 
 static bool g_cef_initialized = false;
+
+// Minimal CefRenderHandler for off-screen rendering (required for windowless).
+class TestRenderHandler : public CefRenderHandler {
+ public:
+  void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) override {
+    rect = CefRect(0, 0, 1, 1);  // 1x1 pixel — we don't render visually.
+  }
+  void OnPaint(CefRefPtr<CefBrowser> browser,
+               PaintElementType type,
+               const RectList& dirtyRects,
+               const void* buffer,
+               int width,
+               int height) override {
+    // Frame received — off-screen rendering works.
+  }
+  IMPLEMENT_REFCOUNTING(TestRenderHandler);
+};
+
+// Minimal CefLoadHandler to detect OnLoadEnd.
+class TestLoadHandler : public CefLoadHandler {
+ public:
+  void OnLoadEnd(CefRefPtr<CefBrowser> browser,
+                 CefRefPtr<CefFrame> frame,
+                 int httpStatusCode) override {
+    if (frame->IsMain()) {
+      LOGI("LOAD COMPLETE — OnLoadEnd fired (status %d)", httpStatusCode);
+    }
+  }
+  IMPLEMENT_REFCOUNTING(TestLoadHandler);
+};
+
+// Minimal CefClient that connects the handlers.
+class TestClient : public CefClient {
+ public:
+  TestClient()
+      : render_handler_(new TestRenderHandler()),
+        load_handler_(new TestLoadHandler()) {}
+
+  CefRefPtr<CefRenderHandler> GetRenderHandler() override {
+    return render_handler_;
+  }
+  CefRefPtr<CefLoadHandler> GetLoadHandler() override {
+    return load_handler_;
+  }
+
+ private:
+  CefRefPtr<TestRenderHandler> render_handler_;
+  CefRefPtr<TestLoadHandler> load_handler_;
+  IMPLEMENT_REFCOUNTING(TestClient);
+};
 
 extern "C" __attribute__((visibility("default"))) JNIEXPORT jint JNICALL
 Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
@@ -67,6 +121,29 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
     LOGE("CefInitialize FAILED");
     return 1;
   }
+}
+
+extern "C" __attribute__((visibility("default"))) JNIEXPORT void JNICALL
+Java_org_cefrium_test_CefriumTestActivity_nativeCreateBrowser(
+    JNIEnv* env,
+    jclass /* clazz */,
+    jstring url_jstr) {
+  if (!g_cef_initialized) return;
+
+  const char* url = env->GetStringUTFChars(url_jstr, nullptr);
+  LOGI("Creating browser with URL: %s", url);
+
+  CefWindowInfo window_info;
+  window_info.SetAsWindowless(0);
+
+  CefBrowserSettings browser_settings;
+  CefRefPtr<TestClient> client = new TestClient();
+
+  CefBrowserHost::CreateBrowser(window_info, client, CefString(url),
+                                browser_settings, nullptr, nullptr);
+  LOGI("CreateBrowser called (async)");
+
+  env->ReleaseStringUTFChars(url_jstr, url);
 }
 
 extern "C" __attribute__((visibility("default"))) JNIEXPORT void JNICALL
