@@ -1,0 +1,306 @@
+diff --git a/chrome/app/chrome_main_delegate.cc b/chrome/app/chrome_main_delegate.cc
+index d683cdd958..d073dce670 100644
+--- a/chrome/app/chrome_main_delegate.cc
++++ b/chrome/app/chrome_main_delegate.cc
+@@ -38,6 +38,7 @@
+ #include "base/time/time.h"
+ #include "base/timer/timer.h"
+ #include "build/build_config.h"
++#include "cef/libcef/features/features.h"
+ #include "chrome/browser/buildflags.h"
+ #include "chrome/browser/chrome_content_browser_client.h"
+ #include "chrome/browser/chrome_resource_bundle_helper.h"
+@@ -529,6 +530,7 @@ struct MainFunction {
+   int (*function)(content::MainFunctionParams);
+ };
+ 
++#if !BUILDFLAG(ENABLE_CEF)
+ // Initializes the user data dir. Must be called before InitializeLocalState().
+ void InitializeUserDataDir(base::CommandLine* command_line) {
+ #if BUILDFLAG(IS_WIN)
+@@ -616,6 +618,7 @@ void InitializeUserDataDir(base::CommandLine* command_line) {
+ 
+ #endif  // BUILDFLAG(IS_WIN)
+ }
++#endif  // !BUILDFLAG(ENABLE_CEF)
+ 
+ #if !BUILDFLAG(IS_ANDROID)
+ void InitLogging(const std::string& process_type) {
+@@ -743,6 +746,10 @@ ChromeMainDelegate::~ChromeMainDelegate() {
+ ChromeMainDelegate::~ChromeMainDelegate() = default;
+ #endif  // !BUILDFLAG(IS_ANDROID)
+ 
++void ChromeMainDelegate::CleanupOnUIThread() {
++  memory_system_.reset();
++}
++
+ std::optional<int> ChromeMainDelegate::PostEarlyInitialization(
+     InvokedIn invoked_in) {
+   DUMP_WILL_BE_CHECK(base::ThreadPoolInstance::Get());
+@@ -768,7 +775,7 @@ std::optional<int> ChromeMainDelegate::PostEarlyInitialization(
+     // future session's metrics.
+     DeferBrowserMetrics(user_data_dir);
+ 
+-#if BUILDFLAG(IS_WIN)
++#if BUILDFLAG(IS_WIN) && !BUILDFLAG(ENABLE_CEF)
+     // In the case the process is not the singleton process, the uninstall tasks
+     // need to be executed here. A window will be displayed asking to close all
+     // running instances.
+@@ -856,7 +863,8 @@ std::optional<int> ChromeMainDelegate::PostEarlyInitialization(
+ 
+   // Initializes the resource bundle and determines the locale.
+   std::string actual_locale = LoadLocalState(
+-      chrome_feature_list_creator, invoked_in_browser->is_running_test);
++      chrome_feature_list_creator, GetResourceBundleDelegate(),
++      invoked_in_browser->is_running_test);
+   chrome_feature_list_creator->SetApplicationLocale(actual_locale);
+ 
+   // On Chrome OS, initialize D-Bus clients that depend on feature list.
+@@ -870,6 +878,8 @@ std::optional<int> ChromeMainDelegate::PostEarlyInitialization(
+       new net::NetworkChangeNotifierFactoryAndroid());
+ #endif
+ 
++#if !BUILDFLAG(ENABLE_CEF)
++  // Avoid CEF crash with multi-threaded-message-loop.
+   bool record = true;
+ #if BUILDFLAG(IS_ANDROID)
+   record =
+@@ -878,6 +888,7 @@ std::optional<int> ChromeMainDelegate::PostEarlyInitialization(
+   if (record) {
+     chrome_content_browser_client_->startup_data()->RecordCoreSystemProfile();
+   }
++#endif  // !BUILDFLAG(ENABLE_CEF)
+ 
+ #if BUILDFLAG(IS_ANDROID)
+   UmaSessionStats::OnStartup();
+@@ -942,8 +953,8 @@ void ChromeMainDelegate::CreateThreadPool(std::string_view name) {
+       std::make_unique<ChromeThreadProfilerClient>());
+ 
+ // `ChromeMainDelegateAndroid::PreSandboxStartup` creates the profiler a little
+-// later.
+-#if !BUILDFLAG(IS_ANDROID)
++// later. Same with CEF.
++#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(ENABLE_CEF)
+   // Start the sampling profiler as early as possible - namely, once the thread
+   // pool has been created.
+   sampling_profiler_ = std::make_unique<MainThreadStackSamplingProfiler>();
+@@ -1028,25 +1039,22 @@ void ChromeMainDelegate::SetupTracing() {
+   // When we're the browser on android, use only libunwindstack for the tracing
+   // sampler profiler because it can support java frames which is essential for
+   // the main thread.
++#if !BUILDFLAG(IS_ANDROID)
+   base::RepeatingCallback tracing_factory =
+       base::BindRepeating(&CreateCoreUnwindersFactory);
+   tracing::TracingSamplerProfiler::UnwinderType unwinder_type =
+       tracing::TracingSamplerProfiler::UnwinderType::kCustomAndroid;
+-#if BUILDFLAG(IS_ANDROID)
+-  // If we are the browser process (missing process type), then use the
+-  // experimental libunwindstack unwinder.
+-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+-          switches::kProcessType) &&
+-      chrome::android::IsJavaDrivenFeatureEnabled(
+-          chrome::android::kUseLibunwindstackNativeUnwinderAndroid)) {
+-    tracing_factory = base::BindRepeating(&CreateLibunwindstackUnwinderFactory);
+-    unwinder_type = tracing::TracingSamplerProfiler::UnwinderType::
+-        kLibunwindstackUnwinderAndroid;
+-  }
+ #endif
++// Android: tracing sampler disabled — see below.
++#if !BUILDFLAG(IS_ANDROID)
++  // On Android/CEF, the tracing sampler creates a PerfettoTrace thread that
++  // accesses DeviceInfo via JNI before GEN_JNI natives are registered,
++  // causing a fatal UnsatisfiedLinkError. Skip it on Android — tracing
++  // can be enabled explicitly when needed for profiling.
+   tracing_sampler_profiler_ =
+       tracing::TracingSamplerProfiler::CreateOnMainThread(
+           std::move(tracing_factory), unwinder_type);
++#endif
+ }
+ 
+ std::optional<int> ChromeMainDelegate::BasicStartupComplete() {
+@@ -1333,6 +1341,7 @@ void ChromeMainDelegate::PreSandboxStartup() {
+   std::string process_type =
+       command_line.GetSwitchValueASCII(switches::kProcessType);
+ 
++#if !BUILDFLAG(ENABLE_CEF)
+   crash_reporter::InitializeCrashKeys();
+ 
+ #if BUILDFLAG(IS_POSIX)
+@@ -1348,6 +1357,7 @@ void ChromeMainDelegate::PreSandboxStartup() {
+   if (chrome::ProcessNeedsProfileDir(process_type)) {
+     InitializeUserDataDir(base::CommandLine::ForCurrentProcess());
+   }
++#endif  // !BUILDFLAG(ENABLE_CEF)
+ 
+   // Register component_updater PathProvider after DIR_USER_DATA overridden by
+   // command line flags. Maybe move the chrome PathProvider down here also?
+@@ -1447,7 +1457,8 @@ void ChromeMainDelegate::PreSandboxStartup() {
+ #else
+     const std::string loaded_locale =
+         ui::ResourceBundle::InitSharedInstanceWithLocale(
+-            locale, nullptr, ui::ResourceBundle::LOAD_COMMON_RESOURCES);
++            locale, GetResourceBundleDelegate(),
++            ui::ResourceBundle::LOAD_COMMON_RESOURCES);
+ 
+     base::FilePath resources_pack_path;
+     base::PathService::Get(chrome::FILE_RESOURCES_PACK, &resources_pack_path);
+@@ -1457,6 +1468,7 @@ void ChromeMainDelegate::PreSandboxStartup() {
+     CHECK(!loaded_locale.empty()) << "Locale could not be found for " << locale;
+   }
+ 
++#if !BUILDFLAG(ENABLE_CEF)
+ #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC)
+   // Zygote needs to call InitCrashReporter() in RunZygote().
+   if (process_type != switches::kZygoteProcess &&
+@@ -1493,6 +1505,7 @@ void ChromeMainDelegate::PreSandboxStartup() {
+   // After all the platform Breakpads have been initialized, store the command
+   // line for crash reporting.
+   crash_keys::SetCrashKeysFromCommandLine(command_line);
++#endif  // !BUILDFLAG(ENABLE_CEF)
+ 
+ #if BUILDFLAG(ENABLE_PDF)
+   MaybePatchGdiGetFontData();
+@@ -1596,6 +1609,7 @@ void ChromeMainDelegate::ZygoteForked() {
+     SetUpProfilingShutdownHandler();
+   }
+ 
++#if !BUILDFLAG(ENABLE_CEF)
+   // Needs to be called after we have chrome::DIR_USER_DATA.  BrowserMain sets
+   // this up for the browser process in a different manner.
+   const base::CommandLine* command_line =
+@@ -1608,6 +1622,7 @@ void ChromeMainDelegate::ZygoteForked() {
+ 
+   // Reset the command line for the newly spawned process.
+   crash_keys::SetCrashKeysFromCommandLine(*command_line);
++#endif  // !BUILDFLAG(ENABLE_CEF)
+ }
+ 
+ #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+@@ -1712,6 +1727,7 @@ void ChromeMainDelegate::InitializeMemorySystem() {
+                              : memory_system::DispatcherParameters::
+                                    AllocationTraceRecorderInclusion::kIgnore;
+ 
++  memory_system_ = std::make_unique<memory_system::MemorySystem>();
+   memory_system::Initializer()
+       .SetGwpAsanParameters(gwp_asan_boost_sampling, process_type)
+       .SetProfilingClientParameters(chrome::GetChannel(),
+@@ -1719,7 +1735,7 @@ void ChromeMainDelegate::InitializeMemorySystem() {
+       .SetDispatcherParameters(memory_system::DispatcherParameters::
+                                    PoissonAllocationSamplerInclusion::kEnforce,
+                                allocation_recorder_inclusion, process_type)
+-      .Initialize(memory_system_);
++      .Initialize(*memory_system_);
+ }
+ 
+ bool ChromeMainDelegate::IsInitFeatureListEarly() {
+diff --git a/chrome/browser/browser_process_impl.cc b/chrome/browser/browser_process_impl.cc
+index 1c3854d029..db8d7d3ffd 100644
+--- a/chrome/browser/browser_process_impl.cc
++++ b/chrome/browser/browser_process_impl.cc
+@@ -314,7 +314,7 @@ BrowserProcessImpl::BrowserProcessImpl(StartupData* startup_data)
+       active_primary_accounts_metrics_recorder_(
+           std::make_unique<signin::ActivePrimaryAccountsMetricsRecorder>(
+               *local_state_)),
+-#if BUILDFLAG(IS_ANDROID)
++#if BUILDFLAG(IS_ANDROID) && !defined(BUILDING_CEF_SHARED)
+       device_parental_controls_(
+           std::make_unique<supervised_user::AndroidParentalControls>()),
+ #else
+diff --git a/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc b/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
+index d03e8b261b..dd3b71ffde 100644
+--- a/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
++++ b/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
+@@ -12,12 +12,23 @@ GlobalBrowserCollectionPlatformDelegate::
+     GlobalBrowserCollectionPlatformDelegate(GlobalBrowserCollection& parent)
+     : parent_(parent) {
+   JNIEnv* env = base::android::AttachCurrentThread();
++  // Check if the Java class exists before calling. In CEF/embedder mode,
++  // Chrome-specific Java classes may not be present.
++  jclass clazz = env->FindClass(
++      "org/chromium/chrome/browser/ui/browser_window/"
++      "GlobalBrowserCollectionPlatformDelegate");
++  if (!clazz || env->ExceptionCheck()) {
++    if (env->ExceptionCheck()) env->ExceptionClear();
++    return;
++  }
++  env->DeleteLocalRef(clazz);
+   j_delegate_.Reset(Java_GlobalBrowserCollectionPlatformDelegate_create(
+       env, reinterpret_cast<int64_t>(this)));
+ }
+ 
+ GlobalBrowserCollectionPlatformDelegate::
+     ~GlobalBrowserCollectionPlatformDelegate() {
++  if (j_delegate_.is_null()) return;
+   JNIEnv* env = base::android::AttachCurrentThread();
+   Java_GlobalBrowserCollectionPlatformDelegate_destroy(env, j_delegate_);
+ }
+diff --git a/chrome/renderer/chrome_content_renderer_client.cc b/chrome/renderer/chrome_content_renderer_client.cc
+index 347d6c4d50..23bd1a4f25 100644
+--- a/chrome/renderer/chrome_content_renderer_client.cc
++++ b/chrome/renderer/chrome_content_renderer_client.cc
+@@ -381,13 +381,19 @@ ChromeContentRendererClient::~ChromeContentRendererClient() = default;
+ void ChromeContentRendererClient::RenderThreadStarted() {
+   RenderThread* thread = RenderThread::Get();
+ 
+-  main_thread_profiler_->SetAuxUnwinderFactory(base::BindRepeating(
+-      &CreateV8Unwinder, base::Unretained(v8::Isolate::GetCurrent())));
++  if (main_thread_profiler_ && v8::Isolate::GetCurrent()) {
++    main_thread_profiler_->SetAuxUnwinderFactory(base::BindRepeating(
++        &CreateV8Unwinder, base::Unretained(v8::Isolate::GetCurrent())));
++  }
+ 
++#if !BUILDFLAG(IS_ANDROID)
+   // In the case of single process mode, the v8 unwinding will not work.
+-  tracing::TracingSamplerProfiler::SetAuxUnwinderFactoryOnMainThread(
+-      base::BindRepeating(&CreateV8Unwinder,
+-                          base::Unretained(v8::Isolate::GetCurrent())));
++  if (v8::Isolate::GetCurrent()) {
++    tracing::TracingSamplerProfiler::SetAuxUnwinderFactoryOnMainThread(
++        base::BindRepeating(&CreateV8Unwinder,
++                            base::Unretained(v8::Isolate::GetCurrent())));
++  }
++#endif
+ 
+   const bool is_extension = IsStandaloneContentExtensionProcess();
+ 
+diff --git a/services/device/device_service.cc b/services/device/device_service.cc
+index ebc9c88793..e00a3f9f9d 100644
+--- a/services/device/device_service.cc
++++ b/services/device/device_service.cc
+@@ -157,7 +157,9 @@ void DeviceService::OverrideUsbDeviceManagerBinderForTesting(
+ void DeviceService::BindBatteryMonitor(
+     mojo::PendingReceiver<mojom::BatteryMonitor> receiver) {
+ #if BUILDFLAG(IS_ANDROID)
+-  GetJavaInterfaceProvider()->GetInterface(std::move(receiver));
++  auto* provider = GetJavaInterfaceProvider();
++  if (!provider) return;
++  provider->GetInterface(std::move(receiver));
+ #elif !BUILDFLAG(IS_IOS_TVOS)
+   BatteryMonitorImpl::Create(std::move(receiver));
+ #endif
+@@ -190,8 +192,11 @@ void DeviceService::BindNFCProvider(
+   const auto& binder_override = internal::GetNFCProviderBinderOverride();
+   if (binder_override)
+     binder_override.Run(std::move(receiver));
+-  else
+-    GetJavaInterfaceProvider()->GetInterface(std::move(receiver));
++  else {
++    auto* provider = GetJavaInterfaceProvider();
++    if (provider)
++      provider->GetInterface(std::move(receiver));
++  }
+ }
+ #endif
+ 
+@@ -368,6 +373,11 @@ void DeviceService::BindUsbDeviceManagerTest(
+ #if BUILDFLAG(IS_ANDROID)
+ service_manager::InterfaceProvider* DeviceService::GetJavaInterfaceProvider() {
+   if (!java_interface_provider_initialized_) {
++    if (java_nfc_delegate_.is_null()) {
++      // No Java delegate provided (CEF/embedder mode without NFC).
++      // Return null — callers must handle this gracefully.
++      return nullptr;
++    }
+     mojo::PendingRemote<service_manager::mojom::InterfaceProvider> provider;
+     JNIEnv* env = base::android::AttachCurrentThread();
+     Java_InterfaceRegistrar_createInterfaceRegistryForContext(
