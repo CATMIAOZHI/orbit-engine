@@ -77,14 +77,14 @@ public class CefriumTestActivity extends Activity {
 
             // Set a minimal content view to keep the Activity alive.
             TextView tv = new TextView(this);
-            tv.setText("Cefrium: CEF initialized. Message loop running.");
+            tv.setText("Cefrium: CEF initialized. Creating browser...");
             setContentView(tv);
 
-            // Message loop pumping disabled for now.
-            // external_message_pump causes null deref, and
-            // cef_do_message_loop_work without it causes SequencedTaskRunner CHECK.
-            // The process stays alive via setContentView — no pump needed
-            // for the cef_initialize milestone.
+            // Create an off-screen browser and load a test page.
+            nativeCreateBrowser("data:text/html,<h1>CEF on Android</h1>");
+
+            // On Android, MessagePumpAndroid is attached to the Looper.
+            // No manual pumping needed — the Looper IS the message loop.
         } else {
             Log.e(TAG, "CEF initialization failed with code: " + result);
         }
@@ -106,8 +106,9 @@ public class CefriumTestActivity extends Activity {
         super.onDestroy();
     }
 
-    // JNI methods implemented in cefrium_test_jni.cc
+    // JNI methods implemented in cef_android_jni_bridge.cc (inside libcef.so)
     private static native int nativeInitCef(String cacheDir, String dataDir);
+    private static native void nativeCreateBrowser(String url);
     private static native void nativeDoMessageLoopWork();
     private static native void nativeShutdownCef();
 
