@@ -84,6 +84,15 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
 }
 
 extern "C" __attribute__((visibility("default"))) JNIEXPORT void JNICALL
+Java_org_cefrium_test_CefriumTestActivity_nativeDoMessageLoopWork(
+    JNIEnv* /* env */,
+    jclass /* clazz */) {
+  if (g_cef_initialized) {
+    cef_do_message_loop_work();
+  }
+}
+
+extern "C" __attribute__((visibility("default"))) JNIEXPORT void JNICALL
 Java_org_cefrium_test_CefriumTestActivity_nativeShutdownCef(
     JNIEnv* /* env */,
     jobject /* this */) {
