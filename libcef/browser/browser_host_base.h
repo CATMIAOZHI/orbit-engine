@@ -511,7 +511,9 @@ class CefBrowserHostBase : public CefBrowserHost,
   std::unique_ptr<CefDevToolsProtocolManager> devtools_protocol_manager_;
 
   // Used for creating and running the DevTools window frontend.
+#if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<CefDevToolsWindowRunner> devtools_window_runner_;
+#endif
 
   std::unique_ptr<CefMediaStreamRegistrar> media_stream_registrar_;
 
