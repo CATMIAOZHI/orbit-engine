@@ -6,6 +6,7 @@
   /* Export CEF C API and Android JNI entry point from libcef.so. */
   global:
     cef_*;
+    Java_*;
     JNI_OnLoad;
   local: *;
 };
