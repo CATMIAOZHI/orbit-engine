@@ -308,8 +308,10 @@ void CefBrowserHostBase::DestroyWebContents(
 
   // Free objects that may have references to the WebContents.
   devtools_protocol_manager_.reset();
+#if !BUILDFLAG(IS_ANDROID)
   devtools_window_runner_.reset();
   context_menu_observer_ = nullptr;
+#endif
   if (javascript_dialog_manager_) {
     javascript_dialog_manager_->Destroy();
     javascript_dialog_manager_.reset();
@@ -704,9 +706,11 @@ void CefBrowserHostBase::CloseDevTools() {
     return;
   }
 
+#if !BUILDFLAG(IS_ANDROID)
   if (devtools_window_runner_) {
     devtools_window_runner_->CloseDevTools();
   }
+#endif
 }
 
 bool CefBrowserHostBase::HasDevTools() {
@@ -715,9 +719,11 @@ bool CefBrowserHostBase::HasDevTools() {
     return false;
   }
 
+#if !BUILDFLAG(IS_ANDROID)
   if (devtools_window_runner_) {
     return devtools_window_runner_->HasDevTools();
   }
+#endif
   return false;
 }
 
@@ -1578,12 +1584,14 @@ CefMediaStreamRegistrar* CefBrowserHostBase::GetMediaStreamRegistrar() {
   return media_stream_registrar_.get();
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 CefDevToolsWindowRunner* CefBrowserHostBase::GetDevToolsWindowRunner() {
   if (!devtools_window_runner_) {
     devtools_window_runner_ = std::make_unique<CefDevToolsWindowRunner>();
   }
   return devtools_window_runner_.get();
 }
+#endif
 
 void CefBrowserHostBase::set_context_menu_observer(
     RenderViewContextMenuObserver* observer) {
