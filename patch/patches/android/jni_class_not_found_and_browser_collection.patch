@@ -1,0 +1,28 @@
+diff --git a/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc b/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
+index d03e8b261b..dd3b71ffde 100644
+--- a/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
++++ b/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
+@@ -12,12 +12,23 @@ GlobalBrowserCollectionPlatformDelegate::
+     GlobalBrowserCollectionPlatformDelegate(GlobalBrowserCollection& parent)
+     : parent_(parent) {
+   JNIEnv* env = base::android::AttachCurrentThread();
++  // Check if the Java class exists before calling. In CEF/embedder mode,
++  // Chrome-specific Java classes may not be present.
++  jclass clazz = env->FindClass(
++      "org/chromium/chrome/browser/ui/browser_window/"
++      "GlobalBrowserCollectionPlatformDelegate");
++  if (!clazz || env->ExceptionCheck()) {
++    if (env->ExceptionCheck()) env->ExceptionClear();
++    return;
++  }
++  env->DeleteLocalRef(clazz);
+   j_delegate_.Reset(Java_GlobalBrowserCollectionPlatformDelegate_create(
+       env, reinterpret_cast<int64_t>(this)));
+ }
+ 
+ GlobalBrowserCollectionPlatformDelegate::
+     ~GlobalBrowserCollectionPlatformDelegate() {
++  if (j_delegate_.is_null()) return;
+   JNIEnv* env = base::android::AttachCurrentThread();
+   Java_GlobalBrowserCollectionPlatformDelegate_destroy(env, j_delegate_);
+ }
