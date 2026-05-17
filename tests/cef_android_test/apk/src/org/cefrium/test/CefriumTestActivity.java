@@ -82,10 +82,11 @@ public class CefriumTestActivity extends Activity {
             tv.setText("Cefrium: CEF initialized. Message loop running.");
             setContentView(tv);
 
-            // Start pumping the CEF message loop on the UI thread.
-            mCefRunning = true;
-            mHandler = new Handler(Looper.getMainLooper());
-            mHandler.post(this::pumpCefMessageLoop);
+            // Message loop pumping disabled for now.
+            // external_message_pump causes null deref, and
+            // cef_do_message_loop_work without it causes SequencedTaskRunner CHECK.
+            // The process stays alive via setContentView — no pump needed
+            // for the cef_initialize milestone.
         } else {
             Log.e(TAG, "CEF initialization failed with code: " + result);
         }
