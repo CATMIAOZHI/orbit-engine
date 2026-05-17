@@ -80,11 +80,11 @@ public class CefriumTestActivity extends Activity {
             tv.setText("Cefrium: CEF initialized. Creating browser...");
             setContentView(tv);
 
-            // Create an off-screen browser and load a test page.
-            nativeCreateBrowser("data:text/html,<h1>CEF on Android</h1>");
-
-            // On Android, MessagePumpAndroid is attached to the Looper.
-            // No manual pumping needed — the Looper IS the message loop.
+            // Defer browser creation to let CEF finish async init.
+            mHandler = new Handler(Looper.getMainLooper());
+            mHandler.postDelayed(() -> {
+                nativeCreateBrowser("data:text/html,<h1>CEF on Android</h1>");
+            }, 500);
         } else {
             Log.e(TAG, "CEF initialization failed with code: " + result);
         }
