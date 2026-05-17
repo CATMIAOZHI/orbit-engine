@@ -100,7 +100,7 @@ const $var$ k$var$[] = {""".replace('$var$', var)
 """
 };
 
-const size_t k$var$Size = std::size(k$var$);
+const size_t k$var$Size = sizeof(k$var$) / sizeof(k$var$[0]);
 
 }  // namespace
 """.replace('$var$', var)
