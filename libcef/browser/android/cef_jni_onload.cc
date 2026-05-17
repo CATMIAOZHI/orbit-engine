@@ -19,6 +19,7 @@
 #include <jni.h>
 
 #include "base/android/jni_android.h"
+#include "base/i18n/icu_util.h"
 #include "content/public/app/content_jni_onload.h"
 #include "ui/base/resource/resource_bundle_android.h"
 
@@ -31,6 +32,9 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   if (!content::android::OnJNIOnLoadInit()) {
     return -1;
   }
+
+  // Initialize ICU from APK assets (normally done by LibraryLoader hook).
+  base::i18n::InitializeICU();
 
   // Locale paks are stored in APK assets/stored-locales/.
   ui::SetLocalePaksStoredInApk(true);
