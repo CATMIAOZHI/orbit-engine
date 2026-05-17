@@ -7,7 +7,11 @@ package org.cefrium.test;
 import android.app.Activity;
 import android.content.res.AssetManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+import android.view.View;
+import android.widget.TextView;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -27,6 +31,9 @@ import org.chromium.ui.base.ResourceBundle;
  */
 public class CefriumTestActivity extends Activity {
     private static final String TAG = "Cefrium";
+    private static final int CEF_MESSAGE_LOOP_INTERVAL_MS = 16; // ~60fps
+    private Handler mHandler;
+    private boolean mCefRunning;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,20 +76,40 @@ public class CefriumTestActivity extends Activity {
 
         if (result == 0) {
             Log.i(TAG, "CEF INITIALIZED SUCCESSFULLY ON ANDROID");
+
+            // Set a minimal content view to keep the Activity alive.
+            TextView tv = new TextView(this);
+            tv.setText("Cefrium: CEF initialized. Message loop running.");
+            setContentView(tv);
+
+            // Start pumping the CEF message loop on the UI thread.
+            mCefRunning = true;
+            mHandler = new Handler(Looper.getMainLooper());
+            mHandler.post(this::pumpCefMessageLoop);
         } else {
             Log.e(TAG, "CEF initialization failed with code: " + result);
+        }
+    }
+
+    private void pumpCefMessageLoop() {
+        if (mCefRunning) {
+            nativeDoMessageLoopWork();
+            mHandler.postDelayed(this::pumpCefMessageLoop,
+                                 CEF_MESSAGE_LOOP_INTERVAL_MS);
         }
     }
 
     @Override
     protected void onDestroy() {
         Log.i(TAG, "CefriumTestActivity.onDestroy — shutting down CEF");
+        mCefRunning = false;
         nativeShutdownCef();
         super.onDestroy();
     }
 
     // JNI methods implemented in cefrium_test_jni.cc
     private static native int nativeInitCef(String cacheDir, String dataDir);
+    private static native void nativeDoMessageLoopWork();
     private static native void nativeShutdownCef();
 
     private void extractAssetToFile(String assetPath, File outFile) {
