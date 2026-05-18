@@ -29,7 +29,10 @@ public class CefriumTestActivity extends Activity {
         // CefriumTestApplication.attachBaseContext already initialized:
         // ContextUtils, PathUtils, ApplicationStatus, LibraryProcessType.
         if (!CommandLine.isInitialized()) {
-            CommandLine.init(null);
+            CommandLine.init(new String[]{
+                "--in-process-gpu",  // GPU in browser process (emulator compat)
+                "--no-sandbox"       // Until sandbox policy is configured
+            });
         }
 
         super.onCreate(savedInstanceState);
