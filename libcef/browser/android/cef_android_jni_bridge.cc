@@ -192,9 +192,9 @@ Java_org_cefrium_test_CefriumTestActivity_nativeCreateBrowser(
   CefBrowserSettings browser_settings;
   CefRefPtr<TestClient> client = new TestClient();
 
-  CefBrowserHost::CreateBrowser(window_info, client, CefString(url),
+  bool result = CefBrowserHost::CreateBrowser(window_info, client, CefString(url),
                                 browser_settings, nullptr, nullptr);
-  LOGI("CreateBrowser called (async)");
+  LOGI("CreateBrowser returned %s", result ? "true" : "false");
 
   env->ReleaseStringUTFChars(url_jstr, url);
 }
