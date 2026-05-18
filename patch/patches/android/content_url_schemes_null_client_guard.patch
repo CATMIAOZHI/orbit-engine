@@ -1,0 +1,15 @@
+diff --git a/content/common/url_schemes.cc b/content/common/url_schemes.cc
+index 225e017909..9426310795 100644
+--- a/content/common/url_schemes.cc
++++ b/content/common/url_schemes.cc
+@@ -56,7 +56,9 @@ void RegisterContentSchemes(bool should_lock_registry) {
+     return;
+   g_registered_url_schemes = true;
+   ContentClient::Schemes schemes;
+-  GetContentClient()->AddAdditionalSchemes(&schemes);
++  if (GetContentClient()) {
++    GetContentClient()->AddAdditionalSchemes(&schemes);
++  }
+ 
+   url::AddStandardScheme(kChromeDevToolsScheme, url::SCHEME_WITH_HOST);
+   url::AddStandardScheme(kChromeUIScheme, url::SCHEME_WITH_HOST);
