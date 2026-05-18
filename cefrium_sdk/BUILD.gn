@@ -34,4 +34,12 @@ dist_aar("cefrium_aar") {
   android_manifest = "AndroidManifest.xml"
   proguard_configs = [ "proguard.txt" ]
   jar_excluded_patterns = [ "META-INF/*" ]
+
+  # Strip Chrome UI resources from AAR to reduce size.
+  resource_excluded_patterns = [
+    "org_chromium_chrome_*",
+    "org_chromium_components_*",
+    "com_google_*",
+    "android_chrome_*",
+  ]
 }
