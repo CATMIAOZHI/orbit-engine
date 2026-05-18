@@ -190,6 +190,9 @@ Java_org_cefrium_test_CefriumTestActivity_nativeCreateBrowser(
   window_info.SetAsWindowless(0);
 
   CefBrowserSettings browser_settings;
+  // Opaque white background. Without this, windowless mode defaults to
+  // transparent (alpha=0) which produces invisible content.
+  browser_settings.background_color = CefColorSetARGB(255, 255, 255, 255);
   CefRefPtr<TestClient> client = new TestClient();
 
   bool result = CefBrowserHost::CreateBrowser(window_info, client, CefString(url),
