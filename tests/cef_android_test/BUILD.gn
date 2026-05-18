@@ -106,4 +106,9 @@ android_apk("cefrium_test_apk") {
   proguard_enabled = true
   proguard_enable_obfuscation = false  # Keep class names for JNI
   proguard_configs = [ "proguard.flags" ]
+
+  # Minimize Chrome UI resources.
+  strip_resource_names = true
+  short_resource_paths = true
+  aapt_locale_allowlist = [ "en" ]  # Strip all non-English locales
 }
