@@ -1,0 +1,24 @@
+diff --git a/base/android/library_loader/library_loader_hooks.cc b/base/android/library_loader/library_loader_hooks.cc
+index 18aed4495b..47d1ae1991 100644
+--- a/base/android/library_loader/library_loader_hooks.cc
++++ b/base/android/library_loader/library_loader_hooks.cc
+@@ -90,8 +90,18 @@ void LibraryLoaderExitHook() {
+   }
+ }
+ 
++namespace {
++// Subclass to access the protected shadowing constructor.
++class ShadowingAtExitManager : public base::AtExitManager {
++ public:
++  ShadowingAtExitManager() : AtExitManager(/*shadow=*/true) {}
++};
++}  // namespace
++
+ void InitAtExitManager() {
+-  g_at_exit_manager = new base::AtExitManager();
++  // Use shadowing to coexist with the Zygote's AtExitManager in
++  // app processes forked from Zygote (the normal Android case).
++  g_at_exit_manager = new ShadowingAtExitManager();
+ }
+ 
+ }  // namespace android
