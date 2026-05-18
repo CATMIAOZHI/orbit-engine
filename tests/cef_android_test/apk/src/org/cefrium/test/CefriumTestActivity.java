@@ -34,8 +34,6 @@ public class CefriumTestActivity extends Activity {
         // Append flags after init to ensure they're always present.
         CommandLine.getInstance().appendSwitch("in-process-gpu");
         CommandLine.getInstance().appendSwitch("no-sandbox");
-        CommandLine.getInstance().appendSwitchWithValue("enable-logging", "stderr");
-        CommandLine.getInstance().appendSwitchWithValue("v", "1");
 
         super.onCreate(savedInstanceState);
 
