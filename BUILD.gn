@@ -329,6 +329,7 @@ group("cef") {
       ":libcef_dll_wrapper",
       ":cef_resources_android",
       "tests/cef_android_test:cefrium_test_apk",
+      "cefrium_sdk:cefrium_aar",
     ]
   } else {
     deps += [
