@@ -552,11 +552,24 @@ ChromeMainDelegateCef::RunProcess(
     const std::string& process_type,
     content::MainFunctionParams main_function_params) {
   if (process_type.empty()) {
+#if BUILDFLAG(IS_ANDROID)
+    if (!runner_) {
+      // Child process with browser-type delegate (shouldn't happen).
+      return std::move(main_function_params);
+    }
+#endif
     return runner_->RunMainProcess(std::move(main_function_params));
   }
 
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, child processes (renderer, utility) are dispatched by the
+  // content layer's ContentMainRunnerImpl::RunProcess(). Returning the
+  // params signals the content layer to handle it.
+  return std::move(main_function_params);
+#else
   return ChromeMainDelegate::RunProcess(process_type,
                                         std::move(main_function_params));
+#endif
 }
 
 #if BUILDFLAG(IS_LINUX)
