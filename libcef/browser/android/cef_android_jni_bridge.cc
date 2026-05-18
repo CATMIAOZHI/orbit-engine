@@ -135,11 +135,11 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   snprintf(g_png_output_path, sizeof(g_png_output_path),
            "%s/cef_frame.png", data_dir);
 
-  // Multi-process mode: renderer launched as Android Service.
-  // --in-process-gpu keeps GPU in browser process (emulator compat).
-  // --no-sandbox required until sandbox policy is configured for CEF.
-  static const char* argv[] = {"cefrium", "--in-process-gpu", "--no-sandbox"};
-  CefMainArgs main_args(3, const_cast<char**>(argv));
+  // Multi-process mode: child processes launched as Android Services.
+  // Command-line flags (--in-process-gpu, --no-sandbox) are set in Java
+  // via CommandLine.init() before this is called.
+  static const char* argv[] = {"cefrium"};
+  CefMainArgs main_args(1, const_cast<char**>(argv));
   int exit_code = CefExecuteProcess(main_args, nullptr, nullptr);
   if (exit_code >= 0) {
     LOGE("CefExecuteProcess returned %d", exit_code);
