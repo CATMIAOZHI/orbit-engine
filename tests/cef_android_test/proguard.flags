@@ -1,0 +1,10 @@
+# Keep AndroidX Startup initializers (loaded via reflection)
+-keep class * implements androidx.startup.Initializer {
+    <init>();
+}
+# Keep all JNI-called classes (Chromium's GEN_JNI dispatch)
+-keep class org.jni_zero.GEN_JNI { *; }
+# Keep all classes with native methods
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
