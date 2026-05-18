@@ -92,8 +92,8 @@ android_apk("cefrium_test_apk") {
     ":cefrium_test_java",
     "//base:base_java",
     "//chrome/android:chrome_all_java",
-    "//mojo/public/java:system_java",
     "//content/public/android:content_java",
+    "//mojo/public/java:system_java",
     "//net/android:net_java",
     "//ui/android:ui_java",
     "//third_party/jni_zero:jni_zero_java",
@@ -101,4 +101,9 @@ android_apk("cefrium_test_apk") {
 
   shared_libraries = [ "//cef:libcef" ]
   srcjar_deps = [ ":cefrium_jni_registration" ]
+
+  # Enable R8 to shrink unused Java classes from chrome_all_java.
+  proguard_enabled = true
+  proguard_enable_obfuscation = false  # Keep class names for JNI
+  proguard_configs = [ "proguard.flags" ]
 }
