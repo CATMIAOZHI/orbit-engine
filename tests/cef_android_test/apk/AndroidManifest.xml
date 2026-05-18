@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:name=".CefriumTestApplication"
         android:label="Cefrium Test"
         android:extractNativeLibs="true">
         <activity
@@ -18,5 +19,45 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Multi-process: sandboxed child processes (renderer, utility) -->
+        <meta-data android:name="org.chromium.content.browser.NUM_SANDBOXED_SERVICES"
+                   android:value="5"/>
+        <service android:name="org.chromium.content.app.SandboxedProcessService0"
+                 android:process=":sandboxed_process0"
+                 android:isolatedProcess="true"
+                 android:exported="false" />
+        <service android:name="org.chromium.content.app.SandboxedProcessService1"
+                 android:process=":sandboxed_process1"
+                 android:isolatedProcess="true"
+                 android:exported="false" />
+        <service android:name="org.chromium.content.app.SandboxedProcessService2"
+                 android:process=":sandboxed_process2"
+                 android:isolatedProcess="true"
+                 android:exported="false" />
+        <service android:name="org.chromium.content.app.SandboxedProcessService3"
+                 android:process=":sandboxed_process3"
+                 android:isolatedProcess="true"
+                 android:exported="false" />
+        <service android:name="org.chromium.content.app.SandboxedProcessService4"
+                 android:process=":sandboxed_process4"
+                 android:isolatedProcess="true"
+                 android:exported="false" />
+
+        <!-- Multi-process: privileged child processes (GPU) -->
+        <meta-data android:name="org.chromium.content.browser.NUM_PRIVILEGED_SERVICES"
+                   android:value="3"/>
+        <service android:name="org.chromium.content.app.PrivilegedProcessService0"
+                 android:process=":privileged_process0"
+                 android:isolatedProcess="false"
+                 android:exported="false" />
+        <service android:name="org.chromium.content.app.PrivilegedProcessService1"
+                 android:process=":privileged_process1"
+                 android:isolatedProcess="false"
+                 android:exported="false" />
+        <service android:name="org.chromium.content.app.PrivilegedProcessService2"
+                 android:process=":privileged_process2"
+                 android:isolatedProcess="false"
+                 android:exported="false" />
     </application>
 </manifest>

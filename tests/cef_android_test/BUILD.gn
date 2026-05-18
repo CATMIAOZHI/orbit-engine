@@ -52,6 +52,7 @@ android_library("cefrium_test_java") {
   testonly = true
   sources = [
     "apk/src/org/cefrium/test/CefriumTestActivity.java",
+    "apk/src/org/cefrium/test/CefriumTestApplication.java",
   ]
   deps = [
     "//base:base_java",
