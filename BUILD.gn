@@ -991,6 +991,7 @@ source_set("libcef_static") {
     "//components/url_formatter",
     "//components/user_prefs",
     "//components/version_info",
+    "//components/viz/host",
     "//components/viz/service",
     "//components/web_cache/renderer",
     "//content/public/app",
@@ -1026,6 +1027,7 @@ source_set("libcef_static") {
     "//third_party/zlib:minizip",
     "//ui/base",
     "//ui/base/ime",
+    "//ui/compositor",
     "//ui/events",
     "//ui/events:events_base",
     "//ui/gfx",
@@ -1135,6 +1137,8 @@ source_set("libcef_static") {
       "libcef/browser/native/browser_platform_delegate_native_android.h",
       "libcef/browser/osr/browser_platform_delegate_osr_android.cc",
       "libcef/browser/osr/browser_platform_delegate_osr_android.h",
+      "libcef/browser/osr/cef_context_factory_android.cc",
+      "libcef/browser/osr/cef_context_factory_android.h",
     ]
 
     # Exclude sources that depend on Views UI framework (not available on
