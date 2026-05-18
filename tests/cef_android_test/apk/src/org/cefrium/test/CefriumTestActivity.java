@@ -68,7 +68,7 @@ public class CefriumTestActivity extends Activity {
 
             mHandler = new Handler(Looper.getMainLooper());
             mHandler.postDelayed(() -> {
-                nativeCreateBrowser("data:text/html,<h1>CEF on Android</h1>");
+                nativeCreateBrowser("data:text/html,<h1>CEF on Android</h1><p>Multi-process &#8226; Chromium 148 &#8226; OnPaint</p>");
             }, 500);
         } else {
             Log.e(TAG, "CEF initialization failed with code: " + result);
