@@ -65,6 +65,7 @@ namespace input {
 class CursorManager;
 }
 
+class CefContextFactoryAndroid;
 class CefCopyFrameGenerator;
 class CefSoftwareOutputDeviceOSR;
 class CefTouchSelectionControllerClientOSR;
@@ -401,8 +402,10 @@ class CefRenderWidgetHostViewOSR
 
   int frame_rate_threshold_us_ = 0;
 
-#if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<ui::Compositor> compositor_;
+#if BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<CefContextFactoryAndroid> android_context_factory_;
+#else
   std::unique_ptr<content::DelegatedFrameHost> delegated_frame_host_;
   std::unique_ptr<content::DelegatedFrameHostClient>
       delegated_frame_host_client_;
