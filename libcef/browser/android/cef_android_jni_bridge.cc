@@ -26,6 +26,7 @@
 static bool g_cef_initialized = false;
 
 // Minimal CefRenderHandler for off-screen rendering (required for windowless).
+static bool g_load_complete = false;
 static bool g_frame_captured = false;
 static char g_png_output_path[512] = {};
 
@@ -40,7 +41,8 @@ class TestRenderHandler : public CefRenderHandler {
                const void* buffer,
                int width,
                int height) override {
-    if (g_frame_captured || width == 0 || height == 0) return;
+    if (!g_load_complete || g_frame_captured || width == 0 || height == 0)
+      return;
     g_frame_captured = true;
 
     LOGI("OnPaint: %dx%d frame received, saving BMP", width, height);
@@ -88,6 +90,7 @@ class TestLoadHandler : public CefLoadHandler {
                  int httpStatusCode) override {
     if (frame->IsMain()) {
       LOGI("LOAD COMPLETE — OnLoadEnd fired (status %d)", httpStatusCode);
+      g_load_complete = true;
       // Force a paint by invalidating the view.
       browser->GetHost()->Invalidate(PET_VIEW);
     }
