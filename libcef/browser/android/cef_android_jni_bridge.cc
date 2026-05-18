@@ -135,8 +135,10 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   snprintf(g_png_output_path, sizeof(g_png_output_path),
            "%s/cef_frame.png", data_dir);
 
-  // Pass --single-process via argc/argv for Android (no fork/exec).
-  static const char* argv[] = {"cefrium", "--single-process", "--no-sandbox"};
+  // Multi-process mode: renderer launched as Android Service.
+  // --in-process-gpu keeps GPU in browser process (emulator compat).
+  // --no-sandbox required until sandbox policy is configured for CEF.
+  static const char* argv[] = {"cefrium", "--in-process-gpu", "--no-sandbox"};
   CefMainArgs main_args(3, const_cast<char**>(argv));
   int exit_code = CefExecuteProcess(main_args, nullptr, nullptr);
   if (exit_code >= 0) {
@@ -153,7 +155,6 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   settings.multi_threaded_message_loop = false;
   settings.log_severity = LOGSEVERITY_INFO;
 
-  // Android: single-process mode (no fork/exec for child processes).
   CefString(&settings.root_cache_path).FromASCII(cache_dir);
 
   std::string locales_dir = std::string(data_dir) + "/locales";

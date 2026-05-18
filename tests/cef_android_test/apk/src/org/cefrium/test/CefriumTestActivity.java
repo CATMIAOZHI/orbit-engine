@@ -5,60 +5,44 @@
 package org.cefrium.test;
 
 import android.app.Activity;
-import android.content.res.AssetManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-import android.view.View;
 import android.widget.TextView;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-
-import org.chromium.base.ApplicationStatus;
 import org.chromium.base.CommandLine;
-import org.chromium.base.ContextUtils;
-import org.chromium.base.PathUtils;
 import org.chromium.base.library_loader.LibraryLoader;
-import org.chromium.base.library_loader.LibraryProcessType;
-import org.chromium.ui.base.ResourceBundle;
 
 /**
- * Minimal Activity that initializes CEF and logs the result.
- * This is the Phase 2 test harness — proves CefInitialize works on Android.
+ * Minimal Activity that initializes CEF and loads a page.
+ * Library loading is handled by LibraryLoader (not raw System.loadLibrary)
+ * to support multi-process mode via Android Services.
  */
 public class CefriumTestActivity extends Activity {
     private static final String TAG = "Cefrium";
-    private static final int CEF_MESSAGE_LOOP_INTERVAL_MS = 16; // ~60fps
     private Handler mHandler;
     private boolean mCefRunning;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Initialize Chromium base utilities BEFORE super.onCreate() so that
-        // lifecycle callbacks find ApplicationStatus properly configured.
-        ContextUtils.initApplicationContext(getApplicationContext());
+        // CefriumTestApplication.attachBaseContext already initialized:
+        // ContextUtils, PathUtils, ApplicationStatus, LibraryProcessType.
         if (!CommandLine.isInitialized()) {
             CommandLine.init(null);
         }
-        PathUtils.setPrivateDataDirectorySuffix("cefrium");
-        ApplicationStatus.initialize(getApplication());
 
         super.onCreate(savedInstanceState);
 
         Log.i(TAG, "CefriumTestActivity.onCreate");
 
-        // Register available locale paks with Chromium's ResourceBundle.
-        ResourceBundle.setAvailablePakLocales(new String[]{"en-US"});
-
-        // Load native libraries. libcef.so's JNI_OnLoad registers the JVM
-        // and JNI natives with Chromium's base layer.
+        // Load and initialize native library via LibraryLoader.
+        // This handles both browser and child process initialization
+        // consistently, enabling multi-process mode.
         try {
-            System.loadLibrary("cef");
-            Log.i(TAG, "libcef.so loaded");
-        } catch (UnsatisfiedLinkError e) {
+            LibraryLoader.getInstance().ensureInitialized();
+            Log.i(TAG, "libcef.so loaded via LibraryLoader");
+        } catch (Exception e) {
             Log.e(TAG, "Failed to load native library: " + e.getMessage());
             finish();
             return;
@@ -75,26 +59,16 @@ public class CefriumTestActivity extends Activity {
         if (result == 0) {
             Log.i(TAG, "CEF INITIALIZED SUCCESSFULLY ON ANDROID");
 
-            // Set a minimal content view to keep the Activity alive.
             TextView tv = new TextView(this);
             tv.setText("Cefrium: CEF initialized. Creating browser...");
             setContentView(tv);
 
-            // Defer browser creation to let CEF finish async init.
             mHandler = new Handler(Looper.getMainLooper());
             mHandler.postDelayed(() -> {
                 nativeCreateBrowser("data:text/html,<h1>CEF on Android</h1>");
             }, 500);
         } else {
             Log.e(TAG, "CEF initialization failed with code: " + result);
-        }
-    }
-
-    private void pumpCefMessageLoop() {
-        if (mCefRunning) {
-            nativeDoMessageLoopWork();
-            mHandler.postDelayed(this::pumpCefMessageLoop,
-                                 CEF_MESSAGE_LOOP_INTERVAL_MS);
         }
     }
 
@@ -111,20 +85,4 @@ public class CefriumTestActivity extends Activity {
     private static native void nativeCreateBrowser(String url);
     private static native void nativeDoMessageLoopWork();
     private static native void nativeShutdownCef();
-
-    private void extractAssetToFile(String assetPath, File outFile) {
-        if (outFile.exists()) return;
-        outFile.getParentFile().mkdirs();
-        try (InputStream in = getAssets().open(assetPath);
-             FileOutputStream out = new FileOutputStream(outFile)) {
-            byte[] buf = new byte[8192];
-            int len;
-            while ((len = in.read(buf)) > 0) {
-                out.write(buf, 0, len);
-            }
-            Log.i(TAG, "Extracted " + assetPath + " to " + outFile);
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to extract " + assetPath + ": " + e);
-        }
-    }
 }
