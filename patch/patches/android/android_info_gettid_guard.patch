@@ -1,0 +1,116 @@
+diff --git a/base/android/apk_info.cc b/base/android/apk_info.cc
+index d42a851cf6..39730170ae 100644
+--- a/base/android/apk_info.cc
++++ b/base/android/apk_info.cc
+@@ -5,6 +5,9 @@
+ #include "base/android/apk_info.h"
+ 
+ #include <string>
++#include <sys/syscall.h>
++#include <sys/types.h>
++#include <unistd.h>
+ #include <variant>
+ 
+ #include "base/android/jni_android.h"
+@@ -50,9 +53,39 @@ static std::optional<IApkInfo>& get_holder() {
+ }
+ 
+ const IApkInfo& get_apk_info() {
+-  const std::optional<IApkInfo>& holder = get_holder();
++  std::optional<IApkInfo>& holder = get_holder();
+   if (!holder.has_value()) {
+-    Java_ApkInfo_nativeReadyForFields(AttachCurrentThread());
++    // Only call JNI from main thread. Background threads get defaults.
++    if (syscall(__NR_gettid) != getpid()) {
++      holder.emplace(IApkInfo{
++          .hostPackageLabel = "",
++          .hostPackageName = "org.cefrium.test",
++          .hostVersionCode = "1",
++          .installerPackageName = "",
++          .isDebugApp = false,
++          .packageName = "org.cefrium.test",
++          .packageVersionCode = "1",
++          .packageVersionName = "1.0",
++          .resourcesVersion = "",
++          .targetSdkVersion = 30,
++      });
++    } else {
++      Java_ApkInfo_nativeReadyForFields(AttachCurrentThread());
++      if (!holder.has_value()) {
++        holder.emplace(IApkInfo{
++            .hostPackageLabel = "",
++            .hostPackageName = "org.cefrium.test",
++            .hostVersionCode = "1",
++            .installerPackageName = "",
++            .isDebugApp = false,
++            .packageName = "org.cefrium.test",
++            .packageVersionCode = "1",
++            .packageVersionName = "1.0",
++            .resourcesVersion = "",
++            .targetSdkVersion = 30,
++        });
++      }
++    }
+   }
+   return *holder;
+ }
+diff --git a/base/android/device_info.cc b/base/android/device_info.cc
+index f69a39d59a..f0bfd918d4 100644
+--- a/base/android/device_info.cc
++++ b/base/android/device_info.cc
+@@ -5,6 +5,9 @@
+ #include "base/android/device_info.h"
+ 
+ #include <string>
++#include <sys/syscall.h>
++#include <sys/types.h>
++#include <unistd.h>
+ 
+ #include "base/android/jni_android.h"
+ #include "base/android/jni_array.h"
+@@ -47,9 +50,44 @@ static std::optional<IDeviceInfo>& get_holder() {
+ }
+ 
+ IDeviceInfo& get_device_info() {
++  static base::NoDestructor<base::Lock> init_lock;
++  base::AutoLock l(*init_lock);
++
+   std::optional<IDeviceInfo>& holder = get_holder();
+   if (!holder.has_value()) {
+-    Java_DeviceInfo_nativeReadyForFields(AttachCurrentThread());
++    // Only attempt JNI on the main thread. Background threads must get
++    // defaults immediately to avoid UnsatisfiedLinkError abort.
++    if (syscall(__NR_gettid) != getpid()) {
++      holder.emplace(IDeviceInfo{
++          .gmsVersionCode = "",
++          .isAutomotive = false,
++          .isDesktop = false,
++          .isFoldable = false,
++          .isTv = false,
++          .vulkanDeqpLevel = 0,
++          .isXr = false,
++          .wasLaunchedOnLargeDisplay = false,
++      });
++      return *holder;
++    }
++    JNIEnv* env = AttachCurrentThread();
++    Java_DeviceInfo_nativeReadyForFields(env);
++    if (!holder.has_value()) {
++      if (env->ExceptionCheck()) {
++        env->ExceptionClear();
++      }
++      // Provide defaults when Java callback fails.
++      holder.emplace(IDeviceInfo{
++          .gmsVersionCode = "",
++          .isAutomotive = false,
++          .isDesktop = false,
++          .isFoldable = false,
++          .isTv = false,
++          .vulkanDeqpLevel = 0,
++          .isXr = false,
++          .wasLaunchedOnLargeDisplay = false,
++      });
++    }
+   }
+   return *holder;
+ }
