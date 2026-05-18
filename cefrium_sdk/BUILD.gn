@@ -1,0 +1,37 @@
+# Cefrium SDK — Android AAR package.
+#
+# Produces cefrium.aar containing:
+# - libcef.so (native library)
+# - Java API classes (com.cefrium.*)
+# - AndroidManifest.xml (Service declarations)
+# - ProGuard consumer rules
+
+import("//build/config/android/rules.gni")
+
+android_library("cefrium_java") {
+  sources = [
+    "java/src/com/cefrium/Cefrium.java",
+    "java/src/com/cefrium/CefriumBrowser.java",
+    "java/src/com/cefrium/CefriumRenderHandler.java",
+  ]
+  deps = [
+    "//base:base_java",
+    "//content/public/android:content_java",
+    "//ui/android:ui_java",
+  ]
+}
+
+dist_aar("cefrium_aar") {
+  deps = [
+    ":cefrium_java",
+    "//chrome/android:chrome_all_java",
+    "//content/public/android:content_java",
+    "//net/android:net_java",
+    "//third_party/jni_zero:jni_zero_java",
+  ]
+  output = "$root_build_dir/cefrium.aar"
+  native_libraries = [ "$root_build_dir/libcef.so" ]
+  android_manifest = "AndroidManifest.xml"
+  proguard_configs = [ "proguard.txt" ]
+  jar_excluded_patterns = [ "META-INF/*" ]
+}

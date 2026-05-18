@@ -1,0 +1,17 @@
+# Cefrium SDK ProGuard consumer rules.
+# Included automatically when an app depends on cefrium.aar.
+
+# Keep the public SDK API.
+-keep class com.cefrium.** { *; }
+
+# Keep AndroidX Startup initializers (loaded via reflection).
+-keep class * implements androidx.startup.Initializer { <init>(); }
+
+# Keep JNI dispatch class.
+-keep class org.jni_zero.GEN_JNI { *; }
+
+# Keep all classes with native methods.
+-keepclasseswithmembernames class * { native <methods>; }
+
+# Keep Chromium classes called from native via JNI.
+-keep class org.chromium.** { *; }
