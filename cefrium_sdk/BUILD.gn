@@ -1,10 +1,10 @@
 # Cefrium SDK — Android AAR package.
 #
-# Produces cefrium.aar containing:
-# - libcef.so (native library)
-# - Java API classes (com.cefrium.*)
-# - AndroidManifest.xml (Service declarations)
-# - ProGuard consumer rules
+# Build targets:
+#   cefrium_aar      — raw AAR (large, all resources)
+#   cefrium_sdk      — optimized AAR (stripped locales, compressed)
+#
+# The final deliverable is cefrium-sdk.aar in $root_build_dir.
 
 import("//build/config/android/rules.gni")
 
@@ -29,17 +29,23 @@ dist_aar("cefrium_aar") {
     "//net/android:net_java",
     "//third_party/jni_zero:jni_zero_java",
   ]
-  output = "$root_build_dir/cefrium.aar"
+  output = "$root_build_dir/cefrium-raw.aar"
   native_libraries = [ "$root_build_dir/libcef.so" ]
   android_manifest = "AndroidManifest.xml"
   proguard_configs = [ "proguard.txt" ]
   jar_excluded_patterns = [ "META-INF/*" ]
+}
 
-  # Strip Chrome UI resources from AAR to reduce size.
-  resource_excluded_patterns = [
-    "org_chromium_chrome_*",
-    "org_chromium_components_*",
-    "com_google_*",
-    "android_chrome_*",
+# Post-process AAR: strip locale resources, compress everything.
+action("cefrium_sdk") {
+  script = "slim_aar.py"
+  deps = [ ":cefrium_aar" ]
+  inputs = [ "$root_build_dir/cefrium-raw.aar" ]
+  outputs = [ "$root_build_dir/cefrium-sdk.aar" ]
+  args = [
+    "--input",
+    rebase_path("$root_build_dir/cefrium-raw.aar", root_build_dir),
+    "--output",
+    rebase_path("$root_build_dir/cefrium-sdk.aar", root_build_dir),
   ]
 }
