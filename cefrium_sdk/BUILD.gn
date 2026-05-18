@@ -8,6 +8,10 @@
 
 import("//build/config/android/rules.gni")
 
+android_resources("cefrium_resources") {
+  sources = [ "res/values/baseline_colors.xml" ]
+}
+
 android_library("cefrium_java") {
   sources = [
     "java/src/com/cefrium/Cefrium.java",
@@ -15,6 +19,7 @@ android_library("cefrium_java") {
     "java/src/com/cefrium/CefriumRenderHandler.java",
   ]
   deps = [
+    ":cefrium_resources",
     "//base:base_java",
     "//content/public/android:content_java",
     "//ui/android:ui_java",
@@ -22,8 +27,10 @@ android_library("cefrium_java") {
 }
 
 dist_aar("cefrium_aar") {
+  testonly = true
   deps = [
     ":cefrium_java",
+    "//cef:libcef",
     "//chrome/android:chrome_all_java",
     "//content/public/android:content_java",
     "//net/android:net_java",
@@ -39,7 +46,11 @@ dist_aar("cefrium_aar") {
 # Post-process AAR: strip locale resources, compress everything.
 action("cefrium_sdk") {
   script = "slim_aar.py"
-  deps = [ ":cefrium_aar" ]
+  testonly = true
+  deps = [
+    ":cefrium_aar",
+    "//cef:libcef",
+  ]
   inputs = [ "$root_build_dir/cefrium-raw.aar" ]
   outputs = [ "$root_build_dir/cefrium-sdk.aar" ]
   args = [
