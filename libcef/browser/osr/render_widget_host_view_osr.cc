@@ -46,7 +46,9 @@
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+#include "cef/libcef/browser/osr/cef_context_factory_android.h"
+#else
 #include "content/public/browser/context_factory.h"
 #endif
 #include "content/public/browser/render_process_host.h"
@@ -55,10 +57,8 @@
 #include "media/base/video_frame.h"
 #include "media/capture/mojom/video_capture_buffer.mojom.h"
 #include "ui/base/ime/text_input_flags.h"
-#include "ui/compositor/layer.h"
-#if !BUILDFLAG(IS_ANDROID)
 #include "ui/compositor/compositor.h"
-#endif
+#include "ui/compositor/layer.h"
 #include "ui/events/blink/blink_event_util.h"
 #include "ui/events/gesture_detection/gesture_provider_config_helper.h"
 #include "ui/events/velocity_tracker/motion_event.h"
@@ -259,8 +259,17 @@ CefRenderWidgetHostViewOSR::CefRenderWidgetHostViewOSR(
 
   external_begin_frame_enabled_ = use_external_begin_frame;
 
-#if !BUILDFLAG(IS_ANDROID)
-  auto context_factory = content::GetContextFactory();
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, use CefContextFactoryAndroid which wraps
+  // CompositorDependenciesAndroid for HostFrameSinkManager and
+  // creates RootCompositorFrameSinks with software rendering.
+  if (!android_context_factory_) {
+    android_context_factory_ = std::make_unique<CefContextFactoryAndroid>();
+  }
+  auto* context_factory = android_context_factory_.get();
+#else
+  auto* context_factory = content::GetContextFactory();
+#endif
 
   compositor_ = std::make_unique<ui::Compositor>(
       context_factory->AllocateFrameSinkId(), context_factory,
@@ -277,7 +286,6 @@ CefRenderWidgetHostViewOSR::CefRenderWidgetHostViewOSR(
   if (render_widget_host_impl) {
     render_widget_host_impl->SetCompositorForFlingScheduler(compositor_.get());
   }
-#endif
 
   cursor_manager_ = std::make_unique<input::CursorManager>(this);
 
@@ -317,17 +325,18 @@ CefRenderWidgetHostViewOSR::~CefRenderWidgetHostViewOSR() {
 }
 
 void CefRenderWidgetHostViewOSR::ReleaseCompositor() {
-#if !BUILDFLAG(IS_ANDROID)
   if (!compositor_) {
     return;
   }
 
+#if !BUILDFLAG(IS_ANDROID)
   if (is_showing_) {
     delegated_frame_host_->WasHidden(
         content::DelegatedFrameHost::HiddenCause::kOther);
   }
   delegated_frame_host_->DetachFromCompositor();
   delegated_frame_host_.reset(nullptr);
+#endif
 
   content::RenderWidgetHostImpl* render_widget_host_impl =
       content::RenderWidgetHostImpl::From(render_widget_host_);
@@ -338,7 +347,6 @@ void CefRenderWidgetHostViewOSR::ReleaseCompositor() {
   host_display_client_ = nullptr;
 
   compositor_.reset(nullptr);
-#endif
 }
 
 // Called for full-screen widgets.
@@ -413,6 +421,11 @@ void CefRenderWidgetHostViewOSR::ShowWithVisibility(
 
   is_showing_ = true;
 
+  // Make the compositor visible so the Display starts producing frames.
+  if (compositor_) {
+    compositor_->SetVisible(true);
+  }
+
   // If the viz::LocalSurfaceId is invalid, we may have been evicted,
   // and no other visual properties have since been changed. Allocate a new id.
   const bool needs_surface_id = !GetLocalSurfaceId().is_valid();
@@ -467,6 +480,10 @@ void CefRenderWidgetHostViewOSR::Hide() {
   }
 
   is_showing_ = false;
+
+  if (compositor_) {
+    compositor_->SetVisible(false);
+  }
 
   if (browser_impl_) {
     browser_impl_->CancelContextMenu();
@@ -1047,16 +1064,15 @@ const viz::FrameSinkId& CefRenderWidgetHostViewOSR::GetFrameSinkId() const {
              ? delegated_frame_host_->frame_sink_id()
              : viz::FrameSinkIdAllocator::InvalidFrameSinkId();
 #else
-  return viz::FrameSinkIdAllocator::InvalidFrameSinkId();
+  // On Android there is no DelegatedFrameHost. Use the RenderWidgetHost's
+  // own FrameSinkId directly, matching Chrome's Android path where
+  // DelegatedFrameHostAndroid receives host()->GetFrameSinkId().
+  return render_widget_host_->GetFrameSinkId();
 #endif
 }
 
 viz::FrameSinkId CefRenderWidgetHostViewOSR::GetRootFrameSinkId() {
-#if !BUILDFLAG(IS_ANDROID)
   return compositor_ ? compositor_->frame_sink_id() : viz::FrameSinkId();
-#else
-  return viz::FrameSinkId();
-#endif
 }
 
 void CefRenderWidgetHostViewOSR::NotifyHostAndDelegateOnWasShown(
@@ -1188,11 +1204,9 @@ bool CefRenderWidgetHostViewOSR::UseProxyOutputDevice() {
 bool CefRenderWidgetHostViewOSR::InstallTransparency() {
   if (background_color_ == SK_ColorTRANSPARENT) {
     SetBackgroundColor(background_color_);
-#if !BUILDFLAG(IS_ANDROID)
     if (compositor_) {
       compositor_->SetBackgroundColor(background_color_);
     }
-#endif
     return true;
   }
   return false;
@@ -1237,6 +1251,16 @@ void CefRenderWidgetHostViewOSR::SynchronizeVisualProperties(
 #if !BUILDFLAG(IS_ANDROID)
     delegated_frame_host_->EmbedSurface(
         GetCurrentLocalSurfaceId(), GetViewBounds().size(), deadline_policy);
+#else
+    // On Android, embed the renderer's surface directly into the root layer.
+    // This replaces DelegatedFrameHost::EmbedSurface which is desktop-only.
+    if (root_layer_) {
+      viz::SurfaceId surface_id(GetFrameSinkId(), GetCurrentLocalSurfaceId());
+      root_layer_->SetShowSurface(
+          surface_id, GetViewBounds().size(), GetBackgroundColor()
+              ? *GetBackgroundColor() : SK_ColorBLACK,
+          deadline_policy, false /* stretch_content_to_fill_bounds */);
+    }
 #endif
 
     if (render_widget_host_) {
@@ -1309,15 +1333,12 @@ void CefRenderWidgetHostViewOSR::SendExternalBeginFrame() {
     render_widget_host_->ProgressFlingIfNeeded(frame_time);
   }
 
-#if !BUILDFLAG(IS_ANDROID)
   if (compositor_) {
     compositor_->IssueExternalBeginFrame(
         begin_frame_args,
         base::BindOnce(&CefRenderWidgetHostViewOSR::OnFrameComplete,
                        weak_ptr_factory_.GetWeakPtr()));
-  } else
-#endif
-  {
+  } else {
     begin_frame_request_state_.Cancel();
   }
 
@@ -1912,12 +1933,10 @@ void CefRenderWidgetHostViewOSR::SetFrameRate() {
 
   frame_rate_threshold_us_ = 1000000 / frame_rate;
 
-#if !BUILDFLAG(IS_ANDROID)
   if (compositor_) {
     compositor_->SetDisplayVSyncParameters(
         base::TimeTicks::Now(), base::Microseconds(frame_rate_threshold_us_));
   }
-#endif
 
   if (video_consumer_) {
     video_consumer_->SetFrameRate(base::Microseconds(frame_rate_threshold_us_));
@@ -1980,14 +1999,12 @@ bool CefRenderWidgetHostViewOSR::SetRootLayerSize(bool force) {
 
   GetRootLayer()->SetBounds(gfx::Rect(GetViewBounds().size()));
 
-#if !BUILDFLAG(IS_ANDROID)
   if (compositor_) {
     compositor_local_surface_id_allocator_.GenerateId();
     compositor_->SetScaleAndSize(
         GetDeviceScaleFactor(), SizeInPixels(),
         compositor_local_surface_id_allocator_.GetCurrentLocalSurfaceId());
   }
-#endif
 
   return (screen_info_changed || view_bounds_changed);
 }
