@@ -1,0 +1,2 @@
+package org.chromium.chrome.browser.touch_to_fill.password_generation;
+public class TouchToFillPasswordGenerationBridge {}
