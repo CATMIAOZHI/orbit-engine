@@ -9,10 +9,7 @@
 import("//build/config/android/rules.gni")
 
 android_resources("cefrium_resources") {
-  sources = [
-    "res/values/baseline_colors.xml",
-    "res/values/compat_strings.xml",
-  ]
+  sources = []
 }
 
 android_library("cefrium_java") {
