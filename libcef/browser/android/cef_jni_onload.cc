@@ -16,6 +16,7 @@
 #include "cef/libcef/common/chrome/chrome_main_delegate_cef.h"
 #include "content/public/app/content_jni_onload.h"
 #include "content/public/app/content_main.h"
+#include "ui/base/resource/resource_bundle_android.h"
 
 namespace {
 
@@ -42,6 +43,10 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   if (!content::android::OnJNIOnLoadInit()) {
     return -1;
   }
+
+  // Tell Chromium that locale paks are stored as APK assets.
+  // Must be set before InitializeICU() which is called by libraryLoaded().
+  ui::SetLocalePaksStoredInApk(true);
 
   if (IsChildProcess()) {
     // Child processes (renderer, GPU, utility) need a ContentMainDelegate
