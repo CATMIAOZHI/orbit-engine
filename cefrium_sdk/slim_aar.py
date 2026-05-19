@@ -210,7 +210,7 @@ def main():
         'com/google/common/',       # Guava (via AppCompat)
         'com/google/errorprone/',    # ErrorProne annotations
         'com/google/thirdparty/',    # Google third-party
-        'kotlin/',                   # Kotlin stdlib
+        'kotlin/',                   # Kotlin stdlib (provided by AppCompat)
         'kotlinx/',                  # Kotlin coroutines
         'org/intellij/',             # IntelliJ annotations
         'org/jetbrains/',            # JetBrains annotations
