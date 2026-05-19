@@ -16,10 +16,14 @@ android_resources("cefrium_resources") {
 }
 
 android_library("cefrium_java") {
+  testonly = true
   sources = [
     "java/src/com/cefrium/Cefrium.java",
     "java/src/com/cefrium/CefriumBrowser.java",
     "java/src/com/cefrium/CefriumRenderHandler.java",
+    "java/src/org/chromium/build/BuildConfig.java",
+    "java/src/org/chromium/build/NativeLibraries.java",
+    "java/src/org/jni_zero/GEN_JNI.java",
   ]
   deps = [
     ":cefrium_resources",
@@ -38,6 +42,8 @@ dist_aar("cefrium_aar") {
     "//content/public/android:content_java",
     "//net/android:net_java",
     "//third_party/jni_zero:jni_zero_java",
+    # GEN_JNI class for JNI dispatch.
+    "//cef/tests/cef_android_test:cefrium_jni_registration",
   ]
   output = "$root_build_dir/cefrium-raw.aar"
   native_libraries = [ "$root_build_dir/libcef.so" ]
