@@ -199,6 +199,22 @@ def main():
         standard_entries['R.txt'] = '\n'.join(deduped).encode('utf-8')
 
     # Phase 6: Clean classes.jar.
+    # Strip ONLY AndroidX/support classes (provided by consumer's appcompat dep).
+    # Do NOT strip com.google, kotlin, etc. — their removal causes
+    # __builtin_trap in official builds.
+    # Strip classes that conflict with consumer's transitive deps.
+    # ONLY strip third-party libs, NOT Chrome/Chromium internal classes.
+    STRIP_FROM_JAR = (
+        'androidx/',
+        'android/support/',
+        'com/google/common/',       # Guava (via AppCompat)
+        'com/google/errorprone/',    # ErrorProne annotations
+        'com/google/thirdparty/',    # Google third-party
+        'kotlin/',                   # Kotlin stdlib
+        'kotlinx/',                  # Kotlin coroutines
+        'org/intellij/',             # IntelliJ annotations
+        'org/jetbrains/',            # JetBrains annotations
+    )
     if 'classes.jar' in standard_entries:
         jar_data = standard_entries['classes.jar']
         in_jar = zipfile.ZipFile(io.BytesIO(jar_data))
@@ -208,6 +224,8 @@ def main():
             if ji.filename.startswith('META-INF/'):
                 continue
             if ji.filename.endswith(('.bin', '.kotlin_module')):
+                continue
+            if any(ji.filename.startswith(p) for p in STRIP_FROM_JAR):
                 continue
             out_jar.writestr(ji, in_jar.read(ji.filename))
         out_jar.close()
