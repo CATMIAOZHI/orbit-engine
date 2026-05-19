@@ -1,0 +1,18 @@
+plugins {
+    id 'groovy'
+    id 'java-gradle-plugin'
+}
+
+gradlePlugin {
+    plugins {
+        cefrium {
+            id = 'com.cefrium'
+            implementationClass = 'com.cefrium.CefriumPlugin'
+        }
+    }
+}
+
+dependencies {
+    implementation gradleApi()
+    implementation localGroovy()
+}
