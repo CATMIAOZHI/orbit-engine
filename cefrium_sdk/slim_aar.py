@@ -112,6 +112,28 @@ def main():
                               compress_type=zipfile.ZIP_DEFLATED,
                               compresslevel=6)
 
+    # Inject CEF assets (ICU data, resource paks) into the AAR.
+    build_dir = os.path.dirname(os.path.abspath(args.input))
+    asset_files = {
+        'icudtl.dat': 'assets/icudtl.dat',
+        'resources.pak': 'assets/resources.pak',
+        'chrome_100_percent.pak': 'assets/chrome_100_percent.pak',
+        'chrome_200_percent.pak': 'assets/chrome_200_percent.pak',
+        'snapshot_blob.bin': 'assets/snapshot_blob_64.bin',
+    }
+    locale = os.path.join(build_dir, 'locales', 'en-US.pak')
+    if os.path.exists(locale):
+        asset_files['locales/en-US.pak'] = 'assets/stored-locales/en-US.pak'
+
+    with zipfile.ZipFile(args.output, 'a') as zout:
+        for src, dst in asset_files.items():
+            path = os.path.join(build_dir, src)
+            if os.path.exists(path):
+                zout.writestr(dst, open(path, 'rb').read(),
+                              compress_type=zipfile.ZIP_STORED)
+                sz = os.path.getsize(path)
+                print(f'Asset: {dst} ({sz // 1024} KB)')
+
     in_size = os.path.getsize(args.input)
     out_size = os.path.getsize(args.output)
     print(f'AAR: {in_size // (1024*1024)} MB -> {out_size // (1024*1024)} MB '
