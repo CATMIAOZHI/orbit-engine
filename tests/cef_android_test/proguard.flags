@@ -8,3 +8,8 @@
 -keepclasseswithmembernames class * {
     native <methods>;
 }
+# Keep all Chromium classes (called from native via JNI FindClass).
+-keep class org.chromium.** { *; }
+# Suppress warnings for classes not in the classpath.
+-dontwarn android.webkit.**
+-dontwarn **
