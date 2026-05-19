@@ -21,6 +21,14 @@ android_library("cefrium_java") {
     "java/src/org/chromium/build/BuildConfig.java",
     "java/src/org/chromium/build/NativeLibraries.java",
     "java/src/org/jni_zero/GEN_JNI.java",
+    # Pre-generated R classes for Chromium packages.
+    # Chromium Java code references org.chromium.*.R which must exist.
+    "java/src/org/chromium/base/R.java",
+    "java/src/org/chromium/components/input/R.java",
+    "java/src/org/chromium/content/R.java",
+    "java/src/org/chromium/media/R.java",
+    "java/src/org/chromium/ui/R.java",
+    "java/src/gen/base_module/R.java",
   ]
   deps = [
     ":cefrium_resources",
