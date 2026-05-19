@@ -236,21 +236,19 @@ def main():
                 in_sty = True
             if '</declare-styleable' in stripped:
                 in_sty = False
-            m = re.search(r'<attr\s+[^>]*name="([^"]+)"', stripped)
-            if m:
-                aname = m.group(1)
-                has_fmt = 'format=' in stripped
-                if aname in all_declared:
-                    if has_fmt:
-                        # Remove format= to downgrade to reference.
-                        line = re.sub(r'\s*format="[^"]*"', '', line)
-                    if not in_sty:
-                        # Outside styleable: skip duplicate attr entirely.
+            # Match self-closing <attr .../> only (not opening <attr ...>)
+            if re.match(r'\s*<attr\s+[^>]*/>\s*$', line):
+                m = re.search(r'name="([^"]+)"', stripped)
+                if m:
+                    aname = m.group(1)
+                    if aname in all_declared:
+                        # Duplicate attr: skip line entirely.
+                        # Inside declare-styleable this removes the reference
+                        # but the styleable still works without it.
                         dedup_count += 1
                         continue
-                    dedup_count += 1
-                else:
-                    all_declared[aname] = name
+                    else:
+                        all_declared[aname] = name
             new_lines.append(line)
         standard_entries[name] = '\n'.join(new_lines).encode('utf-8')
 
