@@ -127,6 +127,16 @@ def main():
             if is_non_english_locale(name):
                 continue
 
+            # Skip Chrome-feature layouts that reference unused strings.
+            if '/layout' in name and name.endswith('.xml'):
+                basename = name.rsplit('/', 1)[-1].replace('.xml', '')
+                if basename in ('__arcore_education',
+                                'cast_expanded_controller_activity',
+                                'cast_intro_overlay', 'cast_mini_controller',
+                                'dialog_password', 'fastscroll_handle',
+                                'find_in_file'):
+                    continue
+
             data = zin.read(name)
 
             if is_standard_res(name):
@@ -188,7 +198,7 @@ def main():
             if '</declare-styleable' in stripped:
                 in_styleable = False
             # Match any self-closing <attr> tag
-            m = re.search(r'<attr\s+[^>]*name="([^"]+)"[^>]*/>', stripped)
+            m = re.search(r'<attr\s+[^>]*name="([^"]+)"', stripped)
             if m:
                 attr_name = m.group(1)
                 has_format = 'format=' in stripped
@@ -226,15 +236,19 @@ def main():
                 in_sty = True
             if '</declare-styleable' in stripped:
                 in_sty = False
-            m = re.search(r'<attr\s+[^>]*name="([^"]+)"[^>]*/>', stripped)
+            m = re.search(r'<attr\s+[^>]*name="([^"]+)"', stripped)
             if m:
                 aname = m.group(1)
                 has_fmt = 'format=' in stripped
                 if aname in all_declared:
                     if has_fmt:
+                        # Remove format= to downgrade to reference.
                         line = re.sub(r'\s*format="[^"]*"', '', line)
-                    elif not in_sty:
-                        continue  # skip bare duplicate outside styleable
+                    if not in_sty:
+                        # Outside styleable: skip duplicate attr entirely.
+                        dedup_count += 1
+                        continue
+                    dedup_count += 1
                 else:
                     all_declared[aname] = name
             new_lines.append(line)
@@ -261,6 +275,10 @@ def main():
         stripped_count = 0
         for item in in_jar.infolist():
             if any(item.filename.startswith(p) for p in STRIP_PREFIXES):
+                stripped_count += 1
+                continue
+            # Strip debug/metadata files that conflict with consumer deps.
+            if item.filename.endswith(('.bin', '.kotlin_module')):
                 stripped_count += 1
                 continue
             out_jar.writestr(item, in_jar.read(item.filename))
