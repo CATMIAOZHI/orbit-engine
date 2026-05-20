@@ -100,6 +100,11 @@ android_apk("cefrium_test_apk") {
   ]
 
   shared_libraries = [ "//cef:libcef" ]
+
+  # Generate non-final R classes so resource IDs are NOT inlined by javac.
+  # This is required for AAR distribution — the consumer's AAPT assigns
+  # different IDs, and non-final fields resolve correctly at runtime.
+  shared_resources = true
   srcjar_deps = [ ":cefrium_jni_registration" ]
 
   # Enable R8 to shrink unused Java classes from chrome_all_java.
