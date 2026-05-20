@@ -1,3 +1,110 @@
+# Cefrium — CEF for Android
+
+The first working port of [Chromium Embedded Framework](https://github.com/chromiumembedded/cef)
+to native Android (`aarch64-linux-android`, bionic libc, Android NDK).
+
+CEF officially supports Windows, Linux, and macOS. Android has long been
+considered out of scope due to its fundamentally different process model
+and UI stack. This project builds on CEF's solid foundation to close
+that gap.
+
+<!-- TODO: replace placeholder with actual screenshot -->
+![CEF rendering on Android emulator](assets/screenshots/cef-android-render.png)
+
+## What works
+
+| Feature | Status |
+|---------|--------|
+| `libcef.so` links for Android arm64 and x86_64 | Done |
+| `CefInitialize` + `CreateBrowser` | Done |
+| OnPaint off-screen rendering (pixel buffer) | Done |
+| Multi-process (renderer as Android Service) | Done |
+| `is_official_build=true` (LTO + R8) | Done |
+| CEF C API fully available | Done |
+| SDK AAR for Gradle integration | In progress |
+
+## Architecture
+
+- **Off-screen rendering** via `CefRenderHandler::OnPaint` — no Views
+  framework, no X11, no Wayland
+- **Multi-process** with renderer running as an Android `Service`,
+  replacing Unix `fork()`/`execve()`
+- **11 Chromium patches** for Android adaptations, managed via CEF's
+  existing patch infrastructure (`cef/patch/patches/android/`)
+- **Gradle Plugin** generates R.java for Chromium packages in consumer
+  projects, solving the multi-package resource ID problem
+
+## Building from source
+
+Prerequisites: Chromium source tree at tag `148.0.7778.167`, ~400 GB disk,
+64 GB RAM.
+
+```bash
+# 1. Apply CEF patches (including Android-specific)
+cd chromium/src
+export 'target_os=="android"'=1
+python3 cef/tools/patcher.py
+
+# 2. Generate build files
+depot_tools/gn gen out/Official_android_arm64 --args='
+  target_os = "android"
+  target_cpu = "arm64"
+  is_official_build = true
+  is_debug = false
+  is_component_build = false
+  android_non_final_r_java = true
+'
+
+# 3. Build test APK
+ninja -C out/Official_android_arm64 cef/tests/cef_android_test:cefrium_test_apk
+
+# 4. Build SDK AAR
+ninja -C out/Official_android_arm64 cef/cefrium_sdk:cefrium_sdk
+```
+
+## SDK usage (planned)
+
+```groovy
+dependencies {
+    implementation 'com.cefrium:cefrium:1.0.0'
+}
+```
+
+See [cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) for a
+complete Gradle consumer project.
+
+## Project structure
+
+```
+cef/
+├── libcef/browser/android/     # Android browser implementation
+├── cefrium_sdk/                # AAR packaging (BUILD.gn, slim_aar.py)
+│   ├── gradle-plugin/          # Gradle Plugin for R class generation
+│   └── java/src/com/cefrium/   # Java API
+├── tests/cef_android_test/     # Test APK
+└── patch/patches/android/      # 11 Android-specific Chromium patches
+```
+
+## Relationship to upstream CEF
+
+Fork of CEF branch 7778, tracking Chromium 148.0.7778.167.
+Branch `android-port` contains all Android changes.
+Upstream contribution planned via `git format-patch`.
+
+## Author
+
+**Juan Manuel Mendez Rey** — Debian CEF packager (six architectures:
+i386, amd64, arm64, armhf, loong64, ppc64el), now extending CEF to
+native Android.
+
+## License
+
+BSD, same as upstream CEF.
+
+---
+
+# Upstream CEF README
+
 The Chromium Embedded Framework (CEF) is a simple framework for embedding Chromium-based browsers in other applications.
 
 # Quick Links
