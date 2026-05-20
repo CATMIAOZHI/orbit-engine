@@ -8,8 +8,8 @@ considered out of scope due to its fundamentally different process model
 and UI stack. This project builds on CEF's solid foundation to close
 that gap.
 
-<!-- TODO: replace placeholder with actual screenshot -->
-![CEF rendering on Android emulator](assets/screenshots/cef-android-render.png)
+![Cefrium Sample running on Android emulator](assets/screenshots/cef-android-render.png)
+*Cefrium SDK initialized from a standard Gradle consumer project*
 
 ## What works
 
