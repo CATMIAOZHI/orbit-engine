@@ -98,7 +98,6 @@ class SdkLoadHandler : public CefLoadHandler {
                  int httpStatusCode) override {
     LOGI("OnLoadEnd: status %d, isMain=%d", httpStatusCode, frame->IsMain());
     if (frame->IsMain()) {
-      LOGI("OnLoadEnd: invalidating view to trigger OnPaint");
       browser->GetHost()->Invalidate(PET_VIEW);
     }
   }
@@ -147,11 +146,9 @@ void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   LOGI("OnAfterCreated: browser ready (id=%d)", browser->GetIdentifier());
   if (data_) {
     data_->browser = browser;
-    if (!data_->pending_url.empty()) {
-      LOGI("OnAfterCreated: loading pending URL: %s", data_->pending_url.c_str());
-      browser->GetMainFrame()->LoadURL(CefString(data_->pending_url));
-      data_->pending_url.clear();
-    }
+    // URL was already passed to CreateBrowser — no need to LoadURL again.
+    // Call WasResized to ensure the compositor knows the viewport size.
+    browser->GetHost()->WasResized();
   }
 }
 
@@ -251,6 +248,15 @@ Java_com_cefrium_CefriumBrowser_nativeSetRenderHandler(
   }
 }
 
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeInvalidate(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser) {
+    data->browser->GetHost()->Invalidate(PET_VIEW);
+  }
+}
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeClose(
