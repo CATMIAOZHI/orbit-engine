@@ -39,10 +39,8 @@ generate_jni_registration("cefrium_jni_registration") {
   ]
 
   # CEF includes Chrome native code but not all Chrome Java classes.
-  # Allow mismatches between native JNI refs and available Java classes.
-  # Do NOT use add_stubs_for_missing_jni — stubs use __builtin_trap()
-  # in official builds which kills the process. Missing natives will
-  # throw UnsatisfiedLinkError at runtime (non-fatal with try/catch).
+  # Stubs use __builtin_trap() in official builds — fatal if called.
+  # The correct fix is ensuring no code path reaches a stubbed native.
   add_stubs_for_missing_jni = true
   remove_uncalled_jni = true
 }
