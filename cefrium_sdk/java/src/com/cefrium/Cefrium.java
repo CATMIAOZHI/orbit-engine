@@ -49,22 +49,20 @@ public final class Cefrium {
 
         Context appContext = context.getApplicationContext();
 
-        // Base Chromium utilities.
-        ContextUtils.initApplicationContext(appContext);
+        // ContextUtils and LibraryProcessType must be set by the
+        // Application.attachBaseContext() BEFORE calling this method.
+        // See SampleApplication for the pattern.
         if (!CommandLine.isInitialized()) {
             CommandLine.init(null);
         }
         CommandLine.getInstance().appendSwitch("in-process-gpu");
         CommandLine.getInstance().appendSwitch("no-sandbox");
         PathUtils.setPrivateDataDirectorySuffix("cefrium");
+
         if (appContext instanceof Application) {
             ApplicationStatus.initialize((Application) appContext);
         }
         ResourceBundle.setAvailablePakLocales(new String[]{"en-US"});
-
-        // Library loading via LibraryLoader (supports multi-process).
-        LibraryLoader.getInstance()
-                .setLibraryProcessType(LibraryProcessType.PROCESS_BROWSER);
 
         try {
             LibraryLoader.getInstance().ensureInitialized();
@@ -72,7 +70,7 @@ public final class Cefrium {
             return false;
         }
 
-        // Initialize CEF native layer.
+        // Initialize CEF native layer (browser process only).
         String cacheDir = appContext.getCacheDir().getAbsolutePath();
         String dataDir = appContext.getFilesDir().getAbsolutePath();
         int result = nativeInitialize(cacheDir, dataDir);
