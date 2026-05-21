@@ -204,16 +204,19 @@ def main():
     # __builtin_trap in official builds.
     # Strip classes that conflict with consumer's transitive deps.
     # ONLY strip third-party libs, NOT Chrome/Chromium internal classes.
+    # Strip third-party classes that the consumer provides via Gradle deps.
+    # Consumer must add: androidx.core:core:1.16.0, appcompat:1.7.0
     STRIP_FROM_JAR = (
         'androidx/',
         'android/support/',
-        'com/google/common/',       # Guava (via AppCompat)
+        'com/google/common/',       # Guava
         'com/google/errorprone/',    # ErrorProne annotations
         'com/google/thirdparty/',    # Google third-party
-        'kotlin/',                   # Kotlin stdlib (provided by AppCompat)
+        'kotlin/',                   # Kotlin stdlib
         'kotlinx/',                  # Kotlin coroutines
         'org/intellij/',             # IntelliJ annotations
         'org/jetbrains/',            # JetBrains annotations
+        'org/jspecify/',             # JSpecify annotations (via core:1.16.0)
     )
     if 'classes.jar' in standard_entries:
         jar_data = standard_entries['classes.jar']

@@ -6,20 +6,31 @@ import org.gradle.api.Project
 /**
  * Cefrium Gradle Plugin.
  *
- * Generates R.java for Chromium packages from the consumer's R.txt.
- * Chromium Java code references org.chromium.ui.R, org.chromium.base.R, etc.
+ * Generates R.java for all Chromium packages from the consumer's R.txt.
+ * Chromium Java code references org.chromium.*.R across 130+ packages.
  * Standard AARs only generate R for the AAR's own package.
- * This plugin bridges the gap by generating R for each Chromium package.
+ * This plugin bridges the gap by generating R for every org.chromium.*
+ * and gen.* package that Chromium code uses.
  */
 class CefriumPlugin implements Plugin<Project> {
 
+    // Packages whose R classes are referenced at runtime by Chromium code.
+    // Add packages here as ClassNotFoundException for R$type surfaces.
+    // Do NOT add all 131 packages — that causes D8 OOM (260K+ fields).
     static final CHROMIUM_R_PACKAGES = [
+        'gen.base_module',
         'org.chromium.base',
-        'org.chromium.ui',
+        'org.chromium.chrome',
+        'org.chromium.components.browser_ui.styles',
+        'org.chromium.components.browser_ui.widget',
+        'org.chromium.components.embedder_support.delegate',
+        'org.chromium.components.infobars',
+        'org.chromium.components.input',
+        'org.chromium.components.permissions',
+        'org.chromium.components.webapps',
         'org.chromium.content',
         'org.chromium.media',
-        'org.chromium.components.input',
-        'gen.base_module',
+        'org.chromium.ui',
     ]
 
     void apply(Project project) {
