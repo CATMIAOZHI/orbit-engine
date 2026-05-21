@@ -89,13 +89,30 @@ class SdkLifeSpanHandler : public CefLifeSpanHandler {
   struct SdkBrowserData* data_ = nullptr;
 };
 
+// Load handler that triggers Invalidate on load completion.
+// Without this, the off-screen compositor never generates a frame.
+class SdkLoadHandler : public CefLoadHandler {
+ public:
+  void OnLoadEnd(CefRefPtr<CefBrowser> browser,
+                 CefRefPtr<CefFrame> frame,
+                 int httpStatusCode) override {
+    LOGI("OnLoadEnd: status %d, isMain=%d", httpStatusCode, frame->IsMain());
+    if (frame->IsMain()) {
+      LOGI("OnLoadEnd: invalidating view to trigger OnPaint");
+      browser->GetHost()->Invalidate(PET_VIEW);
+    }
+  }
+  IMPLEMENT_REFCOUNTING(SdkLoadHandler);
+};
+
 // Minimal client that connects handlers.
 class SdkClient : public CefClient {
  public:
   SdkClient(CefRefPtr<SdkRenderHandler> render_handler,
             CefRefPtr<SdkLifeSpanHandler> life_span_handler)
       : render_handler_(render_handler),
-        life_span_handler_(life_span_handler) {}
+        life_span_handler_(life_span_handler),
+        load_handler_(new SdkLoadHandler()) {}
 
   CefRefPtr<CefRenderHandler> GetRenderHandler() override {
     return render_handler_;
@@ -105,11 +122,16 @@ class SdkClient : public CefClient {
     return life_span_handler_;
   }
 
+  CefRefPtr<CefLoadHandler> GetLoadHandler() override {
+    return load_handler_;
+  }
+
   IMPLEMENT_REFCOUNTING(SdkClient);
 
  private:
   CefRefPtr<SdkRenderHandler> render_handler_;
   CefRefPtr<SdkLifeSpanHandler> life_span_handler_;
+  CefRefPtr<SdkLoadHandler> load_handler_;
 };
 
 // Per-browser data stored as the native pointer in Java.
@@ -122,10 +144,11 @@ struct SdkBrowserData {
 };
 
 void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
-  LOGI("OnAfterCreated: browser ready");
+  LOGI("OnAfterCreated: browser ready (id=%d)", browser->GetIdentifier());
   if (data_) {
     data_->browser = browser;
     if (!data_->pending_url.empty()) {
+      LOGI("OnAfterCreated: loading pending URL: %s", data_->pending_url.c_str());
       browser->GetMainFrame()->LoadURL(CefString(data_->pending_url));
       data_->pending_url.clear();
     }
@@ -187,43 +210,47 @@ Java_com_cefrium_CefriumBrowser_nativeCreate(
   data->life_span_handler = new SdkLifeSpanHandler();
   data->life_span_handler->SetBrowserData(data);
   data->client = new SdkClient(data->render_handler, data->life_span_handler);
-
-  CefWindowInfo window_info;
-  window_info.SetAsWindowless(0);
-
-  CefBrowserSettings browser_settings;
-  browser_settings.background_color = CefColorSetARGB(255, 255, 255, 255);
-
-  CefBrowserHost::CreateBrowser(window_info, data->client, CefString(""),
-                                browser_settings, nullptr, nullptr);
-  LOGI("CreateBrowser called (async, browser delivered via OnAfterCreated)");
+  LOGI("nativeCreate: %dx%d (browser not yet created)", width, height);
   return reinterpret_cast<jlong>(data);
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_cefrium_CefriumBrowser_nativeSetRenderHandler(
-    JNIEnv* env, jobject java_browser, jlong native_ptr) {
-  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
-  if (data && data->render_handler) {
-    data->render_handler->SetJavaBrowser(env, java_browser);
-  }
-}
-
+// Actually create the browser with the URL (must have URL at creation time
+// for renderer process to spawn correctly).
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeLoadUrl(
     JNIEnv* env, jobject thiz, jlong native_ptr, jstring url_jstr) {
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
   if (!data) return;
   const char* url = env->GetStringUTFChars(url_jstr, nullptr);
-  if (data->browser) {
+
+  if (!data->browser) {
+    // First loadUrl — create the browser with this URL.
+    CefWindowInfo window_info;
+    window_info.SetAsWindowless(0);
+
+    CefBrowserSettings browser_settings;
+    browser_settings.background_color = CefColorSetARGB(255, 255, 255, 255);
+
+    data->pending_url = url;
+    CefBrowserHost::CreateBrowser(window_info, data->client, CefString(url),
+                                  browser_settings, nullptr, nullptr);
+    LOGI("CreateBrowser with URL: %s", url);
+  } else {
     data->browser->GetMainFrame()->LoadURL(CefString(url));
     LOGI("loadUrl: %s", url);
-  } else {
-    data->pending_url = url;
-    LOGI("loadUrl queued (browser not ready): %s", url);
   }
   env->ReleaseStringUTFChars(url_jstr, url);
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetRenderHandler(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jobject java_browser) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->render_handler) {
+    data->render_handler->SetJavaBrowser(env, java_browser);
+  }
+}
+
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeClose(

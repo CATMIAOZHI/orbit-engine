@@ -48,7 +48,7 @@ public class CefriumBrowser {
      */
     public void setRenderHandler(CefriumRenderHandler handler) {
         mRenderHandler = handler;
-        nativeSetRenderHandler(mNativePtr);
+        nativeSetRenderHandler(mNativePtr, this);
     }
 
     /**
@@ -78,7 +78,7 @@ public class CefriumBrowser {
 
     // Native methods.
     private static native long nativeCreate(int width, int height);
-    private static native void nativeSetRenderHandler(long nativePtr);
+    private static native void nativeSetRenderHandler(long nativePtr, CefriumBrowser browser);
     private static native void nativeLoadUrl(long nativePtr, String url);
     private static native void nativeClose(long nativePtr);
 }
