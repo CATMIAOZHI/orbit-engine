@@ -81,6 +81,8 @@ public final class Cefrium {
         }
 
         sInitialized = true;
+        // No manual message loop pumping needed — CEF integrates with
+        // Android's Looper when multi_threaded_message_loop = false.
         return true;
     }
 
@@ -105,4 +107,5 @@ public final class Cefrium {
     // Native methods implemented in libcef.so.
     private static native int nativeInitialize(String cacheDir, String dataDir);
     private static native void nativeShutdown();
+    private static native void nativeDoMessageLoopWork();
 }
