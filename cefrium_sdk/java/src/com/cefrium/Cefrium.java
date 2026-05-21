@@ -49,20 +49,15 @@ public final class Cefrium {
 
         Context appContext = context.getApplicationContext();
 
-        // ContextUtils and LibraryProcessType must be set by the
-        // Application.attachBaseContext() BEFORE calling this method.
+        // ContextUtils, ResourceBundle, PathUtils, ApplicationStatus,
+        // and LibraryProcessType must be set by the Application's
+        // attachBaseContext() BEFORE calling this method.
         // See SampleApplication for the pattern.
         if (!CommandLine.isInitialized()) {
             CommandLine.init(null);
         }
         CommandLine.getInstance().appendSwitch("in-process-gpu");
         CommandLine.getInstance().appendSwitch("no-sandbox");
-        PathUtils.setPrivateDataDirectorySuffix("cefrium");
-
-        if (appContext instanceof Application) {
-            ApplicationStatus.initialize((Application) appContext);
-        }
-        ResourceBundle.setAvailablePakLocales(new String[]{"en-US"});
 
         try {
             LibraryLoader.getInstance().ensureInitialized();
