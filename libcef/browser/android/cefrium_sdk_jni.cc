@@ -76,28 +76,61 @@ class SdkRenderHandler : public CefRenderHandler {
   jobject java_browser_ = nullptr;
 };
 
-// Minimal client that connects the render handler.
+// Life span handler that captures the browser when created.
+class SdkLifeSpanHandler : public CefLifeSpanHandler {
+ public:
+  void SetBrowserData(struct SdkBrowserData* data) { data_ = data; }
+
+  void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
+
+  IMPLEMENT_REFCOUNTING(SdkLifeSpanHandler);
+
+ private:
+  struct SdkBrowserData* data_ = nullptr;
+};
+
+// Minimal client that connects handlers.
 class SdkClient : public CefClient {
  public:
-  explicit SdkClient(CefRefPtr<SdkRenderHandler> handler)
-      : render_handler_(handler) {}
+  SdkClient(CefRefPtr<SdkRenderHandler> render_handler,
+            CefRefPtr<SdkLifeSpanHandler> life_span_handler)
+      : render_handler_(render_handler),
+        life_span_handler_(life_span_handler) {}
 
   CefRefPtr<CefRenderHandler> GetRenderHandler() override {
     return render_handler_;
+  }
+
+  CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override {
+    return life_span_handler_;
   }
 
   IMPLEMENT_REFCOUNTING(SdkClient);
 
  private:
   CefRefPtr<SdkRenderHandler> render_handler_;
+  CefRefPtr<SdkLifeSpanHandler> life_span_handler_;
 };
 
 // Per-browser data stored as the native pointer in Java.
 struct SdkBrowserData {
   CefRefPtr<CefBrowser> browser;
   CefRefPtr<SdkRenderHandler> render_handler;
+  CefRefPtr<SdkLifeSpanHandler> life_span_handler;
   CefRefPtr<SdkClient> client;
+  std::string pending_url;  // URL to load once browser is ready
 };
+
+void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
+  LOGI("OnAfterCreated: browser ready");
+  if (data_) {
+    data_->browser = browser;
+    if (!data_->pending_url.empty()) {
+      browser->GetMainFrame()->LoadURL(CefString(data_->pending_url));
+      data_->pending_url.clear();
+    }
+  }
+}
 
 // --- Cefrium.java native methods ---
 
@@ -139,6 +172,11 @@ Java_com_cefrium_Cefrium_nativeShutdown(JNIEnv* env, jclass clazz) {
   CefShutdown();
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_Cefrium_nativeDoMessageLoopWork(JNIEnv* env, jclass clazz) {
+  CefDoMessageLoopWork();
+}
+
 // --- CefriumBrowser.java native methods ---
 
 extern "C" JNIEXPORT jlong JNICALL
@@ -146,7 +184,9 @@ Java_com_cefrium_CefriumBrowser_nativeCreate(
     JNIEnv* env, jclass clazz, jint width, jint height) {
   auto* data = new SdkBrowserData();
   data->render_handler = new SdkRenderHandler(width, height);
-  data->client = new SdkClient(data->render_handler);
+  data->life_span_handler = new SdkLifeSpanHandler();
+  data->life_span_handler->SetBrowserData(data);
+  data->client = new SdkClient(data->render_handler, data->life_span_handler);
 
   CefWindowInfo window_info;
   window_info.SetAsWindowless(0);
@@ -156,6 +196,7 @@ Java_com_cefrium_CefriumBrowser_nativeCreate(
 
   CefBrowserHost::CreateBrowser(window_info, data->client, CefString(""),
                                 browser_settings, nullptr, nullptr);
+  LOGI("CreateBrowser called (async, browser delivered via OnAfterCreated)");
   return reinterpret_cast<jlong>(data);
 }
 
@@ -172,11 +213,16 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeLoadUrl(
     JNIEnv* env, jobject thiz, jlong native_ptr, jstring url_jstr) {
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
-  if (data && data->browser) {
-    const char* url = env->GetStringUTFChars(url_jstr, nullptr);
+  if (!data) return;
+  const char* url = env->GetStringUTFChars(url_jstr, nullptr);
+  if (data->browser) {
     data->browser->GetMainFrame()->LoadURL(CefString(url));
-    env->ReleaseStringUTFChars(url_jstr, url);
+    LOGI("loadUrl: %s", url);
+  } else {
+    data->pending_url = url;
+    LOGI("loadUrl queued (browser not ready): %s", url);
   }
+  env->ReleaseStringUTFChars(url_jstr, url);
 }
 
 extern "C" JNIEXPORT void JNICALL
