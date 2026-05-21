@@ -55,23 +55,56 @@ depot_tools/gn gen out/Official_android_arm64 --args='
   android_non_final_r_java = true
 '
 
-# 3. Build test APK
+# 3. Build test APK (standalone, all-in-one — for validation)
 ninja -C out/Official_android_arm64 cef/tests/cef_android_test:cefrium_test_apk
 
-# 4. Build SDK AAR
+# 4. Build SDK AAR (for Gradle consumers)
 ninja -C out/Official_android_arm64 cef/cefrium_sdk:cefrium_sdk
 ```
 
-## SDK usage (planned)
+## Running the test APK
+
+The test APK is a standalone app that bundles everything — useful for
+validating that CEF works on a device/emulator before packaging as AAR.
+
+```bash
+# Start emulator
+third_party/android_sdk/public/emulator/emulator -avd cefrium_x64 &
+
+# Wait for boot, install, launch
+adb wait-for-device
+adb install out/Official_android_x64/apks/CefriumTest.apk
+adb shell am start -n org.cefrium.test/.CefriumTestActivity
+
+# Check logs
+adb logcat -s "chromium:*" "CefriumTest:*"
+```
+
+## SDK AAR usage
+
+The AAR is a distributable library for standard Android Gradle projects.
+Unlike the test APK, the consumer provides AndroidX dependencies and
+uses the Cefrium Gradle Plugin for R class generation.
 
 ```groovy
+// build.gradle (root) — requires AGP 8.6+
+plugins { id 'com.android.application' version '8.7.3' apply false }
+
+// app/build.gradle
+plugins {
+    id 'com.android.application'
+    id 'com.cefrium'  // Generates R.java for Chromium packages
+}
+
 dependencies {
-    implementation 'com.cefrium:cefrium:1.0.0'
+    implementation files('libs/cefrium-sdk.aar')
+    implementation 'androidx.core:core:1.16.0'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
 }
 ```
 
 See [cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) for a
-complete Gradle consumer project.
+complete working consumer project with all required configuration.
 
 ## Project structure
 
