@@ -86,10 +86,25 @@ public class CefriumBrowser {
         }
     }
 
+    /**
+     * Forward a touch event to the browser.
+     *
+     * @param action 0=DOWN, 1=UP, 2=MOVE, 3=CANCEL
+     * @param x X coordinate in browser viewport pixels
+     * @param y Y coordinate in browser viewport pixels
+     * @param pointerId Pointer ID for multi-touch
+     */
+    public void sendTouchEvent(int action, float x, float y, int pointerId) {
+        if (mNativePtr != 0) {
+            nativeSendTouchEvent(mNativePtr, action, x, y, pointerId);
+        }
+    }
+
     // Native methods.
     private static native long nativeCreate(int width, int height);
     private static native void nativeSetRenderHandler(long nativePtr, CefriumBrowser browser);
     private static native void nativeLoadUrl(long nativePtr, String url);
     private static native void nativeInvalidate(long nativePtr);
+    private static native void nativeSendTouchEvent(long nativePtr, int action, float x, float y, int pointerId);
     private static native void nativeClose(long nativePtr);
 }
