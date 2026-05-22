@@ -9,7 +9,7 @@ and UI stack. This project builds on CEF's solid foundation to close
 that gap.
 
 ![Cefrium Sample running on Android emulator](assets/screenshots/cef-android-render.png)
-*Cefrium SDK initialized from a standard Gradle consumer project*
+*HTML rendered by Chromium, displayed on screen from a standard Gradle consumer project*
 
 ## What works
 
@@ -18,10 +18,11 @@ that gap.
 | `libcef.so` links for Android arm64 and x86_64 | Done |
 | `CefInitialize` + `CreateBrowser` | Done |
 | OnPaint off-screen rendering (pixel buffer) | Done |
+| On-screen rendering (Bitmap + ImageView) | Done |
 | Multi-process (renderer as Android Service) | Done |
 | `is_official_build=true` (LTO + R8) | Done |
 | CEF C API fully available | Done |
-| SDK AAR for Gradle integration | In progress |
+| SDK AAR for Gradle integration | Done |
 
 ## Architecture
 
