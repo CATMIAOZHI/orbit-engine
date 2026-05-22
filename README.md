@@ -8,8 +8,11 @@ considered out of scope due to its fundamentally different process model
 and UI stack. This project builds on CEF's solid foundation to close
 that gap.
 
-![Cefrium Sample running on Android emulator](assets/screenshots/cef-android-render.png)
-*HTML rendered by Chromium, displayed on screen from a standard Gradle consumer project*
+![CEF documentation page rendered on Android](assets/screenshots/cef-web-render.png)
+*CEF project page rendered by Chromium 148 on Android — loaded from the web via SDK AAR*
+
+![Basic HTML rendering](assets/screenshots/cef-android-render.png)
+*Data URL rendering — off-screen OnPaint to Bitmap in a standard Gradle project*
 
 ## What works
 
