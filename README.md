@@ -22,10 +22,32 @@ that gap.
 | `CefInitialize` + `CreateBrowser` | Done |
 | OnPaint off-screen rendering (pixel buffer) | Done |
 | On-screen rendering (Bitmap + ImageView) | Done |
+| Touch, scroll, pinch-zoom | Done |
 | Multi-process (renderer as Android Service) | Done |
 | `is_official_build=true` (LTO + R8) | Done |
 | CEF C API fully available | Done |
 | SDK AAR for Gradle integration | Done |
+| Web Speech API (text-to-speech) | Done |
+| Scroll-driven CSS animations | Done |
+| arm64 validated on real device | Done |
+
+## Why Cefrium, not WebView?
+
+CEF on Android has been called "impossible" for 10 years
+([Issue #1991](https://bitbucket.org/chromiumembedded/cef/issues/1991/),
+opened 2016, unresolved). Cefrium is the first working implementation.
+
+| Capability | Cefrium | Android WebView |
+|------------|---------|-----------------|
+| Scroll-driven CSS animations | Yes | No |
+| CSS Anchor Positioning | Yes | No |
+| View Transitions (MPA) | Yes | No |
+| Request interception / ad blocking | Yes | No |
+| Off-screen rendering (OnPaint) | Yes | No |
+| Custom protocol handlers | Yes | No |
+| Multi-process control | Yes | No |
+| Web Speech API | Yes | Yes |
+| Chromium version | 148 (current) | Varies by device |
 
 ## Architecture
 
