@@ -252,7 +252,9 @@ if (is_linux) {
 #
 
 # Desktop feature requirements. Android does not support all of these.
-if (!is_android) {
+# Guard with default_toolchain to avoid failures in V8 cross-toolchains
+# (e.g. clang_x64_v8_arm64) where is_android is false.
+if (!is_android && current_toolchain == default_toolchain) {
   # Enable support for Print Preview.
   assert(enable_print_preview)
 
