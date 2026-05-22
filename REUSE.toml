@@ -1,0 +1,66 @@
+version = 1
+SPDX-PackageName = "cefrium"
+SPDX-PackageSupplier = "Juan Manuel Méndez Rey <juan.mendezr@proton.me>"
+SPDX-PackageDownloadLocation = "https://codeberg.org/cefrium/cef-android"
+
+# Cefrium Android port — dual licensed: LGPL-3.0-or-later OR Commercial
+# Open source use: LGPL-3.0-or-later
+# Commercial use without copyleft: Cefrium Commercial License
+# See LICENSES/ directory for full texts.
+
+# CEF upstream code (BSD-licensed, not modified by Cefrium)
+[[annotations]]
+path = ["include/**", "libcef_dll/**", "tools/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2008-2026 The Chromium Embedded Framework Authors"
+SPDX-License-Identifier = "BSD-3-Clause"
+SPDX-FileComment = "Upstream CEF code. BSD license from original project."
+
+# Cefrium Android port — new code (dual licensed)
+[[annotations]]
+path = [
+    "libcef/browser/android/**",
+    "cefrium_sdk/**",
+    "patch/patches/android/**",
+    "tests/cef_android_test/**",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Juan Manuel Méndez Rey <juan.mendezr@proton.me>"
+SPDX-License-Identifier = "LGPL-3.0-or-later OR LicenseRef-Cefrium-Commercial"
+SPDX-FileComment = "Cefrium Android port. Dual licensed: LGPL v3 for open source use, Cefrium Commercial License for proprietary use. Contact juan.mendezr@proton.me for commercial licensing."
+
+# Cefrium modifications to upstream CEF code (dual licensed)
+[[annotations]]
+path = [
+    "libcef/browser/osr/cef_context_factory_android.*",
+    "libcef/browser/osr/render_widget_host_view_osr.*",
+    "BUILD.gn",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["2008-2026 The Chromium Embedded Framework Authors", "2026 Juan Manuel Méndez Rey <juan.mendezr@proton.me>"]
+SPDX-License-Identifier = "LGPL-3.0-or-later OR LicenseRef-Cefrium-Commercial"
+SPDX-FileComment = "Upstream CEF code modified by Cefrium for Android support. Modifications are dual licensed."
+
+# Documentation and screenshots
+[[annotations]]
+path = ["README.md", "assets/**", "REUSE.toml"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Juan Manuel Méndez Rey <juan.mendezr@proton.me>"
+SPDX-License-Identifier = "CC-BY-4.0"
+SPDX-FileComment = "Documentation, screenshots, and metadata."
+
+# License texts
+[[annotations]]
+path = ["LICENSES/**"]
+precedence = "override"
+SPDX-FileCopyrightText = "NONE"
+SPDX-License-Identifier = "CC0-1.0"
+SPDX-FileComment = "License text files."
+
+# Fallback — upstream CEF code
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["2008-2026 The Chromium Embedded Framework Authors", "2026 Juan Manuel Méndez Rey <juan.mendezr@proton.me>"]
+SPDX-License-Identifier = "BSD-3-Clause"
+SPDX-FileComment = "Fallback for upstream CEF files not covered by specific rules."
