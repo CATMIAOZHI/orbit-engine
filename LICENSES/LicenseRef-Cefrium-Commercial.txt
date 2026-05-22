@@ -1,0 +1,84 @@
+Cefrium Commercial License Agreement
+Version 1.0
+
+Copyright (C) 2026 Juan Manuel Mendez Rey <juan.mendezr@proton.me>
+
+IMPORTANT: This is a draft. Consult a lawyer before using commercially.
+
+1. GRANT OF LICENSE
+
+   Subject to the terms of this Agreement and payment of applicable
+   fees, the Licensor grants the Licensee a non-exclusive,
+   non-transferable, worldwide license to:
+
+   a) Use the Cefrium SDK to develop commercial applications
+   b) Distribute the Cefrium SDK binary (AAR) as part of Licensee's
+      applications
+   c) Use the Cefrium SDK without the obligations of the LGPL v3
+
+2. RESTRICTIONS
+
+   The Licensee may NOT:
+
+   a) Sublicense, sell, or redistribute the Cefrium SDK separately
+      from Licensee's applications
+   b) Modify the Cefrium SDK and distribute the modifications without
+      a separate agreement
+   c) Use the Cefrium SDK to create a competing product (a browser
+      embedding SDK for Android)
+   d) Remove or alter copyright notices
+
+3. FEES
+
+   License fees are determined by the type of use:
+
+   a) Per-developer seat: annual subscription per developer using
+      the SDK in their projects
+   b) Per-application: annual subscription per application distributed
+      with the SDK
+   c) Enterprise: custom pricing for large-scale deployments,
+      OEM/embedded, or per-device licensing
+
+   Contact juan.mendezr@proton.me for pricing.
+
+4. SUPPORT
+
+   Commercial licensees receive:
+
+   a) Priority issue resolution
+   b) Direct communication channel
+   c) Custom builds upon request (feature flags, Chromium version)
+   d) SLA for critical bugs (response time guarantee)
+
+5. WARRANTY DISCLAIMER
+
+   THE SDK IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND.
+   THE LICENSOR DOES NOT WARRANT THAT THE SDK WILL BE ERROR-FREE
+   OR UNINTERRUPTED.
+
+6. LIMITATION OF LIABILITY
+
+   IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY INDIRECT,
+   INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING FROM
+   THE USE OF THE SDK.
+
+7. TERM AND TERMINATION
+
+   a) This license is valid for the subscription period
+   b) The Licensor may terminate this license if the Licensee
+      breaches any term
+   c) Upon termination, the Licensee must cease distribution of
+      new applications containing the SDK
+   d) Applications already distributed to end users may continue
+      to function
+
+8. GOVERNING LAW
+
+   This Agreement shall be governed by the laws of Spain and the
+   European Union. Disputes shall be resolved in the courts of
+   A Coruna, Spain.
+
+---
+
+For licensing inquiries: juan.mendezr@proton.me
+Project: https://codeberg.org/cefrium
