@@ -216,6 +216,7 @@ def main():
         'com/google/thirdparty/',    # Google third-party
         'kotlin/',                   # Kotlin stdlib
         'kotlinx/',                  # Kotlin coroutines
+        '_COROUTINE/',               # Coroutine debug classes (root package)
         'org/intellij/',             # IntelliJ annotations
         'org/jetbrains/',            # JetBrains annotations
         'org/jspecify/',             # JSpecify annotations
@@ -252,6 +253,7 @@ def main():
         'chrome_100_percent.pak': 'assets/chrome_100_percent.pak',
         'chrome_200_percent.pak': 'assets/chrome_200_percent.pak',
         'snapshot_blob.bin': 'assets/snapshot_blob_64.bin',
+        'v8_context_snapshot_64.bin': 'assets/v8_context_snapshot_64.bin',
     }
     locale = os.path.join(build_dir, 'locales', 'en-US.pak')
     if os.path.exists(locale):
