@@ -100,9 +100,6 @@ void CefVideoConsumerOSR::OnFrameCaptured(
     mojo::PendingRemote<viz::mojom::FrameSinkVideoConsumerFrameCallbacks>
         callbacks) {
   ScopedVideoFrameDone scoped_done(std::move(callbacks));
-  LOG(INFO) << "CefVideoConsumerOSR::OnFrameCaptured: "
-            << info->coded_size.ToString()
-            << " content=" << content_rect.ToString();
 
   media::VideoFrameMetadata metadata = info->metadata;
   gfx::Rect damage_rect;
