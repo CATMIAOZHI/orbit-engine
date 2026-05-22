@@ -249,6 +249,45 @@ Java_com_cefrium_CefriumBrowser_nativeInvalidate(
   }
 }
 
+// Touch event forwarding: Android MotionEvent → CEF mouse/touch events.
+// action: 0=DOWN, 1=UP, 2=MOVE
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSendTouchEvent(
+    JNIEnv* env, jclass clazz, jlong native_ptr,
+    jint action, jfloat x, jfloat y, jint pointer_id) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return;
+
+  auto host = data->browser->GetHost();
+  CefTouchEvent event;
+  event.id = pointer_id;
+  event.x = x;
+  event.y = y;
+  event.radius_x = 10;
+  event.radius_y = 10;
+  event.pressure = 1.0f;
+
+  switch (action) {
+    case 0:  // ACTION_DOWN
+      event.type = CEF_TET_PRESSED;
+      host->SendTouchEvent(event);
+      break;
+    case 1:  // ACTION_UP
+      event.type = CEF_TET_RELEASED;
+      event.pressure = 0.0f;
+      host->SendTouchEvent(event);
+      break;
+    case 2:  // ACTION_MOVE
+      event.type = CEF_TET_MOVED;
+      host->SendTouchEvent(event);
+      break;
+    case 3:  // ACTION_CANCEL
+      event.type = CEF_TET_CANCELLED;
+      host->SendTouchEvent(event);
+      break;
+  }
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeClose(
     JNIEnv* env, jobject thiz, jlong native_ptr) {
