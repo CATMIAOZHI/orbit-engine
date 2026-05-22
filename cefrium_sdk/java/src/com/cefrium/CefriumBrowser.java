@@ -86,16 +86,10 @@ public class CefriumBrowser {
         }
     }
 
-    /** Debug: create a browser using the test APK's code path for comparison. */
-    public static void createTestBrowser(String url) {
-        nativeCreateTestBrowser(url);
-    }
-
     // Native methods.
     private static native long nativeCreate(int width, int height);
     private static native void nativeSetRenderHandler(long nativePtr, CefriumBrowser browser);
     private static native void nativeLoadUrl(long nativePtr, String url);
     private static native void nativeInvalidate(long nativePtr);
     private static native void nativeClose(long nativePtr);
-    private static native void nativeCreateTestBrowser(String url);
 }
