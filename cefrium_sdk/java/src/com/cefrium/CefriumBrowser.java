@@ -100,11 +100,23 @@ public class CefriumBrowser {
         }
     }
 
+    /**
+     * Get the number of blocked ad/tracking requests.
+     */
+    public int getBlockedCount() {
+        if (mNativePtr != 0) {
+            return nativeGetBlockedCount(mNativePtr);
+        }
+        return 0;
+    }
+
     // Native methods.
     private static native long nativeCreate(int width, int height);
     private static native void nativeSetRenderHandler(long nativePtr, CefriumBrowser browser);
     private static native void nativeLoadUrl(long nativePtr, String url);
     private static native void nativeInvalidate(long nativePtr);
     private static native void nativeSendTouchEvent(long nativePtr, int action, float x, float y, int pointerId);
+    private static native void nativeSetAdBlockEnabled(long nativePtr, boolean enabled);
+    private static native int nativeGetBlockedCount(long nativePtr);
     private static native void nativeClose(long nativePtr);
 }
