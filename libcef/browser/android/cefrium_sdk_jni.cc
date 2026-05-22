@@ -188,11 +188,6 @@ Java_com_cefrium_Cefrium_nativeShutdown(JNIEnv* env, jclass clazz) {
   CefShutdown();
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_cefrium_Cefrium_nativeDoMessageLoopWork(JNIEnv* env, jclass clazz) {
-  CefDoMessageLoopWork();
-}
-
 // --- CefriumBrowser.java native methods ---
 
 extern "C" JNIEXPORT jlong JNICALL
@@ -244,66 +239,6 @@ Java_com_cefrium_CefriumBrowser_nativeSetRenderHandler(
   }
 }
 
-
-// Debug: create a test browser using the exact same code as the test APK
-// to compare rendering behavior.
-extern "C" JNIEXPORT void JNICALL
-Java_com_cefrium_CefriumBrowser_nativeCreateTestBrowser(
-    JNIEnv* env, jclass clazz, jstring url_jstr) {
-  const char* url = env->GetStringUTFChars(url_jstr, nullptr);
-  LOGI("nativeCreateTestBrowser: %s", url);
-
-  CefWindowInfo window_info;
-  window_info.SetAsWindowless(0);
-
-  CefBrowserSettings browser_settings;
-  browser_settings.background_color = CefColorSetARGB(255, 255, 255, 255);
-
-  // Use a simple client with just render + load handlers (like test APK)
-  class SimpleRenderHandler : public CefRenderHandler {
-   public:
-    void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) override {
-      rect = CefRect(0, 0, 800, 600);
-    }
-    void OnPaint(CefRefPtr<CefBrowser> browser, PaintElementType type,
-                 const RectList& dirtyRects, const void* buffer,
-                 int width, int height) override {
-      if (width == 0 || height == 0) return;
-      const uint8_t* px = static_cast<const uint8_t*>(buffer);
-      LOGI("TEST OnPaint: %dx%d pixel[200,200]=%d,%d,%d,%d",
-           width, height,
-           px[(200*width+200)*4], px[(200*width+200)*4+1],
-           px[(200*width+200)*4+2], px[(200*width+200)*4+3]);
-    }
-    IMPLEMENT_REFCOUNTING(SimpleRenderHandler);
-  };
-  class SimpleLoadHandler : public CefLoadHandler {
-   public:
-    void OnLoadEnd(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
-                   int httpStatusCode) override {
-      if (frame->IsMain()) {
-        LOGI("TEST OnLoadEnd: status %d, invalidating", httpStatusCode);
-        browser->GetHost()->Invalidate(PET_VIEW);
-      }
-    }
-    IMPLEMENT_REFCOUNTING(SimpleLoadHandler);
-  };
-  class SimpleClient : public CefClient {
-   public:
-    SimpleClient() : rh_(new SimpleRenderHandler()), lh_(new SimpleLoadHandler()) {}
-    CefRefPtr<CefRenderHandler> GetRenderHandler() override { return rh_; }
-    CefRefPtr<CefLoadHandler> GetLoadHandler() override { return lh_; }
-    IMPLEMENT_REFCOUNTING(SimpleClient);
-   private:
-    CefRefPtr<SimpleRenderHandler> rh_;
-    CefRefPtr<SimpleLoadHandler> lh_;
-  };
-
-  CefRefPtr<SimpleClient> client = new SimpleClient();
-  CefBrowserHost::CreateBrowser(window_info, client, CefString(url),
-                                browser_settings, nullptr, nullptr);
-  env->ReleaseStringUTFChars(url_jstr, url);
-}
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeInvalidate(
