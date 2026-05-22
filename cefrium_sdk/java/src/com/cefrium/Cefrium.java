@@ -100,5 +100,4 @@ public final class Cefrium {
     // Native methods implemented in libcef.so.
     private static native int nativeInitialize(String cacheDir, String dataDir);
     private static native void nativeShutdown();
-    private static native void nativeDoMessageLoopWork();
 }

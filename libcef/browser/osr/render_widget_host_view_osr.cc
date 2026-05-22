@@ -1687,27 +1687,12 @@ void CefRenderWidgetHostViewOSR::OnPaint(const gfx::Rect& damage_rect,
 
   // Workaround for issue #2817.
   if (!is_showing_) {
-    LOG(INFO) << "CefRWHVOSR::OnPaint: skipped (not showing)";
     return;
   }
 
   if (!pixels) {
-    LOG(WARNING) << "CefRWHVOSR::OnPaint: skipped (null pixels)";
     return;
   }
-
-  // Debug: check multiple pixels to see if content is rendered
-  const uint8_t* px = static_cast<const uint8_t*>(pixels);
-  int w = pixel_size.width();
-  // Check pixel at (50,50) — should be inside content area
-  int off50 = (50 * w + 50) * 4;
-  // Check pixel at (200,200) — center area
-  int off200 = (200 * w + 200) * 4;
-  LOG(INFO) << "CefRWHVOSR::OnPaint: " << pixel_size.ToString()
-            << " damage=" << damage_rect.ToString()
-            << " px[0,0]=" << (int)px[0] << "," << (int)px[1] << "," << (int)px[2] << "," << (int)px[3]
-            << " px[50,50]=" << (int)px[off50] << "," << (int)px[off50+1] << "," << (int)px[off50+2] << "," << (int)px[off50+3]
-            << " px[200,200]=" << (int)px[off200] << "," << (int)px[off200+1] << "," << (int)px[off200+2] << "," << (int)px[off200+3];
 
   CefRefPtr<CefRenderHandler> handler =
       browser_impl_->client()->GetRenderHandler();
@@ -1975,16 +1960,10 @@ void CefRenderWidgetHostViewOSR::RemoveGuestHostView(
 void CefRenderWidgetHostViewOSR::InvalidateInternal(
     const gfx::Rect& bounds_in_pixels) {
   if (video_consumer_) {
-    LOG(INFO) << "CefRWHVOSR::InvalidateInternal: using video_consumer";
     video_consumer_->RequestRefreshFrame(bounds_in_pixels);
   } else if (host_display_client_) {
-    LOG(INFO) << "CefRWHVOSR::InvalidateInternal: using host_display_client "
-              << host_display_client_->GetPixelSize().ToString()
-              << " memory=" << (host_display_client_->GetPixelMemory() ? "yes" : "null");
     OnPaint(bounds_in_pixels, host_display_client_->GetPixelSize(),
             host_display_client_->GetPixelMemory());
-  } else {
-    LOG(WARNING) << "CefRWHVOSR::InvalidateInternal: no video_consumer or host_display_client!";
   }
 }
 
