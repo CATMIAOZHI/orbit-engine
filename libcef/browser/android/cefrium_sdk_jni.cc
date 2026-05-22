@@ -14,6 +14,8 @@
 #include "cef/include/cef_life_span_handler.h"
 #include "cef/include/cef_load_handler.h"
 #include "cef/include/cef_render_handler.h"
+#include "cef/include/cef_request_handler.h"
+#include "cef/include/cef_resource_request_handler.h"
 
 #include <android/log.h>
 #include "base/android/jni_android.h"
@@ -104,14 +106,79 @@ class SdkLoadHandler : public CefLoadHandler {
   IMPLEMENT_REFCOUNTING(SdkLoadHandler);
 };
 
+// Ad-blocking request handler. Blocks requests to known ad/tracking domains.
+class SdkResourceRequestHandler : public CefResourceRequestHandler {
+ public:
+  explicit SdkResourceRequestHandler(int* blocked_count)
+      : blocked_count_(blocked_count) {}
+
+  CefResourceRequestHandler::ReturnValue OnBeforeResourceLoad(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request,
+      CefRefPtr<CefCallback> callback) override {
+    std::string url = request->GetURL().ToString();
+
+    // Check against blocklist
+    static const char* blocklist[] = {
+        "doubleclick.net", "googlesyndication.com", "googleadservices.com",
+        "google-analytics.com", "facebook.com/tr", "facebook.net/signals",
+        "analytics.", "pagead2.", "adserver.", "ads.", "tracking.",
+        "scorecardresearch.com", "quantserve.com", "outbrain.com",
+        "taboola.com", "amazon-adsystem.com", "adsrvr.org",
+        "criteo.com", "moatads.com", "pubmatic.com", "rubiconproject.com",
+        "bidswitch.net", "casalemedia.com", "openx.net",
+        nullptr
+    };
+
+    for (int i = 0; blocklist[i]; i++) {
+      if (url.find(blocklist[i]) != std::string::npos) {
+        if (blocked_count_) (*blocked_count_)++;
+        LOGI("BLOCKED: %s", url.substr(0, 80).c_str());
+        return RV_CANCEL;
+      }
+    }
+    return RV_CONTINUE;
+  }
+
+  IMPLEMENT_REFCOUNTING(SdkResourceRequestHandler);
+
+ private:
+  int* blocked_count_;
+};
+
+class SdkRequestHandler : public CefRequestHandler {
+ public:
+  explicit SdkRequestHandler(int* blocked_count)
+      : resource_handler_(new SdkResourceRequestHandler(blocked_count)) {}
+
+  CefRefPtr<CefResourceRequestHandler> GetResourceRequestHandler(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request,
+      bool is_navigation,
+      bool is_download,
+      const CefString& request_initiator,
+      bool& disable_default_handling) override {
+    return resource_handler_;
+  }
+
+  IMPLEMENT_REFCOUNTING(SdkRequestHandler);
+
+ private:
+  CefRefPtr<SdkResourceRequestHandler> resource_handler_;
+};
+
 // Minimal client that connects handlers.
 class SdkClient : public CefClient {
  public:
   SdkClient(CefRefPtr<SdkRenderHandler> render_handler,
-            CefRefPtr<SdkLifeSpanHandler> life_span_handler)
+            CefRefPtr<SdkLifeSpanHandler> life_span_handler,
+            int* blocked_count = nullptr)
       : render_handler_(render_handler),
         life_span_handler_(life_span_handler),
-        load_handler_(new SdkLoadHandler()) {}
+        load_handler_(new SdkLoadHandler()),
+        request_handler_(blocked_count ? new SdkRequestHandler(blocked_count) : nullptr) {}
 
   CefRefPtr<CefRenderHandler> GetRenderHandler() override {
     return render_handler_;
@@ -125,12 +192,17 @@ class SdkClient : public CefClient {
     return load_handler_;
   }
 
+  CefRefPtr<CefRequestHandler> GetRequestHandler() override {
+    return request_handler_;
+  }
+
   IMPLEMENT_REFCOUNTING(SdkClient);
 
  private:
   CefRefPtr<SdkRenderHandler> render_handler_;
   CefRefPtr<SdkLifeSpanHandler> life_span_handler_;
   CefRefPtr<SdkLoadHandler> load_handler_;
+  CefRefPtr<SdkRequestHandler> request_handler_;
 };
 
 // Per-browser data stored as the native pointer in Java.
@@ -139,7 +211,9 @@ struct SdkBrowserData {
   CefRefPtr<SdkRenderHandler> render_handler;
   CefRefPtr<SdkLifeSpanHandler> life_span_handler;
   CefRefPtr<SdkClient> client;
-  std::string pending_url;  // URL to load once browser is ready
+  std::string pending_url;
+  int blocked_count = 0;
+  bool adblock_enabled = false;
 };
 
 void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
@@ -197,8 +271,9 @@ Java_com_cefrium_CefriumBrowser_nativeCreate(
   data->render_handler = new SdkRenderHandler(width, height);
   data->life_span_handler = new SdkLifeSpanHandler();
   data->life_span_handler->SetBrowserData(data);
-  data->client = new SdkClient(data->render_handler, data->life_span_handler);
-  LOGI("nativeCreate: %dx%d (browser not yet created)", width, height);
+  data->client = new SdkClient(data->render_handler, data->life_span_handler,
+                               &data->blocked_count);
+  LOGI("nativeCreate: %dx%d (browser not yet created, adblock active)", width, height);
   return reinterpret_cast<jlong>(data);
 }
 
@@ -286,6 +361,24 @@ Java_com_cefrium_CefriumBrowser_nativeSendTouchEvent(
       host->SendTouchEvent(event);
       break;
   }
+}
+
+// Ad-blocking: enable/disable and get blocked count.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetAdBlockEnabled(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jboolean enabled) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data) {
+    data->adblock_enabled = enabled;
+    LOGI("AdBlock %s", enabled ? "ENABLED" : "DISABLED");
+  }
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_cefrium_CefriumBrowser_nativeGetBlockedCount(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  return data ? data->blocked_count : 0;
 }
 
 extern "C" JNIEXPORT void JNICALL
