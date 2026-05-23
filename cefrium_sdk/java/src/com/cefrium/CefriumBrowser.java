@@ -26,21 +26,39 @@ public class CefriumBrowser {
      * Create a new off-screen browser with default settings.
      */
     public CefriumBrowser() {
-        this(800, 600);
+        this(800, 600, 1.0f);
     }
 
     /**
      * Create a new off-screen browser with specified viewport size.
+     * Device scale factor defaults to 1.0 (desktop). For mobile,
+     * use {@link #CefriumBrowser(int, int, float)}.
      *
-     * @param width  Viewport width in pixels.
-     * @param height Viewport height in pixels.
+     * @param width  Viewport width in physical pixels.
+     * @param height Viewport height in physical pixels.
      */
     public CefriumBrowser(int width, int height) {
+        this(width, height, 1.0f);
+    }
+
+    /**
+     * Create a new off-screen browser with specified viewport size
+     * and device scale factor.
+     *
+     * <p>The scale factor controls how CSS pixels map to physical pixels.
+     * For example, on a 1080px wide screen with scale 2.75, the CSS
+     * viewport is ~393px — triggering mobile layouts.</p>
+     *
+     * @param width  Viewport width in physical pixels.
+     * @param height Viewport height in physical pixels.
+     * @param scale  Device scale factor (e.g., 2.75 for Xiaomi Redmi Note 13 Pro).
+     */
+    public CefriumBrowser(int width, int height, float scale) {
         if (!Cefrium.isInitialized()) {
             throw new IllegalStateException(
                     "Cefrium.initialize() must be called before creating browsers");
         }
-        mNativePtr = nativeCreate(width, height);
+        mNativePtr = nativeCreate(width, height, scale);
     }
 
     /**
@@ -111,7 +129,7 @@ public class CefriumBrowser {
     }
 
     // Native methods.
-    private static native long nativeCreate(int width, int height);
+    private static native long nativeCreate(int width, int height, float scale);
     private static native void nativeSetRenderHandler(long nativePtr, CefriumBrowser browser);
     private static native void nativeLoadUrl(long nativePtr, String url);
     private static native void nativeInvalidate(long nativePtr);
