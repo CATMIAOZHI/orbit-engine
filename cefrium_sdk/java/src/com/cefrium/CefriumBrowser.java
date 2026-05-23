@@ -128,13 +128,63 @@ public class CefriumBrowser {
         return 0;
     }
 
+    /**
+     * Create a browser that renders directly to an Android Surface.
+     * This enables video playback, audio, and hardware-accelerated
+     * compositing. The Surface is typically obtained from a SurfaceView.
+     *
+     * @param surface Android Surface to render to.
+     * @param width   Surface width in physical pixels.
+     * @param height  Surface height in physical pixels.
+     * @param scale   Device scale factor.
+     * @return A new CefriumBrowser instance.
+     */
+    public static CefriumBrowser createWithSurface(
+            android.view.Surface surface, int width, int height, float scale) {
+        if (!Cefrium.isInitialized()) {
+            throw new IllegalStateException(
+                    "Cefrium.initialize() must be called before creating browsers");
+        }
+        CefriumBrowser browser = new CefriumBrowser();
+        browser.mNativePtr = nativeCreateWithSurface(surface, width, height, scale);
+        return browser;
+    }
+
+    // Private constructor for factory methods.
+    private CefriumBrowser() {
+        mNativePtr = 0;
+    }
+
+    /**
+     * Update the Surface (e.g., after rotation or resize).
+     */
+    public void updateSurface(android.view.Surface surface, int width, int height) {
+        if (mNativePtr != 0) {
+            nativeUpdateSurface(mNativePtr, surface, width, height);
+        }
+    }
+
+    /**
+     * Detach the Surface (e.g., when SurfaceView is destroyed).
+     */
+    public void detachSurface() {
+        if (mNativePtr != 0) {
+            nativeDetachSurface(mNativePtr);
+        }
+    }
+
     // Native methods.
     private static native long nativeCreate(int width, int height, float scale);
+    private static native long nativeCreateWithSurface(
+            android.view.Surface surface, int width, int height, float scale);
     private static native void nativeSetRenderHandler(long nativePtr, CefriumBrowser browser);
     private static native void nativeLoadUrl(long nativePtr, String url);
     private static native void nativeInvalidate(long nativePtr);
     private static native void nativeSendTouchEvent(long nativePtr, int action, float x, float y, int pointerId);
     private static native void nativeSetAdBlockEnabled(long nativePtr, boolean enabled);
     private static native int nativeGetBlockedCount(long nativePtr);
+    private static native void nativeUpdateSurface(
+            long nativePtr, android.view.Surface surface, int width, int height);
+    private static native void nativeDetachSurface(long nativePtr);
     private static native void nativeClose(long nativePtr);
 }
