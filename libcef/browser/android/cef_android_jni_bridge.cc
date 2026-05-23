@@ -160,6 +160,10 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   std::string locales_dir = std::string(data_dir) + "/locales";
   CefString(&settings.locales_dir_path).FromASCII(locales_dir.c_str());
 
+  // Identify as Chrome Android so sites serve full-featured content.
+  CefString(&settings.user_agent_product)
+      .FromASCII("Chrome/148.0.7778.167 Cefrium/1.0 Mobile");
+
   LOGI("Calling CefInitialize...");
   bool result = CefInitialize(main_args, settings, nullptr, nullptr);
 
