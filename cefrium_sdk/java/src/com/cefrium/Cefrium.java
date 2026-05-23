@@ -84,6 +84,12 @@ public final class Cefrium {
         CommandLine.getInstance().appendSwitch("in-process-gpu");
         CommandLine.getInstance().appendSwitch("no-sandbox");
 
+        // Set device scale factor from screen density so pages render
+        // with correct mobile viewport (e.g., 1080px at 2.75x = ~393 CSS px).
+        float density = appContext.getResources().getDisplayMetrics().density;
+        CommandLine.getInstance().appendSwitchWithValue(
+                "force-device-scale-factor", String.valueOf(density));
+
         try {
             LibraryLoader.getInstance().ensureInitialized();
         } catch (Exception e) {
