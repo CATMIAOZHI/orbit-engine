@@ -29,6 +29,10 @@ that gap.
 | SDK AAR for Gradle integration | Done |
 | Web Speech API (text-to-speech) | Done |
 | Scroll-driven CSS animations | Done |
+| Mobile viewport (device scale factor) | Done |
+| Ad blocking (network-level request interception) | Done |
+| User-Agent: Chrome/148 Cefrium/1.0 | Done |
+| H.264/AAC video (proprietary codecs build) | Done |
 | arm64 validated on real device | Done |
 
 ## Why Cefrium, not WebView?
@@ -79,7 +83,10 @@ depot_tools/gn gen out/Official_android_arm64 --args='
   is_debug = false
   is_component_build = false
   android_non_final_r_java = true
+  proprietary_codecs = true
+  ffmpeg_branding = "Chrome"
 '
+# Omit proprietary_codecs and ffmpeg_branding for the libre variant.
 
 # 3. Build test APK (standalone, all-in-one — for validation)
 ninja -C out/Official_android_arm64 cef/tests/cef_android_test:cefrium_test_apk
@@ -105,6 +112,26 @@ adb shell am start -n org.cefrium.test/.CefriumTestActivity
 # Check logs
 adb logcat -s "chromium:*" "CefriumTest:*"
 ```
+
+## SDK releases
+
+Pre-built SDK AARs are published on [Codeberg Releases](https://codeberg.org/cefrium/cef-android/releases)
+and will be available on Maven Central.
+
+Two variants are published for each Chromium version:
+
+| Artifact | Codecs | Use case |
+|----------|--------|----------|
+| `cefrium-sdk` | H.264, H.265, AAC, VP8, VP9, Opus | Full site compatibility — video playback, media streaming. Recommended for production. |
+| `cefrium-sdk-libre` | VP8, VP9, Opus, Vorbis | Only royalty-free codecs. For projects that require strict FOSS compliance or operate in jurisdictions where H.264 patents apply. |
+
+Each variant is available for `arm64-v8a` (real devices) and `x86_64`
+(emulators).
+
+**Patent note:** H.264 base profile patents expired in 2027. In the EU,
+software patents are not enforceable (European Patent Convention,
+Article 52). The SDK source code (FFmpeg decoders) is LGPL — patent
+licensing is orthogonal to copyright licensing.
 
 ## SDK AAR usage
 
