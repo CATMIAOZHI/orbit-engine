@@ -26,15 +26,30 @@
 // Per-browser render handler that forwards OnPaint to Java.
 class SdkRenderHandler : public CefRenderHandler {
  public:
-  SdkRenderHandler(int width, int height)
-      : width_(width), height_(height) {}
+  SdkRenderHandler(int width, int height, float scale)
+      : width_(width), height_(height), scale_(scale) {}
 
   void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
     java_browser_ = env->NewGlobalRef(java_browser);
   }
 
   void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) override {
-    rect = CefRect(0, 0, width_, height_);
+    // Report CSS pixel dimensions (physical / scale) so pages use
+    // mobile-width media queries (e.g., 1080/2.75 ≈ 393 CSS px).
+    rect = CefRect(0, 0, static_cast<int>(width_ / scale_),
+                   static_cast<int>(height_ / scale_));
+  }
+
+  bool GetScreenInfo(CefRefPtr<CefBrowser> browser,
+                     CefScreenInfo& screen_info) override {
+    screen_info.device_scale_factor = scale_;
+    screen_info.depth = 32;
+    screen_info.depth_per_component = 8;
+    screen_info.is_monochrome = 0;
+    screen_info.rect = {0, 0, static_cast<int>(width_ / scale_),
+                        static_cast<int>(height_ / scale_)};
+    screen_info.available_rect = screen_info.rect;
+    return true;
   }
 
   void OnPaint(CefRefPtr<CefBrowser> browser,
@@ -75,6 +90,7 @@ class SdkRenderHandler : public CefRenderHandler {
  private:
   int width_;
   int height_;
+  float scale_;
   jobject java_browser_ = nullptr;
 };
 
@@ -271,9 +287,9 @@ Java_com_cefrium_Cefrium_nativeShutdown(JNIEnv* env, jclass clazz) {
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_cefrium_CefriumBrowser_nativeCreate(
-    JNIEnv* env, jclass clazz, jint width, jint height) {
+    JNIEnv* env, jclass clazz, jint width, jint height, jfloat scale) {
   auto* data = new SdkBrowserData();
-  data->render_handler = new SdkRenderHandler(width, height);
+  data->render_handler = new SdkRenderHandler(width, height, scale);
   data->life_span_handler = new SdkLifeSpanHandler();
   data->life_span_handler->SetBrowserData(data);
   data->client = new SdkClient(data->render_handler, data->life_span_handler,
