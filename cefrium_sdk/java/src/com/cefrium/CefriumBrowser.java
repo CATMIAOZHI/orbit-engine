@@ -22,6 +22,15 @@ public class CefriumBrowser {
     private long mNativePtr;  // Pointer to native CefBrowser
     private CefriumRenderHandler mRenderHandler;
 
+    // Private marker constructor for factory methods — does NOT create native.
+    private CefriumBrowser(boolean marker) {
+        if (!Cefrium.isInitialized()) {
+            throw new IllegalStateException(
+                    "Cefrium.initialize() must be called before creating browsers");
+        }
+        // mNativePtr set by factory method after construction.
+    }
+
     /**
      * Create a new off-screen browser with default settings.
      */
@@ -131,28 +140,27 @@ public class CefriumBrowser {
     /**
      * Create a browser that renders directly to an Android Surface.
      * This enables video playback, audio, and hardware-accelerated
-     * compositing. The Surface is typically obtained from a SurfaceView.
+     * compositing.
      *
-     * @param surface Android Surface to render to.
-     * @param width   Surface width in physical pixels.
-     * @param height  Surface height in physical pixels.
-     * @param scale   Device scale factor.
+     * @param windowAndroid Chromium WindowAndroid for compositor context.
+     * @param surface       Android Surface to render to.
+     * @param width         Surface width in physical pixels.
+     * @param height        Surface height in physical pixels.
+     * @param scale         Device scale factor.
      * @return A new CefriumBrowser instance.
      */
     public static CefriumBrowser createWithSurface(
-            android.view.Surface surface, int width, int height, float scale) {
+            org.chromium.ui.base.WindowAndroid windowAndroid,
+            android.view.Surface surface,
+            int width, int height, float scale) {
         if (!Cefrium.isInitialized()) {
             throw new IllegalStateException(
                     "Cefrium.initialize() must be called before creating browsers");
         }
-        CefriumBrowser browser = new CefriumBrowser();
-        browser.mNativePtr = nativeCreateWithSurface(surface, width, height, scale);
+        CefriumBrowser browser = new CefriumBrowser(true);
+        browser.mNativePtr = nativeCreateWithSurface(
+                windowAndroid, surface, width, height, scale);
         return browser;
-    }
-
-    // Private constructor for factory methods.
-    private CefriumBrowser() {
-        mNativePtr = 0;
     }
 
     /**
@@ -176,6 +184,7 @@ public class CefriumBrowser {
     // Native methods.
     private static native long nativeCreate(int width, int height, float scale);
     private static native long nativeCreateWithSurface(
+            org.chromium.ui.base.WindowAndroid windowAndroid,
             android.view.Surface surface, int width, int height, float scale);
     private static native void nativeSetRenderHandler(long nativePtr, CefriumBrowser browser);
     private static native void nativeLoadUrl(long nativePtr, String url);

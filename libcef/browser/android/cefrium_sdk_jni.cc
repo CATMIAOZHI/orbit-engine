@@ -19,6 +19,9 @@
 
 #include <android/log.h>
 #include "base/android/jni_android.h"
+#include "cef/libcef/browser/android/browser_surface_android.h"
+#include "cef/libcef/browser/browser_host_base.h"
+#include "ui/android/window_android.h"
 
 #define TAG "Cefrium"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
@@ -230,12 +233,29 @@ struct SdkBrowserData {
   std::string pending_url;
   int blocked_count = 0;
   bool adblock_enabled = false;
+
+  // Surface rendering mode (null for OSR mode).
+  std::unique_ptr<BrowserSurfaceAndroid> surface_bridge;
+  ui::WindowAndroid* window_android = nullptr;  // Owned by Java via prevent-GC ref.
+  bool is_surface_mode = false;
 };
 
 void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
-  LOGI("OnAfterCreated: browser ready (id=%d)", browser->GetIdentifier());
+  LOGI("OnAfterCreated: browser ready (id=%d, surface_mode=%d)",
+       browser->GetIdentifier(), data_ ? data_->is_surface_mode : 0);
   if (data_) {
     data_->browser = browser;
+
+    // In Surface mode, attach the WebContents to the compositor.
+    if (data_->is_surface_mode && data_->surface_bridge) {
+      auto* browser_impl = static_cast<CefBrowserHostBase*>(
+          browser->GetHost().get());
+      content::WebContents* web_contents = browser_impl->GetWebContents();
+      if (web_contents) {
+        data_->surface_bridge->AttachWebContents(web_contents);
+        LOGI("Surface mode: WebContents attached to compositor");
+      }
+    }
   }
 }
 
@@ -410,6 +430,87 @@ Java_com_cefrium_CefriumBrowser_nativeClose(
     if (data->browser) {
       data->browser->GetHost()->CloseBrowser(true);
     }
+    data->surface_bridge.reset();
     delete data;
+  }
+}
+
+// --- Surface rendering mode ---
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
+    JNIEnv* env, jclass clazz, jobject java_window_android,
+    jobject java_surface, jint width, jint height, jfloat scale) {
+  auto* data = new SdkBrowserData();
+  data->is_surface_mode = true;
+
+  // Get the native WindowAndroid from the Java object.
+  base::android::ScopedJavaLocalRef<jobject> j_window =
+      base::android::ScopedJavaLocalRef<jobject>::Adopt(env, java_window_android);
+  ui::WindowAndroid* window =
+      ui::WindowAndroid::FromJavaWindowAndroid(j_window);
+  // Prevent the local ref from being released — Java still owns it.
+  j_window.Release();
+  if (!window) {
+    LOGI("nativeCreateWithSurface: WindowAndroid is null!");
+    delete data;
+    return 0;
+  }
+  data->window_android = window;
+
+  // Create the Surface bridge (compositor).
+  data->surface_bridge = std::make_unique<BrowserSurfaceAndroid>(window);
+
+  // Set the Surface immediately.
+  auto j_surface = base::android::ScopedJavaLocalRef<jobject>::Adopt(env, java_surface);
+  data->surface_bridge->SurfaceChanged(env, j_surface, width, height);
+  j_surface.Release();
+
+  // Create life span handler to capture the browser reference.
+  data->life_span_handler = new SdkLifeSpanHandler();
+  data->life_span_handler->SetBrowserData(data);
+
+  // Create client without render handler (Surface mode doesn't use OnPaint).
+  data->client = new SdkClient(
+      nullptr,  // No render handler for Surface mode
+      data->life_span_handler,
+      &data->blocked_count);
+
+  LOGI("nativeCreateWithSurface: %dx%d scale=%.2f (Surface mode)", width,
+       height, scale);
+
+  // Create browser in NON-windowless mode.
+  // Chromium creates WebContentsViewAndroid + RenderWidgetHostViewAndroid
+  // instead of OSR variants. Video, audio, and GPU compositing all work.
+  CefWindowInfo window_info;
+  // Do NOT call SetAsWindowless — leave default (windowed/Surface mode).
+
+  CefBrowserSettings browser_settings;
+  browser_settings.background_color = CefColorSetARGB(255, 255, 255, 255);
+
+  CefBrowserHost::CreateBrowser(window_info, data->client, CefString(""),
+                                browser_settings, nullptr, nullptr);
+
+  return reinterpret_cast<jlong>(data);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeUpdateSurface(
+    JNIEnv* env, jclass clazz, jlong native_ptr,
+    jobject java_surface, jint width, jint height) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->surface_bridge) {
+    auto j_surface = base::android::ScopedJavaLocalRef<jobject>::Adopt(env, java_surface);
+    data->surface_bridge->SurfaceChanged(env, j_surface, width, height);
+    j_surface.Release();
+  }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeDetachSurface(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->surface_bridge) {
+    data->surface_bridge->SurfaceDestroyed();
   }
 }
