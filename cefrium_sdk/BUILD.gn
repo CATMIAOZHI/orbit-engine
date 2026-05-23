@@ -1,12 +1,14 @@
 # Cefrium SDK — Android AAR package.
 #
 # Build targets:
-#   cefrium_aar      — raw AAR (large, all resources)
-#   cefrium_sdk      — optimized AAR (stripped locales, compressed)
+#   cefrium_jni_registration — GEN_JNI class with all JNI bindings
+#   cefrium_aar              — raw AAR (large, all resources)
+#   cefrium_sdk              — optimized AAR (stripped locales, compressed)
 #
 # The final deliverable is cefrium-sdk.aar in $root_build_dir.
 
 import("//build/config/android/rules.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 android_resources("cefrium_resources") {
   sources = []
@@ -32,17 +34,49 @@ android_library("cefrium_java") {
   ]
 }
 
+# Aggregate Java dependencies for JNI method scanning.
+# This collects all Java classes with @NativeMethods annotations
+# that need native bindings in GEN_JNI.
+java_group("cefrium_jni_java_deps") {
+  testonly = true
+  deps = [
+    ":cefrium_java",
+    "//base:base_java",
+    "//chrome/android:chrome_all_java",
+    "//content/public/android:content_java",
+    "//mojo/public/java:system_java",
+    "//net/android:net_java",
+    "//third_party/jni_zero:jni_zero_java",
+    "//ui/android:ui_java",
+  ]
+}
+
+# Generate JNI registration (GEN_JNI class) for all Java→native bindings
+# used by libcef.so. This is SDK infrastructure, NOT test code.
+# testonly is required because libcef depends on libcef_test_support (upstream).
+generate_jni_registration("cefrium_jni_registration") {
+  testonly = true
+  java_targets = [ ":cefrium_jni_java_deps" ]
+  native_deps = [ "//cef:libcef" ]
+
+  # CEF includes Chrome native code but not all Chrome Java classes.
+  # add_stubs generates no-op stubs for missing JNI methods (patched
+  # in gen_jni_java.py to return defaults instead of throwing).
+  # remove_uncalled strips bindings the build thinks are unused.
+  add_stubs_for_missing_jni = true
+  remove_uncalled_jni = true
+}
+
 dist_aar("cefrium_aar") {
   testonly = true
   deps = [
     ":cefrium_java",
+    ":cefrium_jni_registration",
     "//cef:libcef",
     "//chrome/android:chrome_all_java",
     "//content/public/android:content_java",
     "//net/android:net_java",
     "//third_party/jni_zero:jni_zero_java",
-    # GEN_JNI class for JNI dispatch.
-    "//cef/tests/cef_android_test:cefrium_jni_registration",
   ]
   output = "$root_build_dir/cefrium-raw.aar"
   native_libraries = [ "$root_build_dir/libcef.so" ]
@@ -53,8 +87,8 @@ dist_aar("cefrium_aar") {
 
 # Post-process AAR: strip locale resources, compress everything.
 action("cefrium_sdk") {
-  script = "slim_aar.py"
   testonly = true
+  script = "slim_aar.py"
   deps = [
     ":cefrium_aar",
     "//cef:libcef",
