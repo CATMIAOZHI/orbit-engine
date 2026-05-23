@@ -1,0 +1,28 @@
+diff --git a/ui/base/resource/resource_bundle.cc b/ui/base/resource/resource_bundle.cc
+index 2c07c1f..f04913a 100644
+--- a/ui/base/resource/resource_bundle.cc
++++ b/ui/base/resource/resource_bundle.cc
+@@ -1292,6 +1292,15 @@ std::u16string ResourceBundle::GetLocalizedStringImpl(int resource_id) const {
+     // Fall back on the main data pack (shouldn't be any strings here except
+     // in unittests).
+     data = GetRawDataResource(resource_id);
++#if BUILDFLAG(IS_ANDROID)
++    // On Android, embedded CEF may not bundle every Chromium string resource.
++    // Return empty string instead of crashing — missing UI text is preferable
++    // to killing the renderer process.
++    if (!data.has_value() || data->empty()) {
++      LOG(WARNING) << "Unable to find resource: " << resource_id;
++      return std::u16string();
++    }
++#else
+     CHECK(!data->empty())
+         << "Unable to find resource: " << resource_id
+         << ". If this happens in a browser test running on Windows, it may "
+@@ -1299,6 +1308,7 @@ std::u16string ResourceBundle::GetLocalizedStringImpl(int resource_id) const {
+            " resource, causing the resource to be stripped out because the "
+            "resource is not used by chrome.dll. See "
+            "https://crbug.com/1181150.";
++#endif
+   }
+ 
+   // Strings should not be loaded from a data pack that contains binary data.
