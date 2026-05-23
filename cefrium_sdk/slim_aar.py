@@ -201,25 +201,25 @@ def main():
     # Phase 6: Clean classes.jar.
     # Strip ONLY AndroidX/support classes (provided by consumer's appcompat dep).
     # Do NOT strip com.google, kotlin, etc. — their removal causes
-    # __builtin_trap in official builds.
-    # Strip classes that conflict with consumer's transitive deps.
-    # ONLY strip third-party libs, NOT Chrome/Chromium internal classes.
-    # Strip third-party classes that the consumer provides via Gradle deps.
-    # Consumer must add: androidx.core:core:1.16.0, appcompat:1.7.0
-    # Strip third-party classes provided by consumer's Gradle deps.
-    # Keep Guava (com/google/common/) — Chromium uses it directly
-    # (e.g. AudioManagerAndroid requires ImmutableMap).
+    # Strip third-party classes provided by consumer's Gradle deps,
+    # EXCEPT classes Chromium loads at runtime.
     STRIP_FROM_JAR = (
         'androidx/',
         'android/support/',
-        'com/google/errorprone/',    # ErrorProne annotations
-        'com/google/thirdparty/',    # Google third-party
-        'kotlin/',                   # Kotlin stdlib
-        'kotlinx/',                  # Kotlin coroutines
-        '_COROUTINE/',               # Coroutine debug classes (root package)
-        'org/intellij/',             # IntelliJ annotations
-        'org/jetbrains/',            # JetBrains annotations
-        'org/jspecify/',             # JSpecify annotations
+        'com/google/errorprone/',
+        'com/google/thirdparty/',
+        'kotlin/',
+        'kotlinx/',
+        '_COROUTINE/',
+        'org/intellij/',
+        'org/jetbrains/',
+        'org/jspecify/',
+    )
+    # Keep these even if they match STRIP_FROM_JAR prefixes.
+    # Chromium loads them at runtime — stripping causes crashes.
+    KEEP_IN_JAR = (
+        'com/google/common/',        # Guava (ImmutableMap, etc.)
+        'com/google/android/gms/',   # GMS classes
     )
     if 'classes.jar' in standard_entries:
         jar_data = standard_entries['classes.jar']
@@ -232,7 +232,9 @@ def main():
             if ji.filename.endswith(('.bin', '.kotlin_module')):
                 continue
             if any(ji.filename.startswith(p) for p in STRIP_FROM_JAR):
-                continue
+                # Check if this class should be kept despite matching strip
+                if not any(ji.filename.startswith(k) for k in KEEP_IN_JAR):
+                    continue
             out_jar.writestr(ji, in_jar.read(ji.filename))
         out_jar.close()
         in_jar.close()
