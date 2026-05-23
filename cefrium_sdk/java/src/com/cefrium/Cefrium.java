@@ -18,6 +18,31 @@ import org.chromium.ui.base.ResourceBundle;
 /**
  * Entry point for the Cefrium SDK. Initialize once before creating browsers.
  *
+ * <h3>User-Agent</h3>
+ *
+ * <p>Cefrium identifies itself as Chrome (because it IS Chromium) with a
+ * Cefrium product token appended:</p>
+ *
+ * <pre>
+ * Mozilla/5.0 (Linux; Android ...) AppleWebKit/537.36 (KHTML, like Gecko)
+ *     Chrome/148.0.7778.167 Cefrium/1.0 Mobile Safari/537.36
+ * </pre>
+ *
+ * <p>This ensures full site compatibility while transparently identifying
+ * the client. The User-Agent is configured via {@code CefSettings.user_agent_product}
+ * in the native layer. To customize it, use the {@code --user-agent-product}
+ * command-line switch before calling {@link #initialize}:</p>
+ *
+ * <pre>
+ * // Custom product string (replaces the default):
+ * CommandLine.getInstance().appendSwitchWithValue(
+ *     "user-agent-product",
+ *     "Chrome/148.0.7778.167 MyApp/2.0 Mobile");
+ * Cefrium.initialize(context);
+ * </pre>
+ *
+ * <h3>Basic usage</h3>
+ *
  * <pre>
  * // In Application.onCreate() or Activity.onCreate():
  * Cefrium.initialize(context);

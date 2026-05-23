@@ -247,6 +247,11 @@ Java_com_cefrium_Cefrium_nativeInitialize(
   settings.log_severity = LOGSEVERITY_INFO;
   CefString(&settings.root_cache_path).FromASCII(cache_dir);
 
+  // Identify as Chrome Android so sites serve full-featured content.
+  // CEF IS Chromium — this is accurate identification, not spoofing.
+  CefString(&settings.user_agent_product)
+      .FromASCII("Chrome/148.0.7778.167 Cefrium/1.0 Mobile");
+
   std::string locales_dir = std::string(data_dir) + "/locales";
   CefString(&settings.locales_dir_path).FromASCII(locales_dir.c_str());
 
