@@ -5,13 +5,16 @@
 // JNI bridge for Cefrium SDK Java API (com.cefrium.*).
 // Implements native methods declared in Cefrium.java and CefriumBrowser.java.
 
+#include <cinttypes>
 #include <jni.h>
 #include <string>
 
 #include "cef/include/cef_app.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_client.h"
+#include "cef/include/cef_context_menu_handler.h"
 #include "cef/include/cef_display_handler.h"
+#include "cef/include/cef_download_handler.h"
 #include "cef/include/cef_life_span_handler.h"
 #include "cef/include/cef_load_handler.h"
 #include "cef/include/cef_render_handler.h"
@@ -172,6 +175,100 @@ class SdkDisplayHandler : public CefDisplayHandler {
   jobject java_browser_ = nullptr;
 };
 
+// Download handler — saves files to the app's download directory.
+class SdkDownloadHandler : public CefDownloadHandler {
+ public:
+  void SetDownloadDir(const std::string& dir) { download_dir_ = dir; }
+
+  bool OnBeforeDownload(CefRefPtr<CefBrowser> browser,
+                        CefRefPtr<CefDownloadItem> download_item,
+                        const CefString& suggested_name,
+                        CefRefPtr<CefBeforeDownloadCallback> callback) override {
+    std::string path = download_dir_ + "/" + suggested_name.ToString();
+    LOGI("Download: %s -> %s", download_item->GetURL().ToString().c_str(),
+         path.c_str());
+    callback->Continue(path, false);
+    return true;
+  }
+
+  void OnDownloadUpdated(CefRefPtr<CefBrowser> browser,
+                         CefRefPtr<CefDownloadItem> download_item,
+                         CefRefPtr<CefDownloadItemCallback> callback) override {
+    if (download_item->IsComplete()) {
+      LOGI("Download complete: %s (%" PRId64 " bytes)",
+           download_item->GetFullPath().ToString().c_str(),
+           static_cast<int64_t>(download_item->GetReceivedBytes()));
+    } else if (download_item->IsCanceled()) {
+      LOGI("Download canceled");
+    }
+  }
+
+  IMPLEMENT_REFCOUNTING(SdkDownloadHandler);
+
+ private:
+  std::string download_dir_;
+};
+
+// Context menu handler — provides long-press menu options.
+class SdkContextMenuHandler : public CefContextMenuHandler {
+ public:
+  enum MenuIds {
+    MENU_ID_COPY_LINK = MENU_ID_USER_FIRST + 1,
+    MENU_ID_OPEN_LINK,
+    MENU_ID_SAVE_IMAGE,
+    MENU_ID_COPY_IMAGE_LINK,
+  };
+
+  void OnBeforeContextMenu(CefRefPtr<CefBrowser> browser,
+                           CefRefPtr<CefFrame> frame,
+                           CefRefPtr<CefContextMenuParams> params,
+                           CefRefPtr<CefMenuModel> model) override {
+    // Clear default menu.
+    model->Clear();
+
+    if (params->GetTypeFlags() & CM_TYPEFLAG_LINK) {
+      model->AddItem(MENU_ID_COPY_LINK, "Copy link");
+      model->AddItem(MENU_ID_OPEN_LINK, "Open link");
+    }
+    if (params->GetTypeFlags() & CM_TYPEFLAG_MEDIA &&
+        params->GetMediaType() == CM_MEDIATYPE_IMAGE) {
+      model->AddItem(MENU_ID_SAVE_IMAGE, "Save image");
+      model->AddItem(MENU_ID_COPY_IMAGE_LINK, "Copy image URL");
+    }
+  }
+
+  bool OnContextMenuCommand(CefRefPtr<CefBrowser> browser,
+                            CefRefPtr<CefFrame> frame,
+                            CefRefPtr<CefContextMenuParams> params,
+                            int command_id,
+                            EventFlags event_flags) override {
+    switch (command_id) {
+      case MENU_ID_COPY_LINK:
+        // Copy link URL to clipboard via JS.
+        frame->ExecuteJavaScript(
+            "navigator.clipboard.writeText('" +
+                params->GetLinkUrl().ToString() + "')",
+            frame->GetURL(), 0);
+        return true;
+      case MENU_ID_OPEN_LINK:
+        browser->GetMainFrame()->LoadURL(params->GetLinkUrl());
+        return true;
+      case MENU_ID_COPY_IMAGE_LINK:
+        frame->ExecuteJavaScript(
+            "navigator.clipboard.writeText('" +
+                params->GetSourceUrl().ToString() + "')",
+            frame->GetURL(), 0);
+        return true;
+      case MENU_ID_SAVE_IMAGE:
+        browser->GetHost()->StartDownload(params->GetSourceUrl());
+        return true;
+    }
+    return false;
+  }
+
+  IMPLEMENT_REFCOUNTING(SdkContextMenuHandler);
+};
+
 // Global AdBlock filter engine — shared across all browsers.
 static AdBlockFilter* g_adblock_filter = nullptr;
 
@@ -235,6 +332,8 @@ class SdkClient : public CefClient {
         life_span_handler_(life_span_handler),
         load_handler_(new SdkLoadHandler()),
         display_handler_(new SdkDisplayHandler()),
+        download_handler_(new SdkDownloadHandler()),
+        context_menu_handler_(new SdkContextMenuHandler()),
         request_handler_(blocked_count ? new SdkRequestHandler(blocked_count) : nullptr) {
     if (browser_data) {
       load_handler_->SetBrowserData(browser_data);
@@ -261,7 +360,17 @@ class SdkClient : public CefClient {
     return request_handler_;
   }
 
+  CefRefPtr<CefDownloadHandler> GetDownloadHandler() override {
+    return download_handler_;
+  }
+
+  CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override {
+    return context_menu_handler_;
+  }
+
   CefRefPtr<SdkDisplayHandler> display_handler() { return display_handler_; }
+  CefRefPtr<SdkLoadHandler> load_handler_ref() { return load_handler_; }
+  CefRefPtr<SdkDownloadHandler> download_handler() { return download_handler_; }
 
   IMPLEMENT_REFCOUNTING(SdkClient);
 
@@ -270,6 +379,8 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkLifeSpanHandler> life_span_handler_;
   CefRefPtr<SdkLoadHandler> load_handler_;
   CefRefPtr<SdkDisplayHandler> display_handler_;
+  CefRefPtr<SdkDownloadHandler> download_handler_;
+  CefRefPtr<SdkContextMenuHandler> context_menu_handler_;
   CefRefPtr<SdkRequestHandler> request_handler_;
 };
 
@@ -530,6 +641,10 @@ Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
       nullptr,  // No render handler — ContentViewRenderView handles rendering
       data->life_span_handler,
       &data->blocked_count);
+
+  // Set download directory to app's external files/Download.
+  // TODO: get from Java instead of hardcoding.
+  data->client->download_handler()->SetDownloadDir("/sdcard/Download");
 
   LOGI("nativeCreateWithSurface: %dx%d (windowed mode, ContentViewRenderView)", width, height);
 
