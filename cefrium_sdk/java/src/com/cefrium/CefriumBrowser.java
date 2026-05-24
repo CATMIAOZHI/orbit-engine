@@ -181,6 +181,16 @@ public class CefriumBrowser {
         }
     }
 
+    /**
+     * Get the Chromium WebContents object for this browser.
+     * Used internally for Surface rendering via ContentViewRenderView.
+     * Returns null if the browser hasn't loaded yet.
+     */
+    public org.chromium.content_public.browser.WebContents getWebContents() {
+        if (mNativePtr == 0) return null;
+        return nativeGetWebContents(mNativePtr);
+    }
+
     // Native methods.
     private static native long nativeCreate(int width, int height, float scale);
     private static native long nativeCreateWithSurface(
@@ -195,5 +205,6 @@ public class CefriumBrowser {
     private static native void nativeUpdateSurface(
             long nativePtr, android.view.Surface surface, int width, int height);
     private static native void nativeDetachSurface(long nativePtr);
+    private static native org.chromium.content_public.browser.WebContents nativeGetWebContents(long nativePtr);
     private static native void nativeClose(long nativePtr);
 }
