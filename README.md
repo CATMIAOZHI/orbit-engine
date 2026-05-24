@@ -8,9 +8,10 @@ considered out of scope due to its fundamentally different process model
 and UI stack. This project builds on CEF's solid foundation to close
 that gap.
 
-<img src="assets/screenshots/cef-web-render.png" width="300" alt="CEF documentation page rendered on Android">
+<img src="assets/screenshots/cefrium-browser.png" width="300" alt="Cefrium Browser on Android">
+<img src="assets/screenshots/headless-render.png" width="300" alt="Headless rendering — URL to PNG">
 
-*CEF project page rendered by Chromium 148 on Android — loaded from the web via SDK AAR*
+*Left: Cefrium Browser with URL bar, navigation, video+audio. Right: Headless render — URL to PNG via OSR mode.*
 
 ## What works
 
