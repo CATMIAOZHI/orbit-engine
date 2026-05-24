@@ -21,6 +21,7 @@ package com.cefrium;
 public class CefriumBrowser {
     private long mNativePtr;  // Pointer to native CefBrowser
     private CefriumRenderHandler mRenderHandler;
+    private OnUrlChangedListener mUrlListener;
 
     // Private marker constructor for factory methods — does NOT create native.
     private CefriumBrowser(boolean marker) {
@@ -97,6 +98,31 @@ public class CefriumBrowser {
      */
     public void goForward() {
         if (mNativePtr != 0) nativeGoForward(mNativePtr);
+    }
+
+    /**
+     * Listener for URL changes. Called by CEF's CefDisplayHandler::OnAddressChange.
+     */
+    public interface OnUrlChangedListener {
+        void onUrlChanged(String url);
+    }
+
+    /**
+     * Set a listener for URL changes during navigation.
+     */
+    public void setOnUrlChangedListener(OnUrlChangedListener listener) {
+        mUrlListener = listener;
+        if (mNativePtr != 0) {
+            nativeSetDisplayCallback(mNativePtr, this);
+        }
+    }
+
+    // Called from native CefDisplayHandler::OnAddressChange.
+    @SuppressWarnings("unused")
+    private void onUrlChanged(String url) {
+        if (mUrlListener != null) {
+            mUrlListener.onUrlChanged(url);
+        }
     }
 
     /**
@@ -238,5 +264,6 @@ public class CefriumBrowser {
     private static native void nativeGoForward(long nativePtr);
     private static native void nativeReload(long nativePtr);
     private static native boolean nativeCanGoBack(long nativePtr);
+    private static native void nativeSetDisplayCallback(long nativePtr, CefriumBrowser browser);
     private static native void nativeClose(long nativePtr);
 }

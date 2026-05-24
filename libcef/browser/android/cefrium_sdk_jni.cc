@@ -11,6 +11,7 @@
 #include "cef/include/cef_app.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_client.h"
+#include "cef/include/cef_display_handler.h"
 #include "cef/include/cef_life_span_handler.h"
 #include "cef/include/cef_load_handler.h"
 #include "cef/include/cef_render_handler.h"
@@ -132,6 +133,45 @@ class SdkLoadHandler : public CefLoadHandler {
   struct SdkBrowserData* data_ = nullptr;
 };
 
+// Display handler — notifies Java of URL/title changes via JNI callback.
+class SdkDisplayHandler : public CefDisplayHandler {
+ public:
+  void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
+    if (java_browser)
+      java_browser_ = env->NewGlobalRef(java_browser);
+  }
+
+  void OnAddressChange(CefRefPtr<CefBrowser> browser,
+                       CefRefPtr<CefFrame> frame,
+                       const CefString& url) override {
+    if (!frame->IsMain() || !java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onUrlChanged",
+                                        "(Ljava/lang/String;)V");
+    if (method) {
+      std::string url_str = url.ToString();
+      jstring j_url = env->NewStringUTF(url_str.c_str());
+      env->CallVoidMethod(java_browser_, method, j_url);
+      env->DeleteLocalRef(j_url);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  ~SdkDisplayHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+
+  IMPLEMENT_REFCOUNTING(SdkDisplayHandler);
+
+ private:
+  jobject java_browser_ = nullptr;
+};
+
 // Global AdBlock filter engine — shared across all browsers.
 static AdBlockFilter* g_adblock_filter = nullptr;
 
@@ -194,6 +234,7 @@ class SdkClient : public CefClient {
       : render_handler_(render_handler),
         life_span_handler_(life_span_handler),
         load_handler_(new SdkLoadHandler()),
+        display_handler_(new SdkDisplayHandler()),
         request_handler_(blocked_count ? new SdkRequestHandler(blocked_count) : nullptr) {
     if (browser_data) {
       load_handler_->SetBrowserData(browser_data);
@@ -212,9 +253,15 @@ class SdkClient : public CefClient {
     return load_handler_;
   }
 
+  CefRefPtr<CefDisplayHandler> GetDisplayHandler() override {
+    return display_handler_;
+  }
+
   CefRefPtr<CefRequestHandler> GetRequestHandler() override {
     return request_handler_;
   }
+
+  CefRefPtr<SdkDisplayHandler> display_handler() { return display_handler_; }
 
   IMPLEMENT_REFCOUNTING(SdkClient);
 
@@ -222,6 +269,7 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkRenderHandler> render_handler_;
   CefRefPtr<SdkLifeSpanHandler> life_span_handler_;
   CefRefPtr<SdkLoadHandler> load_handler_;
+  CefRefPtr<SdkDisplayHandler> display_handler_;
   CefRefPtr<SdkRequestHandler> request_handler_;
 };
 
@@ -366,6 +414,20 @@ Java_com_cefrium_CefriumBrowser_nativeSetRenderHandler(
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
   if (data && data->render_handler) {
     data->render_handler->SetJavaBrowser(env, java_browser);
+  }
+  // Also connect the display handler for URL change callbacks.
+  if (data && data->client) {
+    data->client->display_handler()->SetJavaBrowser(env, java_browser);
+  }
+}
+
+// Connect display handler for URL/title change callbacks (Surface mode).
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jobject java_browser) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client) {
+    data->client->display_handler()->SetJavaBrowser(env, java_browser);
   }
 }
 
