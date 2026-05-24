@@ -7477,6 +7477,41 @@ public class GEN_JNI {
   public static native boolean org_chromium_components_embedder_1support_util_UrlUtilities_urlsMatchIgnoringFragments(
       Object url,
       Object url2);
+  // Hashed name: Java_J_N_MTwjIV_e
+  public static native void org_chromium_components_embedder_1support_view_ContentViewRenderView_destroy(
+      long nativeContentViewRenderView);
+  // Hashed name: Java_J_N_MGnYpjUQ
+  public static native long org_chromium_components_embedder_1support_view_ContentViewRenderView_init(
+      Object self,
+      Object rootWindow);
+  // Hashed name: Java_J_N_M719LIHN
+  public static native void org_chromium_components_embedder_1support_view_ContentViewRenderView_onPhysicalBackingSizeChanged(
+      long nativeContentViewRenderView,
+      Object webContents,
+      int width,
+      int height);
+  // Hashed name: Java_J_N_MVaqBcNY
+  public static native void org_chromium_components_embedder_1support_view_ContentViewRenderView_setCurrentWebContents(
+      long nativeContentViewRenderView,
+      Object webContents);
+  // Hashed name: Java_J_N_MPNypfRc
+  public static native void org_chromium_components_embedder_1support_view_ContentViewRenderView_setOverlayVideoMode(
+      long nativeContentViewRenderView,
+      boolean enabled);
+  // Hashed name: Java_J_N_MS0NVCmv
+  public static native Object org_chromium_components_embedder_1support_view_ContentViewRenderView_surfaceChanged(
+      long nativeContentViewRenderView,
+      int format,
+      int width,
+      int height,
+      Object surface,
+      Object browserInputToken);
+  // Hashed name: Java_J_N_MHtpxjbd
+  public static native void org_chromium_components_embedder_1support_view_ContentViewRenderView_surfaceCreated(
+      long nativeContentViewRenderView);
+  // Hashed name: Java_J_N_MABd50C6
+  public static native void org_chromium_components_embedder_1support_view_ContentViewRenderView_surfaceDestroyed(
+      long nativeContentViewRenderView);
   // Hashed name: Java_J_N_Mu7Tx643
   public static native void org_chromium_components_enterprise_reporting_SignalsReportingSchedulerBridge_startReporting();
   // Hashed name: Java_J_N_MWCIEpVs
@@ -12199,33 +12234,33 @@ public class GEN_JNI {
   public static void org_chromium_components_minidump_1uploader_CrashReportMimeWriter_rewriteAnrsAsMIMEs(
       Object anrs,
       Object destDir) {
-    throw new RuntimeException("Native method not present");
+    return;
   }
   public static void org_chromium_components_minidump_1uploader_CrashReportMimeWriter_rewriteMinidumpsAsMIMEs(
       Object srcDir,
       Object destDir) {
-    throw new RuntimeException("Native method not present");
+    return;
   }
   public static Object org_chromium_components_minidump_1uploader_CrashReportMimeWriter_rewriteMinidumpsAsMIMEsAndGetCrashKeys(
       Object srcDir,
       Object destDir) {
-    throw new RuntimeException("Native method not present");
+    return null;
   }
   public static long org_chromium_components_stylus_1handwriting_StylusHandwritingFeatureMap_getNativeMap() {
-    throw new RuntimeException("Native method not present");
+    return 0;
   }
   public static Object org_chromium_components_variations_VariationsAssociatedData_getFeedbackVariations() {
-    throw new RuntimeException("Native method not present");
+    return null;
   }
   public static Object org_chromium_components_variations_VariationsAssociatedData_getGoogleAppVariations() {
-    throw new RuntimeException("Native method not present");
+    return null;
   }
   public static Object org_chromium_components_variations_VariationsAssociatedData_getVariationParamValue(
       Object trialName,
       Object paramName) {
-    throw new RuntimeException("Native method not present");
+    return null;
   }
   public static Object org_chromium_components_variations_VariationsAssociatedData_getVariationsState() {
-    throw new RuntimeException("Native method not present");
+    return null;
   }
 }
