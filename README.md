@@ -33,6 +33,9 @@ that gap.
 | Ad blocking (network-level request interception) | Done |
 | User-Agent: Chrome/148 Cefrium/1.0 | Done |
 | H.264/AAC video (proprietary codecs build) | Done |
+| **Video playback (Surface rendering)** | **Done** |
+| **Audio output** | **Done** |
+| Surface rendering via ContentViewRenderView | Done |
 | arm64 validated on real device | Done |
 
 ## Why Cefrium, not WebView?
