@@ -532,3 +532,33 @@ Java_com_cefrium_CefriumBrowser_nativeGetWebContents(
 
   return web_contents->GetJavaWebContents().Release();
 }
+
+// Navigation methods.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeGoBack(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser) data->browser->GoBack();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeGoForward(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser) data->browser->GoForward();
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeReload(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser) data->browser->Reload();
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_cefrium_CefriumBrowser_nativeCanGoBack(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser) return data->browser->CanGoBack();
+  return false;
+}
