@@ -86,6 +86,34 @@ public class CefriumBrowser {
     }
 
     /**
+     * Navigate back in history.
+     */
+    public void goBack() {
+        if (mNativePtr != 0) nativeGoBack(mNativePtr);
+    }
+
+    /**
+     * Navigate forward in history.
+     */
+    public void goForward() {
+        if (mNativePtr != 0) nativeGoForward(mNativePtr);
+    }
+
+    /**
+     * Reload the current page.
+     */
+    public void reload() {
+        if (mNativePtr != 0) nativeReload(mNativePtr);
+    }
+
+    /**
+     * @return true if the browser can navigate back.
+     */
+    public boolean canGoBack() {
+        return mNativePtr != 0 && nativeCanGoBack(mNativePtr);
+    }
+
+    /**
      * Close this browser and release native resources.
      */
     public void close() {
@@ -206,5 +234,9 @@ public class CefriumBrowser {
             long nativePtr, android.view.Surface surface, int width, int height);
     private static native void nativeDetachSurface(long nativePtr);
     private static native org.chromium.content_public.browser.WebContents nativeGetWebContents(long nativePtr);
+    private static native void nativeGoBack(long nativePtr);
+    private static native void nativeGoForward(long nativePtr);
+    private static native void nativeReload(long nativePtr);
+    private static native boolean nativeCanGoBack(long nativePtr);
     private static native void nativeClose(long nativePtr);
 }
