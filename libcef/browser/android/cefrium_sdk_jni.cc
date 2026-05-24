@@ -21,6 +21,7 @@
 #include "base/android/jni_android.h"
 #include "cef/libcef/browser/android/browser_surface_android.h"
 #include "cef/libcef/browser/browser_host_base.h"
+#include "content/public/browser/web_contents.h"
 #include "ui/android/window_android.h"
 
 #define TAG "Cefrium"
@@ -467,45 +468,22 @@ Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
   auto* data = new SdkBrowserData();
   data->is_surface_mode = true;
 
-  // Get the native WindowAndroid from the Java object.
-  base::android::ScopedJavaLocalRef<jobject> j_window =
-      base::android::ScopedJavaLocalRef<jobject>::Adopt(env, java_window_android);
-  ui::WindowAndroid* window =
-      ui::WindowAndroid::FromJavaWindowAndroid(j_window);
-  // Prevent the local ref from being released — Java still owns it.
-  j_window.Release();
-  if (!window) {
-    LOGI("nativeCreateWithSurface: WindowAndroid is null!");
-    delete data;
-    return 0;
-  }
-  data->window_android = window;
-
-  // Create the Surface bridge (compositor).
-  data->surface_bridge = std::make_unique<BrowserSurfaceAndroid>(window);
-
-  // Set the Surface immediately.
-  auto j_surface = base::android::ScopedJavaLocalRef<jobject>::Adopt(env, java_surface);
-  data->surface_bridge->SurfaceChanged(env, j_surface, width, height);
-  j_surface.Release();
-
   // Create life span handler to capture the browser reference.
   data->life_span_handler = new SdkLifeSpanHandler();
   data->life_span_handler->SetBrowserData(data);
 
   // Create client without render handler (Surface mode doesn't use OnPaint).
+  // Rendering is handled by ContentViewRenderView on the Java side.
   data->client = new SdkClient(
-      nullptr,  // No render handler for Surface mode
+      nullptr,  // No render handler — ContentViewRenderView handles rendering
       data->life_span_handler,
-      &data->blocked_count,
-      data);  // Pass browser data for Surface RWHV attach on load
+      &data->blocked_count);
 
-  LOGI("nativeCreateWithSurface: %dx%d scale=%.2f (Surface mode)", width,
-       height, scale);
+  LOGI("nativeCreateWithSurface: %dx%d (windowed mode, ContentViewRenderView)", width, height);
 
   // Create browser in NON-windowless mode.
-  // Chromium creates WebContentsViewAndroid + RenderWidgetHostViewAndroid
-  // instead of OSR variants. Video, audio, and GPU compositing all work.
+  // Chromium creates WebContentsViewAndroid + RenderWidgetHostViewAndroid.
+  // ContentViewRenderView (Java) manages the compositor and Surface.
   CefWindowInfo window_info;
   // Do NOT call SetAsWindowless — leave default (windowed/Surface mode).
 
@@ -537,4 +515,20 @@ Java_com_cefrium_CefriumBrowser_nativeDetachSurface(
   if (data && data->surface_bridge) {
     data->surface_bridge->SurfaceDestroyed();
   }
+}
+
+// Return the Java WebContents object for this browser.
+// Used by Surface rendering to pass WebContents to ContentViewRenderView.
+extern "C" JNIEXPORT jobject JNICALL
+Java_com_cefrium_CefriumBrowser_nativeGetWebContents(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return nullptr;
+
+  auto* browser_impl = static_cast<CefBrowserHostBase*>(
+      data->browser->GetHost().get());
+  content::WebContents* web_contents = browser_impl->GetWebContents();
+  if (!web_contents) return nullptr;
+
+  return web_contents->GetJavaWebContents().Release();
 }
