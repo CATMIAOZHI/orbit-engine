@@ -69,37 +69,77 @@ void BrowserSurfaceAndroid::AttachWebContents(
     LOG(ERROR) << "BrowserSurfaceAndroid: GetNativeView() returned null!";
     return;
   }
+  // Add WebContents view to WindowAndroid view hierarchy.
   window_->AddChild(view);
 
-  // Set the compositor's root layer to the WebContents' layer.
-  scoped_refptr<cc::slim::Layer> layer = view->GetLayer();
-  if (!layer) {
-    LOG(ERROR) << "BrowserSurfaceAndroid: GetLayer() returned null!";
-    return;
+  // Connect layer trees: add WebContents' layer as child of
+  // WindowAndroid's root layer. ViewAndroid::AddChild only connects
+  // the view hierarchy, NOT the cc::Layer hierarchy.
+  scoped_refptr<cc::slim::Layer> window_layer = window_->GetLayer();
+  scoped_refptr<cc::slim::Layer> view_layer = view->GetLayer();
+  if (window_layer && view_layer) {
+    window_layer->AddChild(view_layer);
   }
-  compositor_->SetRootLayer(layer);
 
-  LOG(INFO) << "BrowserSurfaceAndroid: WebContents attached, layer="
-            << layer.get() << " bounds=" << layer->bounds().ToString();
-
-  // Set the size on the WindowAndroid (parent), NOT on the WebContents'
-  // ViewAndroid directly — WebContents' view is kMatchParent and inherits
-  // from its parent. OnSizeChanged propagates to kMatchParent children.
+  // Size the window — propagates to kMatchParent children.
   gfx::Size size = compositor_->GetWindowBounds();
   if (!size.IsEmpty()) {
     window_->OnSizeChanged(size.width(), size.height());
+    if (view_layer) {
+      view_layer->SetBounds(size);
+    }
     view->OnPhysicalBackingSizeChanged(size);
     web_contents_->Resize(gfx::Rect(size));
-    LOG(INFO) << "BrowserSurfaceAndroid: window resized to " << size.ToString()
-              << " view layer bounds=" << view->GetLayer()->bounds().ToString();
   }
 
-  // Tell the WebContents it is now visible — this activates the
-  // renderer's compositing pipeline.
-  web_contents_->WasShown();
+  LOG(INFO) << "BrowserSurfaceAndroid: WebContents attached, size="
+            << size.ToString()
+            << " window_layer=" << window_layer.get()
+            << " view_layer=" << view_layer.get()
+            << " view_layer_bounds=" << (view_layer ? view_layer->bounds().ToString() : "null");
 
-  // Request a composite to trigger the first frame.
+  // Tell the WebContents it is now visible.
+  web_contents_->WasShown();
   compositor_->SetNeedsComposite();
+}
+
+void BrowserSurfaceAndroid::TryAttachRWHVLayer() {
+  if (!web_contents_ || !compositor_) return;
+
+  auto* rwhv = web_contents_->GetRenderWidgetHostView();
+  if (!rwhv) {
+    LOG(INFO) << "BrowserSurfaceAndroid::TryAttachRWHVLayer: RWHV still null";
+    return;
+  }
+
+  gfx::Size size = compositor_->GetWindowBounds();
+
+  // Connect RWHV layer to the WebContents view layer.
+  // ViewAndroid::AddChild does NOT connect layers — only the view tree.
+  // We must connect the cc::Layer hierarchy manually.
+  auto* rwhv_view = rwhv->GetNativeView();
+  ui::ViewAndroid* wc_view = web_contents_->GetNativeView();
+  if (rwhv_view && rwhv_view->GetLayer() && wc_view && wc_view->GetLayer()) {
+    wc_view->GetLayer()->AddChild(rwhv_view->GetLayer());
+    rwhv_view->GetLayer()->SetBounds(size);
+    LOG(INFO) << "BrowserSurfaceAndroid: RWHV layer connected to view layer";
+  }
+
+  // Show and size the RWHV — triggers CompositorFrame production.
+  rwhv->Show();
+  if (!size.IsEmpty()) {
+    rwhv->SetSize(size);
+    web_contents_->Resize(gfx::Rect(size));
+    if (rwhv_view) {
+      rwhv_view->OnPhysicalBackingSizeChanged(size);
+    }
+  }
+
+  web_contents_->WasShown();
+  compositor_->SetNeedsComposite();
+
+  LOG(INFO) << "BrowserSurfaceAndroid::TryAttachRWHVLayer: RWHV=" << rwhv
+            << " size=" << size.ToString();
 }
 
 // CompositorClient implementation.
