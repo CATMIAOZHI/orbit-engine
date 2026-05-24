@@ -736,6 +736,7 @@ Java_com_cefrium_Cefrium_nativeLoadAdBlockList(
     JNIEnv* env, jclass clazz, jstring path_jstr) {
   if (!g_adblock_filter) {
     g_adblock_filter = new AdBlockFilter();
+    g_adblock_filter->AddYouTubeAdRules();
   }
   const char* path = env->GetStringUTFChars(path_jstr, nullptr);
   int count = g_adblock_filter->LoadFromFile(path);
