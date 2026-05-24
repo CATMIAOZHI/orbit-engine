@@ -8,11 +8,9 @@ considered out of scope due to its fundamentally different process model
 and UI stack. This project builds on CEF's solid foundation to close
 that gap.
 
-![CEF documentation page rendered on Android](assets/screenshots/cef-web-render.png)
-*CEF project page rendered by Chromium 148 on Android — loaded from the web via SDK AAR*
+<img src="assets/screenshots/cef-web-render.png" width="300" alt="CEF documentation page rendered on Android">
 
-![Basic HTML rendering](assets/screenshots/cef-android-render.png)
-*Data URL rendering — off-screen OnPaint to Bitmap in a standard Gradle project*
+*CEF project page rendered by Chromium 148 on Android — loaded from the web via SDK AAR*
 
 ## What works
 
