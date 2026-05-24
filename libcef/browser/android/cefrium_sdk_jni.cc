@@ -26,6 +26,9 @@
 #define TAG "Cefrium"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 
+// Forward declaration — full definition below handlers.
+struct SdkBrowserData;
+
 // Per-browser render handler that forwards OnPaint to Java.
 class SdkRenderHandler : public CefRenderHandler {
  public:
@@ -114,15 +117,17 @@ class SdkLifeSpanHandler : public CefLifeSpanHandler {
 // Without this, the off-screen compositor never generates a frame.
 class SdkLoadHandler : public CefLoadHandler {
  public:
+  void SetBrowserData(struct SdkBrowserData* data) { data_ = data; }
+
+  // Defined out-of-line after SdkBrowserData is fully declared.
   void OnLoadEnd(CefRefPtr<CefBrowser> browser,
                  CefRefPtr<CefFrame> frame,
-                 int httpStatusCode) override {
-    LOGI("OnLoadEnd: status %d, isMain=%d", httpStatusCode, frame->IsMain());
-    if (frame->IsMain()) {
-      browser->GetHost()->Invalidate(PET_VIEW);
-    }
-  }
+                 int httpStatusCode) override;
+
   IMPLEMENT_REFCOUNTING(SdkLoadHandler);
+
+ private:
+  struct SdkBrowserData* data_ = nullptr;
 };
 
 // Ad-blocking request handler. Blocks requests to known ad/tracking domains.
@@ -193,11 +198,16 @@ class SdkClient : public CefClient {
  public:
   SdkClient(CefRefPtr<SdkRenderHandler> render_handler,
             CefRefPtr<SdkLifeSpanHandler> life_span_handler,
-            int* blocked_count = nullptr)
+            int* blocked_count = nullptr,
+            struct SdkBrowserData* browser_data = nullptr)
       : render_handler_(render_handler),
         life_span_handler_(life_span_handler),
         load_handler_(new SdkLoadHandler()),
-        request_handler_(blocked_count ? new SdkRequestHandler(blocked_count) : nullptr) {}
+        request_handler_(blocked_count ? new SdkRequestHandler(blocked_count) : nullptr) {
+    if (browser_data) {
+      load_handler_->SetBrowserData(browser_data);
+    }
+  }
 
   CefRefPtr<CefRenderHandler> GetRenderHandler() override {
     return render_handler_;
@@ -255,6 +265,19 @@ void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
         data_->surface_bridge->AttachWebContents(web_contents);
         LOGI("Surface mode: WebContents attached to compositor");
       }
+    }
+  }
+}
+
+// Out-of-line definition — needs full SdkBrowserData.
+void SdkLoadHandler::OnLoadEnd(CefRefPtr<CefBrowser> browser,
+                               CefRefPtr<CefFrame> frame,
+                               int httpStatusCode) {
+  LOGI("OnLoadEnd: status %d, isMain=%d", httpStatusCode, frame->IsMain());
+  if (frame->IsMain()) {
+    browser->GetHost()->Invalidate(PET_VIEW);
+    if (data_ && data_->is_surface_mode && data_->surface_bridge) {
+      data_->surface_bridge->TryAttachRWHVLayer();
     }
   }
 }
@@ -474,7 +497,8 @@ Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
   data->client = new SdkClient(
       nullptr,  // No render handler for Surface mode
       data->life_span_handler,
-      &data->blocked_count);
+      &data->blocked_count,
+      data);  // Pass browser data for Surface RWHV attach on load
 
   LOGI("nativeCreateWithSurface: %dx%d scale=%.2f (Surface mode)", width,
        height, scale);
