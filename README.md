@@ -52,15 +52,14 @@ support existed. Cefrium closes that gap.
 
 | Capability | Cefrium | Android WebView |
 |------------|---------|-----------------|
-| Scroll-driven CSS animations | Yes | No |
-| CSS Anchor Positioning | Yes | No |
-| View Transitions (MPA) | Yes | No |
-| Request interception / ad blocking | Yes | No |
-| Off-screen rendering (OnPaint) | Yes | No |
-| Custom protocol handlers | Yes | No |
+| Off-screen rendering (pixel buffer) | Yes (OnPaint) | No |
+| Chromium version control | Pinned to 148 | Varies by device |
 | Multi-process control | Yes | No |
+| Request interception | Yes (CefRequestHandler) | Yes (shouldInterceptRequest) |
+| Custom protocol handlers | Yes (CefSchemeHandlerFactory) | Partial (shouldInterceptRequest) |
+| Scroll-driven CSS animations | Yes (Chromium 148) | Depends on device WebView version |
+| View Transitions | Yes (Chromium 148) | Depends on device WebView version |
 | Web Speech API | Yes | Yes |
-| Chromium version | 148 (current) | Varies by device |
 
 ## Architecture
 
