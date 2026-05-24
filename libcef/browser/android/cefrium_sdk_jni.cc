@@ -19,6 +19,7 @@
 
 #include <android/log.h>
 #include "base/android/jni_android.h"
+#include "cef/libcef/browser/android/adblock_filter.h"
 #include "cef/libcef/browser/android/browser_surface_android.h"
 #include "cef/libcef/browser/browser_host_base.h"
 #include "content/public/browser/web_contents.h"
@@ -131,7 +132,10 @@ class SdkLoadHandler : public CefLoadHandler {
   struct SdkBrowserData* data_ = nullptr;
 };
 
-// Ad-blocking request handler. Blocks requests to known ad/tracking domains.
+// Global AdBlock filter engine — shared across all browsers.
+static AdBlockFilter* g_adblock_filter = nullptr;
+
+// Ad-blocking request handler using EasyList filter engine.
 class SdkResourceRequestHandler : public CefResourceRequestHandler {
  public:
   explicit SdkResourceRequestHandler(int* blocked_count)
@@ -144,24 +148,10 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
       CefRefPtr<CefCallback> callback) override {
     std::string url = request->GetURL().ToString();
 
-    // Check against blocklist
-    static const char* blocklist[] = {
-        "doubleclick.net", "googlesyndication.com", "googleadservices.com",
-        "google-analytics.com", "facebook.com/tr", "facebook.net/signals",
-        "analytics.", "pagead2.", "adserver.", "ads.", "tracking.",
-        "scorecardresearch.com", "quantserve.com", "outbrain.com",
-        "taboola.com", "amazon-adsystem.com", "adsrvr.org",
-        "criteo.com", "moatads.com", "pubmatic.com", "rubiconproject.com",
-        "bidswitch.net", "casalemedia.com", "openx.net",
-        nullptr
-    };
-
-    for (int i = 0; blocklist[i]; i++) {
-      if (url.find(blocklist[i]) != std::string::npos) {
-        if (blocked_count_) (*blocked_count_)++;
-        LOGI("BLOCKED: %s", url.substr(0, 80).c_str());
-        return RV_CANCEL;
-      }
+    if (g_adblock_filter && g_adblock_filter->ShouldBlock(url)) {
+      if (blocked_count_) (*blocked_count_)++;
+      LOGI("BLOCKED: %s", url.substr(0, 80).c_str());
+      return RV_CANCEL;
     }
     return RV_CONTINUE;
   }
@@ -561,4 +551,18 @@ Java_com_cefrium_CefriumBrowser_nativeCanGoBack(
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
   if (data && data->browser) return data->browser->CanGoBack();
   return false;
+}
+
+// Load EasyList filter rules from a file path.
+extern "C" JNIEXPORT jint JNICALL
+Java_com_cefrium_Cefrium_nativeLoadAdBlockList(
+    JNIEnv* env, jclass clazz, jstring path_jstr) {
+  if (!g_adblock_filter) {
+    g_adblock_filter = new AdBlockFilter();
+  }
+  const char* path = env->GetStringUTFChars(path_jstr, nullptr);
+  int count = g_adblock_filter->LoadFromFile(path);
+  env->ReleaseStringUTFChars(path_jstr, path);
+  LOGI("AdBlock: loaded %d rules from %s", count, path);
+  return count;
 }
