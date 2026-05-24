@@ -131,7 +131,54 @@ public final class Cefrium {
         return sInitialized;
     }
 
+    /**
+     * Load ad-blocking filter rules from an EasyList-format file.
+     * Can be called multiple times to load additional lists.
+     *
+     * @param path Absolute path to the filter list file.
+     * @return Number of rules loaded.
+     */
+    public static int loadAdBlockList(String path) {
+        return nativeLoadAdBlockList(path);
+    }
+
+    /**
+     * Download and load EasyList from the internet.
+     * Call from a background thread — performs network I/O.
+     *
+     * @param context Application context for file storage.
+     */
+    public static void downloadAndLoadEasyList(final android.content.Context context) {
+        new Thread(() -> {
+            try {
+                java.io.File dir = context.getFilesDir();
+                java.io.File file = new java.io.File(dir, "easylist.txt");
+
+                // Download if not exists or older than 24 hours.
+                boolean needsDownload = !file.exists() ||
+                        (System.currentTimeMillis() - file.lastModified() > 24 * 60 * 60 * 1000);
+
+                if (needsDownload) {
+                    java.net.URL url = new java.net.URL("https://easylist.to/easylist/easylist.txt");
+                    java.io.InputStream in = url.openStream();
+                    java.io.FileOutputStream out = new java.io.FileOutputStream(file);
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                    out.close();
+                    in.close();
+                }
+
+                int count = nativeLoadAdBlockList(file.getAbsolutePath());
+                android.util.Log.i("Cefrium", "EasyList loaded: " + count + " rules");
+            } catch (Exception e) {
+                android.util.Log.e("Cefrium", "EasyList download failed: " + e.getMessage());
+            }
+        }).start();
+    }
+
     // Native methods implemented in libcef.so.
     private static native int nativeInitialize(String cacheDir, String dataDir);
     private static native void nativeShutdown();
+    private static native int nativeLoadAdBlockList(String path);
 }
