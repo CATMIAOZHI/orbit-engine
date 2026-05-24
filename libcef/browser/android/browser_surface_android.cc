@@ -75,13 +75,12 @@ void BrowserSurfaceAndroid::AttachWebContents(
   // Add WebContents view to WindowAndroid view hierarchy.
   window_->AddChild(view);
 
-  // Connect layer trees: add WebContents' layer as child of
-  // WindowAndroid's root layer. ViewAndroid::AddChild only connects
-  // the view hierarchy, NOT the cc::Layer hierarchy.
-  scoped_refptr<cc::slim::Layer> window_layer = window_->GetLayer();
+  // Set the WebContents' layer as the compositor's root layer directly.
+  // This bypasses the WindowAndroid's layer and puts the content layer
+  // tree directly into the compositor output.
   scoped_refptr<cc::slim::Layer> view_layer = view->GetLayer();
-  if (window_layer && view_layer) {
-    window_layer->AddChild(view_layer);
+  if (view_layer) {
+    compositor_->SetRootLayer(view_layer);
   }
 
   // Size the window — propagates to kMatchParent children.
@@ -97,7 +96,6 @@ void BrowserSurfaceAndroid::AttachWebContents(
 
   LOG(INFO) << "BrowserSurfaceAndroid: WebContents attached, size="
             << size.ToString()
-            << " window_layer=" << window_layer.get()
             << " view_layer=" << view_layer.get()
             << " view_layer_bounds=" << (view_layer ? view_layer->bounds().ToString() : "null");
 
@@ -117,21 +115,33 @@ void BrowserSurfaceAndroid::TryAttachRWHVLayer() {
 
   gfx::Size size = compositor_->GetWindowBounds();
 
-  // 1. Show RWHV + WebContents
+  // 1. Show RWHV FIRST — sets is_showing_ = true
   rwhv->Show();
   web_contents_->WasShown();
 
-  // 2. Size everything
+  // 2. Re-trigger OnAttachedToWindow on the RWHVA by removing and
+  //    re-adding its view. This time is_showing_ is true, so
+  //    StartObservingRootWindow() will be called, which calls
+  //    AttachToCompositor() and sets up BeginFrame routing.
+  auto* rwhv_view = rwhv->GetNativeView();
+  ui::ViewAndroid* wc_view = web_contents_->GetNativeView();
+  if (rwhv_view && wc_view) {
+    rwhv_view->RemoveFromParent();
+    wc_view->AddChild(rwhv_view);
+
+    // 3. Connect cc::Layer hierarchy — ViewAndroid::AddChild does NOT
+    //    connect layers. Without this, the content_layer (SurfaceLayer)
+    //    floats disconnected and CompositorFrames are invisible.
+    if (rwhv_view->GetLayer() && wc_view->GetLayer()) {
+      wc_view->GetLayer()->AddChild(rwhv_view->GetLayer());
+      rwhv_view->GetLayer()->SetBounds(size);
+    }
+  }
+
+  // 4. Size everything
   if (!size.IsEmpty()) {
     rwhv->SetSize(size);
     web_contents_->Resize(gfx::Rect(size));
-  }
-
-  // 3. Attach DFH to our compositor — registers renderer's FrameSinkId
-  auto* rwhva = static_cast<content::RenderWidgetHostViewAndroid*>(rwhv);
-  auto* dfh = rwhva->delegated_frame_host_for_testing();
-  if (dfh && window_->GetCompositor()) {
-    dfh->AttachToCompositor(window_->GetCompositor());
   }
 
   // 4. Tell renderer its viewport size — triggers first CompositorFrame
