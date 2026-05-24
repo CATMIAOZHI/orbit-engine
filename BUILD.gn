@@ -1173,6 +1173,8 @@ source_set("libcef_static") {
       "libcef/browser/android/cef_android_jni_bridge.cc",
       "libcef/browser/android/android_stubs.cc",
       "libcef/browser/android/cefrium_sdk_jni.cc",
+      "libcef/browser/android/adblock_filter.cc",
+      "libcef/browser/android/adblock_filter.h",
       "libcef/browser/android/browser_surface_android.cc",
       "libcef/browser/android/browser_surface_android.h",
       "libcef/browser/native/browser_platform_delegate_native_android.cc",
