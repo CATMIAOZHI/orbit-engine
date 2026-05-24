@@ -40,6 +40,10 @@ class BrowserSurfaceAndroid : public content::CompositorClient {
   // Attach the CEF browser's WebContents for rendering.
   void AttachWebContents(content::WebContents* web_contents);
 
+  // Try to connect the RenderWidgetHostView's layer to the compositor.
+  // Call after page load — RWHV may not exist at browser creation time.
+  void TryAttachRWHVLayer();
+
   // content::CompositorClient implementation.
   void RecreateSurface() override;
   void UpdateLayerTreeHost() override;
