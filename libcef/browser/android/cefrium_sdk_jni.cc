@@ -121,16 +121,44 @@ class SdkLifeSpanHandler : public CefLifeSpanHandler {
 class SdkLoadHandler : public CefLoadHandler {
  public:
   void SetBrowserData(struct SdkBrowserData* data) { data_ = data; }
+  void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
+    if (java_browser) java_browser_ = env->NewGlobalRef(java_browser);
+  }
 
   // Defined out-of-line after SdkBrowserData is fully declared.
   void OnLoadEnd(CefRefPtr<CefBrowser> browser,
                  CefRefPtr<CefFrame> frame,
                  int httpStatusCode) override;
 
+  void OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
+                            bool isLoading,
+                            bool canGoBack,
+                            bool canGoForward) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onLoadingStateChanged",
+                                        "(ZZZ)V");
+    if (method) {
+      env->CallVoidMethod(java_browser_, method,
+                          isLoading, canGoBack, canGoForward);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  ~SdkLoadHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+
   IMPLEMENT_REFCOUNTING(SdkLoadHandler);
 
  private:
   struct SdkBrowserData* data_ = nullptr;
+  jobject java_browser_ = nullptr;
 };
 
 // Display handler — notifies Java of URL/title changes via JNI callback.
@@ -155,6 +183,23 @@ class SdkDisplayHandler : public CefDisplayHandler {
       jstring j_url = env->NewStringUTF(url_str.c_str());
       env->CallVoidMethod(java_browser_, method, j_url);
       env->DeleteLocalRef(j_url);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  void OnTitleChange(CefRefPtr<CefBrowser> browser,
+                     const CefString& title) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onTitleChanged",
+                                        "(Ljava/lang/String;)V");
+    if (method) {
+      std::string title_str = title.ToString();
+      jstring j_title = env->NewStringUTF(title_str.c_str());
+      env->CallVoidMethod(java_browser_, method, j_title);
+      env->DeleteLocalRef(j_title);
     }
     env->DeleteLocalRef(cls);
   }
@@ -262,6 +307,7 @@ class SdkClient : public CefClient {
   }
 
   CefRefPtr<SdkDisplayHandler> display_handler() { return display_handler_; }
+  CefRefPtr<SdkLoadHandler> load_handler_ref() { return load_handler_; }
 
   IMPLEMENT_REFCOUNTING(SdkClient);
 
@@ -428,6 +474,7 @@ Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
   if (data && data->client) {
     data->client->display_handler()->SetJavaBrowser(env, java_browser);
+    data->client->load_handler_ref()->SetJavaBrowser(env, java_browser);
   }
 }
 

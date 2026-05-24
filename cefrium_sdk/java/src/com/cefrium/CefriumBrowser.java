@@ -22,6 +22,15 @@ public class CefriumBrowser {
     private long mNativePtr;  // Pointer to native CefBrowser
     private CefriumRenderHandler mRenderHandler;
     private OnUrlChangedListener mUrlListener;
+    private OnTitleChangedListener mTitleListener;
+    private OnLoadingStateChangedListener mLoadingListener;
+
+    // Surface rendering internals — not exposed in public API.
+    private android.app.Activity mActivity;
+    private org.chromium.ui.base.WindowAndroid mWindowAndroid;
+    private org.chromium.components.embedder_support.view.ContentViewRenderView mContentViewRenderView;
+    private android.widget.FrameLayout mSurfaceContainer;
+    private boolean mWebContentsConnected;
 
     // Private marker constructor for factory methods — does NOT create native.
     private CefriumBrowser(boolean marker) {
@@ -84,6 +93,11 @@ public class CefriumBrowser {
      */
     public void loadUrl(String url) {
         nativeLoadUrl(mNativePtr, url);
+        // In Surface mode, connect WebContents after first load.
+        if (mSurfaceContainer != null && !mWebContentsConnected) {
+            new android.os.Handler(android.os.Looper.getMainLooper())
+                    .postDelayed(this::connectWebContentsInternal, 2000);
+        }
     }
 
     /**
@@ -108,6 +122,22 @@ public class CefriumBrowser {
     }
 
     /**
+     * Listener for title changes. Called by CEF's CefDisplayHandler::OnTitleChange.
+     */
+    public interface OnTitleChangedListener {
+        void onTitleChanged(String title);
+    }
+
+    /**
+     * Listener for loading state changes. Called by CEF's
+     * CefLoadHandler::OnLoadingStateChange.
+     */
+    public interface OnLoadingStateChangedListener {
+        void onLoadingStateChanged(boolean isLoading, boolean canGoBack,
+                                   boolean canGoForward);
+    }
+
+    /**
      * Set a listener for URL changes during navigation.
      */
     public void setOnUrlChangedListener(OnUrlChangedListener listener) {
@@ -117,11 +147,42 @@ public class CefriumBrowser {
         }
     }
 
+    /**
+     * Set a listener for title changes.
+     */
+    public void setOnTitleChangedListener(OnTitleChangedListener listener) {
+        mTitleListener = listener;
+    }
+
     // Called from native CefDisplayHandler::OnAddressChange.
     @SuppressWarnings("unused")
     private void onUrlChanged(String url) {
         if (mUrlListener != null) {
             mUrlListener.onUrlChanged(url);
+        }
+    }
+
+    /**
+     * Set a listener for loading state changes.
+     */
+    public void setOnLoadingStateChangedListener(OnLoadingStateChangedListener listener) {
+        mLoadingListener = listener;
+    }
+
+    // Called from native CefDisplayHandler::OnTitleChange.
+    @SuppressWarnings("unused")
+    private void onTitleChanged(String title) {
+        if (mTitleListener != null) {
+            mTitleListener.onTitleChanged(title);
+        }
+    }
+
+    // Called from native CefLoadHandler::OnLoadingStateChange.
+    @SuppressWarnings("unused")
+    private void onLoadingStateChanged(boolean isLoading, boolean canGoBack,
+                                       boolean canGoForward) {
+        if (mLoadingListener != null) {
+            mLoadingListener.onLoadingStateChanged(isLoading, canGoBack, canGoForward);
         }
     }
 
@@ -146,6 +207,14 @@ public class CefriumBrowser {
         if (mNativePtr != 0) {
             nativeClose(mNativePtr);
             mNativePtr = 0;
+        }
+        if (mContentViewRenderView != null) {
+            mContentViewRenderView.destroy();
+            mContentViewRenderView = null;
+        }
+        if (mWindowAndroid != null) {
+            mWindowAndroid.destroy();
+            mWindowAndroid = null;
         }
     }
 
@@ -193,54 +262,107 @@ public class CefriumBrowser {
 
     /**
      * Create a browser that renders directly to an Android Surface.
-     * This enables video playback, audio, and hardware-accelerated
-     * compositing.
+     * Enables video playback, audio, and hardware-accelerated compositing.
      *
-     * @param windowAndroid Chromium WindowAndroid for compositor context.
-     * @param surface       Android Surface to render to.
-     * @param width         Surface width in physical pixels.
-     * @param height        Surface height in physical pixels.
-     * @param scale         Device scale factor.
-     * @return A new CefriumBrowser instance.
+     * <p>All Chromium rendering infrastructure (WindowAndroid,
+     * ContentViewRenderView, ContentView) is created and managed
+     * internally. The browser view is added to the Activity's content.</p>
+     *
+     * <pre>
+     * CefriumBrowser browser = CefriumBrowser.createWithSurface(this);
+     * browser.setOnUrlChangedListener(url -> urlBar.setText(url));
+     * browser.loadUrl("https://example.com");
+     * </pre>
+     *
+     * @param activity The Activity to render in. A FrameLayout container
+     *                 is returned via {@link #getSurfaceContainer()}.
+     * @return A new CefriumBrowser instance with Surface rendering.
      */
-    public static CefriumBrowser createWithSurface(
-            org.chromium.ui.base.WindowAndroid windowAndroid,
-            android.view.Surface surface,
-            int width, int height, float scale) {
+    public static CefriumBrowser createWithSurface(android.app.Activity activity) {
         if (!Cefrium.isInitialized()) {
             throw new IllegalStateException(
                     "Cefrium.initialize() must be called before creating browsers");
         }
+
         CefriumBrowser browser = new CefriumBrowser(true);
+
+        // Create Chromium rendering infrastructure internally.
+        browser.mWindowAndroid = new org.chromium.ui.base.WindowAndroid(
+                activity, false);
+
+        browser.mContentViewRenderView =
+                new org.chromium.components.embedder_support.view.ContentViewRenderView(
+                        activity);
+        browser.mContentViewRenderView.onNativeLibraryLoaded(
+                browser.mWindowAndroid);
+
+        // Container that holds the rendering surface.
+        browser.mSurfaceContainer = new android.widget.FrameLayout(activity);
+        browser.mSurfaceContainer.addView(browser.mContentViewRenderView,
+                new android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
+
+        // Create native browser (non-windowless mode).
+        float density = activity.getResources().getDisplayMetrics().density;
         browser.mNativePtr = nativeCreateWithSurface(
-                windowAndroid, surface, width, height, scale);
+                browser.mWindowAndroid, null,
+                activity.getResources().getDisplayMetrics().widthPixels,
+                activity.getResources().getDisplayMetrics().heightPixels,
+                density);
+
+        browser.mActivity = activity;
+
         return browser;
     }
 
     /**
-     * Update the Surface (e.g., after rotation or resize).
+     * Get the container View for Surface rendering.
+     * Add this to your Activity's layout.
+     *
+     * @return FrameLayout containing the browser surface.
      */
-    public void updateSurface(android.view.Surface surface, int width, int height) {
-        if (mNativePtr != 0) {
-            nativeUpdateSurface(mNativePtr, surface, width, height);
-        }
+    public android.widget.FrameLayout getSurfaceContainer() {
+        return mSurfaceContainer;
     }
 
-    /**
-     * Detach the Surface (e.g., when SurfaceView is destroyed).
-     */
-    public void detachSurface() {
-        if (mNativePtr != 0) {
-            nativeDetachSurface(mNativePtr);
-        }
+    // Internal: connect WebContents to rendering pipeline.
+    // Called after the browser has loaded its first page.
+    void connectWebContentsInternal() {
+        if (mNativePtr == 0 || mActivity == null) return;
+        org.chromium.content_public.browser.WebContents wc = nativeGetWebContents(mNativePtr);
+        if (wc == null) return;
+        if (mWebContentsConnected) return;
+        mWebContentsConnected = true;
+
+        org.chromium.components.embedder_support.view.ContentView cv =
+                org.chromium.components.embedder_support.view.ContentView
+                        .createContentView(mActivity, wc);
+        org.chromium.ui.base.ViewAndroidDelegate delegate =
+                org.chromium.ui.base.ViewAndroidDelegate.createBasicDelegate(cv);
+        wc.setDelegates("", delegate, cv, mWindowAndroid,
+                org.chromium.content_public.browser.WebContents
+                        .createDefaultInternalsHolder());
+
+        mSurfaceContainer.addView(cv,
+                new android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
+
+        int w = mContentViewRenderView.getWidth();
+        int h = mContentViewRenderView.getHeight();
+        if (w > 0 && h > 0) wc.setSize(w, h);
+
+        mContentViewRenderView.setCurrentWebContents(wc);
+        wc.updateWebContentsVisibility(
+                org.chromium.content_public.browser.Visibility.VISIBLE);
     }
 
     /**
      * Get the Chromium WebContents object for this browser.
-     * Used internally for Surface rendering via ContentViewRenderView.
-     * Returns null if the browser hasn't loaded yet.
+     * Package-private — internal use only, not part of the public API.
      */
-    public org.chromium.content_public.browser.WebContents getWebContents() {
+    org.chromium.content_public.browser.WebContents getWebContents() {
         if (mNativePtr == 0) return null;
         return nativeGetWebContents(mNativePtr);
     }
