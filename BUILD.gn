@@ -1183,6 +1183,12 @@ source_set("libcef_static") {
       "libcef/browser/osr/cef_context_factory_android.h",
     ]
 
+    deps += [
+      # ContentViewRenderView — standard Chromium component for Android
+      # Surface rendering. Handles compositor, layer tree, DFH wiring.
+      "//components/embedder_support/android:view",
+    ]
+
     # Exclude sources that depend on Views UI framework (not available on
     # Android where toolkit_views=false).
     sources -= [
