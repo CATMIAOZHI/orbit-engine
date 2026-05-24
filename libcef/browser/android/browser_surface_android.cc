@@ -5,8 +5,11 @@
 #include "cef/libcef/browser/android/browser_surface_android.h"
 
 #include "base/logging.h"
+#include "content/browser/renderer_host/render_widget_host_view_android.h"
+#include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/android/delegated_frame_host_android.h"
 #include "ui/android/view_android.h"
 #include "ui/android/window_android.h"
 
@@ -114,31 +117,32 @@ void BrowserSurfaceAndroid::TryAttachRWHVLayer() {
 
   gfx::Size size = compositor_->GetWindowBounds();
 
-  // Connect RWHV layer to the WebContents view layer.
-  // ViewAndroid::AddChild does NOT connect layers — only the view tree.
-  // We must connect the cc::Layer hierarchy manually.
-  auto* rwhv_view = rwhv->GetNativeView();
-  ui::ViewAndroid* wc_view = web_contents_->GetNativeView();
-  if (rwhv_view && rwhv_view->GetLayer() && wc_view && wc_view->GetLayer()) {
-    wc_view->GetLayer()->AddChild(rwhv_view->GetLayer());
-    rwhv_view->GetLayer()->SetBounds(size);
-    LOG(INFO) << "BrowserSurfaceAndroid: RWHV layer connected to view layer";
-  }
-
-  // Show and size the RWHV — triggers CompositorFrame production.
+  // 1. Show RWHV + WebContents
   rwhv->Show();
+  web_contents_->WasShown();
+
+  // 2. Size everything
   if (!size.IsEmpty()) {
     rwhv->SetSize(size);
     web_contents_->Resize(gfx::Rect(size));
-    if (rwhv_view) {
-      rwhv_view->OnPhysicalBackingSizeChanged(size);
-    }
   }
 
-  web_contents_->WasShown();
+  // 3. Attach DFH to our compositor — registers renderer's FrameSinkId
+  auto* rwhva = static_cast<content::RenderWidgetHostViewAndroid*>(rwhv);
+  auto* dfh = rwhva->delegated_frame_host_for_testing();
+  if (dfh && window_->GetCompositor()) {
+    dfh->AttachToCompositor(window_->GetCompositor());
+  }
+
+  // 4. Tell renderer its viewport size — triggers first CompositorFrame
+  auto* rwh = rwhv->GetRenderWidgetHost();
+  if (rwh) {
+    rwh->SynchronizeVisualProperties();
+  }
+
   compositor_->SetNeedsComposite();
 
-  LOG(INFO) << "BrowserSurfaceAndroid::TryAttachRWHVLayer: RWHV=" << rwhv
+  LOG(INFO) << "BrowserSurfaceAndroid::TryAttachRWHVLayer done"
             << " size=" << size.ToString();
 }
 
