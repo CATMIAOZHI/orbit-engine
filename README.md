@@ -40,9 +40,11 @@ that gap.
 
 ## Why Cefrium, not WebView?
 
-CEF on Android has been called "impossible" for 10 years
-([Issue #1991](https://bitbucket.org/chromiumembedded/cef/issues/1991/),
-opened 2016, unresolved). Cefrium is the first working implementation.
+CEF on Android has been considered out of scope due to its different
+process model and UI stack. The upstream
+[`cef_build.h`](https://github.com/chromiumembedded/cef/blob/master/include/base/cef_build.h)
+defines `OS_ANDROID` but no working build configuration or runtime
+support existed. Cefrium closes that gap.
 
 | Capability | Cefrium | Android WebView |
 |------------|---------|-----------------|
