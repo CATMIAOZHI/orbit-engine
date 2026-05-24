@@ -31,6 +31,9 @@ class AdBlockFilter {
   int domain_rule_count() const { return blocked_domains_.size(); }
   int pattern_rule_count() const { return blocked_patterns_.size(); }
 
+  // Add built-in YouTube ad blocking rules.
+  void AddYouTubeAdRules();
+
  private:
   // Parse a single ABP filter rule. Returns true if the rule was added.
   bool ParseRule(const std::string& line);
@@ -47,6 +50,11 @@ class AdBlockFilter {
     std::string path;    // path prefix to match
   };
   std::vector<PathPattern> blocked_patterns_;
+
+  // YouTube ad URL parameter patterns.
+  // Matches URLs containing these substrings (e.g., &ctier=L, &oad=).
+  std::vector<std::string> url_substring_blocks_;
+
 };
 
 #endif  // CEF_LIBCEF_BROWSER_ANDROID_ADBLOCK_FILTER_H_
