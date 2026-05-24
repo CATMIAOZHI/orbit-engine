@@ -122,8 +122,8 @@ adb logcat -s "chromium:*" "CefriumTest:*"
 
 ## SDK releases
 
-Pre-built SDK AARs are published on [Codeberg Releases](https://codeberg.org/cefrium/cef-android/releases)
-and will be available on Maven Central.
+Pre-built SDK AARs will be available on Maven Central soon.
+Build from source in the meantime — see [Building from source](#building-from-source).
 
 Two variants are published for each Chromium version:
 
