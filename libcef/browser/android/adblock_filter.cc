@@ -143,27 +143,58 @@ bool AdBlockFilter::ShouldBlock(const std::string& url) const {
 
   // 2. Check path patterns.
   // Extract path from URL.
-  auto proto_end = url.find("://");
-  if (proto_end == std::string::npos)
+  auto proto_end2 = url.find("://");
+  if (proto_end2 == std::string::npos)
     return false;
-  auto path_start = url.find('/', proto_end + 3);
+  auto path_start = url.find('/', proto_end2 + 3);
   std::string path = (path_start != std::string::npos)
                          ? url.substr(path_start)
                          : "/";
 
   for (const auto& pattern : blocked_patterns_) {
-    // Check if the URL's domain ends with (or equals) the pattern domain.
     if (domain == pattern.domain ||
         (domain.size() > pattern.domain.size() &&
          domain.substr(domain.size() - pattern.domain.size()) == pattern.domain &&
          domain[domain.size() - pattern.domain.size() - 1] == '.')) {
-      // Check if path starts with the pattern path.
-      if (path.find(pattern.path) == 0 ||
-          path.find(pattern.path) != std::string::npos) {
+      if (path.find(pattern.path) != std::string::npos) {
         return true;
       }
     }
   }
 
+  // 3. Check URL substring patterns (YouTube ad parameters, etc.).
+  for (const auto& substr : url_substring_blocks_) {
+    if (url.find(substr) != std::string::npos)
+      return true;
+  }
+
   return false;
+}
+
+void AdBlockFilter::AddYouTubeAdRules() {
+  // YouTube ad URL path patterns.
+  blocked_patterns_.push_back({"youtube.com", "/pagead/"});
+  blocked_patterns_.push_back({"youtube.com", "/ptracking"});
+  blocked_patterns_.push_back({"youtube.com", "/api/stats/ads"});
+  blocked_patterns_.push_back({"youtube.com", "/api/stats/atr"});
+  blocked_patterns_.push_back({"youtube.com", "/get_midroll_"});
+  blocked_patterns_.push_back({"youtube.com", "/youtubei/v1/player/ad_break"});
+  blocked_patterns_.push_back({"youtube.com", "/youtubei/v1/log_event"});
+  blocked_patterns_.push_back({"doubleclick.net", "/pagead/"});
+  blocked_patterns_.push_back({"googlesyndication.com", "/pagead/"});
+  blocked_patterns_.push_back({"google.com", "/pagead/"});
+
+  // YouTube ad URL parameter patterns.
+  // These identify ad video streams served from googlevideo.com.
+  url_substring_blocks_.push_back("&ctier=L");
+  url_substring_blocks_.push_back("&oad=");
+  url_substring_blocks_.push_back("&ad_type=");
+  url_substring_blocks_.push_back("&adformat=");
+  url_substring_blocks_.push_back("/pagead/conversion/");
+  url_substring_blocks_.push_back("/pagead/lvz?");
+  url_substring_blocks_.push_back("youtube.com/error_204");
+
+  LOG(INFO) << "AdBlockFilter: YouTube ad rules added ("
+            << blocked_patterns_.size() << " path patterns, "
+            << url_substring_blocks_.size() << " URL patterns)";
 }
