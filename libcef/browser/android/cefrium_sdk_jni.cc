@@ -819,6 +819,20 @@ Java_com_cefrium_CefriumBrowser_nativeCanGoBack(
   return false;
 }
 
+// Dark mode via CEF API: CefRequestContext::SetChromeColorSchemeMode.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetDarkMode(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jboolean dark) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser) {
+    auto context = data->browser->GetHost()->GetRequestContext();
+    if (context) {
+      context->SetChromeColorScheme(
+          dark ? CEF_COLOR_VARIANT_DARK : CEF_COLOR_VARIANT_LIGHT, 0);
+    }
+  }
+}
+
 // Load EasyList filter rules from a file path.
 extern "C" JNIEXPORT jint JNICALL
 Java_com_cefrium_Cefrium_nativeLoadAdBlockList(
