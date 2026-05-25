@@ -182,7 +182,26 @@ cef/
 
 Fork of CEF branch 7778, tracking Chromium 148.0.7778.167.
 Branch `android-port` contains all Android changes.
-Upstream contribution planned via `git format-patch`.
+
+### Contributing upstream
+
+All Android changes are isolated and reviewable:
+
+- **CEF changes** (`libcef/browser/android/`, `cefrium_sdk/`): on the
+  `android-port` branch. Generate patches with:
+  ```bash
+  git format-patch origin/7778..android-port -- \
+    ':!README.md' ':!assets/screenshots'
+  ```
+- **Chromium patches** (`patch/patches/android/`): 12 patches applied
+  via `patcher.py`. Each addresses a specific incompatibility between
+  Chromium's assumptions and the Android embedding environment.
+  Managed via CEF's existing patch infrastructure.
+- **Build changes** (`BUILD.gn`): Android-specific sources, deps, and
+  `embedder_support` integration.
+
+If you have expertise in CEF or Chromium internals and want to help
+bring this upstream, open an issue or email cefrium@proton.me.
 
 ## Known limitations
 
