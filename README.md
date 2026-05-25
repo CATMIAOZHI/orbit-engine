@@ -184,11 +184,11 @@ Fork of CEF branch 7778, tracking Chromium 148.0.7778.167.
 Branch `android-port` contains all Android changes.
 Upstream contribution planned via `git format-patch`.
 
-## Author
+## About
 
-**Juan Manuel Mendez Rey** — Debian CEF packager (six architectures:
-i386, amd64, arm64, armhf, loong64, ppc64el), now extending CEF to
-native Android.
+Developed with significant AI/LLM assistance. Architecture decisions,
+hardware testing, and ongoing maintenance are human-directed.
+Published as open source for the community to evaluate, use, and extend.
 
 ## License
 
