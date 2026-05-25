@@ -24,6 +24,7 @@ public class CefriumBrowser {
     private OnUrlChangedListener mUrlListener;
     private OnTitleChangedListener mTitleListener;
     private OnLoadingStateChangedListener mLoadingListener;
+    private OnRequestInterceptedListener mRequestListener;
 
     // Surface rendering internals — not exposed in public API.
     private android.app.Activity mActivity;
@@ -129,6 +130,15 @@ public class CefriumBrowser {
     }
 
     /**
+     * Listener for network requests. Called by CEF's
+     * CefResourceRequestHandler::OnBeforeResourceLoad for every request.
+     * This level of request visibility is not available in Android WebView.
+     */
+    public interface OnRequestInterceptedListener {
+        void onRequestIntercepted(String url, String method, boolean blocked);
+    }
+
+    /**
      * Listener for loading state changes. Called by CEF's
      * CefLoadHandler::OnLoadingStateChange.
      */
@@ -154,6 +164,15 @@ public class CefriumBrowser {
         mTitleListener = listener;
     }
 
+    /**
+     * Set a listener for network request interception.
+     * Called for EVERY request — use for network inspection,
+     * debugging, or custom request auditing.
+     */
+    public void setOnRequestInterceptedListener(OnRequestInterceptedListener listener) {
+        mRequestListener = listener;
+    }
+
     // Called from native CefDisplayHandler::OnAddressChange.
     @SuppressWarnings("unused")
     private void onUrlChanged(String url) {
@@ -174,6 +193,14 @@ public class CefriumBrowser {
     private void onTitleChanged(String title) {
         if (mTitleListener != null) {
             mTitleListener.onTitleChanged(title);
+        }
+    }
+
+    // Called from native CefResourceRequestHandler::OnBeforeResourceLoad.
+    @SuppressWarnings("unused")
+    private void onRequestIntercepted(String url, String method, boolean blocked) {
+        if (mRequestListener != null) {
+            mRequestListener.onRequestIntercepted(url, method, blocked);
         }
     }
 
