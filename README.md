@@ -135,7 +135,7 @@ Two variants are published for each Chromium version:
 Each variant is available for `arm64-v8a` (real devices) and `x86_64`
 (emulators).
 
-**Patent note:** H.264 base profile patents expired in 2027. In the EU,
+**Patent note:** H.264 patents expire by November 2027 (last US patent: US 7826532). In the EU,
 software patents are not enforceable (European Patent Convention,
 Article 52). The SDK source code (FFmpeg decoders) is LGPL — patent
 licensing is orthogonal to copyright licensing.
