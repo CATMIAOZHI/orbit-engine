@@ -184,6 +184,25 @@ Fork of CEF branch 7778, tracking Chromium 148.0.7778.167.
 Branch `android-port` contains all Android changes.
 Upstream contribution planned via `git format-patch`.
 
+## Known limitations
+
+Cefrium is NOT a drop-in WebView replacement. It provides capabilities
+WebView doesn't have (off-screen rendering, request interception with
+full URL access, pinned Chromium version), but lacks integration with
+some Android platform features:
+
+| Feature | Status |
+|---------|--------|
+| Android Accessibility (TalkBack) | Not implemented |
+| Autofill framework | Not implemented |
+| Widevine DRM (Netflix, etc.) | Not implemented |
+| WebAuthn / Passkeys | Not implemented |
+| Credential Manager | Not implemented |
+| Health Connect | Not implemented |
+
+Surface rendering uses `ContentViewRenderView` — the same Chromium
+component as Chrome Android. No additional overhead vs Chrome.
+
 ## About
 
 Developed with significant AI/LLM assistance. Architecture decisions,
