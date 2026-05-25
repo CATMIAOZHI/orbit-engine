@@ -111,6 +111,16 @@ public class CefriumBrowser {
     }
 
     /**
+     * Set dark mode via CEF API (CefRequestContext::SetChromeColorSchemeMode).
+     * Call after browser is created and loaded.
+     *
+     * @param dark true for dark mode, false for light mode.
+     */
+    public void setDarkMode(boolean dark) {
+        if (mNativePtr != 0) nativeSetDarkMode(mNativePtr, dark);
+    }
+
+    /**
      * Listener for URL changes. Called by CEF's CefDisplayHandler::OnAddressChange.
      */
     public interface OnUrlChangedListener {
@@ -349,4 +359,5 @@ public class CefriumBrowser {
     private static native boolean nativeCanGoBack(long nativePtr);
     private static native void nativeSetDisplayCallback(long nativePtr, CefriumBrowser browser);
     private static native void nativeClose(long nativePtr);
+    private static native void nativeSetDarkMode(long nativePtr, boolean dark);
 }
