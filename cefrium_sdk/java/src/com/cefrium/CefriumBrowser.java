@@ -22,6 +22,16 @@ public class CefriumBrowser {
     private long mNativePtr;  // Pointer to native CefBrowser
     private CefriumRenderHandler mRenderHandler;
     private OnUrlChangedListener mUrlListener;
+    private OnTitleChangedListener mTitleListener;
+    private OnLoadingStateChangedListener mLoadingListener;
+    private OnRequestInterceptedListener mRequestListener;
+
+    // Surface rendering internals — not exposed in public API.
+    private android.app.Activity mActivity;
+    private org.chromium.ui.base.WindowAndroid mWindowAndroid;
+    private org.chromium.components.embedder_support.view.ContentViewRenderView mContentViewRenderView;
+    private android.widget.FrameLayout mSurfaceContainer;
+    private boolean mWebContentsConnected;
 
     // Private marker constructor for factory methods — does NOT create native.
     private CefriumBrowser(boolean marker) {
@@ -108,6 +118,31 @@ public class CefriumBrowser {
     }
 
     /**
+     * Listener for title changes. Called by CEF's CefDisplayHandler::OnTitleChange.
+     */
+    public interface OnTitleChangedListener {
+        void onTitleChanged(String title);
+    }
+
+    /**
+     * Listener for network requests. Called by CEF's
+     * CefResourceRequestHandler::OnBeforeResourceLoad for every request.
+     * This level of request visibility is not available in Android WebView.
+     */
+    public interface OnRequestInterceptedListener {
+        void onRequestIntercepted(String url, String method, boolean blocked);
+    }
+
+    /**
+     * Listener for loading state changes. Called by CEF's
+     * CefLoadHandler::OnLoadingStateChange.
+     */
+    public interface OnLoadingStateChangedListener {
+        void onLoadingStateChanged(boolean isLoading, boolean canGoBack,
+                                   boolean canGoForward);
+    }
+
+    /**
      * Set a listener for URL changes during navigation.
      */
     public void setOnUrlChangedListener(OnUrlChangedListener listener) {
@@ -117,11 +152,59 @@ public class CefriumBrowser {
         }
     }
 
+    /**
+     * Set a listener for title changes.
+     */
+    public void setOnTitleChangedListener(OnTitleChangedListener listener) {
+        mTitleListener = listener;
+    }
+
+    /**
+     * Set a listener for network request interception.
+     * Called for EVERY request — use for network inspection,
+     * debugging, or custom request auditing.
+     */
+    public void setOnRequestInterceptedListener(OnRequestInterceptedListener listener) {
+        mRequestListener = listener;
+    }
+
     // Called from native CefDisplayHandler::OnAddressChange.
     @SuppressWarnings("unused")
     private void onUrlChanged(String url) {
         if (mUrlListener != null) {
             mUrlListener.onUrlChanged(url);
+        }
+    }
+
+    /**
+     * Set a listener for loading state changes.
+     */
+    public void setOnLoadingStateChangedListener(OnLoadingStateChangedListener listener) {
+        mLoadingListener = listener;
+    }
+
+    // Called from native CefDisplayHandler::OnTitleChange.
+    @SuppressWarnings("unused")
+    private void onTitleChanged(String title) {
+        if (mTitleListener != null) {
+            mTitleListener.onTitleChanged(title);
+        }
+    }
+
+    // Called from native CefResourceRequestHandler::OnBeforeResourceLoad.
+    @SuppressWarnings("unused")
+    private void onRequestIntercepted(String url, String method, boolean blocked) {
+        if (mRequestListener != null) {
+            mRequestListener.onRequestIntercepted(url, method, blocked);
+        }
+    }
+
+    // Called from native CefLoadHandler::OnLoadingStateChange.
+    @SuppressWarnings("unused")
+    private void onLoadingStateChanged(boolean isLoading, boolean canGoBack,
+                                       boolean canGoForward) {
+        if (mLoadingListener != null) {
+            mLoadingListener.onLoadingStateChanged(isLoading, canGoBack, canGoForward);
         }
     }
 
