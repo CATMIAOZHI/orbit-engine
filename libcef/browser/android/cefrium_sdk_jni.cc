@@ -162,6 +162,36 @@ class SdkDisplayHandler : public CefDisplayHandler {
     env->DeleteLocalRef(cls);
   }
 
+  void OnTitleChange(CefRefPtr<CefBrowser> browser,
+                     const CefString& title) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onTitleChanged",
+                                        "(Ljava/lang/String;)V");
+    if (method) {
+      std::string title_str = title.ToString();
+      jstring j_title = env->NewStringUTF(title_str.c_str());
+      env->CallVoidMethod(java_browser_, method, j_title);
+      env->DeleteLocalRef(j_title);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  void OnFullscreenModeChange(CefRefPtr<CefBrowser> browser,
+                              bool fullscreen) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onFullscreenChanged", "(Z)V");
+    if (method) {
+      env->CallVoidMethod(java_browser_, method, fullscreen);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
   ~SdkDisplayHandler() override {
     if (java_browser_) {
       JNIEnv* env = base::android::AttachCurrentThread();

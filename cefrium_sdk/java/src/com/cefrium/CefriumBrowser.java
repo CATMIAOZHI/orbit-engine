@@ -25,6 +25,7 @@ public class CefriumBrowser {
     private OnTitleChangedListener mTitleListener;
     private OnLoadingStateChangedListener mLoadingListener;
     private OnRequestInterceptedListener mRequestListener;
+    private OnFullscreenChangedListener mFullscreenListener;
 
     // Surface rendering internals — not exposed in public API.
     private android.app.Activity mActivity;
@@ -144,6 +145,14 @@ public class CefriumBrowser {
     }
 
     /**
+     * Listener for fullscreen mode changes. Called by CEF's
+     * CefDisplayHandler::OnFullscreenModeChange.
+     */
+    public interface OnFullscreenChangedListener {
+        void onFullscreenChanged(boolean fullscreen);
+    }
+
+    /**
      * Listener for loading state changes. Called by CEF's
      * CefLoadHandler::OnLoadingStateChange.
      */
@@ -167,6 +176,13 @@ public class CefriumBrowser {
      */
     public void setOnTitleChangedListener(OnTitleChangedListener listener) {
         mTitleListener = listener;
+    }
+
+    /**
+     * Set a listener for fullscreen mode changes.
+     */
+    public void setOnFullscreenChangedListener(OnFullscreenChangedListener listener) {
+        mFullscreenListener = listener;
     }
 
     /**
@@ -198,6 +214,14 @@ public class CefriumBrowser {
     private void onTitleChanged(String title) {
         if (mTitleListener != null) {
             mTitleListener.onTitleChanged(title);
+        }
+    }
+
+    // Called from native CefDisplayHandler::OnFullscreenModeChange.
+    @SuppressWarnings("unused")
+    private void onFullscreenChanged(boolean fullscreen) {
+        if (mFullscreenListener != null) {
+            mFullscreenListener.onFullscreenChanged(fullscreen);
         }
     }
 
