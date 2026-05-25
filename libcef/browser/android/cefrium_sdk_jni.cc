@@ -323,25 +323,57 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
   explicit SdkResourceRequestHandler(int* blocked_count)
       : blocked_count_(blocked_count) {}
 
+  void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
+    if (java_browser) java_browser_ = env->NewGlobalRef(java_browser);
+  }
+
   CefResourceRequestHandler::ReturnValue OnBeforeResourceLoad(
       CefRefPtr<CefBrowser> browser,
       CefRefPtr<CefFrame> frame,
       CefRefPtr<CefRequest> request,
       CefRefPtr<CefCallback> callback) override {
     std::string url = request->GetURL().ToString();
+    std::string method = request->GetMethod().ToString();
 
-    if (g_adblock_filter && g_adblock_filter->ShouldBlock(url)) {
+    bool blocked = g_adblock_filter && g_adblock_filter->ShouldBlock(url);
+
+    if (blocked) {
       if (blocked_count_) (*blocked_count_)++;
-      LOGI("BLOCKED: %s", url.substr(0, 80).c_str());
-      return RV_CANCEL;
     }
-    return RV_CONTINUE;
+
+    // Report to Java if listener is set.
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) {
+        jclass cls = env->GetObjectClass(java_browser_);
+        jmethodID mid = env->GetMethodID(cls, "onRequestIntercepted",
+                                         "(Ljava/lang/String;Ljava/lang/String;Z)V");
+        if (mid) {
+          jstring j_url = env->NewStringUTF(url.substr(0, 200).c_str());
+          jstring j_method = env->NewStringUTF(method.c_str());
+          env->CallVoidMethod(java_browser_, mid, j_url, j_method, blocked);
+          env->DeleteLocalRef(j_url);
+          env->DeleteLocalRef(j_method);
+        }
+        env->DeleteLocalRef(cls);
+      }
+    }
+
+    return blocked ? RV_CANCEL : RV_CONTINUE;
+  }
+
+  ~SdkResourceRequestHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
   }
 
   IMPLEMENT_REFCOUNTING(SdkResourceRequestHandler);
 
  private:
   int* blocked_count_;
+  jobject java_browser_ = nullptr;
 };
 
 class SdkRequestHandler : public CefRequestHandler {
@@ -357,6 +389,10 @@ class SdkRequestHandler : public CefRequestHandler {
       bool is_download,
       const CefString& request_initiator,
       bool& disable_default_handling) override {
+    return resource_handler_;
+  }
+
+  CefRefPtr<SdkResourceRequestHandler> resource_request_handler() {
     return resource_handler_;
   }
 
@@ -585,6 +621,13 @@ Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
   if (data && data->client) {
     data->client->display_handler()->SetJavaBrowser(env, java_browser);
     data->client->load_handler_ref()->SetJavaBrowser(env, java_browser);
+    if (data->client->GetRequestHandler()) {
+      auto* rh = static_cast<SdkRequestHandler*>(
+          data->client->GetRequestHandler().get());
+      if (rh->resource_request_handler()) {
+        rh->resource_request_handler()->SetJavaBrowser(env, java_browser);
+      }
+    }
   }
 }
 
