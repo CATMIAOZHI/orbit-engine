@@ -1,46 +1,45 @@
 # Security Policy
 
+## Status
+
+Cefrium is in **early validation**. It is not recommended for
+production use. Use at your own risk.
+
 ## Chromium Version
 
 Current version: **Chromium 148.0.7778.167**.
 
 ## Security Updates
 
-Cefrium inherits security vulnerabilities from Chromium. When a
-Chromium security update is released, Cefrium updates to match.
+Cefrium inherits security vulnerabilities from Chromium. All
+security fixes come from upstream Chromium releases.
 
-**Cefrium does NOT provide independent security patches.** All
-security fixes come from upstream Chromium latest releases.
+**Cefrium does NOT provide independent security patches.**
 
 ## Update Cadence
 
-| Severity | Target |
-|----------|--------|
-| Critical CVE (actively exploited) | Update within 1 week of Debian release |
-| High CVE | Update within 2 weeks |
-| Medium/Low CVE | Next scheduled release |
+Best effort. No guaranteed timelines. The maintainer aims to
+track Chromium security releases but this is a volunteer-driven
+FOSS project, not a commercial product with SLA.
 
 ## Limitations
 
 - Cefrium is provided AS IS, without warranty of any kind
-- The maintainer makes best effort to track security releases
-  but cannot guarantee timelines
-- Users deploying Cefrium in production are responsible for
-  monitoring Chromium security advisories and updating promptly
-- Cefrium is maintained by a single developer; response times
-  may vary
+- No guaranteed response time for security issues
+- Users are responsible for monitoring Chromium security advisories
+- This is an experimental project maintained with AI/LLM assistance
 
 ## Reporting Vulnerabilities
 
 - **Chromium vulnerabilities**: report to Chromium directly at
   https://bugs.chromium.org/p/chromium/issues/entry
 - **Cefrium-specific vulnerabilities** (patches, SDK, JNI bridge):
-  email juan.mendezr@proton.me with subject "SECURITY: [description]"
+  email cefrium@proton.me with subject "SECURITY: [description]"
 - Do NOT open public issues for security vulnerabilities
 
 ## Supported Versions
 
 | Version | Supported |
 |---------|-----------|
-| Latest release | Yes |
-| Previous releases | No — update to latest |
+| Latest release | Best effort |
+| Previous releases | No |
