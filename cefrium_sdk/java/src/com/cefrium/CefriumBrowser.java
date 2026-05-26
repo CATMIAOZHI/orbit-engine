@@ -680,6 +680,20 @@ public class CefriumBrowser {
         if (mNativePtr != 0) nativeContextMenuCommand(mNativePtr, commandId);
     }
 
+    // Called from native to copy text to Android clipboard.
+    @SuppressWarnings("unused")
+    private void copyToClipboard(String text) {
+        if (mActivity != null) {
+            android.content.ClipboardManager clipboard =
+                    (android.content.ClipboardManager)
+                    mActivity.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+            if (clipboard != null) {
+                clipboard.setPrimaryClip(
+                        android.content.ClipData.newPlainText("Cefrium", text));
+            }
+        }
+    }
+
     // Called from native CefContextMenuHandler::RunContextMenu.
     @SuppressWarnings("unused")
     private void onContextMenu(String menuItems, String url) {
