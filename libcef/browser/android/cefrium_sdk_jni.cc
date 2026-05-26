@@ -15,6 +15,7 @@
 #include "cef/include/cef_context_menu_handler.h"
 #include "cef/include/cef_display_handler.h"
 #include "cef/include/cef_download_handler.h"
+#include "cef/include/cef_find_handler.h"
 #include "cef/include/cef_life_span_handler.h"
 #include "cef/include/cef_load_handler.h"
 #include "cef/include/cef_render_handler.h"
@@ -234,9 +235,14 @@ class SdkDisplayHandler : public CefDisplayHandler {
 };
 
 // Download handler — saves files to the app's download directory.
+// Notifies Java of download progress via onDownloadUpdated callback.
 class SdkDownloadHandler : public CefDownloadHandler {
  public:
   void SetDownloadDir(const std::string& dir) { download_dir_ = dir; }
+
+  void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
+    if (java_browser) java_browser_ = env->NewGlobalRef(java_browser);
+  }
 
   bool OnBeforeDownload(CefRefPtr<CefBrowser> browser,
                         CefRefPtr<CefDownloadItem> download_item,
@@ -246,85 +252,189 @@ class SdkDownloadHandler : public CefDownloadHandler {
     LOGI("Download: %s -> %s", download_item->GetURL().ToString().c_str(),
          path.c_str());
     callback->Continue(path, false);
+    NotifyJava(suggested_name.ToString(), path,
+               download_item->GetPercentComplete(), false, false);
     return true;
   }
 
   void OnDownloadUpdated(CefRefPtr<CefBrowser> browser,
                          CefRefPtr<CefDownloadItem> download_item,
                          CefRefPtr<CefDownloadItemCallback> callback) override {
+    std::string filename = download_item->GetFullPath().ToString();
+    // Extract just the filename from the path.
+    size_t pos = filename.rfind('/');
+    std::string name = (pos != std::string::npos) ?
+        filename.substr(pos + 1) : filename;
+
     if (download_item->IsComplete()) {
       LOGI("Download complete: %s (%" PRId64 " bytes)",
-           download_item->GetFullPath().ToString().c_str(),
+           filename.c_str(),
            static_cast<int64_t>(download_item->GetReceivedBytes()));
+      NotifyJava(name, filename, 100, true, false);
     } else if (download_item->IsCanceled()) {
       LOGI("Download canceled");
+      NotifyJava(name, filename, 0, false, true);
+    } else {
+      NotifyJava(name, filename,
+                 download_item->GetPercentComplete(), false, false);
+    }
+  }
+
+  ~SdkDownloadHandler() {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
     }
   }
 
   IMPLEMENT_REFCOUNTING(SdkDownloadHandler);
 
  private:
+  void NotifyJava(const std::string& name, const std::string& path,
+                  int percent, bool complete, bool canceled) {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onDownloadUpdated",
+        "(Ljava/lang/String;Ljava/lang/String;IZZ)V");
+    if (method) {
+      jstring j_name = env->NewStringUTF(name.c_str());
+      jstring j_path = env->NewStringUTF(path.c_str());
+      env->CallVoidMethod(java_browser_, method,
+                          j_name, j_path, percent, complete, canceled);
+      env->DeleteLocalRef(j_name);
+      env->DeleteLocalRef(j_path);
+    }
+  }
+
   std::string download_dir_;
+  jobject java_browser_ = nullptr;
 };
 
-// Context menu handler — provides long-press menu options.
+// Context menu handler — long-press menu shown as Android AlertDialog.
+// Uses RunContextMenu to intercept display and forward to Java.
 class SdkContextMenuHandler : public CefContextMenuHandler {
  public:
-  enum MenuIds {
-    MENU_ID_COPY_LINK = MENU_ID_USER_FIRST + 1,
-    MENU_ID_OPEN_LINK,
-    MENU_ID_SAVE_IMAGE,
-    MENU_ID_COPY_IMAGE_LINK,
-  };
+  void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
+    if (java_browser) java_browser_ = env->NewGlobalRef(java_browser);
+  }
 
   void OnBeforeContextMenu(CefRefPtr<CefBrowser> browser,
                            CefRefPtr<CefFrame> frame,
                            CefRefPtr<CefContextMenuParams> params,
                            CefRefPtr<CefMenuModel> model) override {
-    // Clear default menu.
     model->Clear();
-
     if (params->GetTypeFlags() & CM_TYPEFLAG_LINK) {
-      model->AddItem(MENU_ID_COPY_LINK, "Copy link");
-      model->AddItem(MENU_ID_OPEN_LINK, "Open link");
+      model->AddItem(1, "Open link");
+      model->AddItem(2, "Copy link");
+      model->AddItem(3, "Download link");
     }
     if (params->GetTypeFlags() & CM_TYPEFLAG_MEDIA &&
         params->GetMediaType() == CM_MEDIATYPE_IMAGE) {
-      model->AddItem(MENU_ID_SAVE_IMAGE, "Save image");
-      model->AddItem(MENU_ID_COPY_IMAGE_LINK, "Copy image URL");
+      model->AddItem(4, "Save image");
+      model->AddItem(5, "Copy image URL");
     }
   }
 
+  bool RunContextMenu(CefRefPtr<CefBrowser> browser,
+                      CefRefPtr<CefFrame> frame,
+                      CefRefPtr<CefContextMenuParams> params,
+                      CefRefPtr<CefMenuModel> model,
+                      CefRefPtr<CefRunContextMenuCallback> callback) override {
+    if (!java_browser_ || model->GetCount() == 0) {
+      callback->Cancel();
+      return true;
+    }
+
+    // Build menu items string: "id1|label1\nid2|label2\n..."
+    std::string menu_data;
+    for (size_t i = 0; i < model->GetCount(); i++) {
+      if (i > 0) menu_data += "\n";
+      menu_data += std::to_string(model->GetCommandIdAt(i)) + "|" +
+                   model->GetLabelAt(i).ToString();
+    }
+
+    pending_callback_ = callback;
+
+    // Call Java to show AlertDialog.
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onContextMenu",
+        "(Ljava/lang/String;Ljava/lang/String;)V");
+    if (method) {
+      jstring j_menu = env->NewStringUTF(menu_data.c_str());
+      std::string url = params->GetLinkUrl().ToString();
+      if (url.empty()) url = params->GetSourceUrl().ToString();
+      jstring j_url = env->NewStringUTF(url.c_str());
+      env->CallVoidMethod(java_browser_, method, j_menu, j_url);
+      env->DeleteLocalRef(j_menu);
+      env->DeleteLocalRef(j_url);
+    }
+    return true;  // We handle display.
+  }
+
+  // Called from Java when user selects a menu item.
+  // Routes through CefRunContextMenuCallback::Continue() so that CEF
+  // calls OnContextMenuCommand() — the correct CEF API flow.
+  void ExecuteCommand(int command_id) {
+    if (pending_callback_) {
+      pending_callback_->Continue(command_id, EVENTFLAG_NONE);
+      pending_callback_ = nullptr;
+    }
+  }
+
+  // Called by CEF after CefRunContextMenuCallback::Continue().
+  // This is the correct CEF API entry point for executing menu commands.
   bool OnContextMenuCommand(CefRefPtr<CefBrowser> browser,
                             CefRefPtr<CefFrame> frame,
                             CefRefPtr<CefContextMenuParams> params,
                             int command_id,
                             EventFlags event_flags) override {
     switch (command_id) {
-      case MENU_ID_COPY_LINK:
-        // Copy link URL to clipboard via JS.
+      case 1:  // Open link
+        browser->GetMainFrame()->LoadURL(params->GetLinkUrl());
+        return true;
+      case 2:  // Copy link
         frame->ExecuteJavaScript(
             "navigator.clipboard.writeText('" +
                 params->GetLinkUrl().ToString() + "')",
             frame->GetURL(), 0);
         return true;
-      case MENU_ID_OPEN_LINK:
-        browser->GetMainFrame()->LoadURL(params->GetLinkUrl());
+      case 3:  // Download link
+        browser->GetHost()->StartDownload(params->GetLinkUrl());
         return true;
-      case MENU_ID_COPY_IMAGE_LINK:
+      case 4:  // Save image
+        browser->GetHost()->StartDownload(params->GetSourceUrl());
+        return true;
+      case 5:  // Copy image URL
         frame->ExecuteJavaScript(
             "navigator.clipboard.writeText('" +
                 params->GetSourceUrl().ToString() + "')",
             frame->GetURL(), 0);
         return true;
-      case MENU_ID_SAVE_IMAGE:
-        browser->GetHost()->StartDownload(params->GetSourceUrl());
-        return true;
     }
     return false;
   }
 
+  void CancelMenu() {
+    if (pending_callback_) {
+      pending_callback_->Cancel();
+      pending_callback_ = nullptr;
+    }
+  }
+
+  ~SdkContextMenuHandler() {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+
   IMPLEMENT_REFCOUNTING(SdkContextMenuHandler);
+
+ private:
+  jobject java_browser_ = nullptr;
+  CefRefPtr<CefRunContextMenuCallback> pending_callback_;
 };
 
 // Global AdBlock filter engine — shared across all browsers.
@@ -416,6 +526,41 @@ class SdkRequestHandler : public CefRequestHandler {
 };
 
 // Minimal client that connects handlers.
+// Find handler — reports find results back to Java via CefFindHandler.
+class SdkFindHandler : public CefFindHandler {
+ public:
+  void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
+    if (java_browser) java_browser_ = env->NewGlobalRef(java_browser);
+  }
+
+  void OnFindResult(CefRefPtr<CefBrowser> browser,
+                    int identifier,
+                    int count,
+                    const CefRect& selectionRect,
+                    int activeMatchOrdinal,
+                    bool finalUpdate) override {
+    if (!finalUpdate || !java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onFindResult", "(II)V");
+    if (method) {
+      env->CallVoidMethod(java_browser_, method, activeMatchOrdinal, count);
+    }
+  }
+
+  ~SdkFindHandler() {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+
+  IMPLEMENT_REFCOUNTING(SdkFindHandler);
+
+ private:
+  jobject java_browser_ = nullptr;
+};
+
 class SdkClient : public CefClient {
  public:
   SdkClient(CefRefPtr<SdkRenderHandler> render_handler,
@@ -428,6 +573,7 @@ class SdkClient : public CefClient {
         display_handler_(new SdkDisplayHandler()),
         download_handler_(new SdkDownloadHandler()),
         context_menu_handler_(new SdkContextMenuHandler()),
+        find_handler_(new SdkFindHandler()),
         request_handler_(blocked_count ? new SdkRequestHandler(blocked_count) : nullptr) {
     if (browser_data) {
       load_handler_->SetBrowserData(browser_data);
@@ -462,9 +608,14 @@ class SdkClient : public CefClient {
     return context_menu_handler_;
   }
 
+  CefRefPtr<CefFindHandler> GetFindHandler() override {
+    return find_handler_;
+  }
+
   CefRefPtr<SdkDisplayHandler> display_handler() { return display_handler_; }
   CefRefPtr<SdkLoadHandler> load_handler_ref() { return load_handler_; }
   CefRefPtr<SdkDownloadHandler> download_handler() { return download_handler_; }
+  CefRefPtr<SdkFindHandler> find_handler() { return find_handler_; }
 
   IMPLEMENT_REFCOUNTING(SdkClient);
 
@@ -475,6 +626,7 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkDisplayHandler> display_handler_;
   CefRefPtr<SdkDownloadHandler> download_handler_;
   CefRefPtr<SdkContextMenuHandler> context_menu_handler_;
+  CefRefPtr<SdkFindHandler> find_handler_;
   CefRefPtr<SdkRequestHandler> request_handler_;
 };
 
@@ -634,6 +786,13 @@ Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
   if (data && data->client) {
     data->client->display_handler()->SetJavaBrowser(env, java_browser);
     data->client->load_handler_ref()->SetJavaBrowser(env, java_browser);
+    data->client->find_handler()->SetJavaBrowser(env, java_browser);
+    data->client->download_handler()->SetJavaBrowser(env, java_browser);
+    {
+      auto* cmh = static_cast<SdkContextMenuHandler*>(
+          data->client->GetContextMenuHandler().get());
+      if (cmh) cmh->SetJavaBrowser(env, java_browser);
+    }
     if (data->client->GetRequestHandler()) {
       auto* rh = static_cast<SdkRequestHandler*>(
           data->client->GetRequestHandler().get());
@@ -843,6 +1002,47 @@ Java_com_cefrium_CefriumBrowser_nativeSetDarkMode(
       context->SetChromeColorScheme(
           dark ? CEF_COLOR_VARIANT_DARK : CEF_COLOR_VARIANT_LIGHT, 0);
     }
+  }
+}
+
+// Context menu command — called from Java when user selects an option.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeContextMenuCommand(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jint command_id) {
+  LOGI("nativeContextMenuCommand: ptr=%ld, cmd=%d", native_ptr, command_id);
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client) {
+    auto* handler = static_cast<SdkContextMenuHandler*>(
+        data->client->GetContextMenuHandler().get());
+    if (handler) {
+      if (command_id < 0) {
+        handler->CancelMenu();
+      } else {
+        handler->ExecuteCommand(command_id);
+      }
+    }
+  }
+}
+
+// Find in page via CEF API: CefBrowserHost::Find / StopFinding.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeFind(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jstring text_jstr,
+    jboolean forward, jboolean match_case, jboolean find_next) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser) {
+    const char* text = env->GetStringUTFChars(text_jstr, nullptr);
+    data->browser->GetHost()->Find(text, forward, match_case, find_next);
+    env->ReleaseStringUTFChars(text_jstr, text);
+  }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeStopFinding(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jboolean clear_selection) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser) {
+    data->browser->GetHost()->StopFinding(clear_selection);
   }
 }
 
