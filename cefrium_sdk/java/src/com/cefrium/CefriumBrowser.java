@@ -329,6 +329,31 @@ public class CefriumBrowser {
                     "Cefrium.initialize() must be called before creating browsers");
         }
         CefriumBrowser browser = new CefriumBrowser(true);
+
+        // Create Chromium rendering infrastructure internally.
+        // Use ActivityWindowAndroid (not plain WindowAndroid) to support
+        // intents — required for file picker (<input type=file>),
+        // permission requests, and other Activity-based flows.
+        org.chromium.ui.base.IntentRequestTracker intentTracker =
+                org.chromium.ui.base.IntentRequestTracker.createFromActivity(activity);
+        browser.mWindowAndroid = new org.chromium.ui.base.ActivityWindowAndroid(
+                activity, true, intentTracker, null, false);
+
+        browser.mContentViewRenderView =
+                new org.chromium.components.embedder_support.view.ContentViewRenderView(
+                        activity);
+        browser.mContentViewRenderView.onNativeLibraryLoaded(
+                browser.mWindowAndroid);
+
+        // Container that holds the rendering surface.
+        browser.mSurfaceContainer = new android.widget.FrameLayout(activity);
+        browser.mSurfaceContainer.addView(browser.mContentViewRenderView,
+                new android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
+
+        // Create native browser (non-windowless mode).
+        float density = activity.getResources().getDisplayMetrics().density;
         browser.mNativePtr = nativeCreateWithSurface(
                 windowAndroid, surface, width, height, scale);
         return browser;
