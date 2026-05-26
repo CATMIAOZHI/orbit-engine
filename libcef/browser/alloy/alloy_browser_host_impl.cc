@@ -1096,6 +1096,10 @@ void AlloyBrowserHostImpl::RunFileChooser(
     scoped_refptr<content::FileSelectListener> listener,
     const blink::mojom::FileChooserParams& params) {
   // This will eventually call into CefFileDialogManager.
+#if BUILDFLAG(IS_ANDROID)
+  __android_log_print(ANDROID_LOG_INFO, "CefriumFile",
+      "RunFileChooser: mode=%d", static_cast<int>(params.mode));
+#endif
   FileSelectHelper::RunFileChooser(render_frame_host, std::move(listener),
                                    params);
 }
