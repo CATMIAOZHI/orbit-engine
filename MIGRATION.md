@@ -60,8 +60,8 @@ browser.setCallback(new CefriumBrowser.Callback() {
 | Go forward | `webView.goForward()` | `browser.goForward()` |
 | Can go back | `webView.canGoBack()` | `browser.canGoBack()` |
 | Reload | `webView.reload()` | `browser.reload()` |
-| Find in page | Not available | `browser.find(text, fwd, case, next)` |
-| Stop finding | Not available | `browser.stopFinding(clear)` |
+| Find in page | `webView.findAllAsync(text)` | `browser.find(text, fwd, case, next)` |
+| Stop finding | `webView.clearMatches()` | `browser.stopFinding(clear)` |
 | Dark mode | WebSettings (API 33+) | `browser.setDarkMode(true)` |
 
 ## Request interception
@@ -165,7 +165,7 @@ CefriumWebView(
 | Multi-process control | No | Yes |
 | Network request interception (full) | Partial (GET) | Yes (all) |
 | Built-in ad blocking | No | Yes (EasyList 61K rules) |
-| Find in page API | No | Yes |
+| Find in page API | Yes (findAllAsync) | Yes (CefBrowserHost::Find) |
 | Context menu API | Limited | Full (CEF API) |
 | File dialog | Yes | Yes |
 | Dark mode API | API 33+ | All versions |
@@ -176,4 +176,4 @@ CefriumWebView(
 - Autofill framework
 - Widevine DRM
 - WebAuthn / Passkeys
-- Smaller size (0 MB vs 149 MB)
+- Smaller size (0 MB vs 150 MB)
