@@ -12,6 +12,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "cef/include/cef_dialog_handler.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_ANDROID)
+#include <android/log.h>
+#endif
 #include "cef/libcef/browser/browser_host_base.h"
 #include "content/public/browser/web_contents.h"
 #include "cef/libcef/browser/context.h"
@@ -377,6 +380,10 @@ void CefFileDialogManager::RunSelectFile(
     const base::FilePath::StringType& default_extension,
     gfx::NativeWindow owning_window) {
   CEF_REQUIRE_UIT();
+#if BUILDFLAG(IS_ANDROID)
+  __android_log_print(ANDROID_LOG_INFO, "CefriumFile",
+      "RunSelectFile: type=%d", static_cast<int>(type));
+#endif
 
   active_listeners_.insert(listener);
 
@@ -390,6 +397,10 @@ void CefFileDialogManager::RunSelectFile(
                               std::move(callback));
   if (callback.is_null()) {
     // The delegate kept the callback.
+#if BUILDFLAG(IS_ANDROID)
+    __android_log_print(ANDROID_LOG_INFO, "CefriumFile",
+        "RunSelectFile: delegate consumed callback, returning");
+#endif
     return;
   }
 
@@ -439,6 +450,11 @@ void CefFileDialogManager::RunSelectFile(
   }
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+  __android_log_print(ANDROID_LOG_INFO, "CefriumFile",
+      "RunSelectFile: calling dialog_->SelectFile, owning_window=%p",
+      static_cast<void*>(owning_window));
+#endif
   dialog_->SelectFile(type, title, default_path, file_types, file_type_index,
                       default_extension, owning_window);
 }
