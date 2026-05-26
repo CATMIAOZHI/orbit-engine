@@ -1,72 +1,80 @@
-# Contributing to CEF
+# Contributing to CEF Android Port
 
-CEF is a volunteer-driven open source project. Contributions of all kinds are
-welcome — bug reports, feature requests, code changes, unit tests, and
-documentation improvements. All contributions are made under the
-[BSD license](LICENSE.txt).
+This document explains how changes are tracked, reviewed, and
+contributed upstream to the Chromium Embedded Framework.
 
-Please use the [CEF Forum](http://www.magpcss.org/ceforum/) for general usage
-questions, not the issue tracker.
+## Change tracking
 
-## Reporting Issues
+Changes in this project fall into two categories:
 
-Search for [existing issues](https://github.com/chromiumembedded/cef/issues)
-before creating new ones. Each issue should:
+### 1. CEF changes (`src/cef/`)
 
-* Include the CEF revision or binary distribution version.
-* Include your OS and compiler version.
-* For bugs, provide detailed steps to reproduce the problem.
-* For features, describe why the feature is beneficial.
+Direct commits on the `android-port` branch. This branch forks from
+upstream CEF branch 7778 (Chromium 148).
 
-Vote for issues that are important to you. This helps with development
-prioritization.
+**Examples:** `menu_runner_android.cc`, `browser_platform_delegate_native_android.cc`,
+`cefrium_sdk/` Java API, `cefrium_compose/` Compose wrapper.
 
-Report security vulnerabilities privately via
-[GitHub Security Advisories](https://github.com/chromiumembedded/cef/security).
-Do not file security issues in the public issue tracker.
+**Upstream contribution:** via `git format-patch`:
+```bash
+cd chromium/src/cef
+git format-patch origin/7778..android-port -- \
+  ':!README.md' ':!assets' ':!CONTRIBUTING.md'
+```
 
-## Development Setup
+### 2. Chromium changes (`src/` excluding `src/cef/`)
 
-See the [Branches and Building](https://chromiumembedded.github.io/cef/branches_and_building)
-page for instructions on downloading and building CEF source code. The
-[Master Build Quick-Start](https://chromiumembedded.github.io/cef/master_build_quick_start)
-guide covers the fastest path to a working build.
+Tracked as patch files in `src/cef/patch/patches/android/`.
+Applied automatically by `cef/tools/patcher.py`.
 
-## Submitting Changes
+**Examples:** GN build fixes, Android-specific Chromium adaptations.
 
-Create or find an appropriate issue for each distinct bug, feature, or change.
-For large or architectural changes, discuss the approach in the issue before
-starting work. Then submit a
-[pull request](https://chromiumembedded.github.io/cef/contributing_with_git).
+These patches follow CEF's existing patch infrastructure and are
+candidates for upstream CEF (not upstream Chromium — Chromium won't
+accept CEF-specific changes).
 
-### Branch Targets
+## Upstream-first philosophy
 
-Submit changes against the current
-[CEF master branch](https://github.com/chromiumembedded/cef/tree/master)
-unless explicitly fixing a bug that only occurs in a release branch.
+Every feature must ask: **"Can this go upstream to CEF?"**
 
-### Code Style
+- **If yes** — implement in `cef/libcef/browser/` following CEF's
+  architecture (platform delegates, handlers, runners). Use the same
+  patterns as Linux/Mac/Windows implementations.
 
-Follow the style of existing CEF source files. CEF uses the
-[Chromium C++ style guide](https://chromium.googlesource.com/chromium/src/+/master/styleguide/c++/c++.md).
+- **If no** (SDK-specific) — implement in `cef/cefrium_sdk/` or
+  `cef/cefrium_compose/`.
 
-### Commit Messages
+## Code style
 
-Use the imperative present tense: "Fix crash in X" not "Fixed crash in X" or
-"Fixes crash in X". Keep the first line under 72 characters. Add a blank line
-before any extended description.
+Match CEF's existing style, which follows Chromium/Google C++ style:
+- 2-space indentation
+- `CamelCase` for classes, `snake_case` for methods/variables
+- `// Comment` style (not `/* */`)
+- Include guards: `CEF_LIBCEF_BROWSER_NATIVE_MENU_RUNNER_ANDROID_H_`
+- License header on all new files (BSD for CEF)
 
-### Tests
+Java/Kotlin code in `cefrium_sdk/` follows Android conventions.
 
-Include new or modified unit tests as appropriate to the functionality. Bug
-fixes should include a test that would have caught the bug.
+## Commit messages
 
-### Keep Changes Focused
+- English, concise (1-2 lines describing WHAT changed)
+- No emojis, no co-author tags
+- Rationale and analysis go in FEATURE .md documents (not committed
+  to the CEF repo)
 
-Each pull request should address a single concern. Do not bundle unrelated
-refactoring, cosmetic changes, or feature work into the same submission.
+## Review process
 
-## AI Policy
+All changes will undergo thorough review before upstream submission:
 
-The use of AI and LLM tools is permitted under the conditions described in
-[AI_POLICY.md](AI_POLICY.md).
+1. **Internal review** — maintainer studies each patch line by line,
+   understands the motivation, and can defend it independently
+2. **Testing** — validated on arm64 real device and x64 emulator
+3. **Patch cleanup** — one logical change per patch, descriptive
+   subject, body explaining motivation and trade-offs
+4. **Upstream submission** — pull request to
+   `github.com/chromiumembedded/cef` when the patch series is ready
+
+## Contact
+
+- Issues: https://codeberg.org/cefrium/cef-android/issues
+- Email: cefrium@proton.me
