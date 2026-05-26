@@ -362,6 +362,91 @@ public class CefriumBrowser {
         return nativeGetWebContents(mNativePtr);
     }
 
+    /**
+     * Listener for find-in-page results.
+     */
+    public interface OnFindResultListener {
+        /**
+         * @param activeMatch Current match ordinal (1-based).
+         * @param totalMatches Total number of matches found.
+         */
+        void onFindResult(int activeMatch, int totalMatches);
+    }
+
+    private OnFindResultListener mFindListener;
+
+    /**
+     * Set the listener for find-in-page results.
+     */
+    public void setOnFindResultListener(OnFindResultListener listener) {
+        mFindListener = listener;
+    }
+
+    /**
+     * Search for text in the current page.
+     * Uses CEF API: CefBrowserHost::Find.
+     *
+     * @param text Text to search for. Empty string stops the search.
+     * @param forward true to search forward, false to search backward.
+     * @param matchCase true for case-sensitive search.
+     * @param findNext true if continuing a previous search (next/prev).
+     */
+    public void find(String text, boolean forward, boolean matchCase, boolean findNext) {
+        if (mNativePtr != 0) nativeFind(mNativePtr, text, forward, matchCase, findNext);
+    }
+
+    /**
+     * Stop the current find-in-page search.
+     * Uses CEF API: CefBrowserHost::StopFinding.
+     *
+     * @param clearSelection true to clear the selection highlight.
+     */
+    public void stopFinding(boolean clearSelection) {
+        if (mNativePtr != 0) nativeStopFinding(mNativePtr, clearSelection);
+    }
+
+    // Called from native CefFindHandler::OnFindResult.
+    @SuppressWarnings("unused")
+    private void onFindResult(int activeMatch, int totalMatches) {
+        if (mFindListener != null) {
+            mFindListener.onFindResult(activeMatch, totalMatches);
+        }
+    }
+
+    /**
+     * Listener for download progress updates.
+     * Uses CEF API: CefDownloadHandler.
+     */
+    public interface OnDownloadListener {
+        /**
+         * @param name File name being downloaded.
+         * @param path Full path on device.
+         * @param percent Download progress (0-100).
+         * @param complete true when download is finished.
+         * @param canceled true if download was canceled.
+         */
+        void onDownloadUpdated(String name, String path,
+                               int percent, boolean complete, boolean canceled);
+    }
+
+    private OnDownloadListener mDownloadListener;
+
+    /**
+     * Set the listener for download progress updates.
+     */
+    public void setOnDownloadListener(OnDownloadListener listener) {
+        mDownloadListener = listener;
+    }
+
+    // Called from native CefDownloadHandler::OnDownloadUpdated.
+    @SuppressWarnings("unused")
+    private void onDownloadUpdated(String name, String path,
+                                   int percent, boolean complete, boolean canceled) {
+        if (mDownloadListener != null) {
+            mDownloadListener.onDownloadUpdated(name, path, percent, complete, canceled);
+        }
+    }
+
     // Native methods.
     private static native long nativeCreate(int width, int height, float scale);
     private static native long nativeCreateWithSurface(
@@ -384,4 +469,46 @@ public class CefriumBrowser {
     private static native void nativeSetDisplayCallback(long nativePtr, CefriumBrowser browser);
     private static native void nativeClose(long nativePtr);
     private static native void nativeSetDarkMode(long nativePtr, boolean dark);
+    private static native void nativeFind(long nativePtr, String text,
+            boolean forward, boolean matchCase, boolean findNext);
+    private static native void nativeStopFinding(long nativePtr, boolean clearSelection);
+    private static native void nativeContextMenuCommand(long nativePtr, int commandId);
+
+    /**
+     * Listener for context menu events (long press on links/images).
+     */
+    public interface OnContextMenuListener {
+        /**
+         * @param menuItems Menu items as "id|label" lines separated by newlines.
+         * @param url The link or image URL.
+         */
+        void onContextMenu(String menuItems, String url);
+    }
+
+    private OnContextMenuListener mContextMenuListener;
+
+    /**
+     * Set the listener for context menu events.
+     */
+    public void setOnContextMenuListener(OnContextMenuListener listener) {
+        mContextMenuListener = listener;
+    }
+
+    /**
+     * Send the user's context menu selection back to CEF.
+     * Use -1 to cancel.
+     *
+     * @param commandId The selected command ID, or -1 to cancel.
+     */
+    public void contextMenuCommand(int commandId) {
+        if (mNativePtr != 0) nativeContextMenuCommand(mNativePtr, commandId);
+    }
+
+    // Called from native CefContextMenuHandler::RunContextMenu.
+    @SuppressWarnings("unused")
+    private void onContextMenu(String menuItems, String url) {
+        if (mContextMenuListener != null) {
+            mContextMenuListener.onContextMenu(menuItems, url);
+        }
+    }
 }
