@@ -132,10 +132,13 @@ adb logcat -s "chromium:*" "CefriumTest:*"
 
 ## SDK releases
 
-Published on [Codeberg Packages](https://codeberg.org/cefrium/-/packages)
-(Maven registry).
+Pre-built AARs are published on
+**[Codeberg Packages](https://codeberg.org/cefrium/-/packages)**
+(Maven registry). No need to build from source.
 
-### Quick start
+### Gradle integration
+
+Add the Cefrium Maven repository to your project:
 
 ```groovy
 // settings.gradle
@@ -145,8 +148,10 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-    // Cefrium Gradle Plugin for R class generation
-    includeBuild('path/to/cefrium_sdk/gradle-plugin')
+    // Cefrium Gradle Plugin — generates R.java for Chromium packages.
+    // Clone from: https://codeberg.org/cefrium/cef-android
+    // Path: cefrium_sdk/gradle-plugin/
+    includeBuild('path/to/cef/cefrium_sdk/gradle-plugin')
 }
 dependencyResolutionManagement {
     repositories {
@@ -155,14 +160,17 @@ dependencyResolutionManagement {
         maven { url 'https://codeberg.org/api/packages/cefrium/maven' }
     }
 }
+```
 
+```groovy
 // app/build.gradle
 plugins {
     id 'com.android.application'
-    id 'com.cefrium'  // Generates R.java for Chromium packages
+    id 'com.cefrium'  // Required — generates R.java for Chromium packages
 }
 
 dependencies {
+    // Cefrium SDK from Codeberg Packages
     implementation 'com.cefrium:cefrium-sdk:0.1.0'
 
     // Optional: Jetpack Compose wrapper
@@ -175,6 +183,19 @@ dependencies {
     implementation 'androidx.browser:browser:1.8.0'
 }
 ```
+
+> **Note:** The Cefrium Gradle Plugin is not yet published on Maven.
+> You need to clone `cef-android` and reference
+> `cefrium_sdk/gradle-plugin/` via `includeBuild`. Publishing the
+> plugin to Gradle Plugin Portal is planned.
+
+### Direct download
+
+Alternatively, download the AAR directly:
+- [cefrium-sdk-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk/0.1.0/cefrium-sdk-0.1.0.aar) (150 MB, arm64, with proprietary codecs)
+- [cefrium-compose-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-compose/0.1.0/cefrium-compose-0.1.0.aar) (14 KB, Compose wrapper)
+
+Place in `app/libs/` and use `implementation files('libs/cefrium-sdk.aar')`.
 
 ### Variants
 
