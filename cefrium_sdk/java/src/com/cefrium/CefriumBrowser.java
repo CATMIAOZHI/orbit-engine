@@ -83,6 +83,16 @@ public class CefriumBrowser {
         mNativePtr = nativeCreate(width, height, scale);
     }
 
+    private static final String TAG = "CefriumBrowser";
+
+    private boolean checkNative(String method) {
+        if (mNativePtr == 0) {
+            android.util.Log.w(TAG, method + " called after close()");
+            return false;
+        }
+        return true;
+    }
+
     /**
      * Set the render handler to receive painted frames.
      */
@@ -107,14 +117,14 @@ public class CefriumBrowser {
      * Navigate back in history.
      */
     public void goBack() {
-        if (mNativePtr != 0) nativeGoBack(mNativePtr);
+        if (checkNative("goBack")) nativeGoBack(mNativePtr);
     }
 
     /**
      * Navigate forward in history.
      */
     public void goForward() {
-        if (mNativePtr != 0) nativeGoForward(mNativePtr);
+        if (checkNative("goForward")) nativeGoForward(mNativePtr);
     }
 
     /**
@@ -288,7 +298,7 @@ public class CefriumBrowser {
      * Reload the current page.
      */
     public void reload() {
-        if (mNativePtr != 0) nativeReload(mNativePtr);
+        if (checkNative("reload")) nativeReload(mNativePtr);
     }
 
     /**
@@ -547,7 +557,7 @@ public class CefriumBrowser {
      * @param findNext true if continuing a previous search (next/prev).
      */
     public void find(String text, boolean forward, boolean matchCase, boolean findNext) {
-        if (mNativePtr != 0) nativeFind(mNativePtr, text, forward, matchCase, findNext);
+        if (checkNative("find")) nativeFind(mNativePtr, text, forward, matchCase, findNext);
     }
 
     /**
@@ -557,7 +567,7 @@ public class CefriumBrowser {
      * @param clearSelection true to clear the selection highlight.
      */
     public void stopFinding(boolean clearSelection) {
-        if (mNativePtr != 0) nativeStopFinding(mNativePtr, clearSelection);
+        if (checkNative("stopFinding")) nativeStopFinding(mNativePtr, clearSelection);
     }
 
     // Called from native CefFindHandler::OnFindResult.
