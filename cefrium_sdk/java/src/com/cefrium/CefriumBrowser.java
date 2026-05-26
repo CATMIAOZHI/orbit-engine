@@ -30,6 +30,7 @@ public class CefriumBrowser {
     // Surface rendering internals — not exposed in public API.
     private android.app.Activity mActivity;
     private org.chromium.ui.base.WindowAndroid mWindowAndroid;
+    private org.chromium.ui.base.IntentRequestTracker mIntentTracker;
     private org.chromium.components.embedder_support.view.ContentViewRenderView mContentViewRenderView;
     private android.widget.FrameLayout mSurfaceContainer;
     private boolean mWebContentsConnected;
@@ -351,10 +352,10 @@ public class CefriumBrowser {
         // Use ActivityWindowAndroid (not plain WindowAndroid) to support
         // intents — required for file picker (<input type=file>),
         // permission requests, and other Activity-based flows.
-        org.chromium.ui.base.IntentRequestTracker intentTracker =
+        browser.mIntentTracker =
                 org.chromium.ui.base.IntentRequestTracker.createFromActivity(activity);
         browser.mWindowAndroid = new org.chromium.ui.base.ActivityWindowAndroid(
-                activity, true, intentTracker, null, false);
+                activity, true, browser.mIntentTracker, null, false);
 
         browser.mContentViewRenderView =
                 new org.chromium.components.embedder_support.view.ContentViewRenderView(
@@ -380,6 +381,21 @@ public class CefriumBrowser {
         browser.mActivity = activity;
 
         return browser;
+    }
+
+    /**
+     * Forward Activity result to the browser for intent handling
+     * (file picker, permissions, etc.).
+     * Call this from your Activity's onActivityResult.
+     *
+     * @return true if the result was handled by the browser.
+     */
+    public boolean onActivityResult(int requestCode, int resultCode,
+                                    android.content.Intent data) {
+        if (mIntentTracker != null) {
+            return mIntentTracker.onActivityResult(requestCode, resultCode, data);
+        }
+        return false;
     }
 
     /**
