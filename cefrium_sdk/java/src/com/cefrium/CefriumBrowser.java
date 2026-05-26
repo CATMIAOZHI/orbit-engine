@@ -228,6 +228,7 @@ public class CefriumBrowser {
      */
     public void setOnTitleChangedListener(OnTitleChangedListener listener) {
         mTitleListener = listener;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     /**
@@ -235,6 +236,7 @@ public class CefriumBrowser {
      */
     public void setOnFullscreenChangedListener(OnFullscreenChangedListener listener) {
         mFullscreenListener = listener;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     /**
@@ -244,6 +246,7 @@ public class CefriumBrowser {
      */
     public void setOnRequestInterceptedListener(OnRequestInterceptedListener listener) {
         mRequestListener = listener;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     // Called from native CefDisplayHandler::OnAddressChange.
@@ -258,6 +261,9 @@ public class CefriumBrowser {
      */
     public void setOnLoadingStateChangedListener(OnLoadingStateChangedListener listener) {
         mLoadingListener = listener;
+        if (mNativePtr != 0) {
+            nativeSetDisplayCallback(mNativePtr, this);
+        }
     }
 
     // Called from native CefDisplayHandler::OnTitleChange.
