@@ -22,6 +22,9 @@
 #include "pdf/pdf_features.h"
 #endif
 #include "third_party/blink/public/mojom/frame/find_in_page.mojom.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/offline_pages/offline_page_tab_helper.h"
+#endif
 
 namespace {
 
@@ -214,6 +217,16 @@ void CefBrowserPlatformDelegateAlloy::AttachHelpers(
   // Adopt the WebContents now, so all observers are in place, as the network
   // requests for its initial navigation will start immediately
   TabHelpers::AttachTabHelpers(web_contents);
+
+#if BUILDFLAG(IS_ANDROID)
+  // Remove OfflinePageTabHelper on Android. CEF uses CefDownloadHandler for
+  // downloads — Chrome's offline pages system is not initialized in CEF
+  // and crashes when it tries to show Chrome-specific download UI
+  // (DownloadMessageUiController). This is safe because CEF never uses
+  // offline pages functionality.
+  web_contents->RemoveUserData(
+      offline_pages::OfflinePageTabHelper::UserDataKey());
+#endif
 
   // Make the tab show up in the task manager.
   task_manager::WebContentsTags::CreateForTabContents(web_contents);
