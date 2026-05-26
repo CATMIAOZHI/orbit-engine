@@ -485,10 +485,8 @@ class CefBrowserHostBase : public CefBrowserHost,
   // Only accessed on the UI thread.
   base::ObserverList<Observer> observers_;
 
-#if !BUILDFLAG(IS_ANDROID)
   // Used for creating and managing file dialogs.
   std::unique_ptr<CefFileDialogManager> file_dialog_manager_;
-#endif
 
   // Used for creating and managing JavaScript dialogs.
   std::unique_ptr<CefJavaScriptDialogManager> javascript_dialog_manager_;

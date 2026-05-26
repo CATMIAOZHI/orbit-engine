@@ -11,7 +11,9 @@
 #include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "cef/include/cef_dialog_handler.h"
+#include "build/build_config.h"
 #include "cef/libcef/browser/browser_host_base.h"
+#include "content/public/browser/web_contents.h"
 #include "cef/libcef/browser/context.h"
 #include "cef/libcef/browser/thread_util.h"
 #include "chrome/browser/file_select_helper.h"
@@ -429,10 +431,13 @@ void CefFileDialogManager::RunSelectFile(
                                          /*run_from_cef=*/true);
 
   // With windowless rendering use the parent handle specified by the client.
+  // On Android, cef_window_handle_t is not compatible with WidgetType.
+#if !BUILDFLAG(IS_ANDROID)
   if (browser_->IsWindowless()) {
     DCHECK(!owning_window);
     dialog_->set_owning_widget(browser_->GetWindowHandle());
   }
+#endif
 
   dialog_->SelectFile(type, title, default_path, file_types, file_type_index,
                       default_extension, owning_window);
