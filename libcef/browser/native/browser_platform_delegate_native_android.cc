@@ -5,6 +5,7 @@
 #include "cef/libcef/browser/native/browser_platform_delegate_native_android.h"
 
 #include "cef/libcef/browser/browser_host_base.h"
+#include "cef/libcef/browser/native/menu_runner_android.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/common/input/web_mouse_wheel_event.h"
@@ -79,8 +80,7 @@ CefEventHandle CefBrowserPlatformDelegateNativeAndroid::GetEventHandle(
 
 std::unique_ptr<CefMenuRunner>
 CefBrowserPlatformDelegateNativeAndroid::CreateMenuRunner() {
-  // Context menus will use Android-native UI; not yet implemented.
-  return nullptr;
+  return std::make_unique<CefMenuRunnerAndroid>();
 }
 
 input::NativeWebKeyboardEvent
