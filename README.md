@@ -35,7 +35,17 @@ that gap.
 | **Video playback (Surface rendering)** | **Done** |
 | **Audio output** | **Done** |
 | Surface rendering via ContentViewRenderView | Done |
+| Context menu (long press — CEF API) | Done |
+| Find in page (CefBrowserHost::Find) | Done |
+| File dialog (`<input type=file>`) | Done |
+| Downloads (CefDownloadHandler) | Done |
+| Dark mode (CefRequestContext::SetChromeColorScheme) | Done |
+| Unified Callback interface | Done |
+| Lifecycle pause/resume | Done |
+| Jetpack Compose wrapper (CefriumWebView) | Done |
 | arm64 validated on real device | Done |
+| Published on Codeberg Packages (Maven) | Done |
+| 23 instrumented tests | Done |
 
 ## Why Cefrium, not WebView?
 
@@ -122,33 +132,29 @@ adb logcat -s "chromium:*" "CefriumTest:*"
 
 ## SDK releases
 
-Pre-built SDK AARs will be available on Maven Central soon.
-Build from source in the meantime — see [Building from source](#building-from-source).
+Published on [Codeberg Packages](https://codeberg.org/cefrium/-/packages)
+(Maven registry).
 
-Two variants are published for each Chromium version:
-
-| Artifact | Codecs | Use case |
-|----------|--------|----------|
-| `cefrium-sdk` | H.264, H.265, AAC, VP8, VP9, Opus | Full site compatibility — video playback, media streaming. Recommended for production. |
-| `cefrium-sdk-libre` | VP8, VP9, Opus, Vorbis | Only royalty-free codecs. For projects that require strict FOSS compliance or operate in jurisdictions where H.264 patents apply. |
-
-Each variant is available for `arm64-v8a` (real devices) and `x86_64`
-(emulators).
-
-**Patent note:** H.264 patents expire by November 2027 (last US patent: US 7826532). In the EU,
-software patents are not enforceable (European Patent Convention,
-Article 52). The SDK source code (FFmpeg decoders) is LGPL — patent
-licensing is orthogonal to copyright licensing.
-
-## SDK AAR usage
-
-The AAR is a distributable library for standard Android Gradle projects.
-Unlike the test APK, the consumer provides AndroidX dependencies and
-uses the Cefrium Gradle Plugin for R class generation.
+### Quick start
 
 ```groovy
-// build.gradle (root) — requires AGP 8.6+
-plugins { id 'com.android.application' version '8.7.3' apply false }
+// settings.gradle
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    // Cefrium Gradle Plugin for R class generation
+    includeBuild('path/to/cefrium_sdk/gradle-plugin')
+}
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://codeberg.org/api/packages/cefrium/maven' }
+    }
+}
 
 // app/build.gradle
 plugins {
@@ -157,14 +163,36 @@ plugins {
 }
 
 dependencies {
-    implementation files('libs/cefrium-sdk.aar')
-    implementation 'androidx.core:core:1.16.0'
+    implementation 'com.cefrium:cefrium-sdk:0.1.0'
+
+    // Optional: Jetpack Compose wrapper
+    implementation 'com.cefrium:cefrium-compose:0.1.0'
+
+    // Required runtime dependencies
     implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.mediarouter:mediarouter:1.7.0'
+    implementation 'androidx.core:core:1.16.0'
+    implementation 'androidx.browser:browser:1.8.0'
 }
 ```
 
-See [cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) for a
-complete working consumer project with all required configuration.
+### Variants
+
+Two variants planned for each Chromium version:
+
+| Artifact | Codecs | Use case |
+|----------|--------|----------|
+| `cefrium-sdk` | H.264, H.265, AAC, VP8, VP9, Opus | Full site compatibility. Currently published. |
+| `cefrium-sdk-libre` | VP8, VP9, Opus, Vorbis | Royalty-free only. Planned. |
+
+Currently available for `arm64-v8a` (real devices). `x86_64`
+(emulators) planned.
+
+**Patent note:** H.264 patents expire by November 2027 (last US patent:
+US 7826532). In the EU, software patents are not enforceable (EPC Art. 52).
+
+See [cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) for
+complete working examples.
 
 ## Project structure
 
