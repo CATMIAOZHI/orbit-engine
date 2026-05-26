@@ -64,10 +64,10 @@ cef/cefrium_sdk/build-all-variants.sh x64 libre      # x64 libre
 Output AARs are in `out/release/`:
 ```
 out/release/
-  cefrium-sdk-arm64-codecs.aar    # ~149 MB
-  cefrium-sdk-arm64-libre.aar     # ~149 MB
-  cefrium-sdk-x64-codecs.aar      # ~149 MB
-  cefrium-sdk-x64-libre.aar       # ~149 MB
+  cefrium-sdk-arm64-codecs.aar    # ~150 MB
+  cefrium-sdk-arm64-libre.aar     # ~150 MB
+  cefrium-sdk-x64-codecs.aar      # ~150 MB
+  cefrium-sdk-x64-libre.aar       # ~150 MB
 ```
 
 ## 4. Build manually (without script)
@@ -92,7 +92,7 @@ depot_tools/gn gen out/Official_android_arm64 --args='
 # Build libcef.so + AAR
 ninja -C out/Official_android_arm64 cef:libcef cef/cefrium_sdk:cefrium_aar
 
-# Generate slim AAR (345 MB → 149 MB)
+# Generate slim AAR (346 MB → 150 MB)
 python3 cef/cefrium_sdk/slim_aar.py \
   --input out/Official_android_arm64/cefrium-raw.aar \
   --output out/Official_android_arm64/cefrium-sdk.aar
