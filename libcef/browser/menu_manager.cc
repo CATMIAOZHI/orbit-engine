@@ -14,8 +14,11 @@
 #include "cef/libcef/browser/context_menu_params_impl.h"
 #include "cef/libcef/browser/menu_runner.h"
 #include "cef/libcef/browser/thread_util.h"
+#include "build/build_config.h"
 #include "cef/libcef/common/app_manager.h"
+#if !BUILDFLAG(IS_ANDROID)
 #include "chrome/grit/generated_resources.h"
+#endif
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -29,12 +32,14 @@
 
 namespace {
 
+#if !BUILDFLAG(IS_ANDROID)
 CefString GetLabel(int message_id) {
   std::u16string label =
       CefAppManager::Get()->GetContentClient()->GetLocalizedString(message_id);
   DCHECK(!label.empty());
   return label;
 }
+#endif
 
 const int kInvalidCommandId = -1;
 const cef_event_flags_t kEmptyEventFlags = static_cast<cef_event_flags_t>(0);
@@ -161,8 +166,12 @@ bool CefMenuManager::CreateContextMenu(const content::ContextMenuParams& params,
 
   model_->Clear();
 
-  // Create the default menu model.
+  // Create the default menu model. On Android, the default model uses
+  // Chrome string IDs that are not available, so we skip it. The client's
+  // OnBeforeContextMenu handler is expected to populate the menu.
+#if !BUILDFLAG(IS_ANDROID)
   CreateDefaultModel();
+#endif
 
   bool custom_menu = false;
   DCHECK(!custom_menu_callback_);
@@ -331,6 +340,7 @@ void CefMenuManager::ExecuteCommandCallback(int command_id,
   custom_menu_callback_ = nullptr;
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 void CefMenuManager::CreateDefaultModel() {
   if (!params_.custom_items.empty()) {
     // Custom menu items originating from the renderer process. For example,
@@ -430,6 +440,7 @@ void CefMenuManager::CreateDefaultModel() {
     }
   }
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 void CefMenuManager::ExecuteDefaultCommand(int command_id) {
   if (IsCustomContextMenuCommand(command_id)) {
