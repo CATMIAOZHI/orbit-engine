@@ -294,6 +294,38 @@ public class CefriumBrowser {
     }
 
     /**
+     * Notify the browser that the Activity is pausing.
+     * Suspends the compositor to save battery and GPU resources.
+     * Call from Activity.onPause() or Activity.onStop().
+     */
+    public void onPause() {
+        if (mNativePtr != 0) {
+            org.chromium.content_public.browser.WebContents wc =
+                    nativeGetWebContents(mNativePtr);
+            if (wc != null) {
+                wc.updateWebContentsVisibility(
+                        org.chromium.content_public.browser.Visibility.HIDDEN);
+            }
+        }
+    }
+
+    /**
+     * Notify the browser that the Activity is resuming.
+     * Resumes the compositor and rendering.
+     * Call from Activity.onResume() or Activity.onStart().
+     */
+    public void onResume() {
+        if (mNativePtr != 0) {
+            org.chromium.content_public.browser.WebContents wc =
+                    nativeGetWebContents(mNativePtr);
+            if (wc != null) {
+                wc.updateWebContentsVisibility(
+                        org.chromium.content_public.browser.Visibility.VISIBLE);
+            }
+        }
+    }
+
+    /**
      * Close this browser and release native resources.
      */
     public void close() {
