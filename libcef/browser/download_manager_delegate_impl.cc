@@ -380,17 +380,24 @@ void CefDownloadManagerDelegateImpl::OnDownloadCreated(DownloadManager* manager,
   // association from either method.
   CefRefPtr<CefBrowserHostBase> browser = GetOrAssociateBrowser(item);
   if (!browser) {
-    // If the download is rejected (e.g. ALT+click on an invalid protocol link)
-    // then an "interrupted" download will be started via DownloadManagerImpl::
-    // StartDownloadWithId (originating from CreateInterruptedDownload) with no
-    // associated WebContents and consequently no associated CEF browser. In
-    // that case DetermineDownloadTarget will be called before this method.
-    // TODO(cef): Figure out how to expose this via a client callback.
-    const std::vector<GURL>& url_chain = item->GetUrlChain();
-    if (!url_chain.empty()) {
-      LOG(INFO) << "Rejected download of " << url_chain.back().spec();
+    // The download was created without an associated WebContents (e.g.
+    // an "interrupted" download restarted by DownloadManagerImpl). On
+    // Android this commonly happens with StartDownload for link URLs.
+    // Try to find any active browser in this context to handle it.
+    browser = CefBrowserHostBase::GetLikelyFocusedBrowser();
+    if (browser) {
+      item->AddObserver(this);
+      item_browser_map_.insert(std::make_pair(item, browser.get()));
+      if (!browser->HasObserver(this)) {
+        browser->AddObserver(this);
+      }
+    } else {
+      const std::vector<GURL>& url_chain = item->GetUrlChain();
+      if (!url_chain.empty()) {
+        LOG(INFO) << "Rejected download of " << url_chain.back().spec();
+      }
+      item->Cancel(true);
     }
-    item->Cancel(true);
   }
 }
 
@@ -407,7 +414,18 @@ bool CefDownloadManagerDelegateImpl::DetermineDownloadTarget(
   // from either method.
   CefRefPtr<CefBrowserHostBase> browser = GetOrAssociateBrowser(item);
   if (!browser) {
-    return false;
+    // On Android, StartDownload may create downloads without WebContents
+    // association. Fall back to the focused browser.
+    browser = CefBrowserHostBase::GetLikelyFocusedBrowser();
+    if (browser) {
+      item->AddObserver(this);
+      item_browser_map_.insert(std::make_pair(item, browser.get()));
+      if (!browser->HasObserver(this)) {
+        browser->AddObserver(this);
+      }
+    } else {
+      return false;
+    }
   }
 
   bool handled = false;

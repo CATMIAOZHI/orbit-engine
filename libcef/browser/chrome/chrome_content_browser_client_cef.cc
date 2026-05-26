@@ -47,7 +47,9 @@
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "third_party/blink/public/mojom/loader/resource_load_info.mojom-shared.h"
 
-#if !BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_ANDROID)
+#include "cef/libcef/browser/chrome/chrome_web_contents_view_delegate_android.h"
+#elif !BUILDFLAG(IS_MAC)
 #include "cef/libcef/browser/chrome/chrome_web_contents_view_delegate_cef.h"
 #endif
 
@@ -707,10 +709,10 @@ ChromeContentBrowserClientCef::GetWebContentsViewDelegate(
 
   // Used to customize context menu behavior for Alloy style. Called during
   // WebContents::Create() so we don't yet have an associated BrowserHost.
-#if !BUILDFLAG(IS_ANDROID)
-  return CreateWebContentsViewDelegate(web_contents);
+#if BUILDFLAG(IS_ANDROID)
+  return std::make_unique<CefWebContentsViewDelegateAndroid>(web_contents);
 #else
-  return nullptr;
+  return CreateWebContentsViewDelegate(web_contents);
 #endif
 }
 
