@@ -128,6 +128,47 @@ public class CefriumBrowser {
     }
 
     /**
+     * Unified callback interface for browser events.
+     * Implement only the methods you need — all have empty defaults.
+     *
+     * <pre>
+     * browser.setCallback(new CefriumBrowser.Callback() {
+     *     public void onUrlChanged(String url) { urlBar.setText(url); }
+     *     public void onTitleChanged(String title) { setTitle(title); }
+     *     public void onLoadingStateChanged(boolean loading, boolean back, boolean fwd) {
+     *         progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
+     *     }
+     * });
+     * </pre>
+     */
+    public static class Callback {
+        public void onUrlChanged(String url) {}
+        public void onTitleChanged(String title) {}
+        public void onLoadingStateChanged(boolean isLoading, boolean canGoBack,
+                                          boolean canGoForward) {}
+        public void onFullscreenChanged(boolean fullscreen) {}
+        public void onRequestIntercepted(String url, String method, boolean blocked) {}
+        public void onFindResult(int activeMatch, int totalMatches) {}
+        public void onDownloadUpdated(String name, String path,
+                                      int percent, boolean complete, boolean canceled) {}
+        public void onContextMenu(String menuItems, String url) {}
+    }
+
+    private Callback mCallback;
+
+    /**
+     * Set a unified callback for all browser events.
+     * This is the recommended way to handle events. Individual
+     * setOnXxxListener methods are also available for convenience.
+     */
+    public void setCallback(Callback callback) {
+        mCallback = callback;
+        if (mNativePtr != 0) {
+            nativeSetDisplayCallback(mNativePtr, this);
+        }
+    }
+
+    /**
      * Listener for URL changes. Called by CEF's CefDisplayHandler::OnAddressChange.
      */
     public interface OnUrlChangedListener {
@@ -203,9 +244,8 @@ public class CefriumBrowser {
     // Called from native CefDisplayHandler::OnAddressChange.
     @SuppressWarnings("unused")
     private void onUrlChanged(String url) {
-        if (mUrlListener != null) {
-            mUrlListener.onUrlChanged(url);
-        }
+        if (mCallback != null) mCallback.onUrlChanged(url);
+        if (mUrlListener != null) mUrlListener.onUrlChanged(url);
     }
 
     /**
@@ -218,34 +258,30 @@ public class CefriumBrowser {
     // Called from native CefDisplayHandler::OnTitleChange.
     @SuppressWarnings("unused")
     private void onTitleChanged(String title) {
-        if (mTitleListener != null) {
-            mTitleListener.onTitleChanged(title);
-        }
+        if (mCallback != null) mCallback.onTitleChanged(title);
+        if (mTitleListener != null) mTitleListener.onTitleChanged(title);
     }
 
     // Called from native CefDisplayHandler::OnFullscreenModeChange.
     @SuppressWarnings("unused")
     private void onFullscreenChanged(boolean fullscreen) {
-        if (mFullscreenListener != null) {
-            mFullscreenListener.onFullscreenChanged(fullscreen);
-        }
+        if (mCallback != null) mCallback.onFullscreenChanged(fullscreen);
+        if (mFullscreenListener != null) mFullscreenListener.onFullscreenChanged(fullscreen);
     }
 
     // Called from native CefResourceRequestHandler::OnBeforeResourceLoad.
     @SuppressWarnings("unused")
     private void onRequestIntercepted(String url, String method, boolean blocked) {
-        if (mRequestListener != null) {
-            mRequestListener.onRequestIntercepted(url, method, blocked);
-        }
+        if (mCallback != null) mCallback.onRequestIntercepted(url, method, blocked);
+        if (mRequestListener != null) mRequestListener.onRequestIntercepted(url, method, blocked);
     }
 
     // Called from native CefLoadHandler::OnLoadingStateChange.
     @SuppressWarnings("unused")
     private void onLoadingStateChanged(boolean isLoading, boolean canGoBack,
                                        boolean canGoForward) {
-        if (mLoadingListener != null) {
-            mLoadingListener.onLoadingStateChanged(isLoading, canGoBack, canGoForward);
-        }
+        if (mCallback != null) mCallback.onLoadingStateChanged(isLoading, canGoBack, canGoForward);
+        if (mLoadingListener != null) mLoadingListener.onLoadingStateChanged(isLoading, canGoBack, canGoForward);
     }
 
     /**
@@ -498,6 +534,7 @@ public class CefriumBrowser {
         if (mFindListener != null) {
             mFindListener.onFindResult(activeMatch, totalMatches);
         }
+        if (mCallback != null) mCallback.onFindResult(activeMatch, totalMatches);
     }
 
     /**
@@ -532,6 +569,7 @@ public class CefriumBrowser {
         if (mDownloadListener != null) {
             mDownloadListener.onDownloadUpdated(name, path, percent, complete, canceled);
         }
+        if (mCallback != null) mCallback.onDownloadUpdated(name, path, percent, complete, canceled);
     }
 
     // Native methods.
@@ -594,8 +632,7 @@ public class CefriumBrowser {
     // Called from native CefContextMenuHandler::RunContextMenu.
     @SuppressWarnings("unused")
     private void onContextMenu(String menuItems, String url) {
-        if (mContextMenuListener != null) {
-            mContextMenuListener.onContextMenu(menuItems, url);
-        }
+        if (mCallback != null) mCallback.onContextMenu(menuItems, url);
+        if (mContextMenuListener != null) mContextMenuListener.onContextMenu(menuItems, url);
     }
 }
