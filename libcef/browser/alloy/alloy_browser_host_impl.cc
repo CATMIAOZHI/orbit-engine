@@ -6,6 +6,9 @@
 #include "cef/libcef/browser/alloy/alloy_browser_host_impl.h"
 
 #include <memory>
+#if BUILDFLAG(IS_ANDROID)
+#include <android/log.h>
+#endif
 #include <string>
 #include <utility>
 
