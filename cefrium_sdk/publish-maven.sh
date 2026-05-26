@@ -125,10 +125,50 @@ if [ -f "$COMPOSE_AAR" ]; then
   echo ""
 fi
 
+# Publish Gradle Plugin
+PLUGIN_JAR="$SCRIPT_DIR/gradle-plugin/build/libs/gradle-plugin.jar"
+if [ -f "$PLUGIN_JAR" ]; then
+  echo "Publishing cefrium-gradle-plugin..."
+  pom=$(generate_pom "cefrium-gradle-plugin" \
+    "Cefrium Gradle Plugin — generates R.java for Chromium packages" "")
+  upload "cefrium-gradle-plugin" "$pom"
+  upload "cefrium-gradle-plugin" "$PLUGIN_JAR"
+  rm -f "$pom"
+
+  # Plugin marker POM (enables `plugins { id 'com.cefrium' version 'X' }`)
+  MARKER_POM="/tmp/cefrium-publish-marker-$VERSION.pom"
+  cat > "$MARKER_POM" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.cefrium</groupId>
+  <artifactId>com.cefrium.gradle.plugin</artifactId>
+  <version>$VERSION</version>
+  <packaging>pom</packaging>
+  <dependencies>
+    <dependency>
+      <groupId>com.cefrium</groupId>
+      <artifactId>cefrium-gradle-plugin</artifactId>
+      <version>$VERSION</version>
+    </dependency>
+  </dependencies>
+</project>
+EOF
+  upload "com.cefrium.gradle.plugin" "$MARKER_POM"
+  rm -f "$MARKER_POM"
+  echo ""
+else
+  echo "WARNING: Gradle Plugin JAR not found at $PLUGIN_JAR — skipping"
+  echo ""
+fi
+
 echo "======================================================"
 echo "Done! Packages at: https://codeberg.org/cefrium/-/packages"
 echo ""
 echo "Usage in build.gradle:"
 echo '  maven { url "https://codeberg.org/api/packages/cefrium/maven" }'
-echo "  implementation 'com.cefrium:cefrium-sdk-arm64-codecs:$VERSION'"
+echo "  id 'com.cefrium' version '$VERSION'"
+echo "  implementation 'com.cefrium:cefrium-sdk:$VERSION'"
 echo ""

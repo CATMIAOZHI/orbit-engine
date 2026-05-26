@@ -144,14 +144,10 @@ Add the Cefrium Maven repository to your project:
 // settings.gradle
 pluginManagement {
     repositories {
+        maven { url 'https://codeberg.org/api/packages/cefrium/maven' }
         google()
         mavenCentral()
-        gradlePluginPortal()
     }
-    // Cefrium Gradle Plugin — generates R.java for Chromium packages.
-    // Clone from: https://codeberg.org/cefrium/cef-android
-    // Path: cefrium_sdk/gradle-plugin/
-    includeBuild('path/to/cef/cefrium_sdk/gradle-plugin')
 }
 dependencyResolutionManagement {
     repositories {
@@ -166,7 +162,7 @@ dependencyResolutionManagement {
 // app/build.gradle
 plugins {
     id 'com.android.application'
-    id 'com.cefrium'  // Required — generates R.java for Chromium packages
+    id 'com.cefrium' version '0.1.0'  // Generates R.java for Chromium packages
 }
 
 dependencies {
@@ -184,10 +180,6 @@ dependencies {
 }
 ```
 
-> **Note:** The Cefrium Gradle Plugin is not yet published on Maven.
-> You need to clone `cef-android` and reference
-> `cefrium_sdk/gradle-plugin/` via `includeBuild`. Publishing the
-> plugin to Gradle Plugin Portal is planned.
 
 ### Direct download
 
