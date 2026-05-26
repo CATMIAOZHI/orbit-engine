@@ -1141,8 +1141,12 @@ source_set("libcef_static") {
       "libcef/browser/android/adblock_filter.h",
       "libcef/browser/android/browser_surface_android.cc",
       "libcef/browser/android/browser_surface_android.h",
+      "libcef/browser/chrome/chrome_web_contents_view_delegate_android.cc",
+      "libcef/browser/chrome/chrome_web_contents_view_delegate_android.h",
       "libcef/browser/native/browser_platform_delegate_native_android.cc",
       "libcef/browser/native/browser_platform_delegate_native_android.h",
+      "libcef/browser/native/menu_runner_android.cc",
+      "libcef/browser/native/menu_runner_android.h",
       "libcef/browser/osr/browser_platform_delegate_osr_android.cc",
       "libcef/browser/osr/browser_platform_delegate_osr_android.h",
       "libcef/browser/osr/cef_context_factory_android.cc",
@@ -1186,8 +1190,8 @@ source_set("libcef_static") {
       "libcef/browser/views/browser_platform_delegate_views.h",
       "libcef/browser/file_dialog_manager.cc",
       "libcef/browser/file_dialog_manager.h",
-      "libcef/browser/menu_manager.cc",
-      "libcef/browser/menu_manager.h",
+      # menu_manager.cc is needed on Android for context menu support
+      # via CefContextMenuHandler::RunContextMenu.
       "libcef/browser/permission_prompt.cc",
       "libcef/browser/permission_prompt.h",
       "libcef/browser/media_router/media_route_impl.cc",
