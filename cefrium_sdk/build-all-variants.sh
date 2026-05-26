@@ -1,33 +1,53 @@
 #!/bin/bash
 # Build all Cefrium SDK variants.
-# Usage: ./build-all-variants.sh [arm64|x64|all] [codecs|libre|all]
+# Usage: cd chromium/src && cef/cefrium_sdk/build-all-variants.sh [arm64|x64|all] [codecs|libre|all]
 #
 # Examples:
-#   ./build-all-variants.sh              # build all 4 variants
-#   ./build-all-variants.sh arm64        # arm64 codecs + libre
-#   ./build-all-variants.sh x64 codecs   # x64 with codecs only
+#   cef/cefrium_sdk/build-all-variants.sh              # build all 4 variants
+#   cef/cefrium_sdk/build-all-variants.sh arm64         # arm64 codecs + libre
+#   cef/cefrium_sdk/build-all-variants.sh x64 codecs    # x64 with codecs only
 #
 # Output: out/release/cefrium-sdk-{arm64,x64}-{codecs,libre}.aar
 #
-# Prerequisites:
-#   - Chromium source at chromium/src/
-#   - depot_tools in PATH
-#   - CEF patches applied (patcher.py)
+# Must be run from chromium/src/ directory.
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SRC_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-OUT_DIR="$SRC_DIR/out"
-RELEASE_DIR="$OUT_DIR/release"
+SRC_DIR="$(pwd)"
 SLIM_AAR="$SCRIPT_DIR/slim_aar.py"
+RELEASE_DIR="$SRC_DIR/out/release"
+
+# Verify we're in chromium/src/
+if [ ! -f ".gn" ]; then
+  echo "ERROR: Run this script from chromium/src/"
+  echo "  cd chromium/src && cef/cefrium_sdk/build-all-variants.sh"
+  exit 1
+fi
+
+# Find GN — try depot_tools relative to src/, then PATH
+GN=""
+for candidate in "../depot_tools/gn" "../../depot_tools/gn"; do
+  if [ -f "$candidate" ]; then
+    GN="$(cd "$(dirname "$candidate")" && pwd)/$(basename "$candidate")"
+    break
+  fi
+done
+if [ -z "$GN" ]; then
+  GN="$(which gn 2>/dev/null || true)"
+fi
+if [ -z "$GN" ] || [ ! -f "$GN" ]; then
+  echo "ERROR: Cannot find gn. Add depot_tools to PATH."
+  exit 1
+fi
+echo "Using GN: $GN"
 
 ARCH="${1:-all}"
 CODECS="${2:-all}"
 
 mkdir -p "$RELEASE_DIR"
 
-# Common GN args for all variants
+# Common GN args
 COMMON_ARGS='
   is_official_build = true
   is_debug = false
@@ -45,8 +65,8 @@ COMMON_ARGS='
 '
 
 build_variant() {
-  local cpu="$1"      # arm64 or x64
-  local codec="$2"    # codecs or libre
+  local cpu="$1"
+  local codec="$2"
   local target_cpu
 
   if [ "$cpu" = "arm64" ]; then
@@ -56,7 +76,7 @@ build_variant() {
   fi
 
   local dir_name="Official_android_${cpu}_${codec}"
-  local build_dir="$OUT_DIR/$dir_name"
+  local build_dir="out/$dir_name"
   local out_name="cefrium-sdk-${cpu}-${codec}.aar"
 
   echo ""
@@ -66,7 +86,6 @@ build_variant() {
   echo "============================================"
   echo ""
 
-  # Generate args.gn
   local codec_args=""
   if [ "$codec" = "codecs" ]; then
     codec_args='
@@ -89,22 +108,18 @@ ${COMMON_ARGS}
 ${codec_args}
 EOF
 
-  # Generate build files
   echo ">>> gn gen $dir_name"
-  cd "$SRC_DIR"
-  depot_tools/gn gen "$build_dir" || {
+  "$GN" gen "$build_dir" || {
     echo "ERROR: gn gen failed for $dir_name"
     return 1
   }
 
-  # Build
   echo ">>> ninja $dir_name"
   ninja -C "$build_dir" cef:libcef cef/cefrium_sdk:cefrium_aar || {
     echo "ERROR: ninja failed for $dir_name"
     return 1
   }
 
-  # Slim AAR
   echo ">>> slim_aar $dir_name"
   python3 "$SLIM_AAR" \
     --input "$build_dir/cefrium-raw.aar" \
@@ -117,29 +132,18 @@ EOF
   ls -lh "$RELEASE_DIR/$out_name"
 }
 
-# Determine which variants to build
+# Determine variants
 variants=()
-
 if [ "$ARCH" = "all" ] || [ "$ARCH" = "arm64" ]; then
-  if [ "$CODECS" = "all" ] || [ "$CODECS" = "codecs" ]; then
-    variants+=("arm64:codecs")
-  fi
-  if [ "$CODECS" = "all" ] || [ "$CODECS" = "libre" ]; then
-    variants+=("arm64:libre")
-  fi
+  [ "$CODECS" = "all" ] || [ "$CODECS" = "codecs" ] && variants+=("arm64:codecs")
+  [ "$CODECS" = "all" ] || [ "$CODECS" = "libre" ] && variants+=("arm64:libre")
 fi
-
 if [ "$ARCH" = "all" ] || [ "$ARCH" = "x64" ]; then
-  if [ "$CODECS" = "all" ] || [ "$CODECS" = "codecs" ]; then
-    variants+=("x64:codecs")
-  fi
-  if [ "$CODECS" = "all" ] || [ "$CODECS" = "libre" ]; then
-    variants+=("x64:libre")
-  fi
+  [ "$CODECS" = "all" ] || [ "$CODECS" = "codecs" ] && variants+=("x64:codecs")
+  [ "$CODECS" = "all" ] || [ "$CODECS" = "libre" ] && variants+=("x64:libre")
 fi
 
 echo "Building ${#variants[@]} variants: ${variants[*]}"
-echo ""
 
 for v in "${variants[@]}"; do
   cpu="${v%%:*}"
@@ -149,7 +153,6 @@ done
 
 echo ""
 echo "============================================"
-echo "  All variants built successfully!"
+echo "  All variants built!"
 echo "============================================"
-echo ""
 ls -lh "$RELEASE_DIR/"
