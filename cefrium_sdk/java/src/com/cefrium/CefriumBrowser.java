@@ -551,6 +551,7 @@ public class CefriumBrowser {
      */
     public void setOnFindResultListener(OnFindResultListener listener) {
         mFindListener = listener;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     /**
@@ -608,6 +609,7 @@ public class CefriumBrowser {
      */
     public void setOnDownloadListener(OnDownloadListener listener) {
         mDownloadListener = listener;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     // Called from native CefDownloadHandler::OnDownloadUpdated.
@@ -665,6 +667,7 @@ public class CefriumBrowser {
      */
     public void setOnContextMenuListener(OnContextMenuListener listener) {
         mContextMenuListener = listener;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     /**
