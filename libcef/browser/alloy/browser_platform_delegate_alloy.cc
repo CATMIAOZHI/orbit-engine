@@ -13,6 +13,9 @@
 #include "components/performance_manager/embedder/performance_manager_registry.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/public/browser/render_view_host.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/offline_pages/offline_page_tab_helper.h"
+#endif
 
 namespace {
 
@@ -205,4 +208,14 @@ void CefBrowserPlatformDelegateAlloy::AttachHelpers(
   // Adopt the WebContents now, so all observers are in place, as the network
   // requests for its initial navigation will start immediately.
   AlloyTabInterface::CreateForWebContents(web_contents);
+
+#if BUILDFLAG(IS_ANDROID)
+  // Remove OfflinePageTabHelper on Android. CEF uses CefDownloadHandler for
+  // downloads — Chrome's offline pages system is not initialized in CEF
+  // and crashes when it tries to show Chrome-specific download UI
+  // (DownloadMessageUiController). This is safe because CEF never uses
+  // offline pages functionality.
+  web_contents->RemoveUserData(
+      offline_pages::OfflinePageTabHelper::UserDataKey());
+#endif
 }

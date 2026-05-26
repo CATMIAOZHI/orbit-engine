@@ -555,6 +555,10 @@ void CefBrowserHostBase::StartDownload(const CefString& url) {
   std::unique_ptr<download::DownloadUrlParameters> params(
       content::DownloadRequestUtils::CreateDownloadForWebContentsMainFrame(
           web_contents, gurl, MISSING_TRAFFIC_ANNOTATION));
+  // Mark as user-initiated download so Chromium treats any content type
+  // as downloadable (not just files with Content-Disposition: attachment).
+  params->set_content_initiated(true);
+  params->set_download_source(download::DownloadSource::CONTEXT_MENU);
   manager->DownloadUrl(std::move(params));
 }
 
