@@ -76,7 +76,7 @@ support existed. Cefrium closes that gap.
   framework, no X11, no Wayland
 - **Multi-process** with renderer running as an Android `Service`,
   replacing Unix `fork()`/`execve()`
-- **11 Chromium patches** for Android adaptations, managed via CEF's
+- **12 Chromium patches** for Android adaptations, managed via CEF's
   existing patch infrastructure (`cef/patch/patches/android/`)
 - **Gradle Plugin** generates R.java for Chromium packages in consumer
   projects, solving the multi-package resource ID problem
@@ -221,7 +221,7 @@ All Android changes are isolated and reviewable:
   git format-patch origin/7778..android-port -- \
     ':!README.md' ':!assets/screenshots'
   ```
-- **Chromium patches** (`patch/patches/android/`): 12 patches applied
+- **Chromium patches** (`patch/patches/android/`): 12 Android-specific patches applied
   via `patcher.py`. Each addresses a specific incompatibility between
   Chromium's assumptions and the Android embedding environment.
   Managed via CEF's existing patch infrastructure.
