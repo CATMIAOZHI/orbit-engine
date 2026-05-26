@@ -9,6 +9,7 @@
 #include <jni.h>
 #include <string>
 
+#include "base/base64.h"
 #include "cef/include/cef_app.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_client.h"
