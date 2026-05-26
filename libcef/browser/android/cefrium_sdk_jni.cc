@@ -326,7 +326,7 @@ class SdkContextMenuHandler : public CefContextMenuHandler {
                            CefRefPtr<CefMenuModel> model) override {
     model->Clear();
     if (params->GetTypeFlags() & CM_TYPEFLAG_LINK) {
-      model->AddItem(1, "Open link");
+      model->AddItem(1, "Open in new tab");
       model->AddItem(2, "Copy link");
       model->AddItem(3, "Download link");
     }
@@ -395,24 +395,44 @@ class SdkContextMenuHandler : public CefContextMenuHandler {
       case 1:  // Open link
         browser->GetMainFrame()->LoadURL(params->GetLinkUrl());
         return true;
-      case 2:  // Copy link
-        frame->ExecuteJavaScript(
-            "navigator.clipboard.writeText('" +
-                params->GetLinkUrl().ToString() + "')",
-            frame->GetURL(), 0);
+      case 2: {  // Copy link — use Java clipboard API (more reliable than JS)
+        JNIEnv* env = base::android::AttachCurrentThread();
+        if (java_browser_) {
+          jclass cls = env->GetObjectClass(java_browser_);
+          jmethodID method = env->GetMethodID(cls, "copyToClipboard",
+              "(Ljava/lang/String;)V");
+          if (method) {
+            jstring j_text = env->NewStringUTF(
+                params->GetLinkUrl().ToString().c_str());
+            env->CallVoidMethod(java_browser_, method, j_text);
+            env->DeleteLocalRef(j_text);
+          }
+          env->DeleteLocalRef(cls);
+        }
         return true;
+      }
       case 3:  // Download link
         browser->GetHost()->StartDownload(params->GetLinkUrl());
         return true;
       case 4:  // Save image
         browser->GetHost()->StartDownload(params->GetSourceUrl());
         return true;
-      case 5:  // Copy image URL
-        frame->ExecuteJavaScript(
-            "navigator.clipboard.writeText('" +
-                params->GetSourceUrl().ToString() + "')",
-            frame->GetURL(), 0);
+      case 5: {  // Copy image URL — use Java clipboard API
+        JNIEnv* env = base::android::AttachCurrentThread();
+        if (java_browser_) {
+          jclass cls = env->GetObjectClass(java_browser_);
+          jmethodID method = env->GetMethodID(cls, "copyToClipboard",
+              "(Ljava/lang/String;)V");
+          if (method) {
+            jstring j_text = env->NewStringUTF(
+                params->GetSourceUrl().ToString().c_str());
+            env->CallVoidMethod(java_browser_, method, j_text);
+            env->DeleteLocalRef(j_text);
+          }
+          env->DeleteLocalRef(cls);
+        }
         return true;
+      }
     }
     return false;
   }
