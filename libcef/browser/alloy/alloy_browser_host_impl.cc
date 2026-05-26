@@ -504,9 +504,7 @@ void AlloyBrowserHostImpl::DestroyBrowser() {
 
   // Delete objects created by the platform delegate that may be referenced by
   // the WebContents.
-#if !BUILDFLAG(IS_ANDROID)
   file_dialog_manager_.reset(nullptr);
-#endif
   javascript_dialog_manager_.reset(nullptr);
   menu_manager_.reset(nullptr);
 
