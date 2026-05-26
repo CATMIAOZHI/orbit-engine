@@ -5,6 +5,14 @@
 
 #include "cef/libcef/browser/file_dialog_runner.h"
 
+#include "build/build_config.h"
+#if BUILDFLAG(IS_ANDROID)
+#include <android/log.h>
+#define FILELOG(...) __android_log_print(ANDROID_LOG_INFO, "CefriumFile", __VA_ARGS__)
+#else
+#define FILELOG(...)
+#endif
+
 #include "cef/libcef/browser/browser_host_base.h"
 #include "chrome/browser/file_select_helper.h"
 #include "chrome/browser/ui/select_file_policy/chrome_select_file_policy.h"
@@ -99,10 +107,12 @@ class CefSelectFileDialog final : public ui::SelectFileDialog {
     if (!browser_) {
       LOG(ERROR)
           << "Failed to identify associated browser; canceling the file dialog";
+      FILELOG("FAILED: no browser for file dialog");
       listener_->FileSelectionCanceled();
       return;
     }
 
+    FILELOG("SelectFileImpl: browser found, calling RunSelectFile");
     owning_window_ = owning_window;
     has_multiple_file_choices_ =
         file_types ? file_types->extensions.size() > 1 : true;
