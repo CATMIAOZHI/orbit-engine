@@ -319,10 +319,8 @@ class AlloyBrowserHostImpl : public CefBrowserHostBase,
   // on the UI thread.
   bool window_destroyed_ = false;
 
-#if !BUILDFLAG(IS_ANDROID)
   // Used for creating and managing context menus.
   std::unique_ptr<CefMenuManager> menu_manager_;
-#endif
 
   // Used for capturing audio for CefAudioHandler.
   std::unique_ptr<CefAudioCapturer> audio_capturer_;
