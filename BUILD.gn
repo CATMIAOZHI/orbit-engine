@@ -1158,8 +1158,7 @@ source_set("libcef_static") {
       "libcef/browser/devtools/devtools_window_runner.h",
       "libcef/browser/views/browser_platform_delegate_views.cc",
       "libcef/browser/views/browser_platform_delegate_views.h",
-      "libcef/browser/file_dialog_manager.cc",
-      "libcef/browser/file_dialog_manager.h",
+      # file_dialog_manager.cc is needed on Android for <input type=file>.
       # menu_manager.cc is needed on Android for context menu support
       # via CefContextMenuHandler::RunContextMenu.
       "libcef/browser/permission_prompt.cc",
