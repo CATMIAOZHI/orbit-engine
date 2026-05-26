@@ -348,8 +348,13 @@ public class CefriumBrowser {
         CefriumBrowser browser = new CefriumBrowser(true);
 
         // Create Chromium rendering infrastructure internally.
-        browser.mWindowAndroid = new org.chromium.ui.base.WindowAndroid(
-                activity, false);
+        // Use ActivityWindowAndroid (not plain WindowAndroid) to support
+        // intents — required for file picker (<input type=file>),
+        // permission requests, and other Activity-based flows.
+        org.chromium.ui.base.IntentRequestTracker intentTracker =
+                org.chromium.ui.base.IntentRequestTracker.createFromActivity(activity);
+        browser.mWindowAndroid = new org.chromium.ui.base.ActivityWindowAndroid(
+                activity, true, intentTracker, null, false);
 
         browser.mContentViewRenderView =
                 new org.chromium.components.embedder_support.view.ContentViewRenderView(
