@@ -1,22 +1,82 @@
 diff --git a/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java b/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
-index e9d5caa..02887b7 100644
+index 02887b7..6ab3c15 100644
 --- a/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
 +++ b/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
-@@ -427,7 +427,16 @@ public class AccessibilityNodeInfoBuilder {
-         node.setInputType(inputType);
-         node.setHintText(hint);
-         node.setTooltipText(tooltipText);
--        node.setExpandedState(expandedState);
-+        // setExpandedState is in Chromium's local_modifications of
-+        // AccessibilityNodeInfoCompat (API 36 backport) but not in
-+        // public androidx.core releases. Guard with try/catch to
-+        // support embedders using standard androidx.core.
+@@ -223,13 +223,20 @@ public class AccessibilityNodeInfoBuilder {
+         node.setScrollable(scrollable);
+         node.setSelected(selected);
+         node.setVisibleToUser(visibleToUser);
+-        node.setFieldRequired(isRequired);
+-        node.setContentInvalid(contentInvalid);
+         node.setHeading(isHeading);
++        // These methods are in Chromium's local_modifications of
++        // AccessibilityNodeInfoCompat but not in public androidx.core.
++        // Guard to support embedders using standard androidx.core.
 +        try {
-+            node.setExpandedState(expandedState);
-+        } catch (NoSuchMethodError e) {
-+            // Graceful degradation: expanded state not reported to
-+            // accessibility services on older androidx.core versions.
-+        }
++            node.setFieldRequired(isRequired);
++            node.setContentInvalid(contentInvalid);
++        } catch (NoSuchMethodError e) { /* graceful degradation */ }
  
-         // If we have deprecated TYPE_ANNOUNCEMENT, we should properly mark live region root nodes.
-         // Otherwise, we choose to use AnnounceLiveRegionText() to make this announcement for us.
+         if (ContentFeatureMap.isEnabled(
+                 ContentFeatureList.ACCESSIBILITY_SET_SELECTABLE_ON_ALL_NODES_WITH_TEXT)) {
+-            node.setTextSelectable(textSelectable);
++            try {
++                node.setTextSelectable(textSelectable);
++            } catch (NoSuchMethodError e) { /* graceful degradation */ }
+         }
+ 
+         List<String> availableExtraData = new ArrayList<>();
+@@ -459,11 +466,19 @@ public class AccessibilityNodeInfoBuilder {
+             bundle.putInt(EXTRAS_KEY_CLICKABLE_SCORE, clickableScore);
+         }
+ 
+-        node.setChecked(checked);
+-
+-        for (int id : labelledByIds) {
+-            node.addLabeledBy(mDelegate.getView(), id);
++        // setChecked(int) is in Chromium's local_modifications (tri-state)
++        // but public androidx.core only has setChecked(boolean).
++        try {
++            node.setChecked(checked);
++        } catch (NoSuchMethodError e) {
++            node.setChecked(checked != 0);
+         }
++
++        try {
++            for (int id : labelledByIds) {
++                node.addLabeledBy(mDelegate.getView(), id);
++            }
++        } catch (NoSuchMethodError e) { /* graceful degradation */ }
+     }
+ 
+     @SuppressLint("NewApi")
+@@ -751,18 +766,22 @@ public class AccessibilityNodeInfoBuilder {
+             int startOffset,
+             int endVirtualViewId,
+             int endOffset) {
+-        node.setSelection(
+-                new SelectionCompat(
+-                        new SelectionPositionCompat(
+-                                mDelegate.getView(), startVirtualViewId, startOffset),
+-                        new SelectionPositionCompat(
+-                                mDelegate.getView(), endVirtualViewId, endOffset)));
++        try {
++            node.setSelection(
++                    new SelectionCompat(
++                            new SelectionPositionCompat(
++                                    mDelegate.getView(), startVirtualViewId, startOffset),
++                            new SelectionPositionCompat(
++                                    mDelegate.getView(), endVirtualViewId, endOffset)));
++        } catch (NoSuchMethodError e) { /* graceful degradation */ }
+     }
+ 
+     @CalledByNative
+     protected void clearAccessibilityNodeInfoExtendedSelectionAttrs(
+             AccessibilityNodeInfoCompat node) {
+-        node.setSelection(null);
++        try {
++            node.setSelection(null);
++        } catch (NoSuchMethodError e) { /* graceful degradation */ }
+     }
+ 
+     @CalledByNative
