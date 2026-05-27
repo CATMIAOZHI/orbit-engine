@@ -1,56 +1,75 @@
 diff --git a/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java b/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
-index 02887b7..6ab3c15 100644
+index e9d5caa..1bf3540 100644
 --- a/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
 +++ b/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
-@@ -223,13 +223,20 @@ public class AccessibilityNodeInfoBuilder {
+@@ -223,13 +223,17 @@ public class AccessibilityNodeInfoBuilder {
          node.setScrollable(scrollable);
          node.setSelected(selected);
          node.setVisibleToUser(visibleToUser);
 -        node.setFieldRequired(isRequired);
 -        node.setContentInvalid(contentInvalid);
++        // Guard methods from Chromium's local_modifications of
++        // AccessibilityNodeInfoCompat — not in public androidx.core.
++        // Graceful degradation: these attributes won't be reported
++        // to accessibility services if the method is unavailable.
++        try { node.setFieldRequired(isRequired); } catch (NoSuchMethodError e) {}
++        try { node.setContentInvalid(contentInvalid); } catch (NoSuchMethodError e) {}
          node.setHeading(isHeading);
-+        // These methods are in Chromium's local_modifications of
-+        // AccessibilityNodeInfoCompat but not in public androidx.core.
-+        // Guard to support embedders using standard androidx.core.
-+        try {
-+            node.setFieldRequired(isRequired);
-+            node.setContentInvalid(contentInvalid);
-+        } catch (NoSuchMethodError e) { /* graceful degradation */ }
  
          if (ContentFeatureMap.isEnabled(
                  ContentFeatureList.ACCESSIBILITY_SET_SELECTABLE_ON_ALL_NODES_WITH_TEXT)) {
 -            node.setTextSelectable(textSelectable);
-+            try {
-+                node.setTextSelectable(textSelectable);
-+            } catch (NoSuchMethodError e) { /* graceful degradation */ }
++            try { node.setTextSelectable(textSelectable); } catch (NoSuchMethodError e) {}
          }
  
          List<String> availableExtraData = new ArrayList<>();
-@@ -459,11 +466,19 @@ public class AccessibilityNodeInfoBuilder {
+@@ -427,7 +431,7 @@ public class AccessibilityNodeInfoBuilder {
+         node.setInputType(inputType);
+         node.setHintText(hint);
+         node.setTooltipText(tooltipText);
+-        node.setExpandedState(expandedState);
++        try { node.setExpandedState(expandedState); } catch (NoSuchMethodError e) {}
+ 
+         // If we have deprecated TYPE_ANNOUNCEMENT, we should properly mark live region root nodes.
+         // Otherwise, we choose to use AnnounceLiveRegionText() to make this announcement for us.
+@@ -450,11 +454,14 @@ public class AccessibilityNodeInfoBuilder {
              bundle.putInt(EXTRAS_KEY_CLICKABLE_SCORE, clickableScore);
          }
  
 -        node.setChecked(checked);
--
++        // setChecked(int) is Chromium's tri-state overload; public API only has boolean.
++        try { node.setChecked(checked); } catch (NoSuchMethodError e) { node.setChecked(checked != 0); }
+ 
 -        for (int id : labelledByIds) {
 -            node.addLabeledBy(mDelegate.getView(), id);
-+        // setChecked(int) is in Chromium's local_modifications (tri-state)
-+        // but public androidx.core only has setChecked(boolean).
-+        try {
-+            node.setChecked(checked);
-+        } catch (NoSuchMethodError e) {
-+            node.setChecked(checked != 0);
-         }
-+
+-        }
 +        try {
 +            for (int id : labelledByIds) {
 +                node.addLabeledBy(mDelegate.getView(), id);
 +            }
-+        } catch (NoSuchMethodError e) { /* graceful degradation */ }
++        } catch (NoSuchMethodError e) {}
      }
  
      @SuppressLint("NewApi")
-@@ -751,18 +766,22 @@ public class AccessibilityNodeInfoBuilder {
+@@ -501,7 +508,7 @@ public class AccessibilityNodeInfoBuilder {
+ 
+         // We add the supplementalDescription attribute when it is non-null and not empty.
+         if (supplementalDescription != null && !supplementalDescription.isEmpty()) {
+-            node.setSupplementalDescription(supplementalDescription);
++            try { node.setSupplementalDescription(supplementalDescription); } catch (NoSuchMethodError e) {}
+         }
+ 
+         // We expose the nested structure of links, which results in the roles of all nested nodes
+@@ -570,7 +577,7 @@ public class AccessibilityNodeInfoBuilder {
+ 
+         // We add the supplementalDescription attribute when it is non-null and not empty.
+         if (supplementalDescription != null && !supplementalDescription.isEmpty()) {
+-            node.setSupplementalDescription(supplementalDescription);
++            try { node.setSupplementalDescription(supplementalDescription); } catch (NoSuchMethodError e) {}
+         }
+ 
+         // We expose the nested structure of links, which results in the roles of all nested nodes
+@@ -742,18 +749,20 @@ public class AccessibilityNodeInfoBuilder {
              int startOffset,
              int endVirtualViewId,
              int endOffset) {
@@ -67,16 +86,14 @@ index 02887b7..6ab3c15 100644
 +                                    mDelegate.getView(), startVirtualViewId, startOffset),
 +                            new SelectionPositionCompat(
 +                                    mDelegate.getView(), endVirtualViewId, endOffset)));
-+        } catch (NoSuchMethodError e) { /* graceful degradation */ }
++        } catch (NoSuchMethodError e) {}
      }
  
      @CalledByNative
      protected void clearAccessibilityNodeInfoExtendedSelectionAttrs(
              AccessibilityNodeInfoCompat node) {
 -        node.setSelection(null);
-+        try {
-+            node.setSelection(null);
-+        } catch (NoSuchMethodError e) { /* graceful degradation */ }
++        try { node.setSelection(null); } catch (NoSuchMethodError e) {}
      }
  
      @CalledByNative
