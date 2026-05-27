@@ -220,12 +220,11 @@ def main():
     KEEP_IN_JAR = (
         'com/google/common/',        # Guava (ImmutableMap, etc.)
         'com/google/android/gms/',   # GMS classes
-        # Chromium's modified AccessibilityNodeInfoCompat (local_modifications)
-        # includes setExpandedState, setChecked(int), setFieldRequired, etc.
-        # Consumer MUST exclude androidx.core accessibility from their deps:
-        #   exclude group: 'androidx.core', module: 'core'  // for accessibility only
-        # Or use: configurations.all { resolutionStrategy.force ... }
-        # 'androidx/core/view/accessibility/',  # TODO: causes duplicate class errors
+        # Chromium's modified AccessibilityNodeInfoCompat includes methods
+        # not in public androidx.core (setExpandedState, setChecked(int), etc.).
+        # Required for TalkBack accessibility. Consumer must disable
+        # checkDuplicateClasses in build.gradle (documented in QUICKSTART.md).
+        # 'androidx/core/view/accessibility/',  # Needs shadow/relocate solution
     )
     if 'classes.jar' in standard_entries:
         jar_data = standard_entries['classes.jar']
