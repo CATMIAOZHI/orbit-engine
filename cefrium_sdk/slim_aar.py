@@ -220,6 +220,11 @@ def main():
     KEEP_IN_JAR = (
         'com/google/common/',        # Guava (ImmutableMap, etc.)
         'com/google/android/gms/',   # GMS classes
+        # TODO: Chromium's AccessibilityNodeInfoCompat has setExpandedState
+        # (API 36 backport) not in public androidx.core. Including it here
+        # causes duplicate class errors. TalkBack crashes without it.
+        # Fix: wait for public androidx.core to add setExpandedState,
+        # or shadow/relocate the class in the AAR.
     )
     if 'classes.jar' in standard_entries:
         jar_data = standard_entries['classes.jar']
