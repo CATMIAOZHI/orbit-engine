@@ -1,0 +1,22 @@
+diff --git a/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java b/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
+index e9d5caa..02887b7 100644
+--- a/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
++++ b/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
+@@ -427,7 +427,16 @@ public class AccessibilityNodeInfoBuilder {
+         node.setInputType(inputType);
+         node.setHintText(hint);
+         node.setTooltipText(tooltipText);
+-        node.setExpandedState(expandedState);
++        // setExpandedState is in Chromium's local_modifications of
++        // AccessibilityNodeInfoCompat (API 36 backport) but not in
++        // public androidx.core releases. Guard with try/catch to
++        // support embedders using standard androidx.core.
++        try {
++            node.setExpandedState(expandedState);
++        } catch (NoSuchMethodError e) {
++            // Graceful degradation: expanded state not reported to
++            // accessibility services on older androidx.core versions.
++        }
+ 
+         // If we have deprecated TYPE_ANNOUNCEMENT, we should properly mark live region root nodes.
+         // Otherwise, we choose to use AnnounceLiveRegionText() to make this announcement for us.
