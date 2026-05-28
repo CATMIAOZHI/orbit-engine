@@ -11,9 +11,8 @@
 
 #include "base/base64.h"
 #include "cef/include/cef_app.h"
-#include "components/android_autofill/browser/android_autofill_client.h"
+#include "cef/libcef/browser/android/cefrium_autofill_client.h"
 #include "components/android_autofill/browser/autofill_provider.h"
-#include "components/autofill/content/browser/content_autofill_client.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_client.h"
 #include "cef/include/cef_context_menu_handler.h"
@@ -787,17 +786,12 @@ Java_com_cefrium_CefriumBrowser_nativeInitAutofill(
     wc = browser_host->GetWebContents();
   }
   if (!wc) return;
-  // Create the Android Autofill client if not already present.
-  if (!autofill::ContentAutofillClient::FromWebContents(wc)) {
-    android_autofill::AndroidAutofillClient::CreateForWebContents(wc);
-    LOGI("AndroidAutofillClient created for WebContents");
-  }
-  // Initialize keyboard suppressor.
-  auto* provider = autofill::AutofillProvider::FromWebContents(wc);
-  if (provider) {
-    provider->MaybeInitKeyboardSuppressor();
-    LOGI("AutofillProvider keyboard suppressor initialized");
-  }
+  // Use CefriumAutofillClient instead of Chrome's AndroidAutofillClient.
+  // Chrome's version requires PasswordManager infrastructure not
+  // available in CEF. Our version just initializes the keyboard
+  // suppressor for the AutofillProvider.
+  cefrium::CefriumAutofillClient::CreateForWebContents(wc);
+  LOGI("CefriumAutofillClient created for WebContents");
 }
 
 // Connect display handler for URL/title change callbacks (Surface mode).
