@@ -23,7 +23,9 @@
 #endif
 #include "third_party/blink/public/mojom/frame/find_in_page.mojom.h"
 #if BUILDFLAG(IS_ANDROID)
+#include "cef/libcef/browser/android/cefrium_autofill_client.h"
 #include "chrome/browser/offline_pages/offline_page_tab_helper.h"
+#include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #endif
 
 namespace {
@@ -226,6 +228,17 @@ void CefBrowserPlatformDelegateAlloy::AttachHelpers(
   // offline pages functionality.
   web_contents->RemoveUserData(
       offline_pages::OfflinePageTabHelper::UserDataKey());
+
+  // Replace ChromeAutofillClient (created by TabHelpers) with
+  // CefriumAutofillClient. ChromeAutofillClient creates BrowserAutofillManager
+  // which doesn't forward form events to Android's AutofillProvider.
+  // CefriumAutofillClient creates AndroidAutofillManager instead.
+  // This must happen immediately after AttachTabHelpers, before any
+  // renderer connects (no active drivers to break).
+  // Requires patch: android/password_manager_manual_filling_guard.patch
+  // to prevent ChromePasswordManagerClient from creating ManualFillingController
+  // when AutofillProvider is present.
+  cefrium::CefriumAutofillClient::CreateForWebContents(web_contents);
 #endif
 
   // Make the tab show up in the task manager.
