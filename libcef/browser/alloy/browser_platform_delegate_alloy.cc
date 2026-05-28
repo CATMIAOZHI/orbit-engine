@@ -14,7 +14,9 @@
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/public/browser/render_view_host.h"
 #if BUILDFLAG(IS_ANDROID)
+#include "cef/libcef/browser/android/cefrium_autofill_client.h"
 #include "chrome/browser/offline_pages/offline_page_tab_helper.h"
+#include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #endif
 
 namespace {
@@ -217,5 +219,16 @@ void CefBrowserPlatformDelegateAlloy::AttachHelpers(
   // offline pages functionality.
   web_contents->RemoveUserData(
       offline_pages::OfflinePageTabHelper::UserDataKey());
+
+  // Replace ChromeAutofillClient (created by TabHelpers) with
+  // CefriumAutofillClient. ChromeAutofillClient creates BrowserAutofillManager
+  // which doesn't forward form events to Android's AutofillProvider.
+  // CefriumAutofillClient creates AndroidAutofillManager instead.
+  // This must happen immediately after AttachTabHelpers, before any
+  // renderer connects (no active drivers to break).
+  // Requires patch: android/password_manager_manual_filling_guard.patch
+  // to prevent ChromePasswordManagerClient from creating ManualFillingController
+  // when AutofillProvider is present.
+  cefrium::CefriumAutofillClient::CreateForWebContents(web_contents);
 #endif
 }

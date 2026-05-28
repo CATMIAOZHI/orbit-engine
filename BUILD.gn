@@ -1172,6 +1172,8 @@ source_set("libcef_static") {
       "libcef/browser/android/cef_jni_onload.cc",
       "libcef/browser/android/cef_android_jni_bridge.cc",
       "libcef/browser/android/android_stubs.cc",
+      "libcef/browser/android/cefrium_autofill_client.cc",
+      "libcef/browser/android/cefrium_autofill_client.h",
       "libcef/browser/android/cefrium_sdk_jni.cc",
       "libcef/browser/android/adblock_filter.cc",
       "libcef/browser/android/adblock_filter.h",
@@ -1193,6 +1195,12 @@ source_set("libcef_static") {
       # ContentViewRenderView — standard Chromium component for Android
       # Surface rendering. Handles compositor, layer tree, DFH wiring.
       "//components/embedder_support/android:view",
+
+      # Android Autofill — provides AndroidAutofillManager,
+      # AndroidAutofillProvider, and JNI bridge to Android's autofill framework.
+      # Required by CefriumAutofillClient which creates AndroidAutofillManager
+      # instead of Chrome's BrowserAutofillManager.
+      "//components/android_autofill/browser:android",
     ]
 
     # Exclude sources that depend on Views UI framework (not available on
