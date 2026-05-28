@@ -32,6 +32,7 @@ public class CefriumBrowser {
     private org.chromium.ui.base.WindowAndroid mWindowAndroid;
     private org.chromium.ui.base.IntentRequestTracker mIntentTracker;
     private org.chromium.components.embedder_support.view.ContentViewRenderView mContentViewRenderView;
+    private org.chromium.components.autofill.AutofillProvider mAutofillProvider;
     private android.widget.FrameLayout mSurfaceContainer;
     private boolean mWebContentsConnected;
 
@@ -106,6 +107,11 @@ public class CefriumBrowser {
      */
     public void loadUrl(String url) {
         nativeLoadUrl(mNativePtr, url);
+        // In Surface mode, connect WebContents after first load.
+        if (mSurfaceContainer != null && !mWebContentsConnected) {
+            new android.os.Handler(android.os.Looper.getMainLooper())
+                    .postDelayed(this::connectWebContentsInternal, 2000);
+        }
     }
 
     /**
@@ -349,6 +355,14 @@ public class CefriumBrowser {
             nativeClose(mNativePtr);
             mNativePtr = 0;
         }
+        if (mContentViewRenderView != null) {
+            mContentViewRenderView.destroy();
+            mContentViewRenderView = null;
+        }
+        if (mWindowAndroid != null) {
+            mWindowAndroid.destroy();
+            mWindowAndroid = null;
+        }
     }
 
     // Called from native when a frame is painted.
@@ -395,24 +409,28 @@ public class CefriumBrowser {
 
     /**
      * Create a browser that renders directly to an Android Surface.
-     * This enables video playback, audio, and hardware-accelerated
-     * compositing.
+     * Enables video playback, audio, and hardware-accelerated compositing.
      *
-     * @param windowAndroid Chromium WindowAndroid for compositor context.
-     * @param surface       Android Surface to render to.
-     * @param width         Surface width in physical pixels.
-     * @param height        Surface height in physical pixels.
-     * @param scale         Device scale factor.
-     * @return A new CefriumBrowser instance.
+     * <p>All Chromium rendering infrastructure (WindowAndroid,
+     * ContentViewRenderView, ContentView) is created and managed
+     * internally. The browser view is added to the Activity's content.</p>
+     *
+     * <pre>
+     * CefriumBrowser browser = CefriumBrowser.createWithSurface(this);
+     * browser.setOnUrlChangedListener(url -> urlBar.setText(url));
+     * browser.loadUrl("https://example.com");
+     * </pre>
+     *
+     * @param activity The Activity to render in. A FrameLayout container
+     *                 is returned via {@link #getSurfaceContainer()}.
+     * @return A new CefriumBrowser instance with Surface rendering.
      */
-    public static CefriumBrowser createWithSurface(
-            org.chromium.ui.base.WindowAndroid windowAndroid,
-            android.view.Surface surface,
-            int width, int height, float scale) {
+    public static CefriumBrowser createWithSurface(android.app.Activity activity) {
         if (!Cefrium.isInitialized()) {
             throw new IllegalStateException(
                     "Cefrium.initialize() must be called before creating browsers");
         }
+
         CefriumBrowser browser = new CefriumBrowser(true);
 
         // Create Chromium rendering infrastructure internally.
@@ -440,7 +458,13 @@ public class CefriumBrowser {
         // Create native browser (non-windowless mode).
         float density = activity.getResources().getDisplayMetrics().density;
         browser.mNativePtr = nativeCreateWithSurface(
-                windowAndroid, surface, width, height, scale);
+                browser.mWindowAndroid, null,
+                activity.getResources().getDisplayMetrics().widthPixels,
+                activity.getResources().getDisplayMetrics().heightPixels,
+                density);
+
+        browser.mActivity = activity;
+
         return browser;
     }
 
@@ -460,29 +484,92 @@ public class CefriumBrowser {
     }
 
     /**
-     * Update the Surface (e.g., after rotation or resize).
+     * Get the container View for Surface rendering.
+     * Add this to your Activity's layout.
+     *
+     * @return FrameLayout containing the browser surface.
      */
-    public void updateSurface(android.view.Surface surface, int width, int height) {
-        if (mNativePtr != 0) {
-            nativeUpdateSurface(mNativePtr, surface, width, height);
-        }
+    public android.widget.FrameLayout getSurfaceContainer() {
+        return mSurfaceContainer;
     }
 
-    /**
-     * Detach the Surface (e.g., when SurfaceView is destroyed).
-     */
-    public void detachSurface() {
-        if (mNativePtr != 0) {
-            nativeDetachSurface(mNativePtr);
+    // Internal: connect WebContents to rendering pipeline.
+    // Called after the browser has loaded its first page.
+    void connectWebContentsInternal() {
+        if (mNativePtr == 0 || mActivity == null) return;
+        org.chromium.content_public.browser.WebContents wc = nativeGetWebContents(mNativePtr);
+        if (wc == null) return;
+        if (mWebContentsConnected) return;
+        mWebContentsConnected = true;
+
+        org.chromium.components.embedder_support.view.ContentView cv =
+                org.chromium.components.embedder_support.view.ContentView
+                        .createContentView(mActivity, wc);
+        // Create a ViewAndroidDelegate that supports autofill.
+        // The default createBasicDelegate returns false from
+        // providesAutofillStructure(), preventing the Android framework
+        // from requesting the virtual view structure needed for autofill.
+        final CefriumBrowser browser = this;
+        org.chromium.ui.base.ViewAndroidDelegate delegate =
+                new org.chromium.ui.base.ViewAndroidDelegate(cv) {
+                    @Override
+                    public boolean providesAutofillStructure() {
+                        return browser.mAutofillProvider != null;
+                    }
+                    @Override
+                    public void onProvideAutofillVirtualStructure(
+                            android.view.ViewStructure structure, int flags) {
+                        if (browser.mAutofillProvider != null) {
+                            browser.mAutofillProvider
+                                    .onProvideAutoFillVirtualStructure(structure, flags);
+                        }
+                    }
+                    @Override
+                    public void autofill(
+                            android.util.SparseArray<android.view.autofill.AutofillValue> values) {
+                        if (browser.mAutofillProvider != null) {
+                            browser.mAutofillProvider.autofill(values);
+                        }
+                    }
+                };
+        wc.setDelegates("", delegate, cv, mWindowAndroid,
+                org.chromium.content_public.browser.WebContents
+                        .createDefaultInternalsHolder());
+
+        mSurfaceContainer.addView(cv,
+                new android.widget.FrameLayout.LayoutParams(
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                        android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
+
+        int w = mContentViewRenderView.getWidth();
+        int h = mContentViewRenderView.getHeight();
+        if (w > 0 && h > 0) wc.setSize(w, h);
+
+        mContentViewRenderView.setCurrentWebContents(wc);
+        wc.updateWebContentsVisibility(
+                org.chromium.content_public.browser.Visibility.VISIBLE);
+
+        // Initialize Android Autofill for form auto-completion.
+        // CefriumAutofillClient (ContentAutofillClient that creates
+        // AndroidAutofillManager) is installed at browser creation time in
+        // browser_platform_delegate_alloy.cc, replacing ChromeAutofillClient.
+        // Here we just create the Java-side AutofillProvider that bridges
+        // to Android's AutofillManager framework.
+        try {
+            mAutofillProvider = new org.chromium.components.autofill.AutofillProvider(
+                    new java.lang.ref.WeakReference<>(mActivity),
+                    cv, wc, "Cefrium");
+            cv.setImportantForAutofill(android.view.View.IMPORTANT_FOR_AUTOFILL_YES);
+        } catch (Throwable e) {
+            // Autofill not available — non-critical.
         }
     }
 
     /**
      * Get the Chromium WebContents object for this browser.
-     * Used internally for Surface rendering via ContentViewRenderView.
-     * Returns null if the browser hasn't loaded yet.
+     * Package-private — internal use only, not part of the public API.
      */
-    public org.chromium.content_public.browser.WebContents getWebContents() {
+    org.chromium.content_public.browser.WebContents getWebContents() {
         if (mNativePtr == 0) return null;
         return nativeGetWebContents(mNativePtr);
     }
@@ -602,6 +689,7 @@ public class CefriumBrowser {
             boolean forward, boolean matchCase, boolean findNext);
     private static native void nativeStopFinding(long nativePtr, boolean clearSelection);
     private static native void nativeContextMenuCommand(long nativePtr, int commandId);
+    private static native void nativeInitAutofill(long nativePtr);
 
     /**
      * Listener for context menu events (long press on links/images).
