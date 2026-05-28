@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CEF_LIBCEF_BROWSER_ANDROID_CEFRIUM_AUTOFILL_CLIENT_H_
-#define CEF_LIBCEF_BROWSER_ANDROID_CEFRIUM_AUTOFILL_CLIENT_H_
+#ifndef CEF_LIBCEF_BROWSER_ANDROID_CEF_AUTOFILL_CLIENT_ANDROID_H_
+#define CEF_LIBCEF_BROWSER_ANDROID_CEF_AUTOFILL_CLIENT_ANDROID_H_
 
 #include <memory>
 #include <string>
@@ -19,17 +19,17 @@
 #include "components/autofill/core/browser/ui/autofill_suggestion_delegate.h"
 #include "components/autofill/core/common/autofill_features.h"
 
-namespace cefrium {
+namespace cef {
 
 // Minimal ContentAutofillClient for CEF Android.
 // Creates AndroidAutofillManager per frame so form events are forwarded
 // to Android's AutofillProvider/AutofillManager framework.
 // Modeled after components/android_autofill/browser/android_autofill_client.cc
 // but without ThirdPartyCredentialManagerImpl and Chrome-specific deps.
-class CefriumAutofillClient : public autofill::ContentAutofillClient {
+class CefAutofillClientAndroid : public autofill::ContentAutofillClient {
  public:
   static void CreateForWebContents(content::WebContents* contents);
-  ~CefriumAutofillClient() override;
+  ~CefAutofillClientAndroid() override;
 
   // AutofillClient:
   base::WeakPtr<autofill::AutofillClient> GetWeakPtr() override;
@@ -90,7 +90,7 @@ class CefriumAutofillClient : public autofill::ContentAutofillClient {
   GetContentCredentialManager() override;
 
  private:
-  explicit CefriumAutofillClient(content::WebContents* web_contents);
+  explicit CefAutofillClientAndroid(content::WebContents* web_contents);
   content::WebContents& GetWebContents() const;
 
   std::unique_ptr<autofill::AutofillCrowdsourcingManager>
@@ -99,9 +99,9 @@ class CefriumAutofillClient : public autofill::ContentAutofillClient {
   autofill::autofill_metrics::FormInteractionsUkmLogger
       form_interactions_ukm_logger_{this};
 
-  base::WeakPtrFactory<CefriumAutofillClient> weak_ptr_factory_{this};
+  base::WeakPtrFactory<CefAutofillClientAndroid> weak_ptr_factory_{this};
 };
 
-}  // namespace cefrium
+}  // namespace cef
 
-#endif  // CEF_LIBCEF_BROWSER_ANDROID_CEFRIUM_AUTOFILL_CLIENT_H_
+#endif  // CEF_LIBCEF_BROWSER_ANDROID_CEF_AUTOFILL_CLIENT_ANDROID_H_
