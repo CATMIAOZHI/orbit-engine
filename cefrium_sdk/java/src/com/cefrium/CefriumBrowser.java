@@ -32,6 +32,7 @@ public class CefriumBrowser {
     private org.chromium.ui.base.WindowAndroid mWindowAndroid;
     private org.chromium.ui.base.IntentRequestTracker mIntentTracker;
     private org.chromium.components.embedder_support.view.ContentViewRenderView mContentViewRenderView;
+    private org.chromium.components.autofill.AutofillProvider mAutofillProvider;
     private android.widget.FrameLayout mSurfaceContainer;
     private boolean mWebContentsConnected;
 
@@ -504,8 +505,33 @@ public class CefriumBrowser {
         org.chromium.components.embedder_support.view.ContentView cv =
                 org.chromium.components.embedder_support.view.ContentView
                         .createContentView(mActivity, wc);
+        // Create a ViewAndroidDelegate that supports autofill.
+        // The default createBasicDelegate returns false from
+        // providesAutofillStructure(), preventing the Android framework
+        // from requesting the virtual view structure needed for autofill.
+        final CefriumBrowser browser = this;
         org.chromium.ui.base.ViewAndroidDelegate delegate =
-                org.chromium.ui.base.ViewAndroidDelegate.createBasicDelegate(cv);
+                new org.chromium.ui.base.ViewAndroidDelegate(cv) {
+                    @Override
+                    public boolean providesAutofillStructure() {
+                        return browser.mAutofillProvider != null;
+                    }
+                    @Override
+                    public void onProvideAutofillVirtualStructure(
+                            android.view.ViewStructure structure, int flags) {
+                        if (browser.mAutofillProvider != null) {
+                            browser.mAutofillProvider
+                                    .onProvideAutoFillVirtualStructure(structure, flags);
+                        }
+                    }
+                    @Override
+                    public void autofill(
+                            android.util.SparseArray<android.view.autofill.AutofillValue> values) {
+                        if (browser.mAutofillProvider != null) {
+                            browser.mAutofillProvider.autofill(values);
+                        }
+                    }
+                };
         wc.setDelegates("", delegate, cv, mWindowAndroid,
                 org.chromium.content_public.browser.WebContents
                         .createDefaultInternalsHolder());
@@ -523,11 +549,20 @@ public class CefriumBrowser {
         wc.updateWebContentsVisibility(
                 org.chromium.content_public.browser.Visibility.VISIBLE);
 
-        // Android Autofill: AutofillProvider is registered but native
-        // AndroidAutofillClient crashes due to Chrome's PasswordManager
-        // infrastructure not being initialized in CEF. Autofill support
-        // is deferred until the dependency chain can be resolved.
-        // See features/FEATURE-018-autofill-android.md for attempts.
+        // Initialize Android Autofill for form auto-completion.
+        // CefriumAutofillClient (ContentAutofillClient that creates
+        // AndroidAutofillManager) is installed at browser creation time in
+        // browser_platform_delegate_alloy.cc, replacing ChromeAutofillClient.
+        // Here we just create the Java-side AutofillProvider that bridges
+        // to Android's AutofillManager framework.
+        try {
+            mAutofillProvider = new org.chromium.components.autofill.AutofillProvider(
+                    new java.lang.ref.WeakReference<>(mActivity),
+                    cv, wc, "Cefrium");
+            cv.setImportantForAutofill(android.view.View.IMPORTANT_FOR_AUTOFILL_YES);
+        } catch (Throwable e) {
+            // Autofill not available — non-critical.
+        }
     }
 
     /**
