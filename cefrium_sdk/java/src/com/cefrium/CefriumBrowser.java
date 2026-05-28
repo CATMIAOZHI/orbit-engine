@@ -522,6 +522,11 @@ public class CefriumBrowser {
         mContentViewRenderView.setCurrentWebContents(wc);
         wc.updateWebContentsVisibility(
                 org.chromium.content_public.browser.Visibility.VISIBLE);
+
+        // TODO: Android Autofill integration. AutofillProvider is initialized
+        // but does not trigger save/fill prompts. Needs deeper investigation
+        // into AutofillManager, importantForAutofill, and native bridge setup.
+        // See WebView's AwContents.initializeAutofillProvider() for reference.
     }
 
     /**
