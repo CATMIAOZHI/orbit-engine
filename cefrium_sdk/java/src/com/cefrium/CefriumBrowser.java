@@ -523,10 +523,11 @@ public class CefriumBrowser {
         wc.updateWebContentsVisibility(
                 org.chromium.content_public.browser.Visibility.VISIBLE);
 
-        // TODO: Android Autofill integration. AutofillProvider is initialized
-        // but does not trigger save/fill prompts. Needs deeper investigation
-        // into AutofillManager, importantForAutofill, and native bridge setup.
-        // See WebView's AwContents.initializeAutofillProvider() for reference.
+        // Android Autofill: AutofillProvider is registered but native
+        // AndroidAutofillClient crashes due to Chrome's PasswordManager
+        // infrastructure not being initialized in CEF. Autofill support
+        // is deferred until the dependency chain can be resolved.
+        // See features/FEATURE-018-autofill-android.md for attempts.
     }
 
     /**
@@ -653,6 +654,7 @@ public class CefriumBrowser {
             boolean forward, boolean matchCase, boolean findNext);
     private static native void nativeStopFinding(long nativePtr, boolean clearSelection);
     private static native void nativeContextMenuCommand(long nativePtr, int commandId);
+    private static native void nativeInitAutofill(long nativePtr);
 
     /**
      * Listener for context menu events (long press on links/images).
