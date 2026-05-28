@@ -23,7 +23,7 @@
 #endif
 #include "third_party/blink/public/mojom/frame/find_in_page.mojom.h"
 #if BUILDFLAG(IS_ANDROID)
-#include "cef/libcef/browser/android/cefrium_autofill_client.h"
+#include "cef/libcef/browser/android/cef_autofill_client_android.h"
 #include "chrome/browser/offline_pages/offline_page_tab_helper.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #endif
@@ -238,7 +238,7 @@ void CefBrowserPlatformDelegateAlloy::AttachHelpers(
   // Requires patch: android/password_manager_manual_filling_guard.patch
   // to prevent ChromePasswordManagerClient from creating ManualFillingController
   // when AutofillProvider is present.
-  cefrium::CefriumAutofillClient::CreateForWebContents(web_contents);
+  cef::CefAutofillClientAndroid::CreateForWebContents(web_contents);
 #endif
 
   // Make the tab show up in the task manager.
