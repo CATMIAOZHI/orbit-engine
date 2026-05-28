@@ -29,6 +29,9 @@ android_library("cefrium_java") {
   deps = [
     ":cefrium_resources",
     "//base:base_java",
+    "//components/embedder_support/android:content_view_java",
+    "//components/embedder_support/android:view_java",
+    "//components/android_autofill/browser:java",
     "//content/public/android:content_java",
     "//ui/android:ui_java",
   ]
