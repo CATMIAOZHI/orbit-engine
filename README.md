@@ -48,6 +48,8 @@ that gap.
 | arm64 validated on real device | Done |
 | Published on Codeberg Packages (Maven) | Done |
 | 23 instrumented tests | Done |
+| Android Accessibility (TalkBack) | Done |
+| Android Autofill (Proton Pass, Google) | Done |
 
 ## Why Cefrium, not WebView?
 
@@ -185,23 +187,32 @@ dependencies {
 
 ### Direct download
 
-Alternatively, download the AAR directly:
-- [cefrium-sdk-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk/0.1.0/cefrium-sdk-0.1.0.aar) (150 MB, arm64, with proprietary codecs)
-- [cefrium-compose-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-compose/0.1.0/cefrium-compose-0.1.0.aar) (14 KB, Compose wrapper)
+Alternatively, download the AAR directly from
+[Codeberg Packages](https://codeberg.org/cefrium/-/packages):
+
+**arm64-v8a (real devices):**
+- [cefrium-sdk-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk/0.1.0/cefrium-sdk-0.1.0.aar) (~150 MB, H.264/AAC + VP8/VP9/Opus)
+- [cefrium-sdk-libre-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk-libre/0.1.0/cefrium-sdk-libre-0.1.0.aar) (~150 MB, VP8/VP9/Opus only)
+
+**x86_64 (emulators):**
+- [cefrium-sdk-x64-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk-x64/0.1.0/cefrium-sdk-x64-0.1.0.aar) (~150 MB, H.264/AAC + VP8/VP9/Opus)
+- [cefrium-sdk-x64-libre-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk-x64-libre/0.1.0/cefrium-sdk-x64-libre-0.1.0.aar) (~150 MB, VP8/VP9/Opus only)
+
+**Jetpack Compose wrapper (all architectures):**
+- [cefrium-compose-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-compose/0.1.0/cefrium-compose-0.1.0.aar) (14 KB)
 
 Place in `app/libs/` and use `implementation files('libs/cefrium-sdk.aar')`.
 
 ### Variants
 
-Two variants planned for each Chromium version:
+Four variants for each Chromium version:
 
-| Artifact | Codecs | Use case |
-|----------|--------|----------|
-| `cefrium-sdk` | H.264, H.265, AAC, VP8, VP9, Opus | Full site compatibility. Currently published. |
-| `cefrium-sdk-libre` | VP8, VP9, Opus, Vorbis | Royalty-free only. Planned. |
-
-Currently available for `arm64-v8a` (real devices). `x86_64`
-(emulators) planned.
+| Artifact | Arch | Codecs | Use case |
+|----------|------|--------|----------|
+| `cefrium-sdk` | arm64 | H.264, H.265, AAC, VP8, VP9, Opus | Real devices, full site compatibility |
+| `cefrium-sdk-libre` | arm64 | VP8, VP9, Opus, Vorbis | Real devices, royalty-free only |
+| `cefrium-sdk-x64` | x86_64 | H.264, H.265, AAC, VP8, VP9, Opus | Emulators, full site compatibility |
+| `cefrium-sdk-x64-libre` | x86_64 | VP8, VP9, Opus, Vorbis | Emulators, royalty-free only |
 
 **Patent note:** H.264 patents expire by November 2027 (last US patent:
 US 7826532). In the EU, software patents are not enforceable (EPC Art. 52).
@@ -236,7 +247,7 @@ All Android changes are isolated and reviewable:
   git format-patch origin/7778..android-port -- \
     ':!README.md' ':!assets/screenshots'
   ```
-- **Chromium patches** (`patch/patches/android/`): 12 Android-specific patches applied
+- **Chromium patches** (`patch/patches/android/`): 14 Android-specific patches applied
   via `patcher.py`. Each addresses a specific incompatibility between
   Chromium's assumptions and the Android embedding environment.
   Managed via CEF's existing patch infrastructure.
@@ -255,12 +266,10 @@ some Android platform features:
 
 | Feature | Status |
 |---------|--------|
-| Android Accessibility (TalkBack) | Not implemented |
-| Autofill framework | Not implemented |
+| Android Accessibility (TalkBack) | Done |
+| Autofill framework (password managers) | Done |
 | Widevine DRM (Netflix, etc.) | Not implemented |
 | WebAuthn / Passkeys | Not implemented |
-| Credential Manager | Not implemented |
-| Health Connect | Not implemented |
 
 Surface rendering uses `ContentViewRenderView` — the same Chromium
 component as Chrome Android. No additional overhead vs Chrome.
