@@ -11,7 +11,7 @@
 
 #include "base/base64.h"
 #include "cef/include/cef_app.h"
-#include "cef/libcef/browser/android/cefrium_autofill_client.h"
+#include "cef/libcef/browser/android/cef_autofill_client_android.h"
 #include "components/android_autofill/browser/autofill_provider.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_client.h"
@@ -790,7 +790,7 @@ Java_com_cefrium_CefriumBrowser_nativeInitAutofill(
   // Chrome's version requires PasswordManager infrastructure not
   // available in CEF. Our version just initializes the keyboard
   // suppressor for the AutofillProvider.
-  cefrium::CefriumAutofillClient::CreateForWebContents(wc);
+  cef::CefAutofillClientAndroid::CreateForWebContents(wc);
   LOGI("CefriumAutofillClient created for WebContents");
 }
 
