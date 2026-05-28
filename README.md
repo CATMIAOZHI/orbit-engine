@@ -214,8 +214,10 @@ Four variants for each Chromium version:
 | `cefrium-sdk-x64` | x86_64 | H.264, H.265, AAC, VP8, VP9, Opus | Emulators, full site compatibility |
 | `cefrium-sdk-x64-libre` | x86_64 | VP8, VP9, Opus, Vorbis | Emulators, royalty-free only |
 
-**Patent note:** H.264 patents expire by November 2027 (last US patent:
-US 7826532). In the EU, software patents are not enforceable (EPC Art. 52).
+**Patent note:** H.264 patents expire by [November 2027](https://www.osnews.com/story/24954/us-patent-expiration-for-mp3-mpeg-2-h264/)
+(last US patent: [US 7826532](https://patents.google.com/patent/US7826532B2), expires 2027-11-29).
+In the EU, software "as such" is excluded from patentability
+([EPC Art. 52](https://en.wikipedia.org/wiki/Software_patents_under_the_European_Patent_Convention)).
 
 See [cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) for
 complete working examples.
