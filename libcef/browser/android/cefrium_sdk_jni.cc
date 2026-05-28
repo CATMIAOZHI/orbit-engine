@@ -11,6 +11,9 @@
 
 #include "base/base64.h"
 #include "cef/include/cef_app.h"
+#include "components/android_autofill/browser/android_autofill_client.h"
+#include "components/android_autofill/browser/autofill_provider.h"
+#include "components/autofill/content/browser/content_autofill_client.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_client.h"
 #include "cef/include/cef_context_menu_handler.h"
@@ -796,6 +799,32 @@ Java_com_cefrium_CefriumBrowser_nativeSetRenderHandler(
   // Also connect the display handler for URL change callbacks.
   if (data && data->client) {
     data->client->display_handler()->SetJavaBrowser(env, java_browser);
+  }
+}
+
+// Initialize Android Autofill for form auto-completion.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeInitAutofill(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return;
+  content::WebContents* wc = nullptr;
+  auto* browser_host = static_cast<CefBrowserHostBase*>(
+      data->browser->GetHost().get());
+  if (browser_host) {
+    wc = browser_host->GetWebContents();
+  }
+  if (!wc) return;
+  // Create the Android Autofill client if not already present.
+  if (!autofill::ContentAutofillClient::FromWebContents(wc)) {
+    android_autofill::AndroidAutofillClient::CreateForWebContents(wc);
+    LOGI("AndroidAutofillClient created for WebContents");
+  }
+  // Initialize keyboard suppressor.
+  auto* provider = autofill::AutofillProvider::FromWebContents(wc);
+  if (provider) {
+    provider->MaybeInitKeyboardSuppressor();
+    LOGI("AutofillProvider keyboard suppressor initialized");
   }
 }
 
