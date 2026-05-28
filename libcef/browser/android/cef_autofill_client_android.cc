@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "cef/libcef/browser/android/cefrium_autofill_client.h"
+#include "cef/libcef/browser/android/cef_autofill_client_android.h"
 
 #include <utility>
 
@@ -24,44 +24,44 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 
-namespace cefrium {
+namespace cef {
 
-void CefriumAutofillClient::CreateForWebContents(
+void CefAutofillClientAndroid::CreateForWebContents(
     content::WebContents* contents) {
   DCHECK(contents);
   // Replace any existing ContentAutofillClient (e.g., ChromeAutofillClient)
   // with ours. ChromeAutofillClient creates BrowserAutofillManager which
   // doesn't forward form events to Android's AutofillProvider.
-  // CefriumAutofillClient creates AndroidAutofillManager instead.
+  // CefAutofillClientAndroid creates AndroidAutofillManager instead.
   contents->SetUserData(
       autofill::ContentAutofillClient::UserDataKey(),
-      base::WrapUnique(new CefriumAutofillClient(contents)));
+      base::WrapUnique(new CefAutofillClientAndroid(contents)));
 }
 
-CefriumAutofillClient::CefriumAutofillClient(
+CefAutofillClientAndroid::CefAutofillClientAndroid(
     content::WebContents* web_contents)
     : autofill::ContentAutofillClient(web_contents) {
 }
 
-CefriumAutofillClient::~CefriumAutofillClient() {
+CefAutofillClientAndroid::~CefAutofillClientAndroid() {
   HideAutofillSuggestions(autofill::SuggestionHidingReason::kTabGone);
 }
 
-base::WeakPtr<autofill::AutofillClient> CefriumAutofillClient::GetWeakPtr() {
+base::WeakPtr<autofill::AutofillClient> CefAutofillClientAndroid::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
 }
 
-const std::string& CefriumAutofillClient::GetAppLocale() const {
+const std::string& CefAutofillClientAndroid::GetAppLocale() const {
   NOTREACHED();
 }
 
-bool CefriumAutofillClient::IsOffTheRecord() const {
-  auto* mutable_this = const_cast<CefriumAutofillClient*>(this);
+bool CefAutofillClientAndroid::IsOffTheRecord() const {
+  auto* mutable_this = const_cast<CefAutofillClientAndroid*>(this);
   return mutable_this->GetWebContents().GetBrowserContext()->IsOffTheRecord();
 }
 
 scoped_refptr<network::SharedURLLoaderFactory>
-CefriumAutofillClient::GetURLLoaderFactory() {
+CefAutofillClientAndroid::GetURLLoaderFactory() {
   return GetWebContents()
       .GetBrowserContext()
       ->GetDefaultStoragePartition()
@@ -69,7 +69,7 @@ CefriumAutofillClient::GetURLLoaderFactory() {
 }
 
 autofill::AutofillCrowdsourcingManager&
-CefriumAutofillClient::GetCrowdsourcingManager() {
+CefAutofillClientAndroid::GetCrowdsourcingManager() {
   if (!crowdsourcing_manager_) {
     crowdsourcing_manager_ =
         std::make_unique<autofill::AutofillCrowdsourcingManager>(
@@ -78,86 +78,86 @@ CefriumAutofillClient::GetCrowdsourcingManager() {
   return *crowdsourcing_manager_;
 }
 
-autofill::VotesUploader& CefriumAutofillClient::GetVotesUploader() {
+autofill::VotesUploader& CefAutofillClientAndroid::GetVotesUploader() {
   return votes_uploader_;
 }
 
-bool CefriumAutofillClient::HasPersonalDataManager() const {
+bool CefAutofillClientAndroid::HasPersonalDataManager() const {
   return false;
 }
 
-autofill::PersonalDataManager& CefriumAutofillClient::GetPersonalDataManager() {
+autofill::PersonalDataManager& CefAutofillClientAndroid::GetPersonalDataManager() {
   NOTREACHED();
 }
 
 autofill::ValuablesDataManager*
-CefriumAutofillClient::GetValuablesDataManager() {
+CefAutofillClientAndroid::GetValuablesDataManager() {
   return nullptr;
 }
 
-autofill::EntityDataManager* CefriumAutofillClient::GetEntityDataManager() {
+autofill::EntityDataManager* CefAutofillClientAndroid::GetEntityDataManager() {
   return nullptr;
 }
 
 autofill::SingleFieldFillRouter&
-CefriumAutofillClient::GetSingleFieldFillRouter() {
+CefAutofillClientAndroid::GetSingleFieldFillRouter() {
   NOTREACHED();
 }
 
 autofill::AutocompleteHistoryManager*
-CefriumAutofillClient::GetAutocompleteHistoryManager() {
+CefAutofillClientAndroid::GetAutocompleteHistoryManager() {
   NOTREACHED();
 }
 
-PrefService* CefriumAutofillClient::GetPrefs() {
+PrefService* CefAutofillClientAndroid::GetPrefs() {
   return const_cast<PrefService*>(std::as_const(*this).GetPrefs());
 }
 
-const PrefService* CefriumAutofillClient::GetPrefs() const {
+const PrefService* CefAutofillClientAndroid::GetPrefs() const {
   return user_prefs::UserPrefs::Get(GetWebContents().GetBrowserContext());
 }
 
-syncer::SyncService* CefriumAutofillClient::GetSyncService() {
+syncer::SyncService* CefAutofillClientAndroid::GetSyncService() {
   return nullptr;
 }
 
-signin::IdentityManager* CefriumAutofillClient::GetIdentityManager() {
+signin::IdentityManager* CefAutofillClientAndroid::GetIdentityManager() {
   return nullptr;
 }
 
-const signin::IdentityManager* CefriumAutofillClient::GetIdentityManager()
+const signin::IdentityManager* CefAutofillClientAndroid::GetIdentityManager()
     const {
   return nullptr;
 }
 
-autofill::FormDataImporter* CefriumAutofillClient::GetFormDataImporter() {
+autofill::FormDataImporter* CefAutofillClientAndroid::GetFormDataImporter() {
   return nullptr;
 }
 
-strike_database::StrikeDatabase* CefriumAutofillClient::GetStrikeDatabase() {
+strike_database::StrikeDatabase* CefAutofillClientAndroid::GetStrikeDatabase() {
   return nullptr;
 }
 
-ukm::UkmRecorder* CefriumAutofillClient::GetUkmRecorder() {
+ukm::UkmRecorder* CefAutofillClientAndroid::GetUkmRecorder() {
   return nullptr;
 }
 
-autofill::AddressNormalizer* CefriumAutofillClient::GetAddressNormalizer() {
+autofill::AddressNormalizer* CefAutofillClientAndroid::GetAddressNormalizer() {
   return nullptr;
 }
 
-const GURL& CefriumAutofillClient::GetLastCommittedPrimaryMainFrameURL()
+const GURL& CefAutofillClientAndroid::GetLastCommittedPrimaryMainFrameURL()
     const {
   return GetWebContents().GetPrimaryMainFrame()->GetLastCommittedURL();
 }
 
-url::Origin CefriumAutofillClient::GetLastCommittedPrimaryMainFrameOrigin()
+url::Origin CefAutofillClientAndroid::GetLastCommittedPrimaryMainFrameOrigin()
     const {
   return GetWebContents().GetPrimaryMainFrame()->GetLastCommittedOrigin();
 }
 
 security_state::SecurityLevel
-CefriumAutofillClient::GetSecurityLevelForUmaHistograms() {
+CefAutofillClientAndroid::GetSecurityLevelForUmaHistograms() {
   if (SecurityStateTabHelper* helper =
           ::SecurityStateTabHelper::FromWebContents(&GetWebContents())) {
     return helper->GetSecurityLevel();
@@ -165,20 +165,20 @@ CefriumAutofillClient::GetSecurityLevelForUmaHistograms() {
   return security_state::SecurityLevel::SECURITY_LEVEL_COUNT;
 }
 
-const translate::LanguageState* CefriumAutofillClient::GetLanguageState() {
+const translate::LanguageState* CefAutofillClientAndroid::GetLanguageState() {
   return nullptr;
 }
 
-translate::TranslateDriver* CefriumAutofillClient::GetTranslateDriver() {
+translate::TranslateDriver* CefAutofillClientAndroid::GetTranslateDriver() {
   return nullptr;
 }
 
-void CefriumAutofillClient::ShowAutofillSettings(
+void CefAutofillClientAndroid::ShowAutofillSettings(
     autofill::SuggestionType suggestion_type) {
   NOTIMPLEMENTED();
 }
 
-void CefriumAutofillClient::ConfirmSaveAddressProfile(
+void CefAutofillClientAndroid::ConfirmSaveAddressProfile(
     const autofill::AutofillProfile& profile,
     const autofill::AutofillProfile* original_profile,
     SaveAddressBubbleType save_address_bubble_type,
@@ -187,40 +187,40 @@ void CefriumAutofillClient::ConfirmSaveAddressProfile(
 }
 
 autofill::AutofillClient::SuggestionUiSessionId
-CefriumAutofillClient::ShowAutofillSuggestions(
+CefAutofillClientAndroid::ShowAutofillSuggestions(
     const autofill::AutofillClient::PopupOpenArgs& open_args,
     base::WeakPtr<autofill::AutofillSuggestionDelegate> delegate) {
   NOTIMPLEMENTED();
   return SuggestionUiSessionId();
 }
 
-void CefriumAutofillClient::UpdateAutofillDataListValues(
+void CefAutofillClientAndroid::UpdateAutofillDataListValues(
     base::span<const autofill::SelectOption> datalist) {}
 
-void CefriumAutofillClient::HideAutofillSuggestions(
+void CefAutofillClientAndroid::HideAutofillSuggestions(
     autofill::SuggestionHidingReason reason) {}
 
-bool CefriumAutofillClient::IsAutofillEnabled() const {
+bool CefAutofillClientAndroid::IsAutofillEnabled() const {
   NOTREACHED();
 }
 
-bool CefriumAutofillClient::IsAutofillProfileEnabled() const {
+bool CefAutofillClientAndroid::IsAutofillProfileEnabled() const {
   NOTREACHED();
 }
 
-bool CefriumAutofillClient::IsWalletPublicPassStorageEnabled() const {
+bool CefAutofillClientAndroid::IsWalletPublicPassStorageEnabled() const {
   return false;
 }
 
-bool CefriumAutofillClient::IsAutocompleteEnabled() const {
+bool CefAutofillClientAndroid::IsAutocompleteEnabled() const {
   return false;
 }
 
-bool CefriumAutofillClient::IsPasswordManagerEnabled() const {
+bool CefAutofillClientAndroid::IsPasswordManagerEnabled() const {
   NOTREACHED();
 }
 
-bool CefriumAutofillClient::IsContextSecure() const {
+bool CefAutofillClientAndroid::IsContextSecure() const {
   if (SecurityStateTabHelper* helper =
           SecurityStateTabHelper::FromWebContents(&GetWebContents())) {
     return security_state::IsSslCertificateValid(helper->GetSecurityLevel());
@@ -241,25 +241,25 @@ bool CefriumAutofillClient::IsContextSecure() const {
 }
 
 autofill::autofill_metrics::FormInteractionsUkmLogger&
-CefriumAutofillClient::GetFormInteractionsUkmLogger() {
+CefAutofillClientAndroid::GetFormInteractionsUkmLogger() {
   return form_interactions_ukm_logger_;
 }
 
-content::WebContents& CefriumAutofillClient::GetWebContents() const {
+content::WebContents& CefAutofillClientAndroid::GetWebContents() const {
   return const_cast<content::WebContents&>(
       ContentAutofillClient::GetWebContents());
 }
 
 std::unique_ptr<autofill::AutofillManager>
-CefriumAutofillClient::CreateManager(
+CefAutofillClientAndroid::CreateManager(
     base::PassKey<autofill::ContentAutofillDriver> pass_key,
     autofill::ContentAutofillDriver& driver) {
   return base::WrapUnique(new autofill::AndroidAutofillManager(&driver));
 }
 
 credential_management::ContentCredentialManager*
-CefriumAutofillClient::GetContentCredentialManager() {
+CefAutofillClientAndroid::GetContentCredentialManager() {
   return nullptr;
 }
 
-}  // namespace cefrium
+}  // namespace cef
