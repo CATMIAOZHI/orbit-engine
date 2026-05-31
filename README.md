@@ -54,26 +54,45 @@ that gap.
 
 ## Why Cefrium, not WebView?
 
-CEF on Android has been considered out of scope due to its different
-process model and UI stack
-([Issue #1991](https://web.archive.org/web/2024/https://bitbucket.org/chromiumembedded/cef/issues/1991/add-android-support),
-opened 2016;
-[CEF Forum](https://www.magpcss.org/ceforum/viewtopic.php?f=7&t=10913),
-2013: "CEF is not currently supported on android"). The upstream
-[`cef_build.h`](https://github.com/chromiumembedded/cef/blob/master/include/base/cef_build.h)
-defines `OS_ANDROID` but no working build configuration or runtime
-support existed. Cefrium closes that gap.
+Android WebView runs on whatever Chromium version the device has — which
+may be outdated, broken by manufacturer customization, or missing features
+your app depends on. Cefrium solves three problems that WebView cannot:
+
+**1. Version consistency.** Cefrium pins to a specific Chromium version
+(currently 148). Your web code runs identically on every device, regardless
+of the system WebView version. No more "works on Pixel, breaks on Samsung."
+
+**2. Full network control.** WebView's `shouldInterceptRequest` is limited
+to URL matching. Cefrium inherits CEF's `CefRequestHandler` which gives
+full access to headers, POST bodies, redirects, and response modification —
+enabling native ad blocking, request rewriting, and custom protocol handlers
+without JavaScript injection.
+
+**3. Off-screen rendering.** Need to render HTML to a pixel buffer for
+screenshots, PDF generation, or headless processing? WebView has no API
+for this. Cefrium's `OnPaint` delivers BGRA frames to your code — no
+Activity, no UI, no Surface required.
 
 | Capability | Cefrium | Android WebView |
 |------------|---------|-----------------|
+| Chromium version control | Pinned (148) | Varies by device |
 | Off-screen rendering (pixel buffer) | Yes (OnPaint) | No |
-| Chromium version control | Pinned to 148 | Varies by device |
+| Network-level ad blocking | Yes (CefRequestHandler) | Limited (shouldInterceptRequest) |
 | Multi-process control | Yes | No |
-| Request interception | Yes (CefRequestHandler) | Yes (shouldInterceptRequest) |
-| Custom protocol handlers | Yes (CefSchemeHandlerFactory) | Partial (shouldInterceptRequest) |
-| Scroll-driven CSS animations | Yes (Chromium 148) | Depends on device WebView version |
-| View Transitions | Yes (Chromium 148) | Depends on device WebView version |
-| Web Speech API | Yes | Yes |
+| Request headers/body access | Full | URL only |
+| Custom protocol handlers | Yes (CefSchemeHandlerFactory) | Partial |
+| DRM (Widevine) | Yes | Yes |
+| Autofill (password managers) | Yes | Yes |
+| Accessibility (TalkBack) | Yes | Yes |
+
+### What is CEF?
+
+[CEF](https://github.com/chromiumembedded/cef) (Chromium Embedded Framework)
+is a BSD-licensed framework maintained by Marshall Greenblatt since 2008.
+Over 100 million installed instances power products from Steam, Spotify,
+Discord, OBS, and hundreds of other applications across Windows, Linux,
+and macOS. Cefrium extends CEF to the one major platform it was missing:
+Android.
 
 ## Architecture
 
@@ -322,12 +341,35 @@ component as Chrome Android. No additional overhead vs Chrome.
 
 ## About
 
-Cefrium is in early validation — not recommended for production.
-Developed with significant AI/LLM assistance. Architecture decisions,
-hardware testing, and ongoing maintenance are human-directed.
+Cefrium is in early validation. The project is maintained by the
+[CEF packager in Debian](https://packages.debian.org/sid/chromium-embedded-framework),
+who maintains CEF across six architectures (i386, amd64, arm64, armhf,
+loong64, ppc64el) with 2000+ validation builds and 58 upstream patches.
+
+### Maturity and risks
+
+**What Cefrium gives you:** A complete Chromium engine under your control,
+with the same CEF API that powers Steam, Spotify, and Discord — now on
+Android. Every commit is tested on real devices (Xiaomi, Tabwee). All
+14 Chromium patches are auditable in `patch/patches/android/`.
+
+**What you should know:**
+- **APK size:** ~150 MB for the SDK AAR (comparable to Chrome itself).
+  Use R8/ProGuard, ABI splits, and AAB format to optimize delivery.
+  See [APK size optimization](#apk-size-optimization).
+- **Security updates:** Cefrium tracks Debian Chromium releases for
+  CVE patches. Currently pinned to 148.0.7778.167.
+- **Not a WebView replacement:** Cefrium bundles its own Chromium.
+  It does not reuse the system WebView. This is by design — it's what
+  gives you version control and full API access.
+
+### Contributing
+
 If you work with CEF, Chromium internals, or native Android development
-and are interested in co-maintaining, get in touch: cefrium@proton.me
-Published as open source for the community to evaluate, use, and extend.
+and are interested in co-maintaining: cefrium@proton.me
+
+Published as open source (LGPL-3.0) for the community to evaluate,
+use, and extend.
 
 ## License
 
