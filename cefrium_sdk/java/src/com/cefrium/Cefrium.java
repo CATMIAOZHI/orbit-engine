@@ -88,6 +88,13 @@ public final class Cefrium {
         // content. It works in Surface mode (ContentViewRenderView).
         // Only OSR (off-screen) mode needs software decode.
 
+        // Enable WebAuthn/Passkeys via Android's platform authenticator.
+        // Chrome mode uses CHROME, which enables Fido2CredentialRequest
+        // to call Google Play Services or CredentialManager API.
+        org.chromium.components.webauthn.WebauthnModeProvider.getInstance()
+                .setGlobalWebauthnMode(
+                        org.chromium.components.webauthn.WebauthnMode.CHROME);
+
         // Set device scale factor from screen density so pages render
         // with correct mobile viewport (e.g., 1080px at 2.75x = ~393 CSS px).
         float density = appContext.getResources().getDisplayMetrics().density;
