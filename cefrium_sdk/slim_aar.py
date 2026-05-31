@@ -52,6 +52,45 @@ def is_non_english_locale(name):
     return True
 
 
+STRIPPABLE_RES_TYPES = (
+    'drawable', 'layout', 'menu', 'anim', 'animator',
+    'mipmap', 'xml', 'font', 'raw', 'navigation',
+    'interpolator', 'transition',
+)
+
+
+def is_strippable_res(name):
+    """Strip Chrome UI resources not used by CEF SDK.
+
+    Chrome includes thousands of drawables, layouts, and menus for its
+    Android UI (tabs, toolbar, settings, bookmarks). CEF doesn't use
+    Chrome's Android UI — it renders web content via ContentViewRenderView.
+
+    Handles both standard (res/drawable/) and non-standard (res/0_res/drawable/).
+    """
+    if not name.startswith('res/'):
+        return False
+    # For non-standard paths (res/0_res/drawable/), check the remapped subdir
+    effective_name = name
+    std = get_standard_path(name)
+    if std:
+        effective_name = std
+    parts = effective_name.split('/')
+    if len(parts) < 2:
+        return False
+    subdir = parts[1]
+    # Keep values/ (strings, styles, attrs — needed for compilation)
+    if subdir.startswith('values'):
+        return False
+    # Keep color/ (referenced by styles)
+    if subdir.startswith('color'):
+        return False
+    # Strip Chrome UI drawables, layouts, menus, animations
+    if any(subdir.startswith(p) for p in STRIPPABLE_RES_TYPES):
+        return True
+    return False
+
+
 def get_standard_path(name):
     """Map non-standard res path to standard equivalent."""
     parts = name.split('/')
@@ -116,6 +155,10 @@ def main():
                 continue
             if is_non_english_locale(name):
                 continue
+            # NOTE: Do NOT strip res/ drawables/layouts — Chrome's values/
+            # XMLs reference them. Stripping causes aapt2 "resource not found".
+            # if is_strippable_res(name):
+            #     continue
 
             data = zin.read(name)
 
@@ -250,7 +293,7 @@ def main():
         for name, data in standard_entries.items():
             zout.writestr(name, data,
                           compress_type=zipfile.ZIP_DEFLATED,
-                          compresslevel=6)
+                          compresslevel=9)
 
     # Phase 8: Inject CEF assets (STORED for mmap access).
     build_dir = os.path.dirname(os.path.abspath(args.input))
