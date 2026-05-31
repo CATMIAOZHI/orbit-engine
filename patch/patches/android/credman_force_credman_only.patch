@@ -1,0 +1,20 @@
+diff --git a/components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManSupportProvider.java b/components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManSupportProvider.java
+--- a/components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManSupportProvider.java
++++ b/components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManSupportProvider.java
+@@ -36,6 +36,16 @@
+     private static @Nullable Integer sOverrideAndroidVersion;
+     private static @Nullable Boolean sOverrideForcesGpm;
+ 
++    /**
++     * Force CredMan-only mode for embedders (e.g., CEF) that can't use
++     * Play Services Fido2 privileged API (requires app verification).
++     * Must be called before any WebAuthn request.
++     */
++    public static void setForceCredManOnly(boolean force) {
++        sOverrideForcesGpm = force ? Boolean.TRUE : null;
++        sCredManSupport = CredManSupport.NOT_EVALUATED;
++    }
++
+     public static void setupForTesting(
+             @Nullable Integer overrideAndroidVersion, @Nullable Boolean overrideForcesGpm) {
+         sOverrideAndroidVersion = overrideAndroidVersion;
