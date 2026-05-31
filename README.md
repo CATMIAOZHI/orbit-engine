@@ -272,7 +272,7 @@ some Android platform features:
 | Android Accessibility (TalkBack) | Done |
 | Autofill framework (password managers) | Done |
 | Widevine DRM (Netflix, Disney+, Spotify) | Done |
-| WebAuthn / Passkeys | Not implemented |
+| WebAuthn / Passkeys | Platform limitation — requires Google Play Services browser verification (same as Brave/Firefox). SDK apps can use APP mode + Digital Asset Links for specific domains. |
 
 Surface rendering uses `ContentViewRenderView` — the same Chromium
 component as Chrome Android. No additional overhead vs Chrome.
