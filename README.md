@@ -341,17 +341,14 @@ component as Chrome Android. No additional overhead vs Chrome.
 
 ## About
 
-Cefrium is in early validation. The project is maintained by the
-[CEF packager in Debian](https://packages.debian.org/sid/chromium-embedded-framework),
-who maintains CEF across six architectures (i386, amd64, arm64, armhf,
-loong64, ppc64el) with 2000+ validation builds and 58 upstream patches.
+Cefrium is in early validation.
 
 ### Maturity and risks
 
 **What Cefrium gives you:** A complete Chromium engine under your control,
 with the same CEF API that powers Steam, Spotify, and Discord — now on
-Android. Every commit is tested on real devices (Xiaomi, Tabwee). All
-14 Chromium patches are auditable in `patch/patches/android/`.
+Android. Every commit is tested on real devices. All 14 Chromium patches
+are auditable in `patch/patches/android/`.
 
 **What you should know:**
 - **APK size:** ~150 MB for the SDK AAR (comparable to Chrome itself).
