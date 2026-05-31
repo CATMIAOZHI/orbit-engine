@@ -86,9 +86,17 @@ public class CefriumBrowser {
 
     private static final String TAG = "CefriumBrowser";
 
+    private boolean mClosed;
+
     private boolean checkNative(String method) {
         if (mNativePtr == 0) {
-            android.util.Log.w(TAG, method + " called after close()");
+            if (mClosed) {
+                android.util.Log.e(TAG, method + "(): browser already closed. "
+                        + "Do not call methods after close().");
+            } else {
+                android.util.Log.e(TAG, method + "(): native browser not yet created. "
+                        + "Wait for createWithSurface() callback or constructor to complete.");
+            }
             return false;
         }
         return true;
@@ -99,13 +107,16 @@ public class CefriumBrowser {
      */
     public void setRenderHandler(CefriumRenderHandler handler) {
         mRenderHandler = handler;
-        nativeSetRenderHandler(mNativePtr, this);
+        if (checkNative("setRenderHandler")) {
+            nativeSetRenderHandler(mNativePtr, this);
+        }
     }
 
     /**
      * Navigate to a URL.
      */
     public void loadUrl(String url) {
+        if (!checkNative("loadUrl")) return;
         nativeLoadUrl(mNativePtr, url);
         // In Surface mode, connect WebContents after first load.
         if (mSurfaceContainer != null && !mWebContentsConnected) {
@@ -351,6 +362,7 @@ public class CefriumBrowser {
      * Close this browser and release native resources.
      */
     public void close() {
+        mClosed = true;
         if (mNativePtr != 0) {
             nativeClose(mNativePtr);
             mNativePtr = 0;
@@ -560,6 +572,13 @@ public class CefriumBrowser {
                     new java.lang.ref.WeakReference<>(mActivity),
                     cv, wc, "Cefrium");
             cv.setImportantForAutofill(android.view.View.IMPORTANT_FOR_AUTOFILL_YES);
+
+            // Set WebAuthn mode per-WebContents to CHROME_3PP_ENABLED.
+            // This enables CredMan-only path (no Play Services Fido2 privileged
+            // API). Security checks pass with this mode (unlike BROWSER mode).
+            org.chromium.components.webauthn.WebauthnModeProvider.getInstance()
+                    .setWebauthnModeForWebContents(wc,
+                            org.chromium.components.webauthn.WebauthnMode.CHROME_3PP_ENABLED);
         } catch (Throwable e) {
             // Autofill not available — non-critical.
         }
