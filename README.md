@@ -223,6 +223,49 @@ In the EU, software "as such" is excluded from patentability
 See [cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) for
 complete working examples.
 
+### APK size optimization
+
+The SDK AAR is ~146 MB (compressed). The final APK size depends on your
+app's configuration. To minimize APK size:
+
+```groovy
+// app/build.gradle
+android {
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                          'proguard-rules.pro'
+        }
+    }
+
+    // Ship only the architecture your users need
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a'  // or 'x86_64' for emulator-only
+            universalApk false
+        }
+    }
+}
+```
+
+R8/ProGuard automatically strips unused Java classes from the final APK.
+Cefrium's `proguard.txt` includes the necessary keep rules for Chromium's
+JNI and reflection usage.
+
+| Configuration | Approximate APK size |
+|--------------|---------------------|
+| Debug (single arch) | ~250 MB |
+| Release + R8 (single arch) | ~150 MB |
+| Release + R8 + ABI split | ~150 MB per arch |
+| AAB (Play Store) | ~100 MB download |
+
+For smallest download size, use Android App Bundle (AAB) format which
+delivers only the needed architecture to each device.
+
 ## Project structure
 
 ```
