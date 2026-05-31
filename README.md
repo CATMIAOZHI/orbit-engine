@@ -50,6 +50,7 @@ that gap.
 | 23 instrumented tests | Done |
 | Android Accessibility (TalkBack) | Done |
 | Android Autofill (Proton Pass, Google) | Done |
+| Widevine DRM (Netflix, Disney+, Spotify) | Done |
 
 ## Why Cefrium, not WebView?
 
@@ -270,7 +271,7 @@ some Android platform features:
 |---------|--------|
 | Android Accessibility (TalkBack) | Done |
 | Autofill framework (password managers) | Done |
-| Widevine DRM (Netflix, etc.) | Not implemented |
+| Widevine DRM (Netflix, Disney+, Spotify) | Done |
 | WebAuthn / Passkeys | Not implemented |
 
 Surface rendering uses `ContentViewRenderView` — the same Chromium
