@@ -2,3 +2,5 @@ out/
 # Gradle plugin build artifacts
 cefrium_sdk/gradle-plugin/.gradle/
 cefrium_sdk/gradle-plugin/build/
+__pycache__/
+*.pyc
