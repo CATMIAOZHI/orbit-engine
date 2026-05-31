@@ -1,0 +1,21 @@
+diff --git a/components/webauthn/android/java/src/org/chromium/components/webauthn/WebauthnModeProvider.java b/components/webauthn/android/java/src/org/chromium/components/webauthn/WebauthnModeProvider.java
+--- a/components/webauthn/android/java/src/org/chromium/components/webauthn/WebauthnModeProvider.java
++++ b/components/webauthn/android/java/src/org/chromium/components/webauthn/WebauthnModeProvider.java
+@@ -65,8 +65,15 @@
+     }
+ 
+     public @WebauthnMode int getWebauthnMode(@Nullable WebContents webContents) {
+-        if (mGlobalMode != WebauthnMode.NONE) return mGlobalMode;
+-        return WebauthnModeProviderJni.get().getWebauthnModeForWebContents(webContents);
++        // Check per-WebContents mode first — embedders (CEF) use this to
++        // override ChromeAuthenticatorFactory's global CHROME mode.
++        if (webContents != null) {
++            @WebauthnMode int wcMode =
++                    WebauthnModeProviderJni.get().getWebauthnModeForWebContents(webContents);
++            if (wcMode != WebauthnMode.NONE) return wcMode;
++        }
++        if (mGlobalMode != WebauthnMode.NONE) return mGlobalMode;
++        return WebauthnMode.NONE;
+     }
+ 
+     public @WebauthnMode int getGlobalWebauthnMode() {
