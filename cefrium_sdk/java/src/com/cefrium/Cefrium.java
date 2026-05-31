@@ -83,9 +83,10 @@ public final class Cefrium {
         }
         CommandLine.getInstance().appendSwitch("in-process-gpu");
         CommandLine.getInstance().appendSwitch("no-sandbox");
-        // Force software video decoding — hardware MediaCodec outputs to a
-        // GPU texture that doesn't reach the off-screen rendering buffer.
-        CommandLine.getInstance().appendSwitch("disable-accelerated-video-decode");
+        // NOTE: Do NOT add --disable-accelerated-video-decode here.
+        // Hardware video decoding (MediaCodec) is required for DRM/Widevine
+        // content. It works in Surface mode (ContentViewRenderView).
+        // Only OSR (off-screen) mode needs software decode.
 
         // Set device scale factor from screen density so pages render
         // with correct mobile viewport (e.g., 1080px at 2.75x = ~393 CSS px).
