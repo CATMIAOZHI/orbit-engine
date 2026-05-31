@@ -5,18 +5,38 @@
 package com.cefrium;
 
 /**
- * A browser instance that renders web content off-screen.
- * Frames are delivered via {@link CefriumRenderHandler#onPaint}.
+ * A browser instance backed by Chromium via CEF (Chromium Embedded Framework).
+ *
+ * <p>Two rendering modes are available:</p>
+ * <ul>
+ *   <li><b>Off-screen (OSR)</b> — frames delivered as BGRA pixel buffers
+ *       via {@link CefriumRenderHandler#onPaint}. Use for headless rendering,
+ *       screenshots, or custom compositing. Create with {@link #CefriumBrowser(int, int, float)}.</li>
+ *   <li><b>Surface</b> — hardware-accelerated rendering to an Android Surface
+ *       via ContentViewRenderView. Supports video, audio, touch, DRM.
+ *       Create with {@link #createWithSurface(android.app.Activity)}.</li>
+ * </ul>
+ *
+ * <p><b>Lifecycle:</b> Call {@link #onPause()} / {@link #onResume()} from your
+ * Activity lifecycle. Call {@link #close()} when done — this releases native
+ * resources. Do not call any method after {@link #close()}.</p>
+ *
+ * <p><b>Threading:</b> All methods must be called on the UI thread.</p>
  *
  * <pre>
- * CefriumBrowser browser = new CefriumBrowser();
- * browser.setRenderHandler(new CefriumRenderHandler() {
- *     public void onPaint(int width, int height, java.nio.ByteBuffer pixels) {
- *         // BGRA pixel buffer, width * height * 4 bytes
- *     }
- * });
+ * // Surface mode (recommended for most apps)
+ * CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+ * layout.addView(browser.getSurfaceContainer());
+ * browser.loadUrl("https://example.com");
+ *
+ * // OSR mode (headless / screenshots)
+ * CefriumBrowser browser = new CefriumBrowser(1080, 1920, 2.75f);
+ * browser.setRenderHandler((w, h, pixels) -&gt; { });
  * browser.loadUrl("https://example.com");
  * </pre>
+ *
+ * @see Cefrium#initialize(android.content.Context)
+ * @see CefriumRenderHandler
  */
 public class CefriumBrowser {
     private long mNativePtr;  // Pointer to native CefBrowser
@@ -103,7 +123,12 @@ public class CefriumBrowser {
     }
 
     /**
-     * Set the render handler to receive painted frames.
+     * Set the render handler to receive painted frames (OSR mode only).
+     * Each frame is a BGRA pixel buffer with dimensions matching the
+     * viewport size set in the constructor.
+     *
+     * @param handler The handler to receive OnPaint callbacks, or null to stop.
+     * @see CefriumRenderHandler#onPaint(int, int, java.nio.ByteBuffer)
      */
     public void setRenderHandler(CefriumRenderHandler handler) {
         mRenderHandler = handler;
@@ -113,7 +138,11 @@ public class CefriumBrowser {
     }
 
     /**
-     * Navigate to a URL.
+     * Navigate to a URL. Supports http://, https://, file://, and data: URLs.
+     * If the scheme is omitted, https:// is NOT added automatically — pass
+     * the full URL.
+     *
+     * @param url The URL to load.
      */
     public void loadUrl(String url) {
         if (!checkNative("loadUrl")) return;
@@ -126,14 +155,14 @@ public class CefriumBrowser {
     }
 
     /**
-     * Navigate back in history.
+     * Navigate back in history. No-op if {@link #canGoBack()} is false.
      */
     public void goBack() {
         if (checkNative("goBack")) nativeGoBack(mNativePtr);
     }
 
     /**
-     * Navigate forward in history.
+     * Navigate forward in history. No-op if there is no forward history.
      */
     public void goForward() {
         if (checkNative("goForward")) nativeGoForward(mNativePtr);
@@ -313,7 +342,7 @@ public class CefriumBrowser {
     }
 
     /**
-     * Reload the current page.
+     * Reload the current page. Uses CefBrowserHost::Reload (ignores cache).
      */
     public void reload() {
         if (checkNative("reload")) nativeReload(mNativePtr);
@@ -359,7 +388,9 @@ public class CefriumBrowser {
     }
 
     /**
-     * Close this browser and release native resources.
+     * Close this browser and release all native resources.
+     * After calling this method, no other methods may be called on this instance.
+     * For Surface mode, also removes the rendering views.
      */
     public void close() {
         mClosed = true;
@@ -410,7 +441,10 @@ public class CefriumBrowser {
     }
 
     /**
-     * Get the number of blocked ad/tracking requests.
+     * Get the number of blocked ad/tracking requests since the browser was created.
+     * Cefrium includes a built-in network-level ad blocker using EasyList rules.
+     *
+     * @return Number of blocked requests, or 0 if the browser is closed.
      */
     public int getBlockedCount() {
         if (mNativePtr != 0) {
