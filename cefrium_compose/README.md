@@ -42,5 +42,7 @@ dependencies {
 
 ## About
 
-Developed with significant AI/LLM assistance.
-Published as open source for the community to evaluate, use, and extend.
+Cefrium's architecture, design constraints, and product direction are
+Juan Manuel Méndez Rey's; implementation is AI-assisted and validated
+against device behavior. Published as open source for the community to
+use and extend.
