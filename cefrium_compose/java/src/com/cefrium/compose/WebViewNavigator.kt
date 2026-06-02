@@ -3,25 +3,23 @@ package com.cefrium.compose
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
-import com.cefrium.CefriumBrowser
 
 /**
  * External navigation control for a [WebView], created with
- * [rememberWebViewNavigator] and passed to the composable.
+ * [rememberWebViewNavigator] and passed to the composable. It operates on the
+ * [CefriumBrowser] owned by the bound [WebViewState].
  *
- * Tier A surface: load / back / forward / reload, backed directly by
- * [CefriumBrowser]. `loadHtml`, `postUrl`, `stopLoading` and
- * `evaluateJavaScript` are deferred to Tier B (require native/JNI additions);
- * see FEATURE-022.
+ * Tier A surface: load / back / forward / reload. `loadHtml`, `postUrl`,
+ * `stopLoading` and `evaluateJavaScript` are deferred to Tier B (need
+ * native/JNI additions); see FEATURE-022.
  */
 @Stable
 class WebViewNavigator {
 
-    // Wired by WebView() while the browser is alive; cleared on dispose.
-    internal var browser: CefriumBrowser? = null
+    // Bound by WebView() to the active state.
     internal var state: WebViewState? = null
 
-    /** Whether the browser can navigate back. Mirrors [WebViewState.canGoBack]. */
+    /** Whether the browser can navigate back. */
     val canGoBack: Boolean
         get() = state?.canGoBack ?: false
 
@@ -31,22 +29,22 @@ class WebViewNavigator {
 
     /** Navigates to [url]. No-op before the browser is ready. */
     fun loadUrl(url: String) {
-        browser?.loadUrl(url)
+        state?.browser?.loadUrl(url)
     }
 
     /** Reloads the current page. */
     fun reload() {
-        browser?.reload()
+        state?.browser?.reload()
     }
 
     /** Navigates back if [canGoBack]. */
     fun navigateBack() {
-        browser?.goBack()
+        state?.browser?.goBack()
     }
 
     /** Navigates forward if [canGoForward]. */
     fun navigateForward() {
-        browser?.goForward()
+        state?.browser?.goForward()
     }
 }
 
