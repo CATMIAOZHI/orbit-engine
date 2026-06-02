@@ -242,6 +242,15 @@ In the EU, software "as such" is excluded from patentability
 See [cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) for
 complete working examples.
 
+### Publishing (maintainers)
+
+Releases are pushed to the Codeberg Maven registry with
+`cef/cefrium_sdk/publish-maven.sh <version>` (token at `~/.registry-token`,
+package scope). It uploads the SDK variants, `cefrium-compose`, and the Gradle
+plugin. Versions are immutable — bump the version to publish changes; existing
+artifacts return 409 and are skipped. Full steps in
+[BUILD-GUIDE.md](BUILD-GUIDE.md) §7.
+
 ### APK size optimization
 
 The SDK AAR is ~146 MB (compressed). The final APK size depends on your

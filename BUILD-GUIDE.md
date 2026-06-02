@@ -125,13 +125,39 @@ cd cefrium-sample/cefrium-browser
 
 ## 7. Publish to Codeberg Packages
 
-```bash
-# Set up token: Codeberg → Settings → Applications → Generate Token (package scope)
-echo "your-token" > ~/.registry-token
+Artifacts are published to the Codeberg Maven registry
+(`https://codeberg.org/api/packages/cefrium/maven`) by
+`cef/cefrium_sdk/publish-maven.sh <version>`.
 
-cd chromium/src
+**Prerequisites — build the artifacts the script uploads:**
+
+1. **SDK variant AARs** in `out/release/` (named `cefrium-sdk-*.aar`),
+   produced by `cef/cefrium_sdk/build-all-variants.sh`.
+2. **Compose AAR** — build the self-contained module:
+   ```bash
+   cd chromium/src/cef/cefrium_compose
+   cp ../../out/Official_android_arm64/cefrium-sdk.aar libs/   # compileOnly
+   ./gradlew assembleRelease --no-daemon
+   # → build/outputs/aar/cefrium-compose-release.aar
+   ```
+3. **Gradle Plugin JAR** — `cef/cefrium_sdk/gradle-plugin/build/libs/gradle-plugin.jar`
+   (build the gradle-plugin module).
+
+**Token:** Codeberg → Settings → Applications → Generate Token (package scope),
+then `echo "your-token" > ~/.registry-token`. The script reads it from that file.
+
+**Publish:**
+
+```bash
 cef/cefrium_sdk/publish-maven.sh 0.1.0
 ```
+
+The script uploads each `cefrium-sdk-*` variant, `cefrium-compose`,
+`cefrium-gradle-plugin`, and the plugin marker POM (each with a generated POM).
+
+**Versions are immutable.** The registry returns `409 Conflict` for an artifact
+that already exists, and the script skips it. To publish changed content you
+**must bump the version** — never expect an existing version to be overwritten.
 
 ## Build times (reference: Ryzen 9 7900X, 64 GB DDR5, NVMe)
 
