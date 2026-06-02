@@ -10,20 +10,20 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.cefrium.CefriumBrowser
 
 /**
- * Idiomatic Compose WebView backed by a full Chromium engine (Cefrium).
+ * Idiomatic Compose view backed by a full Chromium engine (Cefrium).
  *
- * State-hoisting API: observe through [WebViewState], drive navigation through
- * [WebViewNavigator]. The browser's lifecycle belongs to [state], not to this
- * composable — so detaching this WebView (e.g. switching tabs) does NOT close
- * the browser; the page stays alive. Release it via [WebViewState.close]
- * (automatic for [rememberWebViewState]).
+ * State-hoisting API: observe through [CefriumViewState], drive navigation
+ * through [CefriumNavigator]. The browser's lifecycle belongs to [state], not
+ * to this composable — so detaching this view (e.g. switching tabs) does NOT
+ * close the browser; the page stays alive. Release it via
+ * [CefriumViewState.close] (automatic for [rememberCefriumViewState]).
  *
  * For the lower-level callback-based API see [CefriumWebView].
  *
  * ```kotlin
- * val state = rememberWebViewState("https://example.com")
- * val navigator = rememberWebViewNavigator()
- * WebView(state, Modifier.fillMaxSize(), navigator)
+ * val state = rememberCefriumViewState("https://example.com")
+ * val navigator = rememberCefriumNavigator()
+ * CefriumView(state, Modifier.fillMaxSize(), navigator)
  * ```
  *
  * @param state Hoisted state holder that owns the browser.
@@ -33,10 +33,10 @@ import com.cefrium.CefriumBrowser
  *        features not yet on the navigator (find in page, downloads, dark mode).
  */
 @Composable
-fun WebView(
-    state: WebViewState,
+fun CefriumView(
+    state: CefriumViewState,
     modifier: Modifier = Modifier,
-    navigator: WebViewNavigator = rememberWebViewNavigator(),
+    navigator: CefriumNavigator = rememberCefriumNavigator(),
     onBrowserReady: ((CefriumBrowser) -> Unit)? = null,
 ) {
     val activity = LocalContext.current as Activity
@@ -52,7 +52,7 @@ fun WebView(
         factory = {
             browser.surfaceContainer.apply {
                 // The surface view may still be attached to a previously
-                // detached WebView (tab switch). Detach before re-adding.
+                // detached CefriumView (tab switch). Detach before re-adding.
                 (parent as? ViewGroup)?.removeView(this)
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -63,5 +63,5 @@ fun WebView(
         modifier = modifier,
     )
 
-    // No DisposableEffect closing the browser: lifecycle belongs to WebViewState.
+    // No DisposableEffect closing the browser: lifecycle belongs to CefriumViewState.
 }
