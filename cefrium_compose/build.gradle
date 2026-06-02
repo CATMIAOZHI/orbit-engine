@@ -1,0 +1,59 @@
+// Self-contained Gradle module that builds cefrium-compose.aar from the
+// canonical source in java/src. This is a production SDK component and lives in
+// the SDK repo (cef-android), not in the samples repo. The samples only consume
+// the published AAR.
+plugins {
+    id 'com.android.library' version '8.7.3'
+    id 'org.jetbrains.kotlin.android' version '1.9.24'
+}
+
+android {
+    namespace 'com.cefrium.compose'
+    compileSdk 35
+
+    defaultConfig {
+        minSdk 29
+        targetSdk 34
+
+        consumerProguardFiles 'proguard-rules.pro'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = '11'
+    }
+
+    buildFeatures {
+        compose true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.14'
+    }
+
+    sourceSets {
+        // Canonical source lives in java/src (not the Gradle default).
+        main.java.srcDirs = ['java/src']
+    }
+}
+
+dependencies {
+    // Cefrium SDK — compileOnly so it's not bundled in the compose AAR.
+    // Copy the freshly built cefrium-sdk.aar into libs/ before building
+    // (the consumer app provides it at runtime). libs/ is gitignored.
+    compileOnly files('libs/cefrium-sdk.aar')
+
+    // Compose
+    implementation platform('androidx.compose:compose-bom:2024.06.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.runtime:runtime'
+
+    configurations.all {
+        exclude group: 'com.google.guava', module: 'listenablefuture'
+        exclude group: 'org.jspecify'
+    }
+}
