@@ -349,6 +349,20 @@ public class CefriumBrowser {
     }
 
     /**
+     * Execute JavaScript in the browser's main frame (fire-and-forget).
+     * Uses CefFrame::ExecuteJavaScript. The script's return value is not
+     * delivered back to the caller; a result-returning JS bridge is a
+     * separate feature built on CefMessageRouter.
+     *
+     * @param script JavaScript source to execute. Ignored if null.
+     */
+    public void evaluateJavaScript(String script) {
+        if (script != null && checkNative("evaluateJavaScript")) {
+            nativeEvaluateJavaScript(mNativePtr, script);
+        }
+    }
+
+    /**
      * @return true if the browser can navigate back.
      */
     public boolean canGoBack() {
@@ -734,6 +748,7 @@ public class CefriumBrowser {
     private static native void nativeGoBack(long nativePtr);
     private static native void nativeGoForward(long nativePtr);
     private static native void nativeReload(long nativePtr);
+    private static native void nativeEvaluateJavaScript(long nativePtr, String script);
     private static native boolean nativeCanGoBack(long nativePtr);
     private static native void nativeSetDisplayCallback(long nativePtr, CefriumBrowser browser);
     private static native void nativeClose(long nativePtr);
