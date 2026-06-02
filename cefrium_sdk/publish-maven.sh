@@ -13,8 +13,11 @@ set -e
 
 VERSION="${1:?Usage: $0 <version>}"
 TOKEN_FILE="$HOME/.registry-token"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RELEASE_DIR="$(cd "$(dirname "$0")/../../../out/release" && pwd)"
-COMPOSE_AAR="$(cd "$(dirname "$0")/../../.." && pwd)/../cefrium-sample/cefrium-compose/lib/build/outputs/aar/lib-release.aar"
+# Compose AAR is built by the self-contained module at cef/cefrium_compose
+# (relocated out of cefrium-sample; see CLAUDE.md).
+COMPOSE_AAR="$(cd "$(dirname "$0")/.." && pwd)/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar"
 BASE_URL="https://codeberg.org/api/packages/cefrium/maven"
 
 if [ ! -f "$TOKEN_FILE" ]; then
