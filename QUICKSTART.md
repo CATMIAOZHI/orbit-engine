@@ -106,6 +106,19 @@ public class MyApp extends Application {
 }
 ```
 
+> **Do not simplify this boilerplate — each line prevents a hard crash:**
+> - Pass `this`, **not** `getApplicationContext()`, to
+>   `initApplicationContext()`. `getApplicationContext()` is `null` inside
+>   `attachBaseContext()` → `AssertionError` (`appContext != null`).
+> - `setLibraryProcessType(...)` must be called for the **browser** process too
+>   (`PROCESS_BROWSER`), not only child processes. Skipping it → `AssertionError`
+>   in `LibraryLoader` (`PROCESS_UNINITIALIZED`) when `Cefrium.initialize` loads
+>   the native library.
+> - All of the above must run in `attachBaseContext()` (before `onCreate()`),
+>   and `Cefrium.initialize()` only in the browser process.
+>
+> Kotlin is identical (see `compose-browser` / `cefrium-browser` samples).
+
 ## 4. Configure AndroidManifest.xml
 
 ```xml
