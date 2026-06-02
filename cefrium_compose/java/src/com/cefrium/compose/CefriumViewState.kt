@@ -11,19 +11,19 @@ import androidx.compose.runtime.setValue
 import com.cefrium.CefriumBrowser
 
 /**
- * Hoisted state for [WebView], created with [rememberWebViewState].
+ * Hoisted state for [CefriumView], created with [rememberCefriumViewState].
  *
- * The underlying [CefriumBrowser] is owned by this state, NOT by the [WebView]
- * composable. That lets the browser survive the composable being detached —
- * e.g. when switching browser tabs the inactive tab keeps its page alive
- * instead of reloading. The browser is released by [close]:
- *  - automatically when a state created via [rememberWebViewState] leaves
+ * The underlying [CefriumBrowser] is owned by this state, NOT by the
+ * [CefriumView] composable. That lets the browser survive the composable being
+ * detached — e.g. when switching browser tabs the inactive tab keeps its page
+ * alive instead of reloading. The browser is released by [close]:
+ *  - automatically when a state created via [rememberCefriumViewState] leaves
  *    composition (via [RememberObserver]);
  *  - explicitly by the caller for states constructed directly (e.g. one per
  *    tab, closed when the tab closes).
  */
 @Stable
-class WebViewState(val initialUrl: String) : RememberObserver {
+class CefriumViewState(val initialUrl: String) : RememberObserver {
 
     var lastLoadedUrl: String? by mutableStateOf(null)
         internal set
@@ -77,17 +77,18 @@ class WebViewState(val initialUrl: String) : RememberObserver {
         browser = null
     }
 
-    // RememberObserver — auto-close for states made via rememberWebViewState.
+    // RememberObserver — auto-close for states made via rememberCefriumViewState.
     override fun onRemembered() {}
     override fun onForgotten() = close()
     override fun onAbandoned() = close()
 }
 
 /**
- * Remembers a [WebViewState] for [url]. The browser is released automatically
- * when this leaves composition. For caller-managed lifecycles (e.g. a browser
- * with tabs), construct [WebViewState] directly and call [WebViewState.close].
+ * Remembers a [CefriumViewState] for [url]. The browser is released
+ * automatically when this leaves composition. For caller-managed lifecycles
+ * (e.g. a browser with tabs), construct [CefriumViewState] directly and call
+ * [CefriumViewState.close].
  */
 @Composable
-fun rememberWebViewState(url: String): WebViewState =
-    remember(url) { WebViewState(url) }
+fun rememberCefriumViewState(url: String): CefriumViewState =
+    remember(url) { CefriumViewState(url) }
