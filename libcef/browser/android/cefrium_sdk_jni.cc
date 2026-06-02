@@ -1027,6 +1027,19 @@ Java_com_cefrium_CefriumBrowser_nativeReload(
   if (data && data->browser) data->browser->Reload();
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeEvaluateJavaScript(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jstring script_jstr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return;
+  CefRefPtr<CefFrame> frame = data->browser->GetMainFrame();
+  if (!frame) return;
+  const char* script = env->GetStringUTFChars(script_jstr, nullptr);
+  // Fire-and-forget execution in the main frame; no return value.
+  frame->ExecuteJavaScript(CefString(script), frame->GetURL(), 0);
+  env->ReleaseStringUTFChars(script_jstr, script);
+}
+
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_cefrium_CefriumBrowser_nativeCanGoBack(
     JNIEnv* env, jclass clazz, jlong native_ptr) {
