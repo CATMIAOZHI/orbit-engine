@@ -7,14 +7,14 @@ its own `cefrium-compose.aar`. The samples repo only consumes that AAR.
 
 ## Usage
 
-Idiomatic state-hoisting API (observe via `WebViewState`, navigate via
-`WebViewNavigator`):
+Idiomatic state-hoisting API (observe via `CefriumViewState`, navigate via
+`CefriumNavigator`):
 
 ```kotlin
-val state = rememberWebViewState("https://example.com")
-val navigator = rememberWebViewNavigator()
+val state = rememberCefriumViewState("https://example.com")
+val navigator = rememberCefriumNavigator()
 
-WebView(state = state, modifier = Modifier.fillMaxSize(), navigator = navigator)
+CefriumView(state = state, modifier = Modifier.fillMaxSize(), navigator = navigator)
 
 if (state.isLoading) LinearProgressIndicator()
 Text(state.pageTitle ?: "")
