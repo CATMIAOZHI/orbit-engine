@@ -31,10 +31,14 @@ stays off — a secure default):
 ```kotlin
 CefriumView(
     state = state,
-    onQuery = { request, callback ->
-        // request is whatever the page sent; respond sync or async.
-        callback.success("native says: $request")   // or callback.failure(code, msg)
-        true                                          // handled
+    onQuery = { request, origin, callback ->
+        // origin = URL of the frame that called — gate untrusted pages/iframes.
+        if (origin.startsWith("https://myapp.example/")) {
+            callback.success("native says: $request")  // or callback.failure(code, msg)
+            true                                         // handled
+        } else {
+            false                                        // reject untrusted origin
+        }
     },
 )
 ```
