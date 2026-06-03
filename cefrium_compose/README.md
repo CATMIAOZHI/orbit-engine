@@ -19,6 +19,32 @@ CefriumView(state = state, modifier = Modifier.fillMaxSize(), navigator = naviga
 if (state.isLoading) LinearProgressIndicator()
 Text(state.pageTitle ?: "")
 // navigator.navigateBack(), navigator.reload(), navigator.loadUrl(...)
+// navigator.evaluateJavaScript("document.body.style.background='black'")
+```
+
+### JavaScript ↔ native bridge
+
+Page JavaScript can call native code through `window.cefriumQuery` and receive
+an async response. Opt in per view by passing `onQuery` (omit it and the bridge
+stays off — a secure default):
+
+```kotlin
+CefriumView(
+    state = state,
+    onQuery = { request, callback ->
+        // request is whatever the page sent; respond sync or async.
+        callback.success("native says: $request")   // or callback.failure(code, msg)
+        true                                          // handled
+    },
+)
+```
+```js
+// In the page:
+window.cefriumQuery({
+    request: "give me data",
+    onSuccess: function (response) { console.log(response); },
+    onFailure: function (code, message) { /* ... */ },
+});
 ```
 
 Lower-level callback-based API (`CefriumWebView`) is also available for direct
@@ -37,6 +63,10 @@ CefriumWebView(
 ## Features
 
 All Cefrium SDK features available through Compose:
+- Idiomatic state hoisting (`CefriumViewState`) + navigation (`CefriumNavigator`)
+- Tab keep-alive (each `CefriumViewState` owns its browser; no reload on switch)
+- `evaluateJavaScript` (fire-and-forget JS execution)
+- JavaScript ↔ native bridge (`window.cefriumQuery` / `onQuery`, sync + async)
 - Video + audio playback
 - Ad blocking (EasyList)
 - URL/title change callbacks, loading state
