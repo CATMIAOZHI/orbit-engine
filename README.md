@@ -301,13 +301,32 @@ delivers only the needed architecture to each device.
 
 ```
 cef/
-├── libcef/browser/android/     # Android browser implementation
-├── cefrium_sdk/                # AAR packaging (BUILD.gn, slim_aar.py)
-│   ├── gradle-plugin/          # Gradle Plugin for R class generation
-│   └── java/src/com/cefrium/   # Java API
-├── tests/cef_android_test/     # Test APK
-└── patch/patches/android/      # 11 Android-specific Chromium patches
+├── libcef/browser/android/        # Android browser implementation
+├── cefrium_sdk/                   # AAR packaging (BUILD.gn, slim_aar.py)
+│   ├── gradle-plugin/             # Gradle Plugin for R class generation
+│   └── java/src/com/cefrium/      # Java API
+├── cefrium_compose/               # Jetpack Compose wrapper (cefrium-compose.aar)
+├── cefrium_instrumentation_test/  # On-device instrumented test harness (SDK + Compose)
+├── tests/cef_android_test/        # Test APK
+└── patch/patches/android/         # 11 Android-specific Chromium patches
 ```
+
+## Testing
+
+`cefrium_instrumentation_test/` is the authoritative on-device test harness for
+the SDK — a self-contained Gradle module (consumes the built AARs) so a clone of
+this repo is self-verifying, independent of the samples repo. It covers the Java
+SDK (core, hardening, the `window.cefriumQuery` JS bridge) and the Compose API
+(`CefriumView` tab keep-alive, `CefriumNavigator` evaluateJavaScript → `onQuery`).
+
+```bash
+cd cefrium_instrumentation_test
+cp ../../out/<dir>/cefrium-sdk.aar app/libs/cefrium-sdk.aar
+cp ../cefrium_compose/build/outputs/aar/cefrium-compose-release.aar app/libs/cefrium-compose.aar
+./gradlew connectedDebugAndroidTest --no-daemon
+```
+
+See `cefrium_instrumentation_test/README.md` for details.
 
 ## Relationship to upstream CEF
 
