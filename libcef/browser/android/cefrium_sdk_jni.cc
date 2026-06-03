@@ -22,7 +22,10 @@
 #include "cef/include/cef_life_span_handler.h"
 #include "cef/include/cef_load_handler.h"
 #include "cef/include/cef_render_handler.h"
+#include <map>
+
 #include "cef/include/cef_request_handler.h"
+#include "cef/include/cef_task.h"
 #include "cef/include/wrapper/cef_message_router.h"
 #include "cef/include/cef_resource_request_handler.h"
 
@@ -588,21 +591,94 @@ class SdkRequestHandler : public CefRequestHandler {
   CefRefPtr<CefMessageRouterBrowserSide> message_router_;
 };
 
-// FEATURE-023 step 3: browser-side handler for window.cefriumQuery. For now it
-// echoes the request back, proving the full JS->renderer->browser->JS round
-// trip. Step 4 replaces this with forwarding to the Java QueryHandler (the
-// Callback is held and resolved asynchronously via JNI).
+// FEATURE-023 step 4: browser-side handler for window.cefriumQuery. Forwards
+// each query to the Java CefriumBrowser (onJsQuery); Java dispatches to the
+// app's QueryHandler and resolves via nativeQueryResult -> ResolveQuery.
+//
+// Step 4 supports SYNCHRONOUS responses (the Java handler calls the callback
+// within onQuery, on the browser UI thread). Asynchronous responses (off the UI
+// thread) are step 4b and require UI-thread posting + a ref-counted handler for
+// lifetime safety; ResolveQuery rejects off-thread calls until then.
 class CefriumBridgeHandler : public CefMessageRouterBrowserSide::Handler {
  public:
+  ~CefriumBridgeHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) {
+        env->DeleteGlobalRef(java_browser_);
+      }
+    }
+  }
+
+  void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
+    if (java_browser_) {
+      env->DeleteGlobalRef(java_browser_);
+    }
+    java_browser_ = java_browser ? env->NewGlobalRef(java_browser) : nullptr;
+  }
+
   bool OnQuery(CefRefPtr<CefBrowser> browser,
                CefRefPtr<CefFrame> frame,
                int64_t query_id,
                const CefString& request,
                bool persistent,
                CefRefPtr<Callback> callback) override {
-    callback->Success("cefrium-echo:" + request.ToString());
+    if (!java_browser_) {
+      return false;  // No handler registered -> JS onFailure(-1).
+    }
+    pending_[query_id] = callback;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) {
+      pending_.erase(query_id);
+      return false;
+    }
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method =
+        env->GetMethodID(cls, "onJsQuery", "(JLjava/lang/String;)V");
+    if (method) {
+      jstring j_req = env->NewStringUTF(request.ToString().c_str());
+      env->CallVoidMethod(java_browser_, method, static_cast<jlong>(query_id),
+                          j_req);
+      env->DeleteLocalRef(j_req);
+    }
+    env->DeleteLocalRef(cls);
     return true;
   }
+
+  void OnQueryCanceled(CefRefPtr<CefBrowser> browser,
+                       CefRefPtr<CefFrame> frame,
+                       int64_t query_id) override {
+    pending_.erase(query_id);
+  }
+
+  // Called from JNI when Java resolves a query. Step 4: UI thread only.
+  void ResolveQuery(int64_t query_id,
+                    bool success,
+                    const CefString& response,
+                    int error_code,
+                    const CefString& error_message) {
+    if (!CefCurrentlyOn(TID_UI)) {
+      // Async (off-thread) resolution is step 4b. Drop safely rather than
+      // race the pending map / call the callback off the UI thread.
+      LOGI("cefriumQuery: off-UI-thread resolution dropped (async = step 4b)");
+      return;
+    }
+    auto it = pending_.find(query_id);
+    if (it == pending_.end()) {
+      return;
+    }
+    CefRefPtr<Callback> callback = it->second;
+    pending_.erase(it);
+    if (success) {
+      callback->Success(response);
+    } else {
+      callback->Failure(error_code, error_message);
+    }
+  }
+
+ private:
+  jobject java_browser_ = nullptr;
+  std::map<int64_t, CefRefPtr<Callback>> pending_;
 };
 
 // Minimal client that connects handlers.
@@ -723,6 +799,7 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkLoadHandler> load_handler_ref() { return load_handler_; }
   CefRefPtr<SdkDownloadHandler> download_handler() { return download_handler_; }
   CefRefPtr<SdkFindHandler> find_handler() { return find_handler_; }
+  CefriumBridgeHandler* bridge_handler() { return bridge_handler_.get(); }
 
   IMPLEMENT_REFCOUNTING(SdkClient);
 
@@ -924,6 +1001,10 @@ Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
     data->client->load_handler_ref()->SetJavaBrowser(env, java_browser);
     data->client->find_handler()->SetJavaBrowser(env, java_browser);
     data->client->download_handler()->SetJavaBrowser(env, java_browser);
+    // JS bridge (FEATURE-023): deliver window.cefriumQuery to Java.
+    if (data->client->bridge_handler()) {
+      data->client->bridge_handler()->SetJavaBrowser(env, java_browser);
+    }
     {
       auto* cmh = static_cast<SdkContextMenuHandler*>(
           data->client->GetContextMenuHandler().get());
@@ -1130,6 +1211,32 @@ Java_com_cefrium_CefriumBrowser_nativeEvaluateJavaScript(
   // Fire-and-forget execution in the main frame; no return value.
   frame->ExecuteJavaScript(CefString(script), frame->GetURL(), 0);
   env->ReleaseStringUTFChars(script_jstr, script);
+}
+
+// FEATURE-023: Java resolves a window.cefriumQuery (success or failure).
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeQueryResult(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jlong query_id,
+    jboolean success, jstring response_jstr, jint error_code,
+    jstring error_msg_jstr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->client || !data->client->bridge_handler()) {
+    return;
+  }
+  CefString response;
+  if (response_jstr) {
+    const char* s = env->GetStringUTFChars(response_jstr, nullptr);
+    response = s;
+    env->ReleaseStringUTFChars(response_jstr, s);
+  }
+  CefString error_msg;
+  if (error_msg_jstr) {
+    const char* s = env->GetStringUTFChars(error_msg_jstr, nullptr);
+    error_msg = s;
+    env->ReleaseStringUTFChars(error_msg_jstr, s);
+  }
+  data->client->bridge_handler()->ResolveQuery(
+      query_id, success, response, error_code, error_msg);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
