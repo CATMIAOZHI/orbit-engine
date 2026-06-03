@@ -229,14 +229,56 @@ public class MainActivity extends Activity {
 Build and run on an arm64 device (most modern Android phones).
 You should see `example.com` rendered with full Chromium 148.
 
+## Jetpack Compose
+
+Add `com.cefrium:cefrium-compose` and use the idiomatic state-hoisting API:
+
+```kotlin
+val state = rememberCefriumViewState("https://example.com")
+val navigator = rememberCefriumNavigator()
+
+CefriumView(state = state, modifier = Modifier.fillMaxSize(), navigator = navigator)
+
+if (state.isLoading) LinearProgressIndicator()
+Text(state.pageTitle ?: "")
+// navigator.navigateBack() / navigateForward() / reload() / loadUrl(...)
+// navigator.evaluateJavaScript("document.title = 'hi'")
+```
+
+Each `CefriumViewState` owns its browser, so tabs stay alive when inactive
+(no reload on switch). The lower-level `CefriumWebView` (callback-based) is also
+available.
+
+## JavaScript ↔ native bridge
+
+Page JavaScript can call your native code via `window.cefriumQuery` and get an
+async response. Register a handler (Compose: `onQuery` on `CefriumView`; raw:
+`browser.setQueryHandler(...)`). The bridge is off until you provide a handler.
+
+```kotlin
+browser.setQueryHandler { queryId, request, callback ->
+    callback.success("native reply to: $request")   // or callback.failure(code, msg)
+    true                                              // handled
+}
+```
+```js
+window.cefriumQuery({
+    request: "hello",
+    onSuccess: function (r) { console.log(r); },
+    onFailure: function (code, msg) {},
+});
+```
+
 ## Next steps
 
 - Add navigation: `browser.goBack()`, `browser.goForward()`, `browser.reload()`
+- Run JavaScript: `browser.evaluateJavaScript("...")`
+- JS↔native bridge: `browser.setQueryHandler(...)` + `window.cefriumQuery`
 - Find in page: `browser.find("text", true, false, false)`
 - Dark mode: `browser.setDarkMode(true)`
 - Downloads: `browser.setOnDownloadListener(...)`
 - Context menu: `browser.setOnContextMenuListener(...)`
-- Compose: use `CefriumWebView` from `cefrium-compose`
+- Compose: `CefriumView` / `CefriumWebView` from `cefrium-compose`
 - See [cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) for complete examples
 - See [MIGRATION.md](MIGRATION.md) for WebView migration guide
 - See [API docs](https://cefrium.com/docs) for full Javadoc
