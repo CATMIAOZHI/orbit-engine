@@ -1179,7 +1179,9 @@ source_set("libcef_static") {
       "libcef/browser/android/cefrium_sdk_jni.cc",
       # JS<->native bridge (FEATURE-023). The CefMessageRouter wrapper sources
       # are compiled into libcef so the renderer-side router (cefrium_app) and
-      # the browser-side router (SDK CefClient) can use them.
+      # the browser-side router (SDK CefClient) can use them. cef_closure_task
+      # provides CefPostTask/CefCurrentlyOn used by the router.
+      "libcef_dll/wrapper/cef_closure_task.cc",
       "libcef_dll/wrapper/cef_message_router.cc",
       "libcef_dll/wrapper/cef_message_router_utils.cc",
       "libcef_dll/wrapper/cef_message_router_utils.h",
