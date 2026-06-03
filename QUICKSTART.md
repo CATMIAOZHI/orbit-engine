@@ -256,7 +256,8 @@ async response. Register a handler (Compose: `onQuery` on `CefriumView`; raw:
 `browser.setQueryHandler(...)`). The bridge is off until you provide a handler.
 
 ```kotlin
-browser.setQueryHandler { queryId, request, callback ->
+browser.setQueryHandler { queryId, request, origin, callback ->
+    // origin = URL of the calling frame — reject untrusted pages/iframes.
     callback.success("native reply to: $request")   // or callback.failure(code, msg)
     true                                              // handled
 }
