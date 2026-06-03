@@ -372,12 +372,15 @@ public class CefriumBrowser {
      */
     public interface QueryHandler {
         /**
-         * @param queryId Opaque id (also valid for async responses in future).
+         * @param queryId Opaque id (also valid for async responses).
          * @param request The JS-provided request payload.
+         * @param origin URL of the frame that called window.cefriumQuery. Gate
+         *        on this to reject untrusted pages/iframes (security).
          * @param callback Resolve the query via success/failure.
          * @return true if this handler took the query.
          */
-        boolean onQuery(long queryId, String request, QueryCallback callback);
+        boolean onQuery(long queryId, String request, String origin,
+                        QueryCallback callback);
     }
 
     /** Resolves a {@link QueryHandler} query back to JavaScript. */
@@ -394,7 +397,7 @@ public class CefriumBrowser {
     }
 
     // Called from native (browser UI thread) when JS calls window.cefriumQuery.
-    private void onJsQuery(final long queryId, String request) {
+    private void onJsQuery(final long queryId, String request, String origin) {
         final QueryHandler handler = mQueryHandler;
         if (handler == null) {
             nativeQueryResult(mNativePtr, queryId, false, null, -1,
@@ -417,7 +420,7 @@ public class CefriumBrowser {
                 }
             }
         };
-        if (!handler.onQuery(queryId, request, callback)) {
+        if (!handler.onQuery(queryId, request, origin, callback)) {
             nativeQueryResult(mNativePtr, queryId, false, null, -1,
                     "Query not handled");
         }
