@@ -45,6 +45,9 @@ that gap.
 | Unified Callback interface | Done |
 | Lifecycle pause/resume | Done |
 | Jetpack Compose wrapper (CefriumWebView) | Done |
+| Idiomatic Compose API (CefriumView / state hoisting + keep-alive) | Done |
+| evaluateJavaScript (CefFrame::ExecuteJavaScript) | Done |
+| JavaScript ↔ native bridge (window.cefriumQuery, CefMessageRouter) | Done |
 | arm64 validated on real device | Done |
 | Published on Codeberg Packages (Maven) | Done |
 | 23 instrumented tests | Done |
