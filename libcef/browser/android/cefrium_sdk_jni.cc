@@ -711,6 +711,11 @@ Java_com_cefrium_Cefrium_nativeInitialize(
 
   static const char* argv[] = {"cefrium"};
   CefMainArgs main_args(1, const_cast<char**>(argv));
+  // FEATURE-023 Phase 1: the browser-process app is intentionally NOT set here.
+  // Passing a CefApp to CefInitialize crashes this port in
+  // CefRequestContextImpl::ExecuteWhenBrowserContextInitialized (Phase 2 to
+  // resolve). The renderer's CefRenderProcessHandler is driven by the child
+  // process's app registered in cef_jni_onload.cc, independent of this.
   int exit_code = CefExecuteProcess(main_args, nullptr, nullptr);
   if (exit_code >= 0) {
     env->ReleaseStringUTFChars(cache_dir_jstr, cache_dir);

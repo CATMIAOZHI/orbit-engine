@@ -140,6 +140,8 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   // via CommandLine.init() before this is called.
   static const char* argv[] = {"cefrium"};
   CefMainArgs main_args(1, const_cast<char**>(argv));
+  // FEATURE-023 Phase 1: browser-process app deferred to Phase 2 (CefInitialize
+  // with an app crashes this port). Renderer handler comes from cef_jni_onload.
   int exit_code = CefExecuteProcess(main_args, nullptr, nullptr);
   if (exit_code >= 0) {
     LOGE("CefExecuteProcess returned %d", exit_code);
