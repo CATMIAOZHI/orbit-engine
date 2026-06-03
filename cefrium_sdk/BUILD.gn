@@ -72,9 +72,36 @@ generate_jni_registration("cefrium_jni_registration") {
   remove_uncalled_jni = true
 }
 
+# Chromium/CEF runtime resources bundled into the AAR. Without these the
+# embedded engine aborts at startup ("Failed to open pak file" -> SIGTRAP in
+# nativeInitialize). Declaring them as deps of the AAR makes it self-contained
+# and reproducible per architecture: the AAR no longer relies on a prior
+# cefrium_test_apk build having left the .pak files in root_out_dir (which
+# silently produced a broken AAR on a fresh x64 build).
+android_assets("cefrium_assets") {
+  testonly = true
+  sources = [
+    "$root_out_dir/resources.pak",
+    "$root_out_dir/chrome_100_percent.pak",
+    "$root_out_dir/chrome_200_percent.pak",
+  ]
+  renaming_sources = [ "$root_out_dir/locales/en-US.pak" ]
+  renaming_destinations = [ "stored-locales/en-US.pak" ]
+  disable_compression = true
+  deps = [
+    "//cef:cef_pak_android",
+    "//cef:cef_100_percent_pak_android",
+    "//cef:cef_200_percent_pak_android",
+    "//cef:cef_locale_en_us_android",
+    "//gin:v8_snapshot_assets",
+    "//third_party/icu:icu_assets",
+  ]
+}
+
 dist_aar("cefrium_aar") {
   testonly = true
   deps = [
+    ":cefrium_assets",
     ":cefrium_java",
     ":cefrium_jni_registration",
     "//cef:libcef",
