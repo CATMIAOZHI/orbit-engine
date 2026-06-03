@@ -1108,7 +1108,15 @@ source_set("libcef_static") {
       "libcef/browser/android/android_stubs.cc",
       "libcef/browser/android/cef_autofill_client_android.cc",
       "libcef/browser/android/cef_autofill_client_android.h",
+      "libcef/browser/android/cefrium_app.cc",
+      "libcef/browser/android/cefrium_app.h",
       "libcef/browser/android/cefrium_sdk_jni.cc",
+      # JS<->native bridge (FEATURE-023). The CefMessageRouter wrapper sources
+      # are compiled into libcef so the renderer-side router (cefrium_app) and
+      # the browser-side router (SDK CefClient) can use them.
+      "libcef_dll/wrapper/cef_message_router.cc",
+      "libcef_dll/wrapper/cef_message_router_utils.cc",
+      "libcef_dll/wrapper/cef_message_router_utils.h",
       "libcef/browser/android/adblock_filter.cc",
       "libcef/browser/android/adblock_filter.h",
       "libcef/browser/android/browser_surface_android.cc",

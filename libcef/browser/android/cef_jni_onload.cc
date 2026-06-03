@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #include "base/android/jni_android.h"
+#include "cef/libcef/browser/android/cefrium_app.h"
 #include "cef/libcef/common/chrome/chrome_main_delegate_cef.h"
 #include "content/public/app/content_jni_onload.h"
 #include "content/public/app/content_main.h"
@@ -55,7 +56,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     // runner/settings values.
     content::SetContentMainDelegate(
         new ChromeMainDelegateCef(/*runner=*/nullptr, /*settings=*/nullptr,
-                                  /*application=*/nullptr));
+                                  /*application=*/new CefriumApp()));
   }
 
   return JNI_VERSION_1_4;
