@@ -40,7 +40,7 @@ fun CefriumView(
     state: CefriumViewState,
     modifier: Modifier = Modifier,
     navigator: CefriumNavigator = rememberCefriumNavigator(),
-    onQuery: ((request: String, callback: CefriumBrowser.QueryCallback) -> Boolean)? = null,
+    onQuery: ((request: String, origin: String, callback: CefriumBrowser.QueryCallback) -> Boolean)? = null,
     onBrowserReady: ((CefriumBrowser) -> Unit)? = null,
 ) {
     val activity = LocalContext.current as Activity
@@ -52,7 +52,9 @@ fun CefriumView(
             // provides onQuery (FEATURE-023). Without it, queries fail with -1 —
             // a deliberate security default (the bridge is off unless asked for).
             if (onQuery != null) {
-                b.setQueryHandler { _, request, callback -> onQuery(request, callback) }
+                b.setQueryHandler { _, request, origin, callback ->
+                    onQuery(request, origin, callback)
+                }
             }
             onBrowserReady?.invoke(b)
         }
