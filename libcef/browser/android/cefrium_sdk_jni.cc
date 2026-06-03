@@ -31,6 +31,7 @@
 #include "cef/include/cef_task.h"
 #include "cef/include/wrapper/cef_closure_task.h"
 #include "cef/include/wrapper/cef_message_router.h"
+#include "cef/libcef/browser/android/cefrium_bridge_constants.h"
 #include "cef/include/cef_resource_request_handler.h"
 
 #include <android/log.h>
@@ -655,14 +656,19 @@ class CefriumBridgeHandler : public CefMessageRouterBrowserSide::Handler {
       pending_.erase(query_id);
       return false;
     }
+    // The frame's URL is the origin of the query — passed to Java so the app
+    // can gate which pages/iframes are allowed to use the bridge (security).
+    std::string origin = frame ? frame->GetURL().ToString() : std::string();
     jclass cls = env->GetObjectClass(java_browser_);
-    jmethodID method =
-        env->GetMethodID(cls, "onJsQuery", "(JLjava/lang/String;)V");
+    jmethodID method = env->GetMethodID(
+        cls, "onJsQuery", "(JLjava/lang/String;Ljava/lang/String;)V");
     if (method) {
       jstring j_req = env->NewStringUTF(request.ToString().c_str());
+      jstring j_origin = env->NewStringUTF(origin.c_str());
       env->CallVoidMethod(java_browser_, method, static_cast<jlong>(query_id),
-                          j_req);
+                          j_req, j_origin);
       env->DeleteLocalRef(j_req);
+      env->DeleteLocalRef(j_origin);
     }
     env->DeleteLocalRef(cls);
     return true;
@@ -754,10 +760,10 @@ class SdkClient : public CefClient {
     }
 
     // FEATURE-023: browser-side JS bridge router for window.cefriumQuery. The
-    // config MUST match the renderer side in cefrium_app.cc.
+    // config MUST match the renderer side (shared constants).
     CefMessageRouterConfig config;
-    config.js_query_function = "cefriumQuery";
-    config.js_cancel_function = "cefriumQueryCancel";
+    config.js_query_function = cefrium_bridge::kQueryFunction;
+    config.js_cancel_function = cefrium_bridge::kCancelFunction;
     message_router_ = CefMessageRouterBrowserSide::Create(config);
     bridge_handler_ = std::make_unique<CefriumBridgeHandler>();
     message_router_->AddHandler(bridge_handler_.get(), /*first=*/false);
