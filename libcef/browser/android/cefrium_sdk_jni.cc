@@ -23,9 +23,13 @@
 #include "cef/include/cef_load_handler.h"
 #include "cef/include/cef_render_handler.h"
 #include <map>
+#include <set>
 
+#include "base/no_destructor.h"
+#include "base/synchronization/lock.h"
 #include "cef/include/cef_request_handler.h"
 #include "cef/include/cef_task.h"
+#include "cef/include/wrapper/cef_closure_task.h"
 #include "cef/include/wrapper/cef_message_router.h"
 #include "cef/include/cef_resource_request_handler.h"
 
@@ -42,6 +46,25 @@
 
 // Forward declaration — full definition below handlers.
 struct SdkBrowserData;
+
+namespace {
+
+// FEATURE-023 step 4b: registry of live SdkBrowserData pointers, so an
+// asynchronous window.cefriumQuery response (resolved later, possibly after the
+// browser was closed and its data deleted) can be dropped safely instead of
+// dereferencing a dangling native pointer. The lock serializes nativeClose's
+// erase with the resolution's check+dereference. base::NoDestructor avoids
+// exit-time destructors (Chromium global-object rule).
+base::Lock& BridgeDataLock() {
+  static base::NoDestructor<base::Lock> lock;
+  return *lock;
+}
+std::set<jlong>& LiveBridgeData() {
+  static base::NoDestructor<std::set<jlong>> data;
+  return *data;
+}
+
+}  // namespace
 
 // Per-browser render handler that forwards OnPaint to Java.
 class SdkRenderHandler : public CefRenderHandler {
@@ -623,18 +646,13 @@ class CefriumBridgeHandler : public CefMessageRouterBrowserSide::Handler {
     pending_.erase(query_id);
   }
 
-  // Called from JNI when Java resolves a query. Step 4: UI thread only.
+  // Resolves a query. Always invoked on the browser UI thread (nativeQueryResult
+  // posts here), so the pending map and the Callback are touched UI-thread-only.
   void ResolveQuery(int64_t query_id,
                     bool success,
                     const CefString& response,
                     int error_code,
                     const CefString& error_message) {
-    if (!CefCurrentlyOn(TID_UI)) {
-      // Async (off-thread) resolution is step 4b. Drop safely rather than
-      // race the pending map / call the callback off the UI thread.
-      LOGI("cefriumQuery: off-UI-thread resolution dropped (async = step 4b)");
-      return;
-    }
     auto it = pending_.find(query_id);
     if (it == pending_.end()) {
       return;
@@ -898,6 +916,10 @@ Java_com_cefrium_CefriumBrowser_nativeCreate(
   data->client = new SdkClient(data->render_handler, data->life_span_handler,
                                &data->blocked_count);
   LOGI("nativeCreate: %dx%d (browser not yet created, adblock active)", width, height);
+  {
+    base::AutoLock lock(BridgeDataLock());
+    LiveBridgeData().insert(reinterpret_cast<jlong>(data));
+  }
   return reinterpret_cast<jlong>(data);
 }
 
@@ -1068,6 +1090,12 @@ Java_com_cefrium_CefriumBrowser_nativeClose(
       data->browser->GetHost()->CloseBrowser(true);
     }
     data->surface_bridge.reset();
+    // FEATURE-023 step 4b: stop any in-flight async resolution from touching
+    // this data before we delete it.
+    {
+      base::AutoLock lock(BridgeDataLock());
+      LiveBridgeData().erase(native_ptr);
+    }
     delete data;
   }
 }
@@ -1110,6 +1138,10 @@ Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
   CefBrowserHost::CreateBrowser(window_info, data->client, CefString(""),
                                 browser_settings, nullptr, nullptr);
 
+  {
+    base::AutoLock lock(BridgeDataLock());
+    LiveBridgeData().insert(reinterpret_cast<jlong>(data));
+  }
   return reinterpret_cast<jlong>(data);
 }
 
@@ -1185,16 +1217,34 @@ Java_com_cefrium_CefriumBrowser_nativeEvaluateJavaScript(
   env->ReleaseStringUTFChars(script_jstr, script);
 }
 
-// FEATURE-023: Java resolves a window.cefriumQuery (success or failure).
+// Resolves a bridge query on the browser UI thread. The lock + live-registry
+// check make this safe even if the browser was closed (data deleted) after the
+// async response was posted (FEATURE-023 step 4b).
+static void ResolveBridgeQueryOnUI(jlong native_ptr,
+                                   int64_t query_id,
+                                   bool success,
+                                   CefString response,
+                                   int error_code,
+                                   CefString error_message) {
+  base::AutoLock lock(BridgeDataLock());
+  if (!LiveBridgeData().count(native_ptr)) {
+    return;  // Browser was closed; drop.
+  }
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data->client && data->client->bridge_handler()) {
+    data->client->bridge_handler()->ResolveQuery(query_id, success, response,
+                                                 error_code, error_message);
+  }
+}
+
+// FEATURE-023: Java resolves a window.cefriumQuery (success or failure). May be
+// called on any thread (sync or async); resolution is marshalled to the UI
+// thread for CEF-compliance and lifetime safety.
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeQueryResult(
     JNIEnv* env, jclass clazz, jlong native_ptr, jlong query_id,
     jboolean success, jstring response_jstr, jint error_code,
     jstring error_msg_jstr) {
-  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
-  if (!data || !data->client || !data->client->bridge_handler()) {
-    return;
-  }
   CefString response;
   if (response_jstr) {
     const char* s = env->GetStringUTFChars(response_jstr, nullptr);
@@ -1207,8 +1257,10 @@ Java_com_cefrium_CefriumBrowser_nativeQueryResult(
     error_msg = s;
     env->ReleaseStringUTFChars(error_msg_jstr, s);
   }
-  data->client->bridge_handler()->ResolveQuery(
-      query_id, success, response, error_code, error_msg);
+  CefPostTask(TID_UI,
+              base::BindOnce(&ResolveBridgeQueryOnUI, native_ptr, query_id,
+                             static_cast<bool>(success), response, error_code,
+                             error_msg));
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
