@@ -363,6 +363,67 @@ public class CefriumBrowser {
     }
 
     /**
+     * Handles JavaScript {@code window.cefriumQuery({request, onSuccess,
+     * onFailure})} calls from page content (FEATURE-023 JS bridge).
+     *
+     * <p>Step 4 supports synchronous responses: call {@code callback.success()}
+     * or {@code callback.failure()} from within {@link #onQuery}. Returning
+     * false (or never responding) fails the query with code -1.
+     */
+    public interface QueryHandler {
+        /**
+         * @param queryId Opaque id (also valid for async responses in future).
+         * @param request The JS-provided request payload.
+         * @param callback Resolve the query via success/failure.
+         * @return true if this handler took the query.
+         */
+        boolean onQuery(long queryId, String request, QueryCallback callback);
+    }
+
+    /** Resolves a {@link QueryHandler} query back to JavaScript. */
+    public interface QueryCallback {
+        void success(String response);
+        void failure(int errorCode, String errorMessage);
+    }
+
+    private QueryHandler mQueryHandler;
+
+    /** Registers the handler for {@code window.cefriumQuery} calls. */
+    public void setQueryHandler(QueryHandler handler) {
+        mQueryHandler = handler;
+    }
+
+    // Called from native (browser UI thread) when JS calls window.cefriumQuery.
+    private void onJsQuery(final long queryId, String request) {
+        final QueryHandler handler = mQueryHandler;
+        if (handler == null) {
+            nativeQueryResult(mNativePtr, queryId, false, null, -1,
+                    "No query handler registered");
+            return;
+        }
+        QueryCallback callback = new QueryCallback() {
+            @Override
+            public void success(String response) {
+                if (mNativePtr != 0) {
+                    nativeQueryResult(mNativePtr, queryId, true, response, 0, null);
+                }
+            }
+
+            @Override
+            public void failure(int errorCode, String errorMessage) {
+                if (mNativePtr != 0) {
+                    nativeQueryResult(mNativePtr, queryId, false, null,
+                            errorCode, errorMessage);
+                }
+            }
+        };
+        if (!handler.onQuery(queryId, request, callback)) {
+            nativeQueryResult(mNativePtr, queryId, false, null, -1,
+                    "Query not handled");
+        }
+    }
+
+    /**
      * @return true if the browser can navigate back.
      */
     public boolean canGoBack() {
@@ -749,6 +810,8 @@ public class CefriumBrowser {
     private static native void nativeGoForward(long nativePtr);
     private static native void nativeReload(long nativePtr);
     private static native void nativeEvaluateJavaScript(long nativePtr, String script);
+    private static native void nativeQueryResult(long nativePtr, long queryId,
+            boolean success, String response, int errorCode, String errorMessage);
     private static native boolean nativeCanGoBack(long nativePtr);
     private static native void nativeSetDisplayCallback(long nativePtr, CefriumBrowser browser);
     private static native void nativeClose(long nativePtr);
