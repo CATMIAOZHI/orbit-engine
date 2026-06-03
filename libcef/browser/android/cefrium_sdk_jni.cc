@@ -23,6 +23,7 @@
 #include "cef/include/cef_load_handler.h"
 #include "cef/include/cef_render_handler.h"
 #include "cef/include/cef_request_handler.h"
+#include "cef/include/wrapper/cef_message_router.h"
 #include "cef/include/cef_resource_request_handler.h"
 
 #include <android/log.h>
@@ -117,10 +118,22 @@ class SdkLifeSpanHandler : public CefLifeSpanHandler {
 
   void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
 
+  // FEATURE-023: forward browser-close to the JS bridge router for cleanup.
+  void OnBeforeClose(CefRefPtr<CefBrowser> browser) override {
+    if (message_router_) {
+      message_router_->OnBeforeClose(browser);
+    }
+  }
+
+  void SetMessageRouter(CefRefPtr<CefMessageRouterBrowserSide> router) {
+    message_router_ = router;
+  }
+
   IMPLEMENT_REFCOUNTING(SdkLifeSpanHandler);
 
  private:
   struct SdkBrowserData* data_ = nullptr;
+  CefRefPtr<CefMessageRouterBrowserSide> message_router_;
 };
 
 // Load handler that triggers Invalidate on load completion.
@@ -542,10 +555,54 @@ class SdkRequestHandler : public CefRequestHandler {
     return resource_handler_;
   }
 
+  // FEATURE-023: forward navigation / renderer-termination to the JS bridge
+  // router so it can cancel pending queries (no leaks / stale state).
+  bool OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
+                      CefRefPtr<CefFrame> frame,
+                      CefRefPtr<CefRequest> request,
+                      bool user_gesture,
+                      bool is_redirect) override {
+    if (message_router_) {
+      message_router_->OnBeforeBrowse(browser, frame);
+    }
+    return false;  // never cancel the navigation
+  }
+
+  void OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
+                                 TerminationStatus status,
+                                 int error_code,
+                                 const CefString& error_string) override {
+    if (message_router_) {
+      message_router_->OnRenderProcessTerminated(browser);
+    }
+  }
+
+  void SetMessageRouter(CefRefPtr<CefMessageRouterBrowserSide> router) {
+    message_router_ = router;
+  }
+
   IMPLEMENT_REFCOUNTING(SdkRequestHandler);
 
  private:
   CefRefPtr<SdkResourceRequestHandler> resource_handler_;
+  CefRefPtr<CefMessageRouterBrowserSide> message_router_;
+};
+
+// FEATURE-023 step 3: browser-side handler for window.cefriumQuery. For now it
+// echoes the request back, proving the full JS->renderer->browser->JS round
+// trip. Step 4 replaces this with forwarding to the Java QueryHandler (the
+// Callback is held and resolved asynchronously via JNI).
+class CefriumBridgeHandler : public CefMessageRouterBrowserSide::Handler {
+ public:
+  bool OnQuery(CefRefPtr<CefBrowser> browser,
+               CefRefPtr<CefFrame> frame,
+               int64_t query_id,
+               const CefString& request,
+               bool persistent,
+               CefRefPtr<Callback> callback) override {
+    callback->Success("cefrium-echo:" + request.ToString());
+    return true;
+  }
 };
 
 // Minimal client that connects handlers.
@@ -601,6 +658,33 @@ class SdkClient : public CefClient {
     if (browser_data) {
       load_handler_->SetBrowserData(browser_data);
     }
+
+    // FEATURE-023: browser-side JS bridge router for window.cefriumQuery. The
+    // config MUST match the renderer side in cefrium_app.cc.
+    CefMessageRouterConfig config;
+    config.js_query_function = "cefriumQuery";
+    config.js_cancel_function = "cefriumQueryCancel";
+    message_router_ = CefMessageRouterBrowserSide::Create(config);
+    bridge_handler_ = std::make_unique<CefriumBridgeHandler>();
+    message_router_->AddHandler(bridge_handler_.get(), /*first=*/false);
+    if (life_span_handler_) {
+      life_span_handler_->SetMessageRouter(message_router_);
+    }
+    if (request_handler_) {
+      request_handler_->SetMessageRouter(message_router_);
+    }
+  }
+
+  // FEATURE-023: deliver renderer->browser messages to the bridge router.
+  bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
+                                CefRefPtr<CefFrame> frame,
+                                CefProcessId source_process,
+                                CefRefPtr<CefProcessMessage> message) override {
+    if (message_router_) {
+      return message_router_->OnProcessMessageReceived(browser, frame,
+                                                       source_process, message);
+    }
+    return false;
   }
 
   CefRefPtr<CefRenderHandler> GetRenderHandler() override {
@@ -651,6 +735,9 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkContextMenuHandler> context_menu_handler_;
   CefRefPtr<SdkFindHandler> find_handler_;
   CefRefPtr<SdkRequestHandler> request_handler_;
+  // Declared last so the router is destroyed before the handler it references.
+  std::unique_ptr<CefriumBridgeHandler> bridge_handler_;
+  CefRefPtr<CefMessageRouterBrowserSide> message_router_;
 };
 
 // Per-browser data stored as the native pointer in Java.
