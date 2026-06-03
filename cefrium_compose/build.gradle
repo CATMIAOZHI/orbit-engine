@@ -5,6 +5,7 @@
 plugins {
     id 'com.android.library' version '8.7.3'
     id 'org.jetbrains.kotlin.android' version '1.9.24'
+    id 'org.jetbrains.dokka' version '1.9.20'
 }
 
 android {
@@ -55,5 +56,26 @@ dependencies {
     configurations.all {
         exclude group: 'com.google.guava', module: 'listenablefuture'
         exclude group: 'org.jspecify'
+    }
+}
+
+// API docs for the Compose wrapper (Kotlin). Output dir resolution, in order:
+//   1. -PdokkaOut=/abs/path        (one-off override)
+//   2. dokkaOut=... in local.properties (gitignored, per-machine — set this to
+//      the web tree and `./gradlew dokkaHtml` republishes there automatically)
+//   3. build/dokka/html            (portable default; nothing personal committed)
+def dokkaLocalProps = new Properties()
+def dokkaLpf = file('local.properties')
+if (dokkaLpf.exists()) { dokkaLpf.withInputStream { dokkaLocalProps.load(it) } }
+tasks.named('dokkaHtml') {
+    moduleName.set('cefrium-compose')
+    outputDirectory.set(file(project.findProperty('dokkaOut')
+            ?: dokkaLocalProps.getProperty('dokkaOut')
+            ?: "$buildDir/dokka/html"))
+    dokkaSourceSets.named('main') {
+        sourceRoots.from(file('java/src'))
+        jdkVersion.set(11)
+        reportUndocumented.set(false)
+        noAndroidSdkLink.set(false)
     }
 }
