@@ -6,6 +6,7 @@
 
 #include <type_traits>
 
+#include "include/base/cef_logging.h"
 #include "include/cef_shared_process_message_builder.h"
 
 namespace cef_message_router_utils {
