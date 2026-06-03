@@ -41,25 +41,9 @@ android_library("cefrium_test_java") {
 }
 
 # Assets: pak files, ICU data, V8 snapshot.
-android_assets("cefrium_test_assets") {
-  testonly = true
-  sources = [
-    "$root_out_dir/resources.pak",
-    "$root_out_dir/chrome_100_percent.pak",
-    "$root_out_dir/chrome_200_percent.pak",
-  ]
-  renaming_sources = [ "$root_out_dir/locales/en-US.pak" ]
-  renaming_destinations = [ "stored-locales/en-US.pak" ]
-  disable_compression = true
-  deps = [
-    "//cef:cef_pak_android",
-    "//cef:cef_100_percent_pak_android",
-    "//cef:cef_200_percent_pak_android",
-    "//cef:cef_locale_en_us_android",
-    "//gin:v8_snapshot_assets",
-    "//third_party/icu:icu_assets",
-  ]
-}
+# Runtime resources (.pak/v8/icu) are defined once in the production SDK
+# (//cef/cefrium_sdk:cefrium_assets) and reused here — the test depends on
+# production, never the reverse.
 
 # The APK itself.
 android_apk("cefrium_test_apk") {
@@ -68,7 +52,7 @@ android_apk("cefrium_test_apk") {
   android_manifest = "apk/AndroidManifest.xml"
 
   deps = [
-    ":cefrium_test_assets",
+    "//cef/cefrium_sdk:cefrium_assets",
     ":cefrium_test_java",
     "//base:base_java",
     "//chrome/android:chrome_all_java",
