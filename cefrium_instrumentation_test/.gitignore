@@ -1,0 +1,11 @@
+# Build outputs and tooling — never commit binaries
+/build/
+/app/build/
+/.gradle/
+/app/libs/
+*.aar
+local.properties
+
+# Gradle wrapper jar is a binary; regenerate with:
+#   gradle wrapper --gradle-version 8.9
+gradle/wrapper/gradle-wrapper.jar
