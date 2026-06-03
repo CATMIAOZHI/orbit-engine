@@ -29,6 +29,9 @@ import com.cefrium.CefriumBrowser
  * @param state Hoisted state holder that owns the browser.
  * @param modifier Modifier for the browser view.
  * @param navigator Navigation controller bound to this state.
+ * @param onQuery Handles `window.cefriumQuery` calls from page JavaScript.
+ *        Return true and resolve via the callback (sync or async). Omit to keep
+ *        the JS bridge disabled for this view (queries then fail with -1).
  * @param onBrowserReady Escape hatch to the underlying [CefriumBrowser] for
  *        features not yet on the navigator (find in page, downloads, dark mode).
  */
@@ -37,6 +40,7 @@ fun CefriumView(
     state: CefriumViewState,
     modifier: Modifier = Modifier,
     navigator: CefriumNavigator = rememberCefriumNavigator(),
+    onQuery: ((request: String, callback: CefriumBrowser.QueryCallback) -> Boolean)? = null,
     onBrowserReady: ((CefriumBrowser) -> Unit)? = null,
 ) {
     val activity = LocalContext.current as Activity
@@ -44,6 +48,12 @@ fun CefriumView(
     val browser = remember(state) {
         state.getOrCreateBrowser(activity).also { b ->
             navigator.state = state
+            // JS bridge opt-in: window.cefriumQuery is handled only if the host
+            // provides onQuery (FEATURE-023). Without it, queries fail with -1 —
+            // a deliberate security default (the bridge is off unless asked for).
+            if (onQuery != null) {
+                b.setQueryHandler { _, request, callback -> onQuery(request, callback) }
+            }
             onBrowserReady?.invoke(b)
         }
     }
