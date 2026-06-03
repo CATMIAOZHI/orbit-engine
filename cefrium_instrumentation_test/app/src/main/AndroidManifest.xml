@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:name=".TestHostApplication"
+        android:label="Cefrium Instrumentation"
+        android:extractNativeLibs="true"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
+
+        <!-- Chromium multi-process: child processes run as Services. -->
+        <meta-data android:name="org.chromium.content.browser.NUM_SANDBOXED_SERVICES"
+            android:value="5" />
+        <service android:name="org.chromium.content.app.SandboxedProcessService0"
+            android:process=":sandboxed_process0" android:exported="false" />
+        <service android:name="org.chromium.content.app.SandboxedProcessService1"
+            android:process=":sandboxed_process1" android:exported="false" />
+        <service android:name="org.chromium.content.app.SandboxedProcessService2"
+            android:process=":sandboxed_process2" android:exported="false" />
+        <service android:name="org.chromium.content.app.SandboxedProcessService3"
+            android:process=":sandboxed_process3" android:exported="false" />
+        <service android:name="org.chromium.content.app.SandboxedProcessService4"
+            android:process=":sandboxed_process4" android:exported="false" />
+        <meta-data android:name="org.chromium.content.browser.NUM_PRIVILEGED_SERVICES"
+            android:value="3" />
+        <service android:name="org.chromium.content.app.PrivilegedProcessService0"
+            android:process=":privileged_process0" android:exported="false" />
+        <service android:name="org.chromium.content.app.PrivilegedProcessService1"
+            android:process=":privileged_process1" android:exported="false" />
+        <service android:name="org.chromium.content.app.PrivilegedProcessService2"
+            android:process=":privileged_process2" android:exported="false" />
+
+        <!-- Generic Activity host for SDK tests that need an Activity to attach
+             a browser surface to. Not exported; launched by instrumentation. -->
+        <activity
+            android:name=".HostActivity"
+            android:exported="false" />
+    </application>
+</manifest>
