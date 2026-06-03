@@ -1,0 +1,91 @@
+// Dedicated instrumentation harness for the Cefrium SDK. This is NOT a sample
+// or demo — it is the authoritative on-device test host for the SDK, living in
+// the SDK repo so a clone of cef-android is self-verifying and CI can gate the
+// release on it. Covers both layers: the Java SDK (com.cefrium) and the Compose
+// wrapper (com.cefrium.compose).
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'com.cefrium'
+}
+
+android {
+    namespace 'com.cefrium.itest'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.cefrium.itest'
+        minSdk 29
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    androidResources {
+        noCompress 'dat', 'pak', 'bin'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = '11'
+    }
+
+    buildFeatures {
+        compose true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.14'
+    }
+}
+
+dependencies {
+    // The artifacts under test. Copy freshly built AARs into libs/ before
+    // running (libs/ is gitignored):
+    //   cp out/<dir>/cefrium-sdk.aar      app/libs/
+    //   cp cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar \
+    //      app/libs/cefrium-compose.aar
+    implementation files('libs/cefrium-sdk.aar')
+    implementation files('libs/cefrium-compose.aar')
+
+    implementation('androidx.appcompat:appcompat:1.7.0') {
+        exclude group: 'org.jspecify'
+        exclude group: 'com.google.guava'
+        exclude group: 'org.jetbrains.kotlin'
+    }
+    implementation('androidx.mediarouter:mediarouter:1.7.0') {
+        exclude group: 'org.jspecify'
+        exclude group: 'com.google.guava'
+        exclude group: 'org.jetbrains.kotlin'
+    }
+    implementation('androidx.core:core:1.16.0') {
+        exclude group: 'org.jspecify'
+        exclude group: 'com.google.guava'
+        exclude group: 'org.jetbrains.kotlin'
+    }
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+
+    // Compose (for the Compose-layer tests + createComposeRule host activity).
+    implementation platform('androidx.compose:compose-bom:2024.06.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.activity:activity-compose:1.9.0'
+
+    // Instrumented test deps.
+    androidTestImplementation 'androidx.test:runner:1.6.1'
+    androidTestImplementation 'androidx.test:rules:1.6.1'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'junit:junit:4.13.2'
+    androidTestImplementation platform('androidx.compose:compose-bom:2024.06.00')
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+
+    configurations.all {
+        exclude group: 'com.google.guava', module: 'listenablefuture'
+        exclude group: 'org.jspecify'
+    }
+}
