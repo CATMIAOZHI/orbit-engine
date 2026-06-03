@@ -1140,6 +1140,7 @@ source_set("libcef_static") {
       "libcef/browser/android/cef_autofill_client_android.h",
       "libcef/browser/android/cefrium_app.cc",
       "libcef/browser/android/cefrium_app.h",
+      "libcef/browser/android/cefrium_bridge_constants.h",
       "libcef/browser/android/cefrium_sdk_jni.cc",
       # JS<->native bridge (FEATURE-023). The CefMessageRouter wrapper sources
       # are compiled into libcef so the renderer-side router (cefrium_app) and
