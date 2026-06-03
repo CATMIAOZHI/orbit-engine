@@ -4,14 +4,7 @@
 
 #include "cef/libcef/browser/android/cefrium_app.h"
 
-namespace {
-
-// JavaScript bindings exposed on the page's window object. These names are part
-// of the public contract — do not change once published (FEATURE-023).
-constexpr char kQueryFunction[] = "cefriumQuery";
-constexpr char kCancelFunction[] = "cefriumQueryCancel";
-
-}  // namespace
+#include "cef/libcef/browser/android/cefrium_bridge_constants.h"
 
 CefriumApp::CefriumApp() = default;
 
@@ -21,8 +14,8 @@ CefRefPtr<CefRenderProcessHandler> CefriumApp::GetRenderProcessHandler() {
 
 void CefriumApp::OnWebKitInitialized() {
   CefMessageRouterConfig config;
-  config.js_query_function = kQueryFunction;
-  config.js_cancel_function = kCancelFunction;
+  config.js_query_function = cefrium_bridge::kQueryFunction;
+  config.js_cancel_function = cefrium_bridge::kCancelFunction;
   message_router_ = CefMessageRouterRendererSide::Create(config);
 }
 
