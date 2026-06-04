@@ -509,6 +509,34 @@ public class CefriumBrowser {
         if (mNativePtr != 0) nativeStopLoading(mNativePtr);
     }
 
+    // ─────────────── Request interceptor (FEATURE-027) ───────────────
+
+    /**
+     * Decides whether to block outgoing requests. Invoked on a background
+     * (network) thread for every request — must be fast and thread-safe, and
+     * must not touch the UI. Complements the built-in EasyList ad blocker.
+     */
+    public interface RequestInterceptor {
+        /** Return true to block (cancel) this request. */
+        boolean shouldBlockRequest(String url, String method, boolean isMainFrame);
+    }
+
+    private volatile RequestInterceptor mRequestInterceptor;
+
+    /** Sets a programmatic request interceptor (null clears it). */
+    public void setRequestInterceptor(RequestInterceptor interceptor) {
+        mRequestInterceptor = interceptor;
+        // Ensure native holds this Java ref so the resource handler can call
+        // onShouldBlockRequest — independent of whether a display callback was set.
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+
+    // Called from native (IO thread) for every request not already ad-blocked.
+    private boolean onShouldBlockRequest(String url, String method, boolean isMainFrame) {
+        RequestInterceptor i = mRequestInterceptor;
+        return i != null && i.shouldBlockRequest(url, method, isMainFrame);
+    }
+
     // Called from native (UI thread) with the visited cookies for a getCookies request.
     private void onCookiesVisited(long requestId, String[] names, String[] values,
             String[] domains, String[] paths, boolean[] secure, boolean[] httpOnly) {
