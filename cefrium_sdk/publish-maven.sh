@@ -14,7 +14,7 @@ set -e
 VERSION="${1:?Usage: $0 <version>}"
 TOKEN_FILE="$HOME/.registry-token"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-RELEASE_DIR="$(cd "$(dirname "$0")/../../../out/release" && pwd)"
+RELEASE_DIR="$(cd "$SCRIPT_DIR/../../out/release" && pwd)"
 # Compose AAR is built by the self-contained module at cef/cefrium_compose
 # (relocated out of cefrium-sample; see CLAUDE.md).
 COMPOSE_AAR="$(cd "$(dirname "$0")/.." && pwd)/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar"
@@ -90,6 +90,12 @@ echo ""
 echo "Publishing Cefrium SDK v$VERSION to Codeberg Packages"
 echo "======================================================"
 echo ""
+
+# Fail loudly if the SDK variants are missing — never publish a partial release.
+if [ -z "$RELEASE_DIR" ] || ! ls "$RELEASE_DIR"/cefrium-sdk-*.aar >/dev/null 2>&1; then
+  echo "ERROR: no cefrium-sdk-*.aar in RELEASE_DIR ('$RELEASE_DIR'); build variants first." >&2
+  exit 1
+fi
 
 # Publish each AAR variant found in release dir
 for aar in "$RELEASE_DIR"/cefrium-sdk-*.aar; do
