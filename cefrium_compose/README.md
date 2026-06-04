@@ -102,8 +102,8 @@ Consume the published AAR from Codeberg Packages:
 
 ```groovy
 dependencies {
-    implementation 'com.cefrium:cefrium-sdk:0.1.0'
-    implementation 'com.cefrium:cefrium-compose:0.1.0'
+    implementation 'com.cefrium:cefrium-sdk:0.2.1'
+    implementation 'com.cefrium:cefrium-compose:0.2.1'
     implementation platform('androidx.compose:compose-bom:2024.06.00')
     implementation 'androidx.compose.ui:ui'
 }
