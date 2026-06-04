@@ -1590,6 +1590,17 @@ Java_com_cefrium_CefriumBrowser_nativeFlushCookies(
   if (mgr) mgr->FlushStore(nullptr);
 }
 
+// FEATURE-030: clear the HTTP cache via the DevTools protocol.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeClearCache(
+    JNIEnv* env, jclass, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser && data->browser->GetHost()) {
+    data->browser->GetHost()->ExecuteDevToolsMethod(
+        1, "Network.clearBrowserCache", nullptr);
+  }
+}
+
 // ───────────────────── Dynamic WebSettings (FEATURE-025) ─────────────────────
 
 extern "C" JNIEXPORT void JNICALL
