@@ -13,6 +13,12 @@ that gap.
 
 *Left: Cefrium Browser with URL bar, navigation, video+audio. Right: Headless render — URL to PNG via OSR mode.*
 
+> **App size.** Cefrium bundles the Chromium engine, so it adds ~150 MB of native
+> code per ABI to your app. The dependency AAR is multi-ABI (~240 MB); publish an
+> **Android App Bundle** (or use ABI splits / `ndk.abiFilters`) so each user
+> downloads only their architecture (~150 MB), not all ABIs — the same approach
+> GeckoView, Flutter, and other engine-bundling SDKs use.
+
 **[Quick Start](QUICKSTART.md)** · [API Docs](https://cefrium.com/docs) · [Migration from WebView](MIGRATION.md) · [Build from Source](BUILD-GUIDE.md) · [Samples](https://codeberg.org/cefrium/cefrium-sample)
 
 ## What works
