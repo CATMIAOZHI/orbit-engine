@@ -54,6 +54,28 @@ class CefriumNavigator {
     fun evaluateJavaScript(script: String) {
         state?.browser?.evaluateJavaScript(script)
     }
+
+    // ── Cookies (FEATURE-024) ──
+
+    /** Sets a session cookie for [url] (domain/path inferred from the URL). */
+    fun setCookie(url: String, name: String, value: String) {
+        state?.browser?.setCookie(url, name, value)
+    }
+
+    /** Reads cookies visible to [url]; [callback] fires on the UI thread. */
+    fun getCookies(url: String, callback: com.cefrium.CefriumBrowser.CookieCallback) {
+        state?.browser?.getCookies(url, callback)
+    }
+
+    /** Deletes cookies for [url]; [name] null = all cookies for the URL. */
+    fun deleteCookies(url: String, name: String? = null) {
+        state?.browser?.deleteCookies(url, name)
+    }
+
+    /** Persists the cookie store to disk. */
+    fun flushCookies() {
+        state?.browser?.flushCookies()
+    }
 }
 
 /** Remembers a [CefriumNavigator] across recompositions. */
