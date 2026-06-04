@@ -32,6 +32,21 @@ class CefriumNavigator {
         state?.browser?.loadUrl(url)
     }
 
+    /** Loads an HTML string directly. */
+    fun loadHtml(html: String) {
+        state?.browser?.loadHtml(html)
+    }
+
+    /** Loads [url] with an HTTP POST body. */
+    fun postUrl(url: String, postData: ByteArray) {
+        state?.browser?.postUrl(url, postData)
+    }
+
+    /** Stops the current load. */
+    fun stopLoading() {
+        state?.browser?.stopLoading()
+    }
+
     /** Reloads the current page. */
     fun reload() {
         state?.browser?.reload()
