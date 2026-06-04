@@ -91,30 +91,31 @@ echo "Publishing Cefrium SDK v$VERSION to Codeberg Packages"
 echo "======================================================"
 echo ""
 
-# Fail loudly if the SDK variants are missing — never publish a partial release.
-if [ -z "$RELEASE_DIR" ] || ! ls "$RELEASE_DIR"/cefrium-sdk-*.aar >/dev/null 2>&1; then
-  echo "ERROR: no cefrium-sdk-*.aar in RELEASE_DIR ('$RELEASE_DIR'); build variants first." >&2
-  exit 1
-fi
-
-# Publish each AAR variant found in release dir
-for aar in "$RELEASE_DIR"/cefrium-sdk-*.aar; do
-  [ -f "$aar" ] || continue
-  basename=$(basename "$aar" .aar)
-  # cefrium-sdk-arm64-codecs → artifact = cefrium-sdk-arm64-codecs
-  # But for Maven, we use classifier instead
-  # Main artifact: cefrium-sdk, classifier: arm64-codecs
-  artifact="${basename%-*-*}"  # cefrium-sdk
-  classifier="${basename#cefrium-sdk-}"  # arm64-codecs
-
-  echo "Publishing $basename..."
-  pom=$(generate_pom "$basename" \
-    "Cefrium SDK ($classifier) — CEF for Android" "")
-  upload "$basename" "$pom"
-  upload "$basename" "$aar"
+# Publish the MULTI-ABI SDK artifacts. The per-arch cefrium-sdk-<arch>-<codec>.aar
+# are build intermediates; merge-multiabi.sh combines each codec flavor's arches
+# into one multi-ABI AAR (cefrium-sdk.aar = codecs default, cefrium-sdk-libre.aar).
+# AGP packages all ABIs from the AAR and the consumer's APK/App Bundle delivers
+# only the device's ABI — so a single coordinate works on arm64 and x86_64.
+published_any=0
+for artifact in cefrium-sdk cefrium-sdk-libre; do
+  aar="$RELEASE_DIR/$artifact.aar"
+  if [ ! -f "$aar" ]; then
+    echo "skip $artifact (not built)"
+    continue
+  fi
+  echo "Publishing $artifact (multi-ABI)..."
+  pom=$(generate_pom "$artifact" "Cefrium SDK — CEF for Android (multi-ABI)" "")
+  upload "$artifact" "$pom"
+  upload "$artifact" "$aar"
   rm -f "$pom"
+  published_any=1
   echo ""
 done
+if [ "$published_any" != "1" ]; then
+  echo "ERROR: no multi-ABI cefrium-sdk.aar / cefrium-sdk-libre.aar in '$RELEASE_DIR'." >&2
+  echo "       Run build-all-variants.sh then merge-multiabi.sh first." >&2
+  exit 1
+fi
 
 # Publish cefrium-compose if available
 if [ -f "$COMPOSE_AAR" ]; then
