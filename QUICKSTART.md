@@ -2,6 +2,10 @@
 
 From zero to rendering a web page in 5 minutes.
 
+> **App size.** Cefrium bundles the Chromium engine (~150 MB native per ABI).
+> The dependency AAR is multi-ABI (~240 MB); publish an **Android App Bundle**
+> (or use ABI splits) so each user downloads only their architecture (~150 MB).
+
 ## 1. Create an Android project
 
 In Android Studio: File → New → New Project → Empty Activity.
