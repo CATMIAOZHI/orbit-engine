@@ -537,6 +537,68 @@ public class CefriumBrowser {
         return i != null && i.shouldBlockRequest(url, method, isMainFrame);
     }
 
+    // ─────────────── JS dialogs (FEATURE-028) ───────────────
+
+    /** alert() */   public static final int JS_DIALOG_ALERT = 0;
+    /** confirm() */ public static final int JS_DIALOG_CONFIRM = 1;
+    /** prompt() */  public static final int JS_DIALOG_PROMPT = 2;
+
+    /** Resolves a JS dialog. */
+    public interface JsDialogCallback {
+        void continueDialog(boolean success, String userInput);
+    }
+
+    /**
+     * Handles page JS dialogs (alert/confirm/prompt). Return true if handled
+     * (you MUST call the callback); return false to use the default Android
+     * AlertDialog. Without a handler set, the default AlertDialog is shown.
+     */
+    public interface JsDialogHandler {
+        boolean onJsDialog(int type, String message, String defaultPromptText,
+                           JsDialogCallback callback);
+    }
+
+    private JsDialogHandler mJsDialogHandler;
+
+    /** Sets a custom JS-dialog handler (null = default Android AlertDialog). */
+    public void setJsDialogHandler(JsDialogHandler handler) {
+        mJsDialogHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+
+    // Called from native (UI thread) when the page opens alert/confirm/prompt.
+    private void onJsDialog(int type, long token, String message, String defaultPrompt) {
+        JsDialogCallback cb = (success, userInput) -> {
+            if (mNativePtr != 0) {
+                nativeJsDialogResult(mNativePtr, token, success,
+                        userInput == null ? "" : userInput);
+            }
+        };
+        JsDialogHandler h = mJsDialogHandler;
+        if (h != null && h.onJsDialog(type, message, defaultPrompt, cb)) return;
+        if (mActivity == null) { cb.continueDialog(false, ""); return; }
+        mActivity.runOnUiThread(() -> showDefaultJsDialog(type, message, defaultPrompt, cb));
+    }
+
+    private void showDefaultJsDialog(int type, String message, String defaultPrompt,
+                                     JsDialogCallback cb) {
+        android.app.AlertDialog.Builder b = new android.app.AlertDialog.Builder(mActivity);
+        b.setMessage(message);
+        b.setCancelable(false);
+        final android.widget.EditText input =
+                (type == JS_DIALOG_PROMPT) ? new android.widget.EditText(mActivity) : null;
+        if (input != null) {
+            input.setText(defaultPrompt == null ? "" : defaultPrompt);
+            b.setView(input);
+        }
+        b.setPositiveButton(android.R.string.ok, (d, w) ->
+                cb.continueDialog(true, input != null ? input.getText().toString() : ""));
+        if (type == JS_DIALOG_CONFIRM || type == JS_DIALOG_PROMPT) {
+            b.setNegativeButton(android.R.string.cancel, (d, w) -> cb.continueDialog(false, ""));
+        }
+        b.show();
+    }
+
     // Called from native (UI thread) with the visited cookies for a getCookies request.
     private void onCookiesVisited(long requestId, String[] names, String[] values,
             String[] domains, String[] paths, boolean[] secure, boolean[] httpOnly) {
@@ -948,6 +1010,7 @@ public class CefriumBrowser {
     private static native void nativeSetZoomLevel(long nativePtr, double zoomLevel);
     private static native void nativePostUrl(long nativePtr, String url, byte[] postData);
     private static native void nativeStopLoading(long nativePtr);
+    private static native void nativeJsDialogResult(long nativePtr, long token, boolean success, String userInput);
     private static native boolean nativeCanGoBack(long nativePtr);
     private static native void nativeSetDisplayCallback(long nativePtr, CefriumBrowser browser);
     private static native void nativeClose(long nativePtr);
