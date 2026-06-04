@@ -532,6 +532,31 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
       if (blocked_count_) (*blocked_count_)++;
     }
 
+    // Consumer interceptor (FEATURE-027): if not already ad-blocked, ask the
+    // Java RequestInterceptor synchronously (we are on the IO thread).
+    if (!blocked && java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) {
+        jclass cls = env->GetObjectClass(java_browser_);
+        jmethodID mid = env->GetMethodID(
+            cls, "onShouldBlockRequest",
+            "(Ljava/lang/String;Ljava/lang/String;Z)Z");
+        if (mid) {
+          jstring ju = env->NewStringUTF(url.c_str());
+          jstring jm = env->NewStringUTF(method.c_str());
+          jboolean r = env->CallBooleanMethod(
+              java_browser_, mid, ju, jm, frame && frame->IsMain());
+          env->DeleteLocalRef(ju);
+          env->DeleteLocalRef(jm);
+          if (r) {
+            blocked = true;
+            if (blocked_count_) (*blocked_count_)++;
+          }
+        }
+        env->DeleteLocalRef(cls);
+      }
+    }
+
     // Report to Java if listener is set.
     if (java_browser_) {
       JNIEnv* env = base::android::AttachCurrentThread();
