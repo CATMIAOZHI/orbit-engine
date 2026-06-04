@@ -32,8 +32,9 @@ git clone -b android-port https://codeberg.org/cefrium/cef-android.git cef
 
 ```bash
 cd chromium/src
-export 'target_os=="android"'=1
-python3 cef/tools/patcher.py
+# patcher.py activates the android/* patches when this env var is set. Its name
+# contains '==', which bash rejects in `export name=value`, so pass it via env(1).
+env 'target_os=="android"=1' python3 cef/tools/patcher.py
 
 # CRITICAL: touch all patched files to force recompilation
 for patch in cef/patch/patches/*.patch cef/patch/patches/android/*.patch; do
