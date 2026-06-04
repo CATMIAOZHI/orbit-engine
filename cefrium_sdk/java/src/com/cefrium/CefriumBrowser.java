@@ -472,6 +472,23 @@ public class CefriumBrowser {
         if (mNativePtr != 0) nativeFlushCookies(mNativePtr);
     }
 
+    // ──────────────────── Dynamic WebSettings (FEATURE-025) ────────────────────
+
+    /** Overrides the User-Agent at runtime (Emulation.setUserAgentOverride). */
+    public void setUserAgentOverride(String userAgent) {
+        if (mNativePtr != 0) nativeSetUserAgentOverride(mNativePtr, userAgent);
+    }
+
+    /** Enables/disables JavaScript at runtime (Emulation.setScriptExecutionDisabled). */
+    public void setJavaScriptEnabled(boolean enabled) {
+        if (mNativePtr != 0) nativeSetJavaScriptEnabled(mNativePtr, enabled);
+    }
+
+    /** Sets the zoom level (0 = 100%; factor = 1.2^level). */
+    public void setZoomLevel(double zoomLevel) {
+        if (mNativePtr != 0) nativeSetZoomLevel(mNativePtr, zoomLevel);
+    }
+
     // Called from native (UI thread) with the visited cookies for a getCookies request.
     private void onCookiesVisited(long requestId, String[] names, String[] values,
             String[] domains, String[] paths, boolean[] secure, boolean[] httpOnly) {
@@ -878,6 +895,9 @@ public class CefriumBrowser {
     private static native void nativeGetCookies(long nativePtr, CefriumBrowser browser, String url, long requestId);
     private static native void nativeDeleteCookies(long nativePtr, String url, String name);
     private static native void nativeFlushCookies(long nativePtr);
+    private static native void nativeSetUserAgentOverride(long nativePtr, String userAgent);
+    private static native void nativeSetJavaScriptEnabled(long nativePtr, boolean enabled);
+    private static native void nativeSetZoomLevel(long nativePtr, double zoomLevel);
     private static native boolean nativeCanGoBack(long nativePtr);
     private static native void nativeSetDisplayCallback(long nativePtr, CefriumBrowser browser);
     private static native void nativeClose(long nativePtr);
