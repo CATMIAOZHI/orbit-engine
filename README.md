@@ -54,7 +54,14 @@ that gap.
 | Idiomatic Compose API (CefriumView / state hoisting + keep-alive) | Done |
 | evaluateJavaScript (CefFrame::ExecuteJavaScript) | Done |
 | JavaScript ↔ native bridge (window.cefriumQuery, CefMessageRouter) | Done |
-| arm64 validated on real device | Done |
+| Cookie management (CefCookieManager: get/set/delete/flush) | Done |
+| Dynamic WebSettings (runtime User-Agent, JavaScript on/off, zoom) | Done |
+| Navigation: loadHtml / postUrl / stopLoading | Done |
+| Request interceptor (programmatic block, CefResourceRequestHandler) | Done |
+| JS dialogs (alert / confirm / prompt, CefJSDialogHandler) | Done |
+| Popups (window.open / target=_blank, OnBeforePopup) | Done |
+| Cache control (clearCache) | Done |
+| arm64 + x86_64 validated on device + emulator (30 instrumented tests) | Done |
 | Published on Codeberg Packages (Maven) | Done |
 | 23 instrumented tests | Done |
 | Android Accessibility (TalkBack) | Done |
