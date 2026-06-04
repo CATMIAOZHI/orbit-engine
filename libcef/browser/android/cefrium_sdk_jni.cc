@@ -18,6 +18,7 @@
 #include "cef/include/cef_client.h"
 #include "cef/include/cef_cookie.h"
 #include "cef/include/cef_request_context.h"
+#include "cef/include/cef_values.h"
 #include "cef/include/cef_context_menu_handler.h"
 #include "cef/include/cef_display_handler.h"
 #include "cef/include/cef_download_handler.h"
@@ -1446,6 +1447,39 @@ Java_com_cefrium_CefriumBrowser_nativeFlushCookies(
     JNIEnv* env, jclass, jlong native_ptr) {
   CefRefPtr<CefCookieManager> mgr = CookieManagerFor(native_ptr);
   if (mgr) mgr->FlushStore(nullptr);
+}
+
+// ───────────────────── Dynamic WebSettings (FEATURE-025) ─────────────────────
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetUserAgentOverride(
+    JNIEnv* env, jclass, jlong native_ptr, jstring ua_j) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser || !data->browser->GetHost()) return;
+  CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
+  params->SetString("userAgent", JStr(env, ua_j));
+  data->browser->GetHost()->ExecuteDevToolsMethod(
+      1, "Emulation.setUserAgentOverride", params);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetJavaScriptEnabled(
+    JNIEnv* env, jclass, jlong native_ptr, jboolean enabled) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser || !data->browser->GetHost()) return;
+  CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
+  params->SetBool("value", enabled == JNI_FALSE);  // setScriptExecutionDisabled
+  data->browser->GetHost()->ExecuteDevToolsMethod(
+      1, "Emulation.setScriptExecutionDisabled", params);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetZoomLevel(
+    JNIEnv* env, jclass, jlong native_ptr, jdouble zoom) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser && data->browser->GetHost()) {
+    data->browser->GetHost()->SetZoomLevel(zoom);
+  }
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
