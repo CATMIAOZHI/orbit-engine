@@ -92,6 +92,11 @@ class CefriumNavigator {
         state?.browser?.flushCookies()
     }
 
+    /** Clears the browser's HTTP cache. */
+    fun clearCache() {
+        state?.browser?.clearCache()
+    }
+
     // ── Dynamic WebSettings (FEATURE-025) ──
 
     /** Overrides the User-Agent at runtime. */

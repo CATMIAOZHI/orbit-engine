@@ -115,4 +115,18 @@ public class CefriumCookieTest {
         }
         Assert.assertTrue("cookie 'todelete' still present after deleteCookies", gone);
     }
+
+    /** clearCache() must not crash (FEATURE-030 smoke). */
+    @Test
+    public void testClearCacheSmoke() throws Exception {
+        Activity act = activityRule.getActivity();
+        final CountDownLatch done = new CountDownLatch(1);
+        act.runOnUiThread(() -> {
+            CefriumBrowser b = CefriumBrowser.createWithSurface(act);
+            b.loadUrl("about:blank");
+            b.clearCache();
+            done.countDown();
+        });
+        Assert.assertTrue(done.await(10, TimeUnit.SECONDS));
+    }
 }
