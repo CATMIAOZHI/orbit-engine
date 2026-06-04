@@ -76,6 +76,23 @@ class CefriumNavigator {
     fun flushCookies() {
         state?.browser?.flushCookies()
     }
+
+    // ── Dynamic WebSettings (FEATURE-025) ──
+
+    /** Overrides the User-Agent at runtime. */
+    fun setUserAgentOverride(userAgent: String) {
+        state?.browser?.setUserAgentOverride(userAgent)
+    }
+
+    /** Enables/disables JavaScript at runtime. */
+    fun setJavaScriptEnabled(enabled: Boolean) {
+        state?.browser?.setJavaScriptEnabled(enabled)
+    }
+
+    /** Sets the zoom level (0 = 100%; factor = 1.2^level). */
+    fun setZoomLevel(zoomLevel: Double) {
+        state?.browser?.setZoomLevel(zoomLevel)
+    }
 }
 
 /** Remembers a [CefriumNavigator] across recompositions. */
