@@ -17,6 +17,7 @@
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_client.h"
 #include "cef/include/cef_cookie.h"
+#include "cef/include/cef_request.h"
 #include "cef/include/cef_request_context.h"
 #include "cef/include/cef_values.h"
 #include "cef/include/cef_context_menu_handler.h"
@@ -1480,6 +1481,36 @@ Java_com_cefrium_CefriumBrowser_nativeSetZoomLevel(
   if (data && data->browser && data->browser->GetHost()) {
     data->browser->GetHost()->SetZoomLevel(zoom);
   }
+}
+
+// ───────────────────── Navigation extras (FEATURE-026) ─────────────────────
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativePostUrl(
+    JNIEnv* env, jclass, jlong native_ptr, jstring url_j, jbyteArray data_j) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser || !data->browser->GetMainFrame()) return;
+  CefRefPtr<CefRequest> request = CefRequest::Create();
+  request->SetURL(JStr(env, url_j));
+  request->SetMethod("POST");
+  if (data_j) {
+    jsize len = env->GetArrayLength(data_j);
+    jbyte* bytes = env->GetByteArrayElements(data_j, nullptr);
+    CefRefPtr<CefPostData> post_data = CefPostData::Create();
+    CefRefPtr<CefPostDataElement> element = CefPostDataElement::Create();
+    element->SetToBytes(static_cast<size_t>(len), bytes);
+    post_data->AddElement(element);
+    request->SetPostData(post_data);
+    env->ReleaseByteArrayElements(data_j, bytes, JNI_ABORT);
+  }
+  data->browser->GetMainFrame()->LoadRequest(request);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeStopLoading(
+    JNIEnv* env, jclass, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser) data->browser->StopLoad();
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
