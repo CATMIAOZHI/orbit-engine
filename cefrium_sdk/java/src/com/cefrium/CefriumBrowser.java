@@ -472,6 +472,11 @@ public class CefriumBrowser {
         if (mNativePtr != 0) nativeFlushCookies(mNativePtr);
     }
 
+    /** Clears the browser's HTTP cache (FEATURE-030). */
+    public void clearCache() {
+        if (mNativePtr != 0) nativeClearCache(mNativePtr);
+    }
+
     // ──────────────────── Dynamic WebSettings (FEATURE-025) ────────────────────
 
     /** Overrides the User-Agent at runtime (Emulation.setUserAgentOverride). */
@@ -1031,6 +1036,7 @@ public class CefriumBrowser {
     private static native void nativeGetCookies(long nativePtr, CefriumBrowser browser, String url, long requestId);
     private static native void nativeDeleteCookies(long nativePtr, String url, String name);
     private static native void nativeFlushCookies(long nativePtr);
+    private static native void nativeClearCache(long nativePtr);
     private static native void nativeSetUserAgentOverride(long nativePtr, String userAgent);
     private static native void nativeSetJavaScriptEnabled(long nativePtr, boolean enabled);
     private static native void nativeSetZoomLevel(long nativePtr, double zoomLevel);
