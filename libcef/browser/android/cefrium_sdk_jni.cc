@@ -7,6 +7,7 @@
 
 #include <cinttypes>
 #include <jni.h>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,7 @@
 #include "cef/include/cef_display_handler.h"
 #include "cef/include/cef_download_handler.h"
 #include "cef/include/cef_find_handler.h"
+#include "cef/include/cef_jsdialog_handler.h"
 #include "cef/include/cef_life_span_handler.h"
 #include "cef/include/cef_load_handler.h"
 #include "cef/include/cef_render_handler.h"
@@ -771,6 +773,85 @@ class SdkFindHandler : public CefFindHandler {
   jobject java_browser_ = nullptr;
 };
 
+// FEATURE-028: JS dialogs (alert/confirm/prompt) -> Java (custom handler or
+// default Android AlertDialog). Always registered so alert() etc. work.
+class SdkJSDialogHandler : public CefJSDialogHandler {
+ public:
+  void SetJavaBrowser(JNIEnv* env, jobject jb) {
+    if (jb) java_browser_ = env->NewGlobalRef(jb);
+  }
+
+  bool OnJSDialog(CefRefPtr<CefBrowser> browser,
+                  const CefString& origin_url,
+                  JSDialogType dialog_type,
+                  const CefString& message_text,
+                  const CefString& default_prompt_text,
+                  CefRefPtr<CefJSDialogCallback> callback,
+                  bool& suppress_message) override {
+    if (!java_browser_) return false;  // fall back to CEF default
+    jlong token;
+    {
+      base::AutoLock l(lock_);
+      token = next_token_++;
+      pending_[token] = callback;
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) {
+      base::AutoLock l(lock_);
+      pending_.erase(token);
+      return false;
+    }
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(
+        cls, "onJsDialog", "(IJLjava/lang/String;Ljava/lang/String;)V");
+    bool dispatched = false;
+    if (mid) {
+      jstring jmsg = env->NewStringUTF(message_text.ToString().c_str());
+      jstring jdef = env->NewStringUTF(default_prompt_text.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, static_cast<jint>(dialog_type),
+                          token, jmsg, jdef);
+      env->DeleteLocalRef(jmsg);
+      env->DeleteLocalRef(jdef);
+      dispatched = true;
+    }
+    env->DeleteLocalRef(cls);
+    if (!dispatched) {
+      base::AutoLock l(lock_);
+      pending_.erase(token);
+      return false;
+    }
+    return true;  // handled asynchronously
+  }
+
+  void Resolve(jlong token, bool success, const CefString& input) {
+    CefRefPtr<CefJSDialogCallback> cb;
+    {
+      base::AutoLock l(lock_);
+      auto it = pending_.find(token);
+      if (it != pending_.end()) {
+        cb = it->second;
+        pending_.erase(it);
+      }
+    }
+    if (cb) cb->Continue(success, input);
+  }
+
+  ~SdkJSDialogHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+
+  IMPLEMENT_REFCOUNTING(SdkJSDialogHandler);
+
+ private:
+  jobject java_browser_ = nullptr;
+  base::Lock lock_;
+  std::map<jlong, CefRefPtr<CefJSDialogCallback>> pending_;
+  jlong next_token_ = 1;
+};
+
 class SdkClient : public CefClient {
  public:
   SdkClient(CefRefPtr<SdkRenderHandler> render_handler,
@@ -784,6 +865,7 @@ class SdkClient : public CefClient {
         download_handler_(new SdkDownloadHandler()),
         context_menu_handler_(new SdkContextMenuHandler()),
         find_handler_(new SdkFindHandler()),
+        js_dialog_handler_(new SdkJSDialogHandler()),
         request_handler_(blocked_count ? new SdkRequestHandler(blocked_count) : nullptr) {
     if (browser_data) {
       load_handler_->SetBrowserData(browser_data);
@@ -849,6 +931,11 @@ class SdkClient : public CefClient {
     return find_handler_;
   }
 
+  CefRefPtr<CefJSDialogHandler> GetJSDialogHandler() override {
+    return js_dialog_handler_;
+  }
+
+  CefRefPtr<SdkJSDialogHandler> js_dialog_handler() { return js_dialog_handler_; }
   CefRefPtr<SdkDisplayHandler> display_handler() { return display_handler_; }
   CefRefPtr<SdkLoadHandler> load_handler_ref() { return load_handler_; }
   CefRefPtr<SdkDownloadHandler> download_handler() { return download_handler_; }
@@ -865,6 +952,7 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkDownloadHandler> download_handler_;
   CefRefPtr<SdkContextMenuHandler> context_menu_handler_;
   CefRefPtr<SdkFindHandler> find_handler_;
+  CefRefPtr<SdkJSDialogHandler> js_dialog_handler_;
   CefRefPtr<SdkRequestHandler> request_handler_;
   // Declared last so the router is destroyed before the handler it references.
   std::unique_ptr<CefriumBridgeHandler> bridge_handler_;
@@ -1058,6 +1146,7 @@ Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
     data->client->display_handler()->SetJavaBrowser(env, java_browser);
     data->client->load_handler_ref()->SetJavaBrowser(env, java_browser);
     data->client->find_handler()->SetJavaBrowser(env, java_browser);
+    data->client->js_dialog_handler()->SetJavaBrowser(env, java_browser);
     data->client->download_handler()->SetJavaBrowser(env, java_browser);
     // JS bridge (FEATURE-023): deliver window.cefriumQuery to Java.
     if (data->client->bridge_handler()) {
@@ -1536,6 +1625,18 @@ Java_com_cefrium_CefriumBrowser_nativeStopLoading(
     JNIEnv* env, jclass, jlong native_ptr) {
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
   if (data && data->browser) data->browser->StopLoad();
+}
+
+// FEATURE-028: Java resolves a JS dialog (alert/confirm/prompt).
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeJsDialogResult(
+    JNIEnv* env, jclass, jlong native_ptr, jlong token, jboolean success,
+    jstring input_j) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client && data->client->js_dialog_handler()) {
+    data->client->js_dialog_handler()->Resolve(token, success == JNI_TRUE,
+                                               JStr(env, input_j));
+  }
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
