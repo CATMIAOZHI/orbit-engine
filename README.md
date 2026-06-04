@@ -63,7 +63,6 @@ that gap.
 | Cache control (clearCache) | Done |
 | arm64 + x86_64 validated on device + emulator (30 instrumented tests) | Done |
 | Published on Codeberg Packages (Maven) | Done |
-| 23 instrumented tests | Done |
 | Android Accessibility (TalkBack) | Done |
 | Android Autofill (Proton Pass, Google) | Done |
 | Widevine DRM (Netflix, Disney+, Spotify) | Done |
@@ -116,8 +115,8 @@ Android.
   framework, no X11, no Wayland
 - **Multi-process** with renderer running as an Android `Service`,
   replacing Unix `fork()`/`execve()`
-- **12 Chromium patches** for Android adaptations, managed via CEF's
-  existing patch infrastructure (`cef/patch/patches/android/`)
+- **16 Android-specific Chromium patches** for Android adaptations, managed via
+  CEF's existing patch infrastructure (`cef/patch/patches/android/`)
 - **Gradle Plugin** generates R.java for Chromium packages in consumer
   projects, solving the multi-package resource ID problem
 
@@ -127,10 +126,12 @@ Prerequisites: Chromium source tree at tag `148.0.7778.167`, ~400 GB disk,
 64 GB RAM.
 
 ```bash
-# 1. Apply CEF patches (including Android-specific)
+# 1. Apply CEF patches (including Android-specific). The Android patches are
+#    gated on an env var whose NAME is the literal condition string; set it for
+#    the patcher process with `env` (it can't be a normal `export`, since the
+#    name contains '=' and '"').
 cd chromium/src
-export 'target_os=="android"'=1
-python3 cef/tools/patcher.py
+env 'target_os=="android"=1' python3 cef/tools/patcher.py
 
 # 2. Generate build files
 depot_tools/gn gen out/Official_android_arm64 --args='
@@ -221,11 +222,7 @@ dependencies {
 }
 ```
 
-> **App size.** The AAR carries both ABIs (~240 MB), but each user only downloads
-> their architecture: publish an **Android App Bundle** (Play generates per-device
-> APKs), or use **ABI splits** / `ndk.abiFilters` for direct APKs. A single-ABI
-> APK is ~150 MB.
-
+(App size: see the note at the top and [APK size optimization](#apk-size-optimization).)
 
 ### Direct download
 
@@ -242,14 +239,13 @@ Place in `app/libs/` and use `implementation files('libs/cefrium-sdk.aar')`.
 
 ### Variants
 
-Four variants for each Chromium version:
+Each artifact is a single **multi-ABI** AAR (arm64-v8a + x86_64; only the device's
+ABI is shipped per APK/App Bundle). They differ only by codec policy:
 
-| Artifact | Arch | Codecs | Use case |
-|----------|------|--------|----------|
-| `cefrium-sdk` | arm64 | H.264, H.265, AAC, VP8, VP9, Opus | Real devices, full site compatibility |
-| `cefrium-sdk-libre` | arm64 | VP8, VP9, Opus, Vorbis | Real devices, royalty-free only |
-| `cefrium-sdk-x64` | x86_64 | H.264, H.265, AAC, VP8, VP9, Opus | Emulators, full site compatibility |
-| `cefrium-sdk-x64-libre` | x86_64 | VP8, VP9, Opus, Vorbis | Emulators, royalty-free only |
+| Artifact | Codecs | Use case |
+|----------|--------|----------|
+| `cefrium-sdk` | H.264, H.265, AAC, VP8, VP9, Opus | Full site compatibility (published) |
+| `cefrium-sdk-libre` | VP8, VP9, Opus, Vorbis | Royalty-free only (planned) |
 
 **Patent note:** H.264 patents expire by [November 2027](https://www.osnews.com/story/24954/us-patent-expiration-for-mp3-mpeg-2-h264/)
 (last US patent: [US 7826532](https://patents.google.com/patent/US7826532B2), expires 2027-11-29).
@@ -270,8 +266,9 @@ artifacts return 409 and are skipped. Full steps in
 
 ### APK size optimization
 
-The SDK AAR is ~146 MB (compressed). The final APK size depends on your
-app's configuration. To minimize APK size:
+The SDK AAR is multi-ABI (~240 MB, both `arm64-v8a` and `x86_64`). Each consumer
+APK/App Bundle ships only one ABI, so the per-architecture footprint is ~150 MB.
+The final APK size then depends on your app's configuration. To minimize it:
 
 ```groovy
 // app/build.gradle
@@ -322,7 +319,7 @@ cef/
 ├── cefrium_compose/               # Jetpack Compose wrapper (cefrium-compose.aar)
 ├── cefrium_instrumentation_test/  # On-device instrumented test harness (SDK + Compose)
 ├── tests/cef_android_test/        # Test APK
-└── patch/patches/android/         # 11 Android-specific Chromium patches
+└── patch/patches/android/         # 16 Android-specific Chromium patches
 ```
 
 ## Testing
@@ -357,7 +354,7 @@ All Android changes are isolated and reviewable:
   git format-patch origin/7778..android-port -- \
     ':!README.md' ':!assets/screenshots'
   ```
-- **Chromium patches** (`patch/patches/android/`): 14 Android-specific patches applied
+- **Chromium patches** (`patch/patches/android/`): 16 Android-specific patches applied
   via `patcher.py`. Each addresses a specific incompatibility between
   Chromium's assumptions and the Android embedding environment.
   Managed via CEF's existing patch infrastructure.
@@ -367,19 +364,19 @@ All Android changes are isolated and reviewable:
 If you have expertise in CEF or Chromium internals and want to help
 bring this upstream, open an issue or email cefrium@proton.me.
 
-## Known limitations
+## Platform integration status
 
-Cefrium is NOT a drop-in WebView replacement. It provides capabilities
-WebView doesn't have (off-screen rendering, request interception with
-full URL access, pinned Chromium version), but lacks integration with
-some Android platform features:
+Cefrium is NOT a drop-in WebView replacement: it bundles its own Chromium and
+provides capabilities WebView doesn't have (off-screen rendering, request
+interception with full URL access, pinned Chromium version). The Android
+platform integrations it wires up:
 
 | Feature | Status |
 |---------|--------|
 | Android Accessibility (TalkBack) | Done |
 | Autofill framework (password managers) | Done |
 | Widevine DRM (Netflix, Disney+, Spotify) | Done |
-| WebAuthn / Passkeys | Platform limitation — requires Google Play Services browser verification (same as Brave/Firefox). SDK apps can use APP mode + Digital Asset Links for specific domains. |
+| WebAuthn / Passkeys | Limited — requires Google Play Services browser verification (same constraint as Brave/Firefox). SDK apps can use APP mode + Digital Asset Links for specific domains. |
 
 Surface rendering uses `ContentViewRenderView` — the same Chromium
 component as Chrome Android. No additional overhead vs Chrome.
@@ -392,11 +389,12 @@ Cefrium is in early validation.
 
 **What Cefrium gives you:** A complete Chromium engine under your control,
 with the same CEF API that powers Steam, Spotify, and Discord — now on
-Android. Every commit is tested on real devices. All 14 Chromium patches
+Android. Every commit is tested on real devices. All 16 Chromium patches
 are auditable in `patch/patches/android/`.
 
 **What you should know:**
-- **APK size:** ~150 MB for the SDK AAR (comparable to Chrome itself).
+- **APK size:** ~150 MB per architecture (comparable to Chrome itself; the
+  multi-ABI AAR is ~240 MB but each device ships only one ABI).
   Use R8/ProGuard, ABI splits, and AAB format to optimize delivery.
   See [APK size optimization](#apk-size-optimization).
 - **Security updates:** Cefrium tracks Debian Chromium releases for
