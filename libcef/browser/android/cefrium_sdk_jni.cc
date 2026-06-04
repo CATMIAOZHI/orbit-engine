@@ -163,11 +163,62 @@ class SdkLifeSpanHandler : public CefLifeSpanHandler {
     message_router_ = router;
   }
 
+  void SetJavaBrowser(JNIEnv* env, jobject jb) {
+    if (jb) java_browser_ = env->NewGlobalRef(jb);
+  }
+
+  // FEATURE-029: window.open / target=_blank. Embedded single-surface model:
+  // never spawn a separate window. Ask the Java PopupHandler; if it doesn't
+  // take it, navigate the same browser to the target URL.
+  bool OnBeforePopup(CefRefPtr<CefBrowser> browser,
+                     CefRefPtr<CefFrame> frame,
+                     int popup_id,
+                     const CefString& target_url,
+                     const CefString& target_frame_name,
+                     WindowOpenDisposition target_disposition,
+                     bool user_gesture,
+                     const CefPopupFeatures& popupFeatures,
+                     CefWindowInfo& windowInfo,
+                     CefRefPtr<CefClient>& client,
+                     CefBrowserSettings& settings,
+                     CefRefPtr<CefDictionaryValue>& extra_info,
+                     bool* no_javascript_access) override {
+    bool handled = false;
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) {
+        jclass cls = env->GetObjectClass(java_browser_);
+        jmethodID mid = env->GetMethodID(cls, "onOpenPopup",
+                                         "(Ljava/lang/String;Z)Z");
+        if (mid) {
+          jstring ju = env->NewStringUTF(target_url.ToString().c_str());
+          handled = env->CallBooleanMethod(java_browser_, mid, ju,
+                                           user_gesture ? JNI_TRUE : JNI_FALSE);
+          env->DeleteLocalRef(ju);
+        }
+        env->DeleteLocalRef(cls);
+      }
+    }
+    if (!handled && browser && browser->GetMainFrame() &&
+        !target_url.empty()) {
+      browser->GetMainFrame()->LoadURL(target_url);
+    }
+    return true;  // always cancel the separate popup window
+  }
+
+  ~SdkLifeSpanHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+
   IMPLEMENT_REFCOUNTING(SdkLifeSpanHandler);
 
  private:
   struct SdkBrowserData* data_ = nullptr;
   CefRefPtr<CefMessageRouterBrowserSide> message_router_;
+  jobject java_browser_ = nullptr;
 };
 
 // Load handler that triggers Invalidate on load completion.
@@ -1119,6 +1170,9 @@ Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
     data->client->load_handler_ref()->SetJavaBrowser(env, java_browser);
     data->client->find_handler()->SetJavaBrowser(env, java_browser);
     data->client->js_dialog_handler()->SetJavaBrowser(env, java_browser);
+    if (data->life_span_handler) {
+      data->life_span_handler->SetJavaBrowser(env, java_browser);
+    }
     data->client->download_handler()->SetJavaBrowser(env, java_browser);
     // JS bridge (FEATURE-023): deliver window.cefriumQuery to Java.
     if (data->client->bridge_handler()) {

@@ -599,6 +599,32 @@ public class CefriumBrowser {
         b.show();
     }
 
+    // ─────────────── Popups / window.open (FEATURE-029) ───────────────
+
+    /**
+     * Handles popups (window.open / target=_blank). This SDK never spawns a
+     * separate window; by default the target URL is loaded in this browser.
+     */
+    public interface PopupHandler {
+        /** Return true if you handled it (e.g. opened a new tab); false to load
+            the target URL in this browser. */
+        boolean onOpenPopup(String targetUrl, boolean userGesture);
+    }
+
+    private PopupHandler mPopupHandler;
+
+    /** Sets a popup handler (null = load popups in this browser). */
+    public void setPopupHandler(PopupHandler handler) {
+        mPopupHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+
+    // Called from native (UI thread) when the page opens window.open / target=_blank.
+    private boolean onOpenPopup(String targetUrl, boolean userGesture) {
+        PopupHandler h = mPopupHandler;
+        return h != null && h.onOpenPopup(targetUrl, userGesture);
+    }
+
     // Called from native (UI thread) with the visited cookies for a getCookies request.
     private void onCookiesVisited(long requestId, String[] names, String[] values,
             String[] domains, String[] paths, boolean[] secure, boolean[] httpOnly) {
