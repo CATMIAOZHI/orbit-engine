@@ -108,6 +108,13 @@ class CefriumNavigator {
     fun setZoomLevel(zoomLevel: Double) {
         state?.browser?.setZoomLevel(zoomLevel)
     }
+
+    // ── Request interceptor (FEATURE-027) ──
+
+    /** Sets a programmatic request interceptor (block decisions; null clears). */
+    fun setRequestInterceptor(interceptor: com.cefrium.CefriumBrowser.RequestInterceptor?) {
+        state?.browser?.setRequestInterceptor(interceptor)
+    }
 }
 
 /** Remembers a [CefriumNavigator] across recompositions. */
