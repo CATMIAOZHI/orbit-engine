@@ -415,9 +415,17 @@ use, and extend.
 
 ## License
 
-- **Upstream CEF code:** BSD (inherited from CEF/Chromium)
-- **Cefrium additions** (`cefrium_sdk/`, Android port, Compose wrapper): [LGPL-3.0-or-later](https://www.gnu.org/licenses/lgpl-3.0.html)
-- **Commercial licensing** available for proprietary integration — cefrium@proton.me
+The **Cefrium additions** (`cefrium_sdk/`, the Android port, the Compose wrapper)
+are **dual-licensed — choose one:**
+
+- **[LGPL-3.0-or-later](https://www.gnu.org/licenses/lgpl-3.0.html)** — free/libre.
+  Use it in any app while complying with the LGPL (dynamic linking, provide the
+  Cefrium source/relinking ability to your users).
+- **Cefrium Commercial License** — for closed-source / proprietary integration
+  without LGPL obligations. Contact: **cefrium@proton.me**
+
+The underlying **CEF and Chromium** code is **BSD** (inherited upstream) and is
+unaffected by the above.
 
 ---
 
