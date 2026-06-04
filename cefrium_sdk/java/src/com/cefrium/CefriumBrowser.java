@@ -489,6 +489,26 @@ public class CefriumBrowser {
         if (mNativePtr != 0) nativeSetZoomLevel(mNativePtr, zoomLevel);
     }
 
+    // ─────────────── Navigation extras (FEATURE-026) ───────────────
+
+    /** Loads an HTML string directly (served to the engine as a data: URL). */
+    public void loadHtml(String html) {
+        if (mNativePtr == 0 || html == null) return;
+        String dataUrl = "data:text/html;charset=utf-8;base64," + android.util.Base64.encodeToString(
+                html.getBytes(java.nio.charset.StandardCharsets.UTF_8), android.util.Base64.NO_WRAP);
+        nativeLoadUrl(mNativePtr, dataUrl);
+    }
+
+    /** Loads {@code url} with an HTTP POST body. */
+    public void postUrl(String url, byte[] postData) {
+        if (mNativePtr != 0) nativePostUrl(mNativePtr, url, postData);
+    }
+
+    /** Stops the current load. */
+    public void stopLoading() {
+        if (mNativePtr != 0) nativeStopLoading(mNativePtr);
+    }
+
     // Called from native (UI thread) with the visited cookies for a getCookies request.
     private void onCookiesVisited(long requestId, String[] names, String[] values,
             String[] domains, String[] paths, boolean[] secure, boolean[] httpOnly) {
@@ -898,6 +918,8 @@ public class CefriumBrowser {
     private static native void nativeSetUserAgentOverride(long nativePtr, String userAgent);
     private static native void nativeSetJavaScriptEnabled(long nativePtr, boolean enabled);
     private static native void nativeSetZoomLevel(long nativePtr, double zoomLevel);
+    private static native void nativePostUrl(long nativePtr, String url, byte[] postData);
+    private static native void nativeStopLoading(long nativePtr);
     private static native boolean nativeCanGoBack(long nativePtr);
     private static native void nativeSetDisplayCallback(long nativePtr, CefriumBrowser browser);
     private static native void nativeClose(long nativePtr);
