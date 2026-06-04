@@ -426,6 +426,65 @@ public class CefriumBrowser {
         }
     }
 
+    // ───────────────────────── Cookies (FEATURE-024) ─────────────────────────
+
+    /** An HTTP cookie read from the browser's cookie store. */
+    public static final class Cookie {
+        public final String name, value, domain, path;
+        public final boolean secure, httpOnly;
+        public Cookie(String name, String value, String domain, String path,
+                      boolean secure, boolean httpOnly) {
+            this.name = name; this.value = value; this.domain = domain;
+            this.path = path; this.secure = secure; this.httpOnly = httpOnly;
+        }
+    }
+
+    /** Receives the result of {@link #getCookies}. Invoked on the UI thread. */
+    public interface CookieCallback {
+        void onCookies(java.util.List<Cookie> cookies);
+    }
+
+    private final java.util.concurrent.ConcurrentHashMap<Long, CookieCallback>
+            mCookieCallbacks = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.concurrent.atomic.AtomicLong mCookieReqId =
+            new java.util.concurrent.atomic.AtomicLong(1);
+
+    /** Sets a cookie for {@code url} (domain/path inferred from the URL). */
+    public void setCookie(String url, String name, String value) {
+        if (mNativePtr != 0) nativeSetCookie(mNativePtr, url, name, value);
+    }
+
+    /** Reads cookies visible to {@code url}; the callback fires on the UI thread. */
+    public void getCookies(String url, CookieCallback callback) {
+        if (mNativePtr == 0 || callback == null) return;
+        long reqId = mCookieReqId.getAndIncrement();
+        mCookieCallbacks.put(reqId, callback);
+        nativeGetCookies(mNativePtr, this, url, reqId);
+    }
+
+    /** Deletes cookies for {@code url}; {@code name} null/empty = all for the URL. */
+    public void deleteCookies(String url, String name) {
+        if (mNativePtr != 0) nativeDeleteCookies(mNativePtr, url, name == null ? "" : name);
+    }
+
+    /** Persists the cookie store to disk. */
+    public void flushCookies() {
+        if (mNativePtr != 0) nativeFlushCookies(mNativePtr);
+    }
+
+    // Called from native (UI thread) with the visited cookies for a getCookies request.
+    private void onCookiesVisited(long requestId, String[] names, String[] values,
+            String[] domains, String[] paths, boolean[] secure, boolean[] httpOnly) {
+        CookieCallback cb = mCookieCallbacks.remove(requestId);
+        if (cb == null) return;
+        java.util.ArrayList<Cookie> list = new java.util.ArrayList<>(names.length);
+        for (int i = 0; i < names.length; i++) {
+            list.add(new Cookie(names[i], values[i], domains[i], paths[i],
+                    secure[i], httpOnly[i]));
+        }
+        cb.onCookies(list);
+    }
+
     /**
      * @return true if the browser can navigate back.
      */
@@ -815,6 +874,10 @@ public class CefriumBrowser {
     private static native void nativeEvaluateJavaScript(long nativePtr, String script);
     private static native void nativeQueryResult(long nativePtr, long queryId,
             boolean success, String response, int errorCode, String errorMessage);
+    private static native void nativeSetCookie(long nativePtr, String url, String name, String value);
+    private static native void nativeGetCookies(long nativePtr, CefriumBrowser browser, String url, long requestId);
+    private static native void nativeDeleteCookies(long nativePtr, String url, String name);
+    private static native void nativeFlushCookies(long nativePtr);
     private static native boolean nativeCanGoBack(long nativePtr);
     private static native void nativeSetDisplayCallback(long nativePtr, CefriumBrowser browser);
     private static native void nativeClose(long nativePtr);

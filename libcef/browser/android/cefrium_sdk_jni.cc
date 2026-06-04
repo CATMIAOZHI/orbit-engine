@@ -8,6 +8,7 @@
 #include <cinttypes>
 #include <jni.h>
 #include <string>
+#include <vector>
 
 #include "base/base64.h"
 #include "cef/include/cef_app.h"
@@ -15,6 +16,8 @@
 #include "components/android_autofill/browser/autofill_provider.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_client.h"
+#include "cef/include/cef_cookie.h"
+#include "cef/include/cef_request_context.h"
 #include "cef/include/cef_context_menu_handler.h"
 #include "cef/include/cef_display_handler.h"
 #include "cef/include/cef_download_handler.h"
@@ -1267,6 +1270,154 @@ Java_com_cefrium_CefriumBrowser_nativeQueryResult(
               base::BindOnce(&ResolveBridgeQueryOnUI, native_ptr, query_id,
                              static_cast<bool>(success), response, error_code,
                              error_msg));
+}
+
+// ───────────────────────── Cookies (FEATURE-024) ─────────────────────────
+
+namespace {
+
+CefString JStr(JNIEnv* env, jstring j) {
+  CefString out;
+  if (j) {
+    const char* s = env->GetStringUTFChars(j, nullptr);
+    out = s;
+    env->ReleaseStringUTFChars(j, s);
+  }
+  return out;
+}
+
+// Cookie manager for a browser's own request context (per-browser store).
+CefRefPtr<CefCookieManager> CookieManagerFor(jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser || !data->browser->GetHost()) {
+    return nullptr;
+  }
+  CefRefPtr<CefRequestContext> ctx =
+      data->browser->GetHost()->GetRequestContext();
+  return ctx ? ctx->GetCookieManager(nullptr) : nullptr;
+}
+
+// Delivers visited cookies to Java CefriumBrowser.onCookiesVisited (TID_UI).
+// Owns the global ref; releases it after the call.
+void DeliverCookiesOnUI(jobject java_browser,
+                        jlong req_id,
+                        std::vector<std::string> names,
+                        std::vector<std::string> values,
+                        std::vector<std::string> domains,
+                        std::vector<std::string> paths,
+                        std::vector<uint8_t> secure,
+                        std::vector<uint8_t> httponly) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  const int n = static_cast<int>(names.size());
+  jclass str_cls = env->FindClass("java/lang/String");
+  auto mk = [&](const std::vector<std::string>& v) -> jobjectArray {
+    jobjectArray a = env->NewObjectArray(n, str_cls, nullptr);
+    for (int i = 0; i < n; ++i) {
+      jstring s = env->NewStringUTF(v[i].c_str());
+      env->SetObjectArrayElement(a, i, s);
+      env->DeleteLocalRef(s);
+    }
+    return a;
+  };
+  jobjectArray jn = mk(names), jv = mk(values), jd = mk(domains), jp = mk(paths);
+  jbooleanArray js = env->NewBooleanArray(n), jh = env->NewBooleanArray(n);
+  if (n > 0) {
+    env->SetBooleanArrayRegion(js, 0, n,
+        reinterpret_cast<const jboolean*>(secure.data()));
+    env->SetBooleanArrayRegion(jh, 0, n,
+        reinterpret_cast<const jboolean*>(httponly.data()));
+  }
+  jclass cls = env->GetObjectClass(java_browser);
+  jmethodID m = env->GetMethodID(cls, "onCookiesVisited",
+      "(J[Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/String;"
+      "[Ljava/lang/String;[Z[Z)V");
+  if (m) {
+    env->CallVoidMethod(java_browser, m, req_id, jn, jv, jd, jp, js, jh);
+  }
+  env->DeleteGlobalRef(java_browser);
+}
+
+// Accumulates cookies during a visit and delivers them when CEF releases it.
+class SdkCookieVisitor : public CefCookieVisitor {
+ public:
+  SdkCookieVisitor(jobject java_browser_global, jlong req_id)
+      : java_browser_(java_browser_global), req_id_(req_id) {}
+
+  bool Visit(const CefCookie& cookie, int, int, bool&) override {
+    names_.push_back(CefString(&cookie.name).ToString());
+    values_.push_back(CefString(&cookie.value).ToString());
+    domains_.push_back(CefString(&cookie.domain).ToString());
+    paths_.push_back(CefString(&cookie.path).ToString());
+    secure_.push_back(cookie.secure ? 1 : 0);
+    httponly_.push_back(cookie.httponly ? 1 : 0);
+    return true;
+  }
+
+  ~SdkCookieVisitor() override {
+    CefPostTask(TID_UI,
+                base::BindOnce(&DeliverCookiesOnUI, java_browser_, req_id_,
+                               std::move(names_), std::move(values_),
+                               std::move(domains_), std::move(paths_),
+                               std::move(secure_), std::move(httponly_)));
+  }
+
+ private:
+  jobject java_browser_;
+  jlong req_id_;
+  std::vector<std::string> names_, values_, domains_, paths_;
+  std::vector<uint8_t> secure_, httponly_;
+  IMPLEMENT_REFCOUNTING(SdkCookieVisitor);
+};
+
+}  // namespace
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetCookie(
+    JNIEnv* env, jclass, jlong native_ptr, jstring url_j, jstring name_j,
+    jstring value_j) {
+  CefRefPtr<CefCookieManager> mgr = CookieManagerFor(native_ptr);
+  if (!mgr) return;
+  CefString url = JStr(env, url_j);
+  CefCookie cookie;  // zero-initialized (CefStructBase)
+  CefString(&cookie.name) = JStr(env, name_j);
+  CefString(&cookie.value) = JStr(env, value_j);
+  cookie.has_expires = false;  // session cookie; domain/path inferred from url
+  mgr->SetCookie(url, cookie, nullptr);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeGetCookies(
+    JNIEnv* env, jclass, jlong native_ptr, jobject browser_j, jstring url_j,
+    jlong req_id) {
+  jobject global = env->NewGlobalRef(browser_j);
+  CefRefPtr<CefCookieManager> mgr = CookieManagerFor(native_ptr);
+  if (!mgr) {
+    // Deliver an empty result so the Java callback is invoked and removed.
+    CefPostTask(TID_UI, base::BindOnce(&DeliverCookiesOnUI, global, req_id,
+                                       std::vector<std::string>(),
+                                       std::vector<std::string>(),
+                                       std::vector<std::string>(),
+                                       std::vector<std::string>(),
+                                       std::vector<uint8_t>(),
+                                       std::vector<uint8_t>()));
+    return;
+  }
+  CefRefPtr<SdkCookieVisitor> visitor = new SdkCookieVisitor(global, req_id);
+  mgr->VisitUrlCookies(JStr(env, url_j), /*includeHttpOnly=*/true, visitor);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeDeleteCookies(
+    JNIEnv* env, jclass, jlong native_ptr, jstring url_j, jstring name_j) {
+  CefRefPtr<CefCookieManager> mgr = CookieManagerFor(native_ptr);
+  if (mgr) mgr->DeleteCookies(JStr(env, url_j), JStr(env, name_j), nullptr);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeFlushCookies(
+    JNIEnv* env, jclass, jlong native_ptr) {
+  CefRefPtr<CefCookieManager> mgr = CookieManagerFor(native_ptr);
+  if (mgr) mgr->FlushStore(nullptr);
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
