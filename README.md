@@ -189,15 +189,16 @@ dependencyResolutionManagement {
 // app/build.gradle
 plugins {
     id 'com.android.application'
-    id 'com.cefrium' version '0.1.0'  // Generates R.java for Chromium packages
+    id 'com.cefrium' version '0.2.1'  // Generates R.java for Chromium packages
 }
 
 dependencies {
-    // Cefrium SDK from Codeberg Packages
-    implementation 'com.cefrium:cefrium-sdk:0.1.0'
+    // Cefrium SDK from Codeberg Packages — single multi-ABI artifact
+    // (arm64-v8a + x86_64); your APK/App Bundle ships only the device's ABI.
+    implementation 'com.cefrium:cefrium-sdk:0.2.1'
 
     // Optional: Jetpack Compose wrapper
-    implementation 'com.cefrium:cefrium-compose:0.1.0'
+    implementation 'com.cefrium:cefrium-compose:0.2.1'
 
     // Required runtime dependencies
     implementation 'androidx.appcompat:appcompat:1.7.0'
@@ -207,22 +208,22 @@ dependencies {
 }
 ```
 
+> **App size.** The AAR carries both ABIs (~240 MB), but each user only downloads
+> their architecture: publish an **Android App Bundle** (Play generates per-device
+> APKs), or use **ABI splits** / `ndk.abiFilters` for direct APKs. A single-ABI
+> APK is ~150 MB.
+
 
 ### Direct download
 
 Alternatively, download the AAR directly from
 [Codeberg Packages](https://codeberg.org/cefrium/-/packages):
 
-**arm64-v8a (real devices):**
-- [cefrium-sdk-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk/0.1.0/cefrium-sdk-0.1.0.aar) (~150 MB, H.264/AAC + VP8/VP9/Opus)
-- [cefrium-sdk-libre-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk-libre/0.1.0/cefrium-sdk-libre-0.1.0.aar) (~150 MB, VP8/VP9/Opus only)
-
-**x86_64 (emulators):**
-- [cefrium-sdk-x64-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk-x64/0.1.0/cefrium-sdk-x64-0.1.0.aar) (~150 MB, H.264/AAC + VP8/VP9/Opus)
-- [cefrium-sdk-x64-libre-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk-x64-libre/0.1.0/cefrium-sdk-x64-libre-0.1.0.aar) (~150 MB, VP8/VP9/Opus only)
+**SDK (multi-ABI: arm64-v8a + x86_64, H.264/AAC + VP8/VP9/Opus):**
+- [cefrium-sdk-0.2.1.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk/0.2.1/cefrium-sdk-0.2.1.aar) (~240 MB; the consumer's APK/App Bundle ships only the device's ABI, ~150 MB)
 
 **Jetpack Compose wrapper (all architectures):**
-- [cefrium-compose-0.1.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-compose/0.1.0/cefrium-compose-0.1.0.aar) (14 KB)
+- [cefrium-compose-0.2.1.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-compose/0.2.1/cefrium-compose-0.2.1.aar) (28 KB)
 
 Place in `app/libs/` and use `implementation files('libs/cefrium-sdk.aar')`.
 
