@@ -149,11 +149,15 @@ then `echo "your-token" > ~/.registry-token`. The script reads it from that file
 **Publish:**
 
 ```bash
-cef/cefrium_sdk/publish-maven.sh 0.1.0
+# Build per-arch AARs, merge into the multi-ABI artifact, then publish:
+cef/cefrium_sdk/build-all-variants.sh all codecs   # embeds V8 snapshot (multi-ABI ready)
+cef/cefrium_sdk/merge-multiabi.sh codecs           # -> out/release/cefrium-sdk.aar (arm64+x64)
+cef/cefrium_sdk/publish-maven.sh 0.2.1
 ```
 
-The script uploads each `cefrium-sdk-*` variant, `cefrium-compose`,
-`cefrium-gradle-plugin`, and the plugin marker POM (each with a generated POM).
+The publish script uploads the multi-ABI `cefrium-sdk` (and `cefrium-sdk-libre`
+if built), `cefrium-compose`, `cefrium-gradle-plugin`, and the plugin marker POM
+(each with a generated POM). Versions are immutable — bump to republish.
 
 **Versions are immutable.** The registry returns `409 Conflict` for an artifact
 that already exists, and the script skips it. To publish changed content you
