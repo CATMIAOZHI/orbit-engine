@@ -1601,6 +1601,55 @@ Java_com_cefrium_CefriumBrowser_nativeClearCache(
   }
 }
 
+// FEATURE-031: PrintToPDF (URL/page -> PDF file). Delivers the result to Java
+// onPdfPrinted on the UI thread; owns the global ref (freed in the destructor).
+namespace {
+class SdkPdfCallback : public CefPdfPrintCallback {
+ public:
+  SdkPdfCallback(jobject java_browser_global, jlong req_id)
+      : java_browser_(java_browser_global), req_id_(req_id) {}
+  void OnPdfPrintFinished(const CefString& path, bool ok) override {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid =
+        env->GetMethodID(cls, "onPdfPrinted", "(JLjava/lang/String;Z)V");
+    if (mid) {
+      jstring jp = env->NewStringUTF(path.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, req_id_, jp,
+                          ok ? JNI_TRUE : JNI_FALSE);
+      env->DeleteLocalRef(jp);
+    }
+    env->DeleteLocalRef(cls);
+  }
+  ~SdkPdfCallback() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+ private:
+  jobject java_browser_;
+  jlong req_id_;
+  IMPLEMENT_REFCOUNTING(SdkPdfCallback);
+};
+}  // namespace
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativePrintToPdf(
+    JNIEnv* env, jclass, jlong native_ptr, jobject browser_j, jstring path_j,
+    jlong req_id) {
+  jobject global = env->NewGlobalRef(browser_j);
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  CefRefPtr<SdkPdfCallback> cb = new SdkPdfCallback(global, req_id);
+  if (!data || !data->browser || !data->browser->GetHost()) {
+    cb->OnPdfPrintFinished(CefString(), false);  // deliver failure
+    return;
+  }
+  CefPdfPrintSettings settings;  // zero-initialized defaults
+  data->browser->GetHost()->PrintToPDF(JStr(env, path_j), settings, cb);
+}
+
 // ───────────────────── Dynamic WebSettings (FEATURE-025) ─────────────────────
 
 extern "C" JNIEXPORT void JNICALL
