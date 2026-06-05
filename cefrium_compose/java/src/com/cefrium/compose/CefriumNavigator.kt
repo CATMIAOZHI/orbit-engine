@@ -97,6 +97,11 @@ class CefriumNavigator {
         state?.browser?.clearCache()
     }
 
+    /** Renders the current page to a PDF at [filePath] (async). */
+    fun printToPdf(filePath: String, callback: com.cefrium.CefriumBrowser.PdfCallback) {
+        state?.browser?.printToPdf(filePath, callback)
+    }
+
     // ── Dynamic WebSettings (FEATURE-025) ──
 
     /** Overrides the User-Agent at runtime. */
