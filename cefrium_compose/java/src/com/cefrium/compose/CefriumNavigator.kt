@@ -125,6 +125,13 @@ class CefriumNavigator {
     fun setRequestInterceptor(interceptor: com.cefrium.CefriumBrowser.RequestInterceptor?) {
         state?.browser?.setRequestInterceptor(interceptor)
     }
+
+    // ── Permissions (FEATURE-032) ──
+
+    /** Sets the web permission handler (geolocation, camera, mic; null = deny all). */
+    fun setPermissionHandler(handler: com.cefrium.CefriumBrowser.PermissionHandler?) {
+        state?.browser?.setPermissionHandler(handler)
+    }
 }
 
 /** Remembers a [CefriumNavigator] across recompositions. */

@@ -31,6 +31,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/embedder_support/switches.h"
 #include "components/lens/lens_features.h"
+#include "components/permissions/features.h"
 #include "components/variations/service/buildflags.h"
 #include "content/common/features.h"
 #include "content/public/common/content_switches.h"
@@ -362,6 +363,14 @@ std::optional<int> ChromeMainDelegateCef::BasicStartupComplete() {
                             disable_features);
     // -- "Search with Google Lens" support.
     DisableFeatureByDefault(lens::features::kLensOverlay, disable_features);
+#if BUILDFLAG(IS_ANDROID)
+    // -- Permissions HaTS survey: on Android HatsServiceAndroid needs a
+    //    SurveyClientFactory that CEF does not initialize, so triggering a
+    //    survey after a permission decision crashes (FEATURE-032). CEF is not
+    //    Chrome and should not show Google satisfaction surveys regardless.
+    DisableFeatureByDefault(permissions::features::kPermissionsPromptSurvey,
+                            disable_features);
+#endif  // BUILDFLAG(IS_ANDROID)
 
     // Disable features that break CEF APIs.
     // -- KillOnInvalidNavigationHeaders kills the renderer when a navigation
