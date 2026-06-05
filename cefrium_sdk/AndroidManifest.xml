@@ -5,8 +5,16 @@
     package="com.cefrium">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- F5: lock-screen / shade media controls (CefriumMediaSession). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application>
+        <!-- F5: foreground service hosting the media-playback notification. -->
+        <service android:name="com.cefrium.CefriumMediaService"
+                 android:foregroundServiceType="mediaPlayback"
+                 android:exported="false" />
         <!-- Sandboxed child processes (renderer, utility) -->
         <meta-data android:name="org.chromium.content.browser.NUM_SANDBOXED_SERVICES"
                    android:value="5"/>

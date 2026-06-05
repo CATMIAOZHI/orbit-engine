@@ -67,8 +67,9 @@ that gap.
 | WebGL + WebGPU (hardware-accelerated) | Done |
 | HTML5 fullscreen video (OnFullscreenModeChange) | Done |
 | Picture-in-Picture (web video PiP; Activity PiP app-side) | Done |
+| System media controls (lock-screen / shade, `setMediaSessionEnabled`) | Done |
 | Nested scroll interop (browser inside a scrollable parent) | Done |
-| arm64 + x86_64 validated on device + emulator (35 instrumented tests) | Done |
+| arm64 + x86_64 validated on device + emulator (36 instrumented tests) | Done |
 | Published on Codeberg Packages (Maven) | Done |
 | Android Accessibility (TalkBack) | Done |
 | Android Autofill (Proton Pass, Google) | Done |
@@ -385,7 +386,7 @@ platform integrations it wires up:
 | Widevine DRM (Netflix, Disney+, Spotify) | Done |
 | Web permissions (geolocation, camera, microphone) | Done — routed to your `PermissionHandler` |
 | WebAuthn / Passkeys | Limited — requires Google Play Services browser verification (same constraint as Brave/Firefox). SDK apps can use APP mode + Digital Asset Links for specific domains. |
-| System media controls (lock-screen MediaSession) | Not yet — needs a foreground service + notification channel integration |
+| System media controls (lock-screen MediaSession) | Done — `setMediaSessionEnabled(true)` (ships a foreground service; needs POST_NOTIFICATIONS) |
 | Web Notifications (system notification shade) | Not yet — needs a platform notification bridge |
 
 Surface rendering uses `ContentViewRenderView` — the same Chromium
