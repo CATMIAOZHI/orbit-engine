@@ -611,6 +611,53 @@ public class CefriumBrowser {
         mActivity.runOnUiThread(() -> showDefaultJsDialog(type, message, defaultPrompt, cb));
     }
 
+    // ── Permissions (FEATURE-032) ──
+
+    /** Permission types (bitmask, from cef_permission_request_types_t). */
+    public static final int PERMISSION_GEOLOCATION = 1 << 8;
+    public static final int PERMISSION_CAMERA = 1 << 2;
+    public static final int PERMISSION_MICROPHONE = 1 << 12;
+    public static final int PERMISSION_NOTIFICATIONS = 1 << 15;
+
+    /** Receives the app's grant/deny decision for a permission request. */
+    public interface PermissionCallback {
+        void respond(boolean grant);
+    }
+
+    /**
+     * Decides web permission requests (geolocation, camera, mic, ...). Without a
+     * handler set, all requests are denied — the default Android permission
+     * dialog is not available in this engine. To actually deliver geolocation,
+     * the app must also hold the ACCESS_FINE_LOCATION runtime permission.
+     */
+    public interface PermissionHandler {
+        void onPermissionRequest(String origin, int permissions, PermissionCallback callback);
+    }
+
+    private PermissionHandler mPermissionHandler;
+
+    /** Sets the permission handler (null = deny all web permission requests). */
+    public void setPermissionHandler(PermissionHandler handler) {
+        mPermissionHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+
+    // Called from native (UI thread) when a page requests a permission.
+    private void onPermissionRequest(long promptId, String origin, int permissions) {
+        PermissionHandler h = mPermissionHandler;
+        if (h == null) {
+            if (mNativePtr != 0) nativeRespondPermission(mNativePtr, promptId, false);
+            return;
+        }
+        final boolean[] answered = {false};
+        PermissionCallback cb = (grant) -> {
+            if (answered[0]) return;
+            answered[0] = true;
+            if (mNativePtr != 0) nativeRespondPermission(mNativePtr, promptId, grant);
+        };
+        h.onPermissionRequest(origin, permissions, cb);
+    }
+
     private void showDefaultJsDialog(int type, String message, String defaultPrompt,
                                      JsDialogCallback cb) {
         android.app.AlertDialog.Builder b = new android.app.AlertDialog.Builder(mActivity);
@@ -1070,6 +1117,7 @@ public class CefriumBrowser {
     private static native void nativePostUrl(long nativePtr, String url, byte[] postData);
     private static native void nativeStopLoading(long nativePtr);
     private static native void nativeJsDialogResult(long nativePtr, long token, boolean success, String userInput);
+    private static native void nativeRespondPermission(long nativePtr, long promptId, boolean grant);
     private static native boolean nativeCanGoBack(long nativePtr);
     private static native void nativeSetDisplayCallback(long nativePtr, CefriumBrowser browser);
     private static native void nativeClose(long nativePtr);
