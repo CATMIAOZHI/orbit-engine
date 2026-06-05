@@ -24,16 +24,18 @@
         <!-- Chromium multi-process: child processes run as Services. -->
         <meta-data android:name="org.chromium.content.browser.NUM_SANDBOXED_SERVICES"
             android:value="5" />
+        <!-- isolatedProcess=true: renderers run OS-sandboxed (own uid), matching
+             the SDK AAR manifest and Chrome/Brave. Verifies E5 (FEATURE-035). -->
         <service android:name="org.chromium.content.app.SandboxedProcessService0"
-            android:process=":sandboxed_process0" android:exported="false" />
+            android:process=":sandboxed_process0" android:isolatedProcess="true" android:exported="false" />
         <service android:name="org.chromium.content.app.SandboxedProcessService1"
-            android:process=":sandboxed_process1" android:exported="false" />
+            android:process=":sandboxed_process1" android:isolatedProcess="true" android:exported="false" />
         <service android:name="org.chromium.content.app.SandboxedProcessService2"
-            android:process=":sandboxed_process2" android:exported="false" />
+            android:process=":sandboxed_process2" android:isolatedProcess="true" android:exported="false" />
         <service android:name="org.chromium.content.app.SandboxedProcessService3"
-            android:process=":sandboxed_process3" android:exported="false" />
+            android:process=":sandboxed_process3" android:isolatedProcess="true" android:exported="false" />
         <service android:name="org.chromium.content.app.SandboxedProcessService4"
-            android:process=":sandboxed_process4" android:exported="false" />
+            android:process=":sandboxed_process4" android:isolatedProcess="true" android:exported="false" />
         <meta-data android:name="org.chromium.content.browser.NUM_PRIVILEGED_SERVICES"
             android:value="3" />
         <service android:name="org.chromium.content.app.PrivilegedProcessService0"
