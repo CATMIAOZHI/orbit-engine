@@ -54,6 +54,8 @@ public class CefriumBrowser {
     private org.chromium.components.embedder_support.view.ContentViewRenderView mContentViewRenderView;
     private org.chromium.components.autofill.AutofillProvider mAutofillProvider;
     private CefriumSurfaceContainer mSurfaceContainer;
+    private CefriumMediaSession mMediaSession;
+    private boolean mMediaSessionEnabled;
     private boolean mWebContentsConnected;
 
     // Private marker constructor for factory methods — does NOT create native.
@@ -762,6 +764,10 @@ public class CefriumBrowser {
      */
     public void close() {
         mClosed = true;
+        if (mMediaSession != null) {
+            mMediaSession.destroy();
+            mMediaSession = null;
+        }
         if (mNativePtr != 0) {
             nativeClose(mNativePtr);
             mNativePtr = 0;
@@ -909,6 +915,34 @@ public class CefriumBrowser {
         return mSurfaceContainer;
     }
 
+    /**
+     * Enables system media controls (lock-screen + notification shade) for this
+     * browser's playback, driven by the page's {@code navigator.mediaSession}
+     * (FEATURE-036). Requires the {@code POST_NOTIFICATIONS} runtime permission
+     * on Android 13+. Safe to call before or after the page loads.
+     */
+    public void setMediaSessionEnabled(boolean enabled) {
+        mMediaSessionEnabled = enabled;
+        if (enabled) {
+            maybeCreateMediaSession();
+        } else if (mMediaSession != null) {
+            mMediaSession.destroy();
+            mMediaSession = null;
+        }
+    }
+
+    private void maybeCreateMediaSession() {
+        if (!mMediaSessionEnabled || mMediaSession != null
+                || mNativePtr == 0 || mActivity == null) {
+            return;
+        }
+        org.chromium.content_public.browser.WebContents wc =
+                nativeGetWebContents(mNativePtr);
+        if (wc != null) {
+            mMediaSession = new CefriumMediaSession(mActivity, wc);
+        }
+    }
+
     // Internal: connect WebContents to rendering pipeline.
     // Called after the browser has loaded its first page.
     void connectWebContentsInternal() {
@@ -966,6 +1000,9 @@ public class CefriumBrowser {
         mContentViewRenderView.setCurrentWebContents(wc);
         wc.updateWebContentsVisibility(
                 org.chromium.content_public.browser.Visibility.VISIBLE);
+
+        // F5: wire system media controls if the app enabled them before connect.
+        maybeCreateMediaSession();
 
         // Initialize Android Autofill for form auto-completion.
         // CefriumAutofillClient (ContentAutofillClient that creates
