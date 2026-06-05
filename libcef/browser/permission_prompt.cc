@@ -7,10 +7,18 @@
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
+#include "build/build_config.h"
 #include "cef/libcef/browser/browser_host_base.h"
-#include "chrome/browser/ui/permission_bubble/permission_prompt.h"
 #include "components/permissions/permission_request.h"
 #include "components/permissions/resolvers/permission_prompt_options.h"
+
+#if BUILDFLAG(IS_ANDROID)
+// Android has no Views permission bubble; CEF registers its prompt factory
+// through the components-level embedder seam instead.
+#include "components/permissions/permission_prompt.h"
+#else
+#include "chrome/browser/ui/permission_bubble/permission_prompt.h"
+#endif
 
 namespace permission_prompt {
 
@@ -198,18 +206,24 @@ cef_permission_request_types_t GetCefRequestType(
   switch (type) {
     case permissions::RequestType::kArSession:
       return CEF_PERMISSION_TYPE_AR_SESSION;
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     case permissions::RequestType::kCameraPanTiltZoom:
       return CEF_PERMISSION_TYPE_CAMERA_PAN_TILT_ZOOM;
+#endif
     case permissions::RequestType::kCameraStream:
       return CEF_PERMISSION_TYPE_CAMERA_STREAM;
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     case permissions::RequestType::kCapturedSurfaceControl:
       return CEF_PERMISSION_TYPE_CAPTURED_SURFACE_CONTROL;
+#endif
     case permissions::RequestType::kClipboard:
       return CEF_PERMISSION_TYPE_CLIPBOARD;
     case permissions::RequestType::kDiskQuota:
       return CEF_PERMISSION_TYPE_DISK_QUOTA;
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     case permissions::RequestType::kLocalFonts:
       return CEF_PERMISSION_TYPE_LOCAL_FONTS;
+#endif
     case permissions::RequestType::kGeolocation:
       return CEF_PERMISSION_TYPE_GEOLOCATION;
     case permissions::RequestType::kHandTracking:
@@ -224,18 +238,31 @@ cef_permission_request_types_t GetCefRequestType(
       return CEF_PERMISSION_TYPE_MIDI_SYSEX;
     case permissions::RequestType::kMultipleDownloads:
       return CEF_PERMISSION_TYPE_MULTIPLE_DOWNLOADS;
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+    case permissions::RequestType::kNfcDevice:
+      // No dedicated CEF permission type; surfaced as NONE.
+      return CEF_PERMISSION_TYPE_NONE;
+#endif
     case permissions::RequestType::kNotifications:
       return CEF_PERMISSION_TYPE_NOTIFICATIONS;
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     case permissions::RequestType::kKeyboardLock:
       return CEF_PERMISSION_TYPE_KEYBOARD_LOCK;
     case permissions::RequestType::kPointerLock:
       return CEF_PERMISSION_TYPE_POINTER_LOCK;
+#endif
 #if BUILDFLAG(IS_WIN)
     case permissions::RequestType::kProtectedMediaIdentifier:
       return CEF_PERMISSION_TYPE_PROTECTED_MEDIA_IDENTIFIER;
+#elif BUILDFLAG(IS_ANDROID)
+    case permissions::RequestType::kProtectedMediaIdentifier:
+      // CEF_PERMISSION_TYPE_PROTECTED_MEDIA_IDENTIFIER is Windows-only.
+      return CEF_PERMISSION_TYPE_NONE;
 #endif
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     case permissions::RequestType::kRegisterProtocolHandler:
       return CEF_PERMISSION_TYPE_REGISTER_PROTOCOL_HANDLER;
+#endif
     case permissions::RequestType::kSensors:
       return CEF_PERMISSION_TYPE_SENSORS;
     case permissions::RequestType::kStorageAccess:
@@ -244,8 +271,10 @@ cef_permission_request_types_t GetCefRequestType(
       return CEF_PERMISSION_TYPE_TOP_LEVEL_STORAGE_ACCESS;
     case permissions::RequestType::kVrSession:
       return CEF_PERMISSION_TYPE_VR_SESSION;
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     case permissions::RequestType::kWebAppInstallation:
       return CEF_PERMISSION_TYPE_WEB_APP_INSTALLATION;
+#endif
     case permissions::RequestType::kWindowManagement:
       return CEF_PERMISSION_TYPE_WINDOW_MANAGEMENT;
     case permissions::RequestType::kFileSystemAccess:
@@ -329,7 +358,12 @@ std::unique_ptr<permissions::PermissionPrompt> CreatePermissionPromptImpl(
 }  // namespace
 
 void RegisterCreateCallback() {
+#if BUILDFLAG(IS_ANDROID)
+  permissions::PermissionPrompt::SetEmbedderCreatePromptFunction(
+      &CreatePermissionPromptImpl);
+#else
   SetCreatePermissionPromptFunction(&CreatePermissionPromptImpl);
+#endif
 }
 
 }  // namespace permission_prompt

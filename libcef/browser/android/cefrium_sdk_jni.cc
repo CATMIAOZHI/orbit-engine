@@ -27,6 +27,7 @@
 #include "cef/include/cef_find_handler.h"
 #include "cef/include/cef_jsdialog_handler.h"
 #include "cef/include/cef_life_span_handler.h"
+#include "cef/include/cef_permission_handler.h"
 #include "cef/include/cef_load_handler.h"
 #include "cef/include/cef_render_handler.h"
 #include <map>
@@ -903,6 +904,83 @@ class SdkJSDialogHandler : public CefJSDialogHandler {
   jlong next_token_ = 1;
 };
 
+// FEATURE-032: routes permission prompts (e.g. geolocation) to Java. On Android
+// this MUST always handle the prompt (return true) so requests never fall
+// through to Chromium's default Android Java permission dialog, which is not
+// wired in CEF-Android and crashes (PermissionDialogJavaDelegate::CreateDialog).
+class SdkPermissionHandler : public CefPermissionHandler {
+ public:
+  void SetJavaBrowser(JNIEnv* env, jobject jb) {
+    if (jb) {
+      java_browser_ = env->NewGlobalRef(jb);
+    }
+  }
+
+  bool OnShowPermissionPrompt(
+      CefRefPtr<CefBrowser> browser,
+      uint64_t prompt_id,
+      const CefString& requesting_origin,
+      uint32_t requested_permissions,
+      CefRefPtr<CefPermissionPromptCallback> callback) override {
+    if (!java_browser_) {
+      // No Java browser wired: deny by default. Never proceed to default
+      // (crashing) Android handling.
+      callback->Continue(CEF_PERMISSION_RESULT_DENY);
+      return true;
+    }
+    {
+      base::AutoLock lock(lock_);
+      pending_[prompt_id] = callback;
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onPermissionRequest",
+                                     "(JLjava/lang/String;I)V");
+    if (mid) {
+      jstring jorigin =
+          env->NewStringUTF(requesting_origin.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, static_cast<jlong>(prompt_id),
+                          jorigin, static_cast<jint>(requested_permissions));
+      env->DeleteLocalRef(jorigin);
+    } else {
+      Respond(prompt_id, false);
+    }
+    env->DeleteLocalRef(cls);
+    return true;
+  }
+
+  // Called from nativeRespondPermission once Java decides.
+  void Respond(uint64_t prompt_id, bool grant) {
+    CefRefPtr<CefPermissionPromptCallback> cb;
+    {
+      base::AutoLock lock(lock_);
+      auto it = pending_.find(prompt_id);
+      if (it == pending_.end()) {
+        return;
+      }
+      cb = it->second;
+      pending_.erase(it);
+    }
+    cb->Continue(grant ? CEF_PERMISSION_RESULT_ACCEPT
+                       : CEF_PERMISSION_RESULT_DENY);
+  }
+
+  ~SdkPermissionHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) {
+        env->DeleteGlobalRef(java_browser_);
+      }
+    }
+  }
+
+ private:
+  jobject java_browser_ = nullptr;
+  base::Lock lock_;
+  std::map<uint64_t, CefRefPtr<CefPermissionPromptCallback>> pending_;
+  IMPLEMENT_REFCOUNTING(SdkPermissionHandler);
+};
+
 class SdkClient : public CefClient {
  public:
   SdkClient(CefRefPtr<SdkRenderHandler> render_handler,
@@ -917,6 +995,7 @@ class SdkClient : public CefClient {
         context_menu_handler_(new SdkContextMenuHandler()),
         find_handler_(new SdkFindHandler()),
         js_dialog_handler_(new SdkJSDialogHandler()),
+        permission_handler_(new SdkPermissionHandler()),
         request_handler_(blocked_count ? new SdkRequestHandler(blocked_count) : nullptr) {
     if (browser_data) {
       load_handler_->SetBrowserData(browser_data);
@@ -986,6 +1065,13 @@ class SdkClient : public CefClient {
     return js_dialog_handler_;
   }
 
+  CefRefPtr<CefPermissionHandler> GetPermissionHandler() override {
+    return permission_handler_;
+  }
+
+  CefRefPtr<SdkPermissionHandler> permission_handler() {
+    return permission_handler_;
+  }
   CefRefPtr<SdkJSDialogHandler> js_dialog_handler() { return js_dialog_handler_; }
   CefRefPtr<SdkDisplayHandler> display_handler() { return display_handler_; }
   CefRefPtr<SdkLoadHandler> load_handler_ref() { return load_handler_; }
@@ -1004,6 +1090,7 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkContextMenuHandler> context_menu_handler_;
   CefRefPtr<SdkFindHandler> find_handler_;
   CefRefPtr<SdkJSDialogHandler> js_dialog_handler_;
+  CefRefPtr<SdkPermissionHandler> permission_handler_;
   CefRefPtr<SdkRequestHandler> request_handler_;
   // Declared last so the router is destroyed before the handler it references.
   std::unique_ptr<CefriumBridgeHandler> bridge_handler_;
@@ -1198,6 +1285,7 @@ Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
     data->client->load_handler_ref()->SetJavaBrowser(env, java_browser);
     data->client->find_handler()->SetJavaBrowser(env, java_browser);
     data->client->js_dialog_handler()->SetJavaBrowser(env, java_browser);
+    data->client->permission_handler()->SetJavaBrowser(env, java_browser);
     if (data->life_span_handler) {
       data->life_span_handler->SetJavaBrowser(env, java_browser);
     }
@@ -1221,6 +1309,17 @@ Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
   }
 }
 
+
+// FEATURE-032: Java delivers the user's/app's permission decision here.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeRespondPermission(
+    JNIEnv* env, jclass, jlong native_ptr, jlong prompt_id, jboolean grant) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client) {
+    data->client->permission_handler()->Respond(
+        static_cast<uint64_t>(prompt_id), grant == JNI_TRUE);
+  }
+}
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeInvalidate(
