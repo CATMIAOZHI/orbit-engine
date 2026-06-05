@@ -13,9 +13,7 @@
 #include "cef/libcef/browser/chrome/chrome_startup_browser_creator.h"
 #include "cef/libcef/browser/context.h"
 #include "cef/libcef/browser/file_dialog_runner.h"
-#if !BUILDFLAG(IS_ANDROID)
 #include "cef/libcef/browser/permission_prompt.h"
-#endif
 #include "cef/libcef/common/app_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #if !BUILDFLAG(IS_ANDROID)
@@ -91,9 +89,10 @@ void ChromeBrowserMainExtraPartsCef::PreMainMessageLoopRun() {
 
   context_menu::RegisterCallbacks();
   file_dialog_runner::RegisterFactory();
-#if !BUILDFLAG(IS_ANDROID)
+  // On Android this registers through the components-level embedder seam
+  // (PermissionPrompt::SetEmbedderCreatePromptFunction); on desktop through
+  // the Views factory. Routes prompts to CefPermissionHandler.
   permission_prompt::RegisterCreateCallback();
-#endif
 
 #if BUILDFLAG(IS_WIN)
   const auto& settings = CefContext::Get()->settings();

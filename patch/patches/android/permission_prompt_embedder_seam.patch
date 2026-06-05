@@ -1,0 +1,76 @@
+diff --git a/components/permissions/android/permission_prompt/permission_prompt_android_factory.cc b/components/permissions/android/permission_prompt/permission_prompt_android_factory.cc
+index 949b255d2a..9dcf6a1029 100644
+--- a/components/permissions/android/permission_prompt/permission_prompt_android_factory.cc
++++ b/components/permissions/android/permission_prompt/permission_prompt_android_factory.cc
+@@ -17,9 +17,38 @@
+ 
+ namespace permissions {
+ 
++namespace {
++
++// Embedder (e.g. CEF) override for permission prompt creation. Mirrors the
++// desktop g_create_permission_prompt_ptr seam in the Views factory
++// (chrome/browser/ui/views/permissions/permission_prompt_factory.cc).
++PermissionPrompt::EmbedderCreatePromptFunction g_embedder_create_prompt_fn =
++    nullptr;
++
++}  // namespace
++
++void PermissionPrompt::SetEmbedderCreatePromptFunction(
++    EmbedderCreatePromptFunction function) {
++  g_embedder_create_prompt_fn = function;
++}
++
+ std::unique_ptr<PermissionPrompt> PermissionPrompt::Create(
+     content::WebContents* web_contents,
+     Delegate* delegate) {
++  // Give an embedder (e.g. CEF's CefPermissionHandler) the first chance to
++  // handle the prompt, before the default Android Java dialog path.
++  if (g_embedder_create_prompt_fn) {
++    bool default_handling = true;
++    auto prompt = g_embedder_create_prompt_fn(web_contents, delegate,
++                                              &default_handling);
++    if (prompt) {
++      return prompt;
++    }
++    if (!default_handling) {
++      return nullptr;
++    }
++  }
++
+   if (permissions::PermissionUtil::
+           ShouldCurrentRequestUsePermissionElementSecondaryUI(delegate)) {
+     if (auto embedded_prompt =
+diff --git a/components/permissions/permission_prompt.h b/components/permissions/permission_prompt.h
+index 97468dddb5..1ae2a3d2d4 100644
+--- a/components/permissions/permission_prompt.h
++++ b/components/permissions/permission_prompt.h
+@@ -11,6 +11,7 @@
+ 
+ #include "base/functional/callback.h"
+ #include "base/memory/raw_ptr.h"
++#include "build/build_config.h"
+ #include "components/permissions/features.h"
+ #include "components/permissions/permission_uma_util.h"
+ #include "components/permissions/prediction_service/permission_ui_selector.h"
+@@ -157,6 +158,20 @@ class PermissionPrompt {
+       content::WebContents* web_contents,
+       Delegate* delegate);
+ 
++#if BUILDFLAG(IS_ANDROID)
++  // Allows an embedder (e.g. CEF) to intercept Android permission prompt
++  // creation, mirroring the desktop SetCreatePermissionPromptFunction in
++  // chrome/browser/ui/views/permissions/permission_prompt_factory.cc. A
++  // non-null return overrides the default prompt; a null return with
++  // |*default_handling| set to false suppresses the default prompt (no UI).
++  using EmbedderCreatePromptFunction =
++      std::unique_ptr<PermissionPrompt> (*)(content::WebContents* web_contents,
++                                            Delegate* delegate,
++                                            bool* default_handling);
++  static void SetEmbedderCreatePromptFunction(
++      EmbedderCreatePromptFunction function);
++#endif  // BUILDFLAG(IS_ANDROID)
++
+   virtual ~PermissionPrompt() = default;
+ 
+   // Updates where the prompt should be anchored. ex: fullscreen toggle.
