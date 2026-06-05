@@ -66,6 +66,7 @@ that gap.
 | WebRTC getUserMedia (camera + mic capture) | Done |
 | WebGL + WebGPU (hardware-accelerated) | Done |
 | HTML5 fullscreen video (OnFullscreenModeChange) | Done |
+| Picture-in-Picture (web video PiP; Activity PiP app-side) | Done |
 | Nested scroll interop (browser inside a scrollable parent) | Done |
 | arm64 + x86_64 validated on device + emulator (35 instrumented tests) | Done |
 | Published on Codeberg Packages (Maven) | Done |
@@ -382,10 +383,19 @@ platform integrations it wires up:
 | Android Accessibility (TalkBack) | Done |
 | Autofill framework (password managers) | Done |
 | Widevine DRM (Netflix, Disney+, Spotify) | Done |
+| Web permissions (geolocation, camera, microphone) | Done — routed to your `PermissionHandler` |
 | WebAuthn / Passkeys | Limited — requires Google Play Services browser verification (same constraint as Brave/Firefox). SDK apps can use APP mode + Digital Asset Links for specific domains. |
+| System media controls (lock-screen MediaSession) | Not yet — needs a foreground service + notification channel integration |
+| Web Notifications (system notification shade) | Not yet — needs a platform notification bridge |
 
 Surface rendering uses `ContentViewRenderView` — the same Chromium
 component as Chrome Android. No additional overhead vs Chrome.
+
+**Picture-in-Picture.** Web video PiP (`video.requestPictureInPicture()`) is
+available. Whole-app (Activity) PiP is owned by your Activity: set
+`android:supportsPictureInPicture="true"` and call `enterPictureInPictureMode()`
+— a good trigger is `setOnFullscreenChangedListener` (enter PiP when a video goes
+fullscreen).
 
 ## About
 
