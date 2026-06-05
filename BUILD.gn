@@ -1246,8 +1246,9 @@ source_set("libcef_static") {
       # file_dialog_manager.cc is needed on Android for <input type=file>.
       # menu_manager.cc is needed on Android for context menu support
       # via CefContextMenuHandler::RunContextMenu.
-      "libcef/browser/permission_prompt.cc",
-      "libcef/browser/permission_prompt.h",
+      # permission_prompt.cc IS needed on Android (FEATURE-032): it routes
+      # permission requests to CefPermissionHandler via the components-level
+      # PermissionPrompt::SetEmbedderCreatePromptFunction seam.
       "libcef/browser/media_router/media_route_impl.cc",
       "libcef/browser/media_router/media_route_impl.h",
       "libcef/browser/media_router/media_router_impl.cc",

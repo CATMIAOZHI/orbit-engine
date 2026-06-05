@@ -3,6 +3,10 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- FEATURE-032: OS-level location, so a granted web geolocation permission
+         can actually reach the provider (CefriumPermissionTest). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:name=".TestHostApplication"
