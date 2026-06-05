@@ -61,7 +61,8 @@ that gap.
 | JS dialogs (alert / confirm / prompt, CefJSDialogHandler) | Done |
 | Popups (window.open / target=_blank, OnBeforePopup) | Done |
 | Cache control (clearCache) | Done |
-| arm64 + x86_64 validated on device + emulator (30 instrumented tests) | Done |
+| Print to PDF (CefBrowserHost::PrintToPDF, URL/page → PDF) | Done |
+| arm64 + x86_64 validated on device + emulator (31 instrumented tests) | Done |
 | Published on Codeberg Packages (Maven) | Done |
 | Android Accessibility (TalkBack) | Done |
 | Android Autofill (Proton Pass, Google) | Done |
