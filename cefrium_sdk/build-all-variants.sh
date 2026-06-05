@@ -116,7 +116,12 @@ EOF
   }
 
   echo ">>> ninja $dir_name"
-  ninja -C "$build_dir" cef:libcef cef/cefrium_sdk:cefrium_aar || {
+  # CEFRIUM_NINJA_JOBS caps ninja parallelism to bound peak memory. The full
+  # Chrome-Android build runs many memory-heavy tsc/eslint (node) + clang/link
+  # jobs in parallel; at the default -j it can exceed RAM and the OOM killer
+  # kills jobs with exit code 137. Set e.g. CEFRIUM_NINJA_JOBS=10 on a 64 GB box.
+  ninja ${CEFRIUM_NINJA_JOBS:+-j "$CEFRIUM_NINJA_JOBS"} \
+    -C "$build_dir" cef:libcef cef/cefrium_sdk:cefrium_aar || {
     echo "ERROR: ninja failed for $dir_name"
     return 1
   }
