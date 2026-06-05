@@ -6,9 +6,20 @@
 
 #include "base/files/file_util.h"
 #include "cef/libcef/browser/thread_util.h"
-#include "chrome/browser/printing/print_view_manager.h"
 #include "chrome/browser/printing/print_view_manager_common.h"
 #include "components/printing/browser/print_to_pdf/pdf_print_utils.h"
+#include "printing/buildflags/buildflags.h"
+
+// PrintToPDF drives the headless PDF job via PrintViewManagerBase::PrintToPdf.
+// The print-preview PrintViewManager (chrome/browser/printing/print_view_manager.h)
+// pulls in print-preview-only mojom types that do not exist when
+// enable_print_preview=false (e.g. Android), so select the platform's concrete
+// manager — both derive from PrintViewManagerBase and inherit PrintToPdf.
+#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
+#include "chrome/browser/printing/print_view_manager.h"
+#else
+#include "chrome/browser/printing/print_view_manager_basic.h"
+#endif
 
 namespace print_util {
 
@@ -127,8 +138,14 @@ void PrintToPDF(content::WebContents* web_contents,
   DCHECK(std::holds_alternative<printing::mojom::PrintPagesParamsPtr>(
       print_pages_params));
 
-  if (auto* print_manager =
-          printing::PrintViewManager::FromWebContents(web_contents)) {
+#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
+  auto* print_manager =
+      printing::PrintViewManager::FromWebContents(web_contents);
+#else
+  auto* print_manager =
+      printing::PrintViewManagerBasic::FromWebContents(web_contents);
+#endif
+  if (print_manager) {
     print_manager->PrintToPdf(
         web_contents->GetPrimaryMainFrame(), CefString(&settings.page_ranges),
         std::move(absl::get<printing::mojom::PrintPagesParamsPtr>(

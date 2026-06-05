@@ -477,6 +477,32 @@ public class CefriumBrowser {
         if (mNativePtr != 0) nativeClearCache(mNativePtr);
     }
 
+    // ─────────────── Print to PDF (FEATURE-031) ───────────────
+
+    /** Result of {@link #printToPdf}. Invoked on the UI thread. */
+    public interface PdfCallback {
+        void onPdfPrinted(String filePath, boolean success);
+    }
+
+    private final java.util.concurrent.ConcurrentHashMap<Long, PdfCallback>
+            mPdfCallbacks = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.concurrent.atomic.AtomicLong mPdfReqId =
+            new java.util.concurrent.atomic.AtomicLong(1);
+
+    /** Renders the current page to a PDF at {@code filePath} (async). */
+    public void printToPdf(String filePath, PdfCallback callback) {
+        if (mNativePtr == 0 || callback == null) return;
+        long id = mPdfReqId.getAndIncrement();
+        mPdfCallbacks.put(id, callback);
+        nativePrintToPdf(mNativePtr, this, filePath, id);
+    }
+
+    // Called from native (UI thread) when PrintToPDF finishes.
+    private void onPdfPrinted(long requestId, String filePath, boolean ok) {
+        PdfCallback cb = mPdfCallbacks.remove(requestId);
+        if (cb != null) cb.onPdfPrinted(filePath, ok);
+    }
+
     // ──────────────────── Dynamic WebSettings (FEATURE-025) ────────────────────
 
     /** Overrides the User-Agent at runtime (Emulation.setUserAgentOverride). */
@@ -1037,6 +1063,7 @@ public class CefriumBrowser {
     private static native void nativeDeleteCookies(long nativePtr, String url, String name);
     private static native void nativeFlushCookies(long nativePtr);
     private static native void nativeClearCache(long nativePtr);
+    private static native void nativePrintToPdf(long nativePtr, CefriumBrowser browser, String filePath, long requestId);
     private static native void nativeSetUserAgentOverride(long nativePtr, String userAgent);
     private static native void nativeSetJavaScriptEnabled(long nativePtr, boolean enabled);
     private static native void nativeSetZoomLevel(long nativePtr, double zoomLevel);
