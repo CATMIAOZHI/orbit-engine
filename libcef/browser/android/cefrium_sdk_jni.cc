@@ -27,6 +27,7 @@
 #include "cef/include/cef_find_handler.h"
 #include "cef/include/cef_jsdialog_handler.h"
 #include "cef/include/cef_life_span_handler.h"
+#include "cef/include/cef_frame.h"
 #include "cef/include/cef_permission_handler.h"
 #include "cef/include/cef_load_handler.h"
 #include "cef/include/cef_render_handler.h"
@@ -921,20 +922,79 @@ class SdkPermissionHandler : public CefPermissionHandler {
     return true;
   }
 
-  // Called from nativeRespondPermission once Java decides.
-  void Respond(uint64_t prompt_id, bool grant) {
-    CefRefPtr<CefPermissionPromptCallback> cb;
+  // FEATURE-032/F2: getUserMedia (camera/mic) routes through a separate CEF
+  // handler method. Bridge it to the same Java onPermissionRequest, translating
+  // the media bitmask to the camera/mic permission constants.
+  bool OnRequestMediaAccessPermission(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      const CefString& requesting_origin,
+      uint32_t requested_permissions,
+      CefRefPtr<CefMediaAccessCallback> callback) override {
+    if (!java_browser_) {
+      callback->Continue(CEF_MEDIA_PERMISSION_NONE);  // deny
+      return true;
+    }
+    uint64_t id;
     {
       base::AutoLock lock(lock_);
-      auto it = pending_.find(prompt_id);
-      if (it == pending_.end()) {
-        return;
-      }
-      cb = it->second;
-      pending_.erase(it);
+      // Namespace media ids in the high bit so they can't collide with the
+      // CEF-assigned prompt ids used by pending_.
+      id = (1ULL << 63) | (next_media_id_++);
+      pending_media_[id] = std::make_pair(callback, requested_permissions);
     }
-    cb->Continue(grant ? CEF_PERMISSION_RESULT_ACCEPT
-                       : CEF_PERMISSION_RESULT_DENY);
+    jint java_mask = 0;
+    if (requested_permissions & CEF_MEDIA_PERMISSION_DEVICE_VIDEO_CAPTURE) {
+      java_mask |= (1 << 2);   // PERMISSION_CAMERA
+    }
+    if (requested_permissions & CEF_MEDIA_PERMISSION_DEVICE_AUDIO_CAPTURE) {
+      java_mask |= (1 << 12);  // PERMISSION_MICROPHONE
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onPermissionRequest",
+                                     "(JLjava/lang/String;I)V");
+    if (mid) {
+      jstring jorigin =
+          env->NewStringUTF(requesting_origin.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, static_cast<jlong>(id), jorigin,
+                          java_mask);
+      env->DeleteLocalRef(jorigin);
+    } else {
+      Respond(id, false);
+    }
+    env->DeleteLocalRef(cls);
+    return true;
+  }
+
+  // Called from nativeRespondPermission once Java decides. Handles both prompt
+  // and media-access requests (distinguished by the id namespace).
+  void Respond(uint64_t id, bool grant) {
+    CefRefPtr<CefPermissionPromptCallback> promptCb;
+    CefRefPtr<CefMediaAccessCallback> mediaCb;
+    uint32_t mediaRequested = 0;
+    {
+      base::AutoLock lock(lock_);
+      auto mit = pending_media_.find(id);
+      if (mit != pending_media_.end()) {
+        mediaCb = mit->second.first;
+        mediaRequested = mit->second.second;
+        pending_media_.erase(mit);
+      } else {
+        auto it = pending_.find(id);
+        if (it == pending_.end()) {
+          return;
+        }
+        promptCb = it->second;
+        pending_.erase(it);
+      }
+    }
+    if (mediaCb) {
+      mediaCb->Continue(grant ? mediaRequested : CEF_MEDIA_PERMISSION_NONE);
+    } else if (promptCb) {
+      promptCb->Continue(grant ? CEF_PERMISSION_RESULT_ACCEPT
+                               : CEF_PERMISSION_RESULT_DENY);
+    }
   }
 
   ~SdkPermissionHandler() override {
@@ -950,6 +1010,9 @@ class SdkPermissionHandler : public CefPermissionHandler {
   jobject java_browser_ = nullptr;
   base::Lock lock_;
   std::map<uint64_t, CefRefPtr<CefPermissionPromptCallback>> pending_;
+  std::map<uint64_t, std::pair<CefRefPtr<CefMediaAccessCallback>, uint32_t>>
+      pending_media_;
+  uint64_t next_media_id_ = 1;
   IMPLEMENT_REFCOUNTING(SdkPermissionHandler);
 };
 
