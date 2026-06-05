@@ -19,6 +19,8 @@ android_library("cefrium_java") {
   sources = [
     "java/src/com/cefrium/Cefrium.java",
     "java/src/com/cefrium/CefriumBrowser.java",
+    "java/src/com/cefrium/CefriumMediaService.java",
+    "java/src/com/cefrium/CefriumMediaSession.java",
     "java/src/com/cefrium/CefriumRenderHandler.java",
     "java/src/com/cefrium/CefriumSurfaceContainer.java",
     "java/src/org/chromium/build/BuildConfig.java",
@@ -35,7 +37,9 @@ android_library("cefrium_java") {
     "//components/android_autofill/browser:java",
     "//components/webauthn/android:java",
     "//content/public/android:content_java",
+    "//services/media_session/public/cpp/android:media_session_java",
     "//third_party/androidx:androidx_core_core_java",
+    "//third_party/androidx:androidx_media_media_java",
     "//ui/android:ui_java",
   ]
 }
