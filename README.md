@@ -63,8 +63,11 @@ that gap.
 | Cache control (clearCache) | Done |
 | Print to PDF (CefBrowserHost::PrintToPDF, URL/page → PDF) | Done |
 | Web permissions (geolocation; CefPermissionHandler → app decision) | Done |
+| WebRTC getUserMedia (camera + mic capture) | Done |
+| WebGL + WebGPU (hardware-accelerated) | Done |
+| HTML5 fullscreen video (OnFullscreenModeChange) | Done |
 | Nested scroll interop (browser inside a scrollable parent) | Done |
-| arm64 + x86_64 validated on device + emulator (34 instrumented tests) | Done |
+| arm64 + x86_64 validated on device + emulator (35 instrumented tests) | Done |
 | Published on Codeberg Packages (Maven) | Done |
 | Android Accessibility (TalkBack) | Done |
 | Android Autofill (Proton Pass, Google) | Done |
