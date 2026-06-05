@@ -53,7 +53,7 @@ public class CefriumBrowser {
     private org.chromium.ui.base.IntentRequestTracker mIntentTracker;
     private org.chromium.components.embedder_support.view.ContentViewRenderView mContentViewRenderView;
     private org.chromium.components.autofill.AutofillProvider mAutofillProvider;
-    private android.widget.FrameLayout mSurfaceContainer;
+    private CefriumSurfaceContainer mSurfaceContainer;
     private boolean mWebContentsConnected;
 
     // Private marker constructor for factory methods — does NOT create native.
@@ -862,8 +862,10 @@ public class CefriumBrowser {
         browser.mContentViewRenderView.onNativeLibraryLoaded(
                 browser.mWindowAndroid);
 
-        // Container that holds the rendering surface.
-        browser.mSurfaceContainer = new android.widget.FrameLayout(activity);
+        // Container that holds the rendering surface. CefriumSurfaceContainer
+        // adds Android nested-scrolling so the browser can live inside a
+        // scrollable parent (FEATURE-033).
+        browser.mSurfaceContainer = new CefriumSurfaceContainer(activity);
         browser.mSurfaceContainer.addView(browser.mContentViewRenderView,
                 new android.widget.FrameLayout.LayoutParams(
                         android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
@@ -954,6 +956,8 @@ public class CefriumBrowser {
                 new android.widget.FrameLayout.LayoutParams(
                         android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                         android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
+        // Enable nested-scroll boundary handoff against this WebContents.
+        mSurfaceContainer.setWebContents(wc);
 
         int w = mContentViewRenderView.getWidth();
         int h = mContentViewRenderView.getHeight();
