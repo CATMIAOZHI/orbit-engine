@@ -11,7 +11,12 @@ import("//build/config/android/rules.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 
 android_resources("cefrium_resources") {
-  sources = []
+  # FEATURE-038 / Option A: define the string resources that the AAR's vendored
+  # Material/Preference/Cast/MediaRouter styles reference but the fat AAR never
+  # bundles, so a Maven consumer resolves them without needing those libraries as
+  # dependencies (which would otherwise duplicate the vendored classes). This file
+  # existed but was never wired in (sources was empty) — the orphaned root cause.
+  sources = [ "res/values/compat_strings.xml" ]
 }
 
 android_library("cefrium_java") {
@@ -111,6 +116,12 @@ dist_aar("cefrium_aar") {
     ":cefrium_java",
     ":cefrium_jni_registration",
     "//cef:libcef",
+    # chrome_all_java MUST be packaged: the Chrome runtime needs Chrome's Java
+    # classes present at init or nativeInitialize CHECK-fails (silent SIGTRAP in
+    # official builds). Removing it builds clean + thin but crashes on device —
+    # see FEATURE-038. So the AAR is a fat AAR; the third-party resource catch-22
+    # (Material) is solved by COMPLETING the AAR's resources (Option A), not by
+    # stripping chrome_all_java.
     "//chrome/android:chrome_all_java",
     "//components/embedder_support/android:view_java",
     "//content/public/android:content_java",
