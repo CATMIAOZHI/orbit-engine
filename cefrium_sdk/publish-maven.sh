@@ -28,6 +28,35 @@ fi
 
 TOKEN=$(cat "$TOKEN_FILE")
 
+# DEP-8-style integrity gate: re-fetch a just-published artifact and confirm it is
+# what a consumer will actually download — not a multipart envelope, an HTML error
+# page, or an empty body. AAR/JAR must start with the ZIP magic "PK"; POM/XML must
+# begin with a real XML element. This is what would have caught the multipart-upload
+# corruption immediately instead of after a consumer's build failed.
+verify_artifact() {
+  local url="$1" ext="$2"
+  local tmp; tmp=$(mktemp)
+  curl -s -H "Authorization: token $TOKEN" -r 0-255 "$url" -o "$tmp"
+  local ok=1
+  case "$ext" in
+    aar|jar)
+      [ "$(xxd -p -l2 "$tmp" 2>/dev/null)" = "504b" ] || ok=0 ;;   # ZIP magic: PK
+    pom|xml|module)
+      # A multipart envelope starts with "--"; an error page with HTML. Valid Maven
+      # XML contains one of these elements in its prolog.
+      head -c2 "$tmp" | grep -q -- '--' && ok=0
+      grep -qE '<\?xml|<project|<metadata|<modelVersion' "$tmp" || ok=0 ;;
+  esac
+  rm -f "$tmp"
+  if [ "$ok" = 1 ]; then
+    echo "    verified: $ext integrity OK"
+    return 0
+  fi
+  echo "    *** VERIFY FAILED: published $url is not a valid $ext"
+  echo "    *** (corrupt upload — e.g. multipart envelope baked in; aborting release)"
+  return 1
+}
+
 upload() {
   local artifact="$1"
   local file="$2"
@@ -35,17 +64,22 @@ upload() {
   local url="$BASE_URL/com/cefrium/$artifact/$VERSION/$artifact-$VERSION.$ext"
 
   echo "  Uploading $artifact-$VERSION.$ext ($(du -h "$file" | cut -f1))"
+  # IMPORTANT: the Codeberg Maven API expects the RAW file body on a PUT.
+  # NEVER use `-F`/`--form` here: that sends multipart/form-data, which bakes the
+  # MIME envelope (boundary + headers) into the stored artifact and corrupts every
+  # POM/AAR/JAR. Use --upload-file (raw PUT body). See verify_artifact() below.
   local status
   status=$(curl -s -o /dev/null -w "%{http_code}" \
-    -X PUT \
     -H "Authorization: token $TOKEN" \
-    -F "file=@$file" \
+    --upload-file "$file" \
     "$url")
 
   if [ "$status" = "201" ]; then
     echo "    OK (201 Created)"
+    verify_artifact "$url" "$ext" || exit 1
   elif [ "$status" = "409" ]; then
-    echo "    Already exists (409 Conflict) — skipping"
+    echo "    Already exists (409 Conflict) — skipping upload, verifying existing"
+    verify_artifact "$url" "$ext" || exit 1
   else
     echo "    FAILED (HTTP $status)"
     return 1
@@ -175,7 +209,23 @@ else
 fi
 
 echo "======================================================"
-echo "Done! Packages at: https://codeberg.org/cefrium/-/packages"
+echo "Uploaded. Packages at: https://codeberg.org/cefrium/-/packages"
+echo ""
+
+# Final DEP-8-style gate: a release is not "done" until a throwaway consumer
+# project builds against it FROM THE REGISTRY. This catches corruption (e.g. the
+# multipart-upload bug) and API mismatches that per-artifact byte checks and the
+# local-AAR sample builds cannot. Skip with CEFRIUM_SKIP_SMOKE_TEST=1 (e.g. when
+# Gradle/Android SDK are unavailable on the publishing host).
+if [ "${CEFRIUM_SKIP_SMOKE_TEST:-0}" = "1" ]; then
+  echo "Smoke test skipped (CEFRIUM_SKIP_SMOKE_TEST=1). Run it before announcing:"
+  echo "  $SCRIPT_DIR/test-published-release.sh $VERSION"
+else
+  echo "Running consumer smoke test (registry-only build)..."
+  "$SCRIPT_DIR/test-published-release.sh" "$VERSION"
+fi
+echo ""
+echo "Done — $VERSION published AND verified consumable."
 echo ""
 echo "Usage in build.gradle:"
 echo '  maven { url "https://codeberg.org/api/packages/cefrium/maven" }'
