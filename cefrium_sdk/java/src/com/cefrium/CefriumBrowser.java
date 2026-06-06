@@ -366,7 +366,7 @@ public class CefriumBrowser {
 
     /**
      * Handles JavaScript {@code window.cefriumQuery({request, onSuccess,
-     * onFailure})} calls from page content (FEATURE-023 JS bridge).
+     * onFailure})} calls from page content (the JS &#8596; native bridge).
      *
      * <p>Step 4 supports synchronous responses: call {@code callback.success()}
      * or {@code callback.failure()} from within {@link #onQuery}. Returning
@@ -428,7 +428,7 @@ public class CefriumBrowser {
         }
     }
 
-    // ───────────────────────── Cookies (FEATURE-024) ─────────────────────────
+    // ───────────────────────── Cookies ─────────────────────────
 
     /** An HTTP cookie read from the browser's cookie store. */
     public static final class Cookie {
@@ -474,12 +474,12 @@ public class CefriumBrowser {
         if (mNativePtr != 0) nativeFlushCookies(mNativePtr);
     }
 
-    /** Clears the browser's HTTP cache (FEATURE-030). */
+    /** Clears the browser's HTTP cache. */
     public void clearCache() {
         if (mNativePtr != 0) nativeClearCache(mNativePtr);
     }
 
-    // ─────────────── Print to PDF (FEATURE-031) ───────────────
+    // ─────────────── Print to PDF ───────────────
 
     /** Result of {@link #printToPdf}. Invoked on the UI thread. */
     public interface PdfCallback {
@@ -505,7 +505,7 @@ public class CefriumBrowser {
         if (cb != null) cb.onPdfPrinted(filePath, ok);
     }
 
-    // ──────────────────── Dynamic WebSettings (FEATURE-025) ────────────────────
+    // ──────────────────── Dynamic WebSettings ────────────────────
 
     /** Overrides the User-Agent at runtime (Emulation.setUserAgentOverride). */
     public void setUserAgentOverride(String userAgent) {
@@ -522,7 +522,7 @@ public class CefriumBrowser {
         if (mNativePtr != 0) nativeSetZoomLevel(mNativePtr, zoomLevel);
     }
 
-    // ─────────────── Navigation extras (FEATURE-026) ───────────────
+    // ─────────────── Navigation extras ───────────────
 
     /** Loads an HTML string directly (served to the engine as a data: URL). */
     public void loadHtml(String html) {
@@ -542,7 +542,7 @@ public class CefriumBrowser {
         if (mNativePtr != 0) nativeStopLoading(mNativePtr);
     }
 
-    // ─────────────── Request interceptor (FEATURE-027) ───────────────
+    // ─────────────── Request interceptor ───────────────
 
     /**
      * Decides whether to block outgoing requests. Invoked on a background
@@ -570,7 +570,7 @@ public class CefriumBrowser {
         return i != null && i.shouldBlockRequest(url, method, isMainFrame);
     }
 
-    // ─────────────── JS dialogs (FEATURE-028) ───────────────
+    // ─────────────── JS dialogs ───────────────
 
     /** alert() */   public static final int JS_DIALOG_ALERT = 0;
     /** confirm() */ public static final int JS_DIALOG_CONFIRM = 1;
@@ -613,7 +613,7 @@ public class CefriumBrowser {
         mActivity.runOnUiThread(() -> showDefaultJsDialog(type, message, defaultPrompt, cb));
     }
 
-    // ── Permissions (FEATURE-032) ──
+    // ── Permissions ──
 
     /** Permission types (bitmask, from cef_permission_request_types_t). */
     public static final int PERMISSION_GEOLOCATION = 1 << 8;
@@ -679,7 +679,7 @@ public class CefriumBrowser {
         b.show();
     }
 
-    // ─────────────── Popups / window.open (FEATURE-029) ───────────────
+    // ─────────────── Popups / window.open ───────────────
 
     /**
      * Handles popups (window.open / target=_blank). This SDK never spawns a
@@ -870,7 +870,7 @@ public class CefriumBrowser {
 
         // Container that holds the rendering surface. CefriumSurfaceContainer
         // adds Android nested-scrolling so the browser can live inside a
-        // scrollable parent (FEATURE-033).
+        // scrollable parent.
         browser.mSurfaceContainer = new CefriumSurfaceContainer(activity);
         browser.mSurfaceContainer.addView(browser.mContentViewRenderView,
                 new android.widget.FrameLayout.LayoutParams(
@@ -918,7 +918,7 @@ public class CefriumBrowser {
     /**
      * Enables system media controls (lock-screen + notification shade) for this
      * browser's playback, driven by the page's {@code navigator.mediaSession}
-     * (FEATURE-036). Requires the {@code POST_NOTIFICATIONS} runtime permission
+     *. Requires the {@code POST_NOTIFICATIONS} runtime permission
      * on Android 13+. Safe to call before or after the page loads.
      */
     public void setMediaSessionEnabled(boolean enabled) {
@@ -1001,7 +1001,7 @@ public class CefriumBrowser {
         wc.updateWebContentsVisibility(
                 org.chromium.content_public.browser.Visibility.VISIBLE);
 
-        // F5: wire system media controls if the app enabled them before connect.
+        // Wire up system media controls if the app enabled them before connect.
         maybeCreateMediaSession();
 
         // Initialize Android Autofill for form auto-completion.
