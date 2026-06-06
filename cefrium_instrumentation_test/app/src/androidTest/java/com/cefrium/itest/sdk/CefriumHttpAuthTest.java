@@ -78,7 +78,10 @@ public class CefriumHttpAuthTest {
             browser.loadUrl(AUTH_URL);
         });
 
-        boolean arrived = got.await(40, TimeUnit.SECONDS);
+        // 60s (not 40): the 401 challenge depends on httpbin.org latency, which on a
+        // cold connection after a fresh install can exceed 40s and spuriously fail
+        // even though the handler is correctly wired (verified on device).
+        boolean arrived = got.await(60, TimeUnit.SECONDS);
         Assert.assertTrue("HttpAuthHandler was not consulted on a 401 challenge",
                 consulted.get());
         Assert.assertNotNull("auth challenge host not delivered to the handler",
