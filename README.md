@@ -263,14 +263,20 @@ In the EU, software "as such" is excluded from patentability
 See [cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) for
 complete working examples.
 
-### Publishing (maintainers)
+### Cutting a release (maintainers)
 
-Releases are pushed to the Codeberg Maven registry with
+A release has three parts that stay in sync: the **Maven artifacts** (the
+canonical channel Gradle resolves), a **formal signed Codeberg release** (the
+parity/security record [cefrium.com/releases](https://cefrium.com/releases/)
+links to), and the cefrium.com/releases row linking them.
 `cef/cefrium_sdk/publish-maven.sh <version>` (token at `~/.registry-token`,
-package scope). It uploads the SDK variants, `cefrium-compose`, and the Gradle
-plugin. Versions are immutable — bump the version to publish changes; existing
-artifacts return 409 and are skipped. Full steps in
-[BUILD-GUIDE.md](BUILD-GUIDE.md) §7.
+package scope) uploads the SDK variants, `cefrium-compose` and the Gradle plugin;
+it verifies each upload (magic-byte check) and runs a DEP-8-style consumer smoke
+test (`test-published-release.sh`) that resolves and builds from the registry, so
+a corrupt or unconsumable publish fails *before* it is announced. Versions are
+immutable — bump, or delete first to re-publish. Full step-by-step (build →
+publish → smoke test → signed tag + release notes template → site row) in
+[BUILD-GUIDE.md — §7 Cut a release](BUILD-GUIDE.md#7-cut-a-release).
 
 ### APK size optimization
 
