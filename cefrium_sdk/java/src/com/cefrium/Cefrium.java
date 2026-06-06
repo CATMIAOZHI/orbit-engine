@@ -89,6 +89,17 @@ public final class Cefrium {
             return;
         }
 
+        // Backward compatibility: if the app's own Application already ran the
+        // per-process plumbing (the legacy pattern, in attachBaseContext — which
+        // runs before this provider's onCreate), do NOT run it again. These are
+        // assert-once setters (e.g. ResourceBundle.setAvailablePakLocales throws
+        // AssertionError on a second call). The application context being set is the
+        // signal that the plumbing has already started.
+        if (ContextUtils.getApplicationContextUnsafe() != null) {
+            sProcessSetUp = true;
+            return;
+        }
+
         Context appContext = context.getApplicationContext();
         ContextUtils.initApplicationContext(appContext);
         ResourceBundle.setAvailablePakLocales(new String[] {"en-US"});
