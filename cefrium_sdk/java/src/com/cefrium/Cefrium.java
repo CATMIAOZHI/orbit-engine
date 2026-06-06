@@ -43,26 +43,82 @@ import org.chromium.ui.base.ResourceBundle;
  *
  * <h3>Basic usage</h3>
  *
- * <pre>
- * // In Application.onCreate() or Activity.onCreate():
- * Cefrium.initialize(context);
+ * <p>No setup is required: the SDK's {@code CefriumInitProvider} performs the
+ * per-process plumbing at app launch, and the engine initializes lazily the first
+ * time a browser is created. Just create one:</p>
  *
- * // Create browsers:
- * CefriumBrowser browser = new CefriumBrowser();
+ * <pre>
+ * CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
  * browser.loadUrl("https://example.com");
  *
  * // When done:
  * Cefrium.shutdown();
  * </pre>
+ *
+ * <p>Advanced: to control init timing (e.g. to pass command-line switches before
+ * native init) call {@link #initialize(Context)} yourself before the first browser.
+ * It is idempotent and self-sufficient — no custom {@code Application} needed.</p>
  */
 public final class Cefrium {
     private static boolean sInitialized;
+    private static boolean sProcessSetUp;
 
     private Cefrium() {}
 
     /**
-     * Initialize the Cefrium engine. Must be called once from the main thread
-     * before creating any browsers.
+     * Run the per-process Chromium setup the browser process needs before native
+     * init. Idempotent and safe to call from any process: it is a no-op in
+     * Chromium child processes (sandboxed renderer/GPU/utility), which self-init
+     * via {@code ChildProcessService}. The SDK's {@code CefriumInitProvider} calls
+     * this automatically at app launch, and {@link #initialize(Context)} calls it
+     * too, so consumers normally never call it directly.
+     *
+     * @param context Any context (its application context is used).
+     */
+    public static synchronized void setupProcess(Context context) {
+        if (sProcessSetUp) {
+            return;
+        }
+        // Child processes bootstrap themselves (ContextUtils + LibraryProcessType
+        // are set by ChildProcessService / from Intent extras, and JNI_OnLoad
+        // registers the child CefApp). Do nothing here for them.
+        String processName = ContextUtils.getProcessName();
+        boolean isBrowserProcess = processName == null || !processName.contains(":");
+        if (!isBrowserProcess) {
+            sProcessSetUp = true;
+            return;
+        }
+
+        Context appContext = context.getApplicationContext();
+        ContextUtils.initApplicationContext(appContext);
+        ResourceBundle.setAvailablePakLocales(new String[] {"en-US"});
+        LibraryLoader.getInstance()
+                .setLibraryProcessType(LibraryProcessType.PROCESS_BROWSER);
+        PathUtils.setPrivateDataDirectorySuffix("cefrium");
+        if (appContext instanceof Application) {
+            ApplicationStatus.initialize((Application) appContext);
+        }
+        sProcessSetUp = true;
+    }
+
+    /**
+     * Initialize the Cefrium engine using the application context captured during
+     * per-process setup. Equivalent to {@link #initialize(Context)} but for callers
+     * that have no Context handy (e.g. off-screen browser creation). Requires that
+     * {@link #setupProcess(Context)} has run — which the SDK's
+     * {@code CefriumInitProvider} guarantees at app launch.
+     *
+     * @return true if initialization succeeded.
+     */
+    public static synchronized boolean initialize() {
+        return initialize(ContextUtils.getApplicationContext());
+    }
+
+    /**
+     * Initialize the Cefrium engine. Safe to call more than once (idempotent) and
+     * self-sufficient: it runs {@link #setupProcess(Context)} itself, so no
+     * {@code Application} boilerplate is required. Must be called on the main thread
+     * (the SDK does this lazily on first browser creation).
      *
      * @param context Application context.
      * @return true if initialization succeeded.
@@ -72,12 +128,21 @@ public final class Cefrium {
             return true;
         }
 
+        // Browser-process only: child processes (sandboxed renderer/GPU/utility)
+        // self-initialize via ChildProcessService and must never run the browser
+        // nativeInitialize. The provider may run in a non-isolated child, so guard.
+        String processName = ContextUtils.getProcessName();
+        if (processName != null && processName.contains(":")) {
+            return false;
+        }
+
         Context appContext = context.getApplicationContext();
 
-        // ContextUtils, ResourceBundle, PathUtils, ApplicationStatus,
-        // and LibraryProcessType must be set by the Application's
-        // attachBaseContext() BEFORE calling this method.
-        // See SampleApplication for the pattern.
+        // Per-process plumbing (ContextUtils, ResourceBundle, LibraryProcessType,
+        // PathUtils, ApplicationStatus). Idempotent — a no-op if CefriumInitProvider
+        // already ran it at app launch.
+        setupProcess(appContext);
+
         if (!CommandLine.isInitialized()) {
             CommandLine.init(null);
         }
