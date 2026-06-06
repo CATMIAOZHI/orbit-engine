@@ -83,6 +83,14 @@ android {
         versionCode = 1
         versionName = "1.0"
     }
+    // A real Android Studio project sets these; the throwaway must too, or
+    // Java (1.8) and Kotlin (JDK default) JVM targets mismatch and the Kotlin
+    // task fails before it even touches the SDK.
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = "17" }
 }
 // The SDK bundles Chromium's Guava ListenableFuture; androidx pulls the
 // com.google.guava:listenablefuture placeholder -> duplicate class. Standard fix.
