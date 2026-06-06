@@ -159,6 +159,13 @@ public final class Cefrium {
         }
         CommandLine.getInstance().appendSwitch("in-process-gpu");
         CommandLine.getInstance().appendSwitch("no-sandbox");
+        // Route HTTP/proxy auth challenges (401/407) to CefRequestHandler::
+        // GetAuthCredentials -> CefriumBrowser.setHttpAuthHandler. Without this,
+        // ChromeContentBrowserClientCef::CreateLoginDelegate falls through to
+        // Chrome's native login prompt (which on Android never reaches the SDK
+        // handler). This switch is CEF's documented "delegate all login requests
+        // to the client" hook. WebView parity with onReceivedHttpAuthRequest.
+        CommandLine.getInstance().appendSwitch("disable-chrome-login-prompt");
         // NOTE: Do NOT add --disable-accelerated-video-decode here.
         // Hardware video decoding (MediaCodec) is required for DRM/Widevine
         // content. It works in Surface mode (ContentViewRenderView).
