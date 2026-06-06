@@ -24,8 +24,8 @@ import org.chromium.services.media_session.MediaMetadata;
 
 /**
  * Bridges the page's {@code navigator.mediaSession} (Chromium MediaSession) to an
- * Android {@link MediaSessionCompat} and a lock-screen / shade media notification
- * (FEATURE-036 / F5). Created per browser; observes playback state + metadata and
+ * Android {@link MediaSessionCompat} and a lock-screen / shade media notification.
+ * Created per browser; observes playback state + metadata and
  * forwards transport controls back to the page.
  *
  * <p>The notification is hosted by {@link CefriumMediaService} (foreground).

@@ -9,9 +9,10 @@ import androidx.compose.runtime.remember
  * [rememberCefriumNavigator] and passed to the composable. It operates on the
  * [CefriumBrowser] owned by the bound [CefriumViewState].
  *
- * Surface: load / back / forward / reload / evaluateJavaScript (fire-and-forget).
- * `loadHtml`, `postUrl`, `stopLoading` and a result-returning JS bridge remain
- * deferred to later Tier B slices; see FEATURE-022.
+ * Covers load / loadHtml / postUrl / back / forward / reload / stopLoading /
+ * evaluateJavaScript (fire-and-forget), plus cookies, HTTP cache, print-to-PDF,
+ * dynamic web settings, a request interceptor and web permissions. Only a
+ * result-returning JS bridge is deferred to a later release.
  */
 @Stable
 class CefriumNavigator {
@@ -64,13 +65,13 @@ class CefriumNavigator {
 
     /**
      * Executes [script] in the main frame (fire-and-forget). The return value
-     * is not delivered back; a result-returning bridge is a later Tier B slice.
+     * is not delivered back; a result-returning bridge is planned for a later release.
      */
     fun evaluateJavaScript(script: String) {
         state?.browser?.evaluateJavaScript(script)
     }
 
-    // ── Cookies (FEATURE-024) ──
+    // ── Cookies ──
 
     /** Sets a session cookie for [url] (domain/path inferred from the URL). */
     fun setCookie(url: String, name: String, value: String) {
@@ -102,7 +103,7 @@ class CefriumNavigator {
         state?.browser?.printToPdf(filePath, callback)
     }
 
-    // ── Dynamic WebSettings (FEATURE-025) ──
+    // ── Dynamic WebSettings ──
 
     /** Overrides the User-Agent at runtime. */
     fun setUserAgentOverride(userAgent: String) {
@@ -119,14 +120,14 @@ class CefriumNavigator {
         state?.browser?.setZoomLevel(zoomLevel)
     }
 
-    // ── Request interceptor (FEATURE-027) ──
+    // ── Request interceptor ──
 
     /** Sets a programmatic request interceptor (block decisions; null clears). */
     fun setRequestInterceptor(interceptor: com.cefrium.CefriumBrowser.RequestInterceptor?) {
         state?.browser?.setRequestInterceptor(interceptor)
     }
 
-    // ── Permissions (FEATURE-032) ──
+    // ── Permissions ──
 
     /** Sets the web permission handler (geolocation, camera, mic; null = deny all). */
     fun setPermissionHandler(handler: com.cefrium.CefriumBrowser.PermissionHandler?) {
