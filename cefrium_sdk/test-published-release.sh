@@ -32,6 +32,8 @@ echo "==> Consumer smoke test for cefrium $VERSION (registry-only) in $WORK"
 
 mkdir -p "$WORK/app/src/main/java/com/example/cefriumtest"
 echo "sdk.dir=$ANDROID_HOME" > "$WORK/local.properties"
+# Android Studio sets this in every new project; the SDK pulls androidx transitively.
+printf 'android.useAndroidX=true\n' > "$WORK/gradle.properties"
 
 # settings.gradle.kts — resolve ONLY from the published registry (+ google/central
 # for the transitive androidx deps), exactly like the quickstart.
@@ -80,6 +82,11 @@ android {
         versionCode = 1
         versionName = "1.0"
     }
+}
+// The SDK bundles Chromium's Guava ListenableFuture; androidx pulls the
+// com.google.guava:listenablefuture placeholder -> duplicate class. Standard fix.
+configurations.all {
+    exclude(group = "com.google.guava", module = "listenablefuture")
 }
 dependencies {
     implementation("com.cefrium:cefrium-sdk:$VERSION")
