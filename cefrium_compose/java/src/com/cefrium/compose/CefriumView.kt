@@ -49,7 +49,7 @@ fun CefriumView(
         state.getOrCreateBrowser(activity).also { b ->
             navigator.state = state
             // JS bridge opt-in: window.cefriumQuery is handled only if the host
-            // provides onQuery (FEATURE-023). Without it, queries fail with -1 —
+            // provides onQuery. Without it, queries fail with -1 —
             // a deliberate security default (the bridge is off unless asked for).
             if (onQuery != null) {
                 b.setQueryHandler { _, request, origin, callback ->
