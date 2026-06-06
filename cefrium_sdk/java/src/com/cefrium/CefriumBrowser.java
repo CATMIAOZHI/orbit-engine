@@ -99,9 +99,10 @@ public class CefriumBrowser {
      * @param scale  Device scale factor (e.g., 2.75 for Xiaomi Redmi Note 13 Pro).
      */
     public CefriumBrowser(int width, int height, float scale) {
+        // Lazy init: the SDK's CefriumInitProvider already ran the per-process
+        // setup at app launch, so initialize() can use the captured app context.
         if (!Cefrium.isInitialized()) {
-            throw new IllegalStateException(
-                    "Cefrium.initialize() must be called before creating browsers");
+            Cefrium.initialize();
         }
         mNativePtr = nativeCreate(width, height, scale);
     }
@@ -938,9 +939,11 @@ public class CefriumBrowser {
      * @return A new CefriumBrowser instance with Surface rendering.
      */
     public static CefriumBrowser createWithSurface(android.app.Activity activity) {
+        // Lazy init: no Application boilerplate or explicit initialize() needed.
+        // CefriumInitProvider ran the per-process setup at app launch; initialize()
+        // is idempotent and self-sufficient.
         if (!Cefrium.isInitialized()) {
-            throw new IllegalStateException(
-                    "Cefrium.initialize() must be called before creating browsers");
+            Cefrium.initialize(activity);
         }
 
         CefriumBrowser browser = new CefriumBrowser(true);
