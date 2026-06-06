@@ -660,6 +660,98 @@ public class CefriumBrowser {
         h.onPermissionRequest(origin, permissions, cb);
     }
 
+    // ── SSL / certificate errors ──
+
+    /** Receives the app's proceed/cancel decision for an invalid certificate. */
+    public interface SslErrorCallback {
+        void proceed();
+        void cancel();
+    }
+
+    /**
+     * Decides whether to continue loading a URL whose TLS certificate failed
+     * validation (the WebView {@code onReceivedSslError} equivalent). Without a
+     * handler set, the load is cancelled &mdash; the secure default.
+     */
+    public interface SslErrorHandler {
+        void onSslError(String url, int certError, SslErrorCallback callback);
+    }
+
+    private SslErrorHandler mSslErrorHandler;
+
+    /** Sets the SSL/certificate error handler (null = cancel on every cert error). */
+    public void setSslErrorHandler(SslErrorHandler handler) {
+        mSslErrorHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+
+    // Called from native (UI thread) when a certificate fails validation.
+    private void onSslError(long id, String url, int certError) {
+        SslErrorHandler h = mSslErrorHandler;
+        if (h == null) {
+            if (mNativePtr != 0) nativeRespondSslError(mNativePtr, id, false);
+            return;
+        }
+        final boolean[] answered = {false};
+        SslErrorCallback cb = new SslErrorCallback() {
+            @Override public void proceed() { respond(true); }
+            @Override public void cancel() { respond(false); }
+            private void respond(boolean proceed) {
+                if (answered[0]) return;
+                answered[0] = true;
+                if (mNativePtr != 0) nativeRespondSslError(mNativePtr, id, proceed);
+            }
+        };
+        h.onSslError(url, certError, cb);
+    }
+
+    // ── HTTP authentication ──
+
+    /** Receives the app's credentials (or cancel) for an HTTP auth challenge. */
+    public interface HttpAuthCallback {
+        void proceed(String username, String password);
+        void cancel();
+    }
+
+    /**
+     * Supplies credentials for an HTTP or proxy authentication challenge (the
+     * WebView {@code onReceivedHttpAuthRequest} equivalent). Without a handler
+     * set, the challenge is cancelled (no credentials supplied).
+     */
+    public interface HttpAuthHandler {
+        void onHttpAuthRequest(String host, String realm, int port,
+                               boolean isProxy, HttpAuthCallback callback);
+    }
+
+    private HttpAuthHandler mHttpAuthHandler;
+
+    /** Sets the HTTP auth handler (null = cancel every auth challenge). */
+    public void setHttpAuthHandler(HttpAuthHandler handler) {
+        mHttpAuthHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+
+    // Called from native (UI thread) on an HTTP/proxy auth challenge.
+    private void onHttpAuthRequest(long id, String host, String realm, int port,
+                                   boolean isProxy) {
+        HttpAuthHandler h = mHttpAuthHandler;
+        if (h == null) {
+            if (mNativePtr != 0) nativeRespondHttpAuth(mNativePtr, id, null, null);
+            return;
+        }
+        final boolean[] answered = {false};
+        HttpAuthCallback cb = new HttpAuthCallback() {
+            @Override public void proceed(String u, String p) { respond(u, p); }
+            @Override public void cancel() { respond(null, null); }
+            private void respond(String u, String p) {
+                if (answered[0]) return;
+                answered[0] = true;
+                if (mNativePtr != 0) nativeRespondHttpAuth(mNativePtr, id, u, p);
+            }
+        };
+        h.onHttpAuthRequest(host, realm, port, isProxy, cb);
+    }
+
     private void showDefaultJsDialog(int type, String message, String defaultPrompt,
                                      JsDialogCallback cb) {
         android.app.AlertDialog.Builder b = new android.app.AlertDialog.Builder(mActivity);
@@ -1159,6 +1251,8 @@ public class CefriumBrowser {
     private static native void nativeStopLoading(long nativePtr);
     private static native void nativeJsDialogResult(long nativePtr, long token, boolean success, String userInput);
     private static native void nativeRespondPermission(long nativePtr, long promptId, boolean grant);
+    private static native void nativeRespondSslError(long nativePtr, long id, boolean proceed);
+    private static native void nativeRespondHttpAuth(long nativePtr, long id, String username, String password);
     private static native boolean nativeCanGoBack(long nativePtr);
     private static native void nativeSetDisplayCallback(long nativePtr, CefriumBrowser browser);
     private static native void nativeClose(long nativePtr);
