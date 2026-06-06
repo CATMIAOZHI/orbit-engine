@@ -13,7 +13,7 @@ import android.os.IBinder;
 
 /**
  * Foreground service that hosts the media-playback notification for
- * {@link CefriumMediaSession} (FEATURE-036 / F5). Keeps the notification on the
+ * {@link CefriumMediaSession}. Keeps the notification on the
  * lock screen and the process at media-playback priority. Notification action
  * buttons post intents here (PLAY/PAUSE/STOP), which are forwarded to the active
  * {@link CefriumMediaSession}.
