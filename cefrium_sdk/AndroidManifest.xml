@@ -17,6 +17,16 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application>
+        <!-- Zero-config init. The framework instantiates this provider at app
+             launch (browser process, before any Activity); its onCreate runs the
+             per-process Chromium plumbing so consumers need no custom Application
+             and no explicit Cefrium.initialize(). The authority is made unique per
+             consumer via ${applicationId} (the androidx.startup pattern). -->
+        <provider
+            android:name="com.cefrium.CefriumInitProvider"
+            android:authorities="${applicationId}.cefriuminit"
+            android:exported="false"
+            android:initOrder="100" />
         <!-- Google Play services version. The fat AAR vendors Chrome's GMS
              classes (play-services-basement/base); Chromium's WebOTP path
              (SmsProviderGms) calls

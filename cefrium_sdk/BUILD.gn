@@ -19,6 +19,7 @@ android_library("cefrium_java") {
   sources = [
     "java/src/com/cefrium/Cefrium.java",
     "java/src/com/cefrium/CefriumBrowser.java",
+    "java/src/com/cefrium/CefriumInitProvider.java",
     "java/src/com/cefrium/CefriumMediaService.java",
     "java/src/com/cefrium/CefriumMediaSession.java",
     "java/src/com/cefrium/CefriumRenderHandler.java",
