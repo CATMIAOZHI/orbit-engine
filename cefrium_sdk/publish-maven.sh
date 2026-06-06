@@ -130,6 +130,24 @@ echo ""
 # into one multi-ABI AAR (cefrium-sdk.aar = codecs default, cefrium-sdk-libre.aar).
 # AGP packages all ABIs from the AAR and the consumer's APK/App Bundle delivers
 # only the device's ABI — so a single coordinate works on arm64 and x86_64.
+# Runtime androidx dependencies the SDK references (from the content/embedder
+# layer) but does NOT vendor — the consumer gets them transitively. The AAR is a
+# fat AAR (it vendors chrome_all_java's Material/Preference/Cast classes AND, since
+# compat_strings.xml is wired in, their string resources — see FEATURE-038
+# Option A), so the consumer must NOT add material/preference itself (would
+# duplicate the vendored classes). Only the content-layer androidx below is
+# declared. This exact set was validated by a Maven-path consumer build: a project
+# that declares ONLY com.cefrium:cefrium-sdk builds to an APK (no duplicate-class,
+# no missing-resource).
+read -r -d '' SDK_DEPS <<'XML' || true
+  <dependencies>
+    <dependency><groupId>androidx.appcompat</groupId><artifactId>appcompat</artifactId><version>1.7.0</version></dependency>
+    <dependency><groupId>androidx.mediarouter</groupId><artifactId>mediarouter</artifactId><version>1.7.0</version></dependency>
+    <dependency><groupId>androidx.core</groupId><artifactId>core</artifactId><version>1.16.0</version></dependency>
+    <dependency><groupId>androidx.browser</groupId><artifactId>browser</artifactId><version>1.8.0</version></dependency>
+  </dependencies>
+XML
+
 published_any=0
 for artifact in cefrium-sdk cefrium-sdk-libre; do
   aar="$RELEASE_DIR/$artifact.aar"
@@ -138,7 +156,7 @@ for artifact in cefrium-sdk cefrium-sdk-libre; do
     continue
   fi
   echo "Publishing $artifact (multi-ABI)..."
-  pom=$(generate_pom "$artifact" "Cefrium SDK — CEF for Android (multi-ABI)" "")
+  pom=$(generate_pom "$artifact" "Cefrium SDK — CEF for Android (multi-ABI)" "$SDK_DEPS")
   upload "$artifact" "$pom"
   upload "$artifact" "$aar"
   rm -f "$pom"
