@@ -19,7 +19,7 @@ that gap.
 > downloads only their architecture (~150 MB), not all ABIs — the same approach
 > GeckoView, Flutter, and other engine-bundling SDKs use.
 
-**[Quick Start](QUICKSTART.md)** · [API Docs](https://cefrium.com/docs) · [Migration from WebView](MIGRATION.md) · [Build from Source](BUILD-GUIDE.md) · [Samples](https://codeberg.org/cefrium/cefrium-sample)
+**[Quick Start](QUICKSTART.md)** · [API Docs](https://cefrium.com/docs) · [Compose API](https://cefrium.com/docs/compose) · [Migration from WebView](MIGRATION.md) · [Build from Source](BUILD-GUIDE.md) · [Samples](https://codeberg.org/cefrium/cefrium-sample)
 
 ## What works
 
