@@ -5,12 +5,28 @@
     package="com.cefrium">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Chromium's network stack queries connectivity at startup
+         (DataSaverOSSetting.isDataSaverEnabled -> ConnectivityManager, and
+         NetworkChangeNotifier). Without this a SecurityException is thrown and,
+         being uncaught across the JNI boundary, is fatal. Declared by the SDK so
+         consumers inherit it via manifest merging. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- F5: lock-screen / shade media controls (CefriumMediaSession). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application>
+        <!-- Google Play services version. The fat AAR vendors Chrome's GMS
+             classes (play-services-basement/base); Chromium's WebOTP path
+             (SmsProviderGms) calls
+             GoogleApiAvailability.isGooglePlayServicesAvailable(), which throws a
+             fatal, uncaught GooglePlayServicesMissingManifestValueException unless
+             this meta-data is present. Declared here so every consumer inherits it
+             via manifest merging — no consumer action needed. The @integer value
+             is provided by the AAR's vendored GMS resources. -->
+        <meta-data android:name="com.google.android.gms.version"
+                   android:value="@integer/google_play_services_version" />
         <!-- F5: foreground service hosting the media-playback notification. -->
         <service android:name="com.cefrium.CefriumMediaService"
                  android:foregroundServiceType="mediaPlayback"
