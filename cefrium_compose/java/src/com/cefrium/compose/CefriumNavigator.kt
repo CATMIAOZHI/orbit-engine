@@ -133,6 +133,16 @@ class CefriumNavigator {
     fun setPermissionHandler(handler: com.cefrium.CefriumBrowser.PermissionHandler?) {
         state?.browser?.setPermissionHandler(handler)
     }
+
+    /** Sets the SSL/certificate error handler (proceed/cancel; null = cancel all). */
+    fun setSslErrorHandler(handler: com.cefrium.CefriumBrowser.SslErrorHandler?) {
+        state?.browser?.setSslErrorHandler(handler)
+    }
+
+    /** Sets the HTTP auth handler (supply credentials/cancel; null = cancel all). */
+    fun setHttpAuthHandler(handler: com.cefrium.CefriumBrowser.HttpAuthHandler?) {
+        state?.browser?.setHttpAuthHandler(handler)
+    }
 }
 
 /** Remembers a [CefriumNavigator] across recompositions. */
