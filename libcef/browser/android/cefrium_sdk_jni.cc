@@ -665,11 +665,142 @@ class SdkRequestHandler : public CefRequestHandler {
     message_router_ = router;
   }
 
+  void SetJavaBrowser(JNIEnv* env, jobject jb) {
+    if (jb) {
+      java_browser_ = env->NewGlobalRef(jb);
+    }
+  }
+
+  // WebView parity: surface invalid-certificate decisions to the embedder
+  // (onReceivedSslError). With no Java handler the request is cancelled — the
+  // safe default, matching CEF's default false return.
+  bool OnCertificateError(CefRefPtr<CefBrowser> browser,
+                          cef_errorcode_t cert_error,
+                          const CefString& request_url,
+                          CefRefPtr<CefSSLInfo> ssl_info,
+                          CefRefPtr<CefCallback> callback) override {
+    if (!java_browser_) {
+      return false;  // default: cancel the load
+    }
+    uint64_t id;
+    {
+      base::AutoLock lock(lock_);
+      id = next_ssl_id_++;
+      pending_ssl_[id] = callback;
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid =
+        env->GetMethodID(cls, "onSslError", "(JLjava/lang/String;I)V");
+    if (mid) {
+      jstring jurl = env->NewStringUTF(request_url.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, static_cast<jlong>(id), jurl,
+                          static_cast<jint>(cert_error));
+      env->DeleteLocalRef(jurl);
+    } else {
+      RespondSslError(id, false);
+    }
+    env->DeleteLocalRef(cls);
+    return true;
+  }
+
+  // Called from nativeRespondSslError once Java decides proceed/cancel.
+  void RespondSslError(uint64_t id, bool proceed) {
+    CefRefPtr<CefCallback> cb;
+    {
+      base::AutoLock lock(lock_);
+      auto it = pending_ssl_.find(id);
+      if (it == pending_ssl_.end()) {
+        return;
+      }
+      cb = it->second;
+      pending_ssl_.erase(it);
+    }
+    if (proceed) {
+      cb->Continue();
+    } else {
+      cb->Cancel();
+    }
+  }
+
+  // WebView parity: surface HTTP/proxy auth challenges to the embedder
+  // (onReceivedHttpAuthRequest). With no Java handler the challenge is
+  // cancelled (no credentials), matching CEF's default false return.
+  bool GetAuthCredentials(CefRefPtr<CefBrowser> browser,
+                          const CefString& origin_url,
+                          bool isProxy,
+                          const CefString& host,
+                          int port,
+                          const CefString& realm,
+                          const CefString& scheme,
+                          CefRefPtr<CefAuthCallback> callback) override {
+    if (!java_browser_) {
+      return false;  // default: no credentials
+    }
+    uint64_t id;
+    {
+      base::AutoLock lock(lock_);
+      id = next_auth_id_++;
+      pending_auth_[id] = callback;
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(
+        cls, "onHttpAuthRequest", "(JLjava/lang/String;Ljava/lang/String;IZ)V");
+    if (mid) {
+      jstring jhost = env->NewStringUTF(host.ToString().c_str());
+      jstring jrealm = env->NewStringUTF(realm.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, static_cast<jlong>(id), jhost,
+                          jrealm, static_cast<jint>(port),
+                          static_cast<jboolean>(isProxy));
+      env->DeleteLocalRef(jhost);
+      env->DeleteLocalRef(jrealm);
+    } else {
+      RespondHttpAuth(id, nullptr, nullptr);
+    }
+    env->DeleteLocalRef(cls);
+    return true;
+  }
+
+  // Called from nativeRespondHttpAuth. Null user = cancel the challenge.
+  void RespondHttpAuth(uint64_t id, const char* user, const char* pass) {
+    CefRefPtr<CefAuthCallback> cb;
+    {
+      base::AutoLock lock(lock_);
+      auto it = pending_auth_.find(id);
+      if (it == pending_auth_.end()) {
+        return;
+      }
+      cb = it->second;
+      pending_auth_.erase(it);
+    }
+    if (user) {
+      cb->Continue(CefString(user), CefString(pass ? pass : ""));
+    } else {
+      cb->Cancel();
+    }
+  }
+
+  ~SdkRequestHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) {
+        env->DeleteGlobalRef(java_browser_);
+      }
+    }
+  }
+
   IMPLEMENT_REFCOUNTING(SdkRequestHandler);
 
  private:
   CefRefPtr<SdkResourceRequestHandler> resource_handler_;
   CefRefPtr<CefMessageRouterBrowserSide> message_router_;
+  jobject java_browser_ = nullptr;
+  base::Lock lock_;
+  std::map<uint64_t, CefRefPtr<CefCallback>> pending_ssl_;
+  std::map<uint64_t, CefRefPtr<CefAuthCallback>> pending_auth_;
+  uint64_t next_ssl_id_ = 1;
+  uint64_t next_auth_id_ = 1;
 };
 
 // FEATURE-023 step 4: browser-side handler for window.cefriumQuery. Forwards
@@ -1107,6 +1238,7 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkPermissionHandler> permission_handler() {
     return permission_handler_;
   }
+  CefRefPtr<SdkRequestHandler> request_handler() { return request_handler_; }
   CefRefPtr<SdkJSDialogHandler> js_dialog_handler() { return js_dialog_handler_; }
   CefRefPtr<SdkDisplayHandler> display_handler() { return display_handler_; }
   CefRefPtr<SdkLoadHandler> load_handler_ref() { return load_handler_; }
@@ -1321,6 +1453,9 @@ Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
     data->client->find_handler()->SetJavaBrowser(env, java_browser);
     data->client->js_dialog_handler()->SetJavaBrowser(env, java_browser);
     data->client->permission_handler()->SetJavaBrowser(env, java_browser);
+    if (data->client->request_handler()) {
+      data->client->request_handler()->SetJavaBrowser(env, java_browser);
+    }
     if (data->life_span_handler) {
       data->life_span_handler->SetJavaBrowser(env, java_browser);
     }
@@ -1353,6 +1488,40 @@ Java_com_cefrium_CefriumBrowser_nativeRespondPermission(
   if (data && data->client) {
     data->client->permission_handler()->Respond(
         static_cast<uint64_t>(prompt_id), grant == JNI_TRUE);
+  }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeRespondSslError(
+    JNIEnv* env, jclass, jlong native_ptr, jlong id, jboolean proceed) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client && data->client->request_handler()) {
+    data->client->request_handler()->RespondSslError(
+        static_cast<uint64_t>(id), proceed == JNI_TRUE);
+  }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeRespondHttpAuth(
+    JNIEnv* env, jclass, jlong native_ptr, jlong id, jstring username,
+    jstring password) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->client || !data->client->request_handler()) {
+    return;
+  }
+  if (username == nullptr) {
+    data->client->request_handler()->RespondHttpAuth(
+        static_cast<uint64_t>(id), nullptr, nullptr);
+    return;
+  }
+  const char* user = env->GetStringUTFChars(username, nullptr);
+  const char* pass =
+      password ? env->GetStringUTFChars(password, nullptr) : nullptr;
+  data->client->request_handler()->RespondHttpAuth(static_cast<uint64_t>(id),
+                                                    user, pass);
+  env->ReleaseStringUTFChars(username, user);
+  if (pass) {
+    env->ReleaseStringUTFChars(password, pass);
   }
 }
 
