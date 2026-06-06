@@ -32,8 +32,9 @@ echo "==> Consumer smoke test for cefrium $VERSION (registry-only) in $WORK"
 
 mkdir -p "$WORK/app/src/main/java/com/example/cefriumtest"
 echo "sdk.dir=$ANDROID_HOME" > "$WORK/local.properties"
-# Android Studio sets this in every new project; the SDK pulls androidx transitively.
-printf 'android.useAndroidX=true\n' > "$WORK/gradle.properties"
+# android.useAndroidX: AS sets it in every new project; the SDK pulls androidx
+# transitively. jvmargs: dexing the ~237 MB SDK AAR OOMs Gradle's default 512 MB heap.
+printf 'android.useAndroidX=true\norg.gradle.jvmargs=-Xmx4g\n' > "$WORK/gradle.properties"
 
 # settings.gradle.kts — resolve ONLY from the published registry (+ google/central
 # for the transitive androidx deps), exactly like the quickstart.
