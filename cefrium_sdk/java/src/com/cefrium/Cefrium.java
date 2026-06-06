@@ -90,7 +90,7 @@ public final class Cefrium {
 
         // WebAuthn/Passkeys: Requires Google Play Services browser verification
         // or Android CredentialManager with CREDENTIAL_MANAGER_SET_ORIGIN
-        // permission (system apps only). See FEATURE-020-webauthn-passkeys.md.
+        // permission (system apps only).
         // Preparatory patches saved in patch/patches/android/ for when
         // browser verification is obtained.
 
