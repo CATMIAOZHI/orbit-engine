@@ -18,7 +18,7 @@ import org.chromium.content_public.browser.WebContents;
 
 /**
  * FrameLayout that hosts the browser surface and participates in Android nested
- * scrolling (FEATURE-033). The embedded page handles vertical drags itself; when
+ * scrolling. The embedded page handles vertical drags itself; when
  * it reaches a vertical scroll boundary (top or bottom), the remaining drag is
  * handed off to a {@code NestedScrollingParent} (e.g. {@code NestedScrollView},
  * {@code SwipeRefreshLayout}, or a Compose scroll container hosting the
