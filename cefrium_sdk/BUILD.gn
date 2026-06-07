@@ -16,7 +16,13 @@ android_resources("cefrium_resources") {
   # bundles, so a Maven consumer resolves them without needing those libraries as
   # dependencies (which would otherwise duplicate the vendored classes). This file
   # existed but was never wired in (sources was empty) — the orphaned root cause.
-  sources = [ "res/values/compat_strings.xml" ]
+  sources = [
+    "res/values/compat_strings.xml",
+    # Google Play services common strings — the fat AAR vendors play-services
+    # classes (FirebaseApp / FCM) but not their resources; gms.common code reads
+    # them by R.string id (FEATURE-041).
+    "res/values/play_services_strings.xml",
+  ]
 }
 
 android_library("cefrium_java") {
