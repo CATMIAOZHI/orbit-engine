@@ -388,6 +388,18 @@ std::optional<int> ChromeMainDelegateCef::BasicStartupComplete() {
     //    Chrome and should not show Google satisfaction surveys regardless.
     DisableFeatureByDefault(permissions::features::kPermissionsPromptSurvey,
                             disable_features);
+    // -- Web Notifications app-level gate: this feature force-denies the
+    //    Notifications permission unless Chrome's ContextualNotificationP-
+    //    ermissionRequester reports app-level notifications are enabled. CEF
+    //    never initializes that requester (it is Chrome browser-startup infra),
+    //    so getInstance() is null and every origin is force-denied, making the
+    //    Web Notifications API unusable. CEF embedders gate notifications via
+    //    CefPermissionHandler + the app's POST_NOTIFICATIONS, so disable the
+    //    feature and let the permission fall back to the normal ASK default
+    //    (FEATURE-037).
+    DisableFeatureByDefault(
+        permissions::features::kReturnDeniedForNotificationsWhenNoAppLevelSettings,
+        disable_features);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
