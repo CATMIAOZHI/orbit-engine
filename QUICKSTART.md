@@ -274,7 +274,7 @@ window.cefriumQuery({
 });
 ```
 
-## Web Notifications
+## Web Notifications & Push
 
 A page's **service worker** can post a real Android notification to the system
 shade via `ServiceWorkerRegistration.showNotification()`. (The plain
@@ -297,10 +297,24 @@ browser.setContentSetting("https://your-app.example",
     CefriumBrowser.PERMISSION_NOTIFICATIONS, CefriumBrowser.SETTING_ALLOW);
 ```
 
-> **Web Push (PushManager):** the API is exposed, but receiving push messages on
-> Android requires **your own Firebase Cloud Messaging project**
-> (`google-services.json` + sender id) and a push sender — it cannot be shipped by
-> the SDK. Local notifications (above) need no Firebase.
+There are three notification/push paths, and the choice matters:
+
+- **Web Notifications** (`showNotification`, above) — works out of the box, no
+  Firebase.
+- **Web Push** (`PushManager.subscribe`) — the W3C API is present and registers
+  with FCM, but **production delivery is gated by Google to Chrome's identity**
+  (a structural limit for every Chromium fork: the subscription lands on the
+  `preprod` channel). Standards-correct, not deliverable in production without
+  your own push service.
+- **Native FCM** — the production-capable path, using your own Firebase project.
+  Because the SDK AAR **vendors** the Firebase classes, you do **not** add
+  `firebase-messaging` (it would duplicate classes); you declare the firebase
+  manifest entries yourself. Requires a **Play-certified device**
+  (`getToken()` hangs on uncertified GMS). Validated end-to-end.
+
+Full walkthrough (with the manifest, Gradle, token retrieval, and sending a test
+push): **<https://cefrium.com/guides/push-notifications/>** and the
+[push-demo sample](https://codeberg.org/cefrium/cefrium-sample/src/branch/main/push-demo).
 
 ## Next steps
 
