@@ -1,0 +1,22 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/notifications/NotificationPlatformBridge.java b/chrome/android/java/src/org/chromium/chrome/browser/notifications/NotificationPlatformBridge.java
+index 86d5ac08df..f058a24352 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/notifications/NotificationPlatformBridge.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/notifications/NotificationPlatformBridge.java
+@@ -1025,9 +1025,14 @@ public class NotificationPlatformBridge {
+             return Promise.fulfilled(true);
+         }
+ 
+-        // Only native calls into this here code, so the native process must be running, which is
+-        // important if we end up lazily constructing `UsageStatsService` here, which uses JNI.
+-        assert BrowserStartupController.getInstance().isFullBrowserStarted();
++        // Chrome's notification suspension is backed by UsageStatsService (Digital
++        // Wellbeing), which only exists once the full Chrome browser has started.
++        // Embedders (CEF/Cefrium) run their own startup and never start the full
++        // Chrome browser, so UsageStatsService is unavailable — treat such origins
++        // as never suspended rather than asserting / constructing it (FEATURE-037).
++        if (!BrowserStartupController.getInstance().isFullBrowserStarted()) {
++            return Promise.fulfilled(false);
++        }
+         return UsageStatsService.getForProfile(profile)
+                 .getSuspensionTracker()
+                 .storeNotificationResourcesIfSuspended(notification);
