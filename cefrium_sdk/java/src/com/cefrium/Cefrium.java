@@ -221,6 +221,26 @@ public final class Cefrium {
         return sInitialized;
     }
 
+    /** Cefrium SDK version. */
+    public static final String VERSION = "0.3.2";
+
+    /** Bundled Chromium engine version (pinned to the build). */
+    public static final String CHROMIUM_VERSION = "148.0.7778.167";
+
+    /**
+     * @return the Cefrium SDK version, e.g. {@code "0.3.2"}.
+     */
+    public static String getVersion() {
+        return VERSION;
+    }
+
+    /**
+     * @return the bundled Chromium engine version, e.g. {@code "148.0.7778.167"}.
+     */
+    public static String getChromiumVersion() {
+        return CHROMIUM_VERSION;
+    }
+
     /**
      * Load ad-blocking filter rules from an EasyList-format file.
      * Can be called multiple times to load additional lists.
