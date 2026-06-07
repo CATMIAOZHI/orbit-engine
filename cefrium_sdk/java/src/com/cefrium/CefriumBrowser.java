@@ -661,6 +661,34 @@ public class CefriumBrowser {
         h.onPermissionRequest(origin, permissions, cb);
     }
 
+    // ── Per-origin content settings ──
+
+    /** Content setting values for {@link #setContentSetting}. */
+    public static final int SETTING_DEFAULT = 0;
+    public static final int SETTING_ALLOW = 1;
+    public static final int SETTING_BLOCK = 2;
+    public static final int SETTING_ASK = 3;
+
+    /**
+     * Sets a per-origin web-permission content setting without showing a prompt.
+     * Lets an app pre-grant (or block) a permission for an origin it trusts —
+     * e.g. allow Web Notifications for your own web app so {@code new
+     * Notification(...)} works without a runtime prompt.
+     *
+     * @param requestingUrl the origin URL, e.g. {@code "https://example.com"}
+     * @param permission one of the {@code PERMISSION_*} constants
+     *     ({@link #PERMISSION_NOTIFICATIONS}, {@link #PERMISSION_GEOLOCATION},
+     *     {@link #PERMISSION_CAMERA}, {@link #PERMISSION_MICROPHONE})
+     * @param value one of the {@code SETTING_*} constants
+     *     ({@link #SETTING_ALLOW}, {@link #SETTING_BLOCK}, {@link #SETTING_ASK},
+     *     {@link #SETTING_DEFAULT})
+     */
+    public void setContentSetting(String requestingUrl, int permission, int value) {
+        if (mNativePtr != 0) {
+            nativeSetContentSetting(mNativePtr, requestingUrl, permission, value);
+        }
+    }
+
     // ── SSL / certificate errors ──
 
     /** Receives the app's proceed/cancel decision for an invalid certificate. */
@@ -1254,6 +1282,7 @@ public class CefriumBrowser {
     private static native void nativeStopLoading(long nativePtr);
     private static native void nativeJsDialogResult(long nativePtr, long token, boolean success, String userInput);
     private static native void nativeRespondPermission(long nativePtr, long promptId, boolean grant);
+    private static native void nativeSetContentSetting(long nativePtr, String requestingUrl, int permission, int value);
     private static native void nativeRespondSslError(long nativePtr, long id, boolean proceed);
     private static native void nativeRespondHttpAuth(long nativePtr, long id, String username, String password);
     private static native boolean nativeCanGoBack(long nativePtr);

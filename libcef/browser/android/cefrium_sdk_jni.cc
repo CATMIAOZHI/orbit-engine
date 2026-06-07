@@ -1491,6 +1491,59 @@ Java_com_cefrium_CefriumBrowser_nativeRespondPermission(
   }
 }
 
+// Maps a CefriumBrowser.PERMISSION_* mask to a CEF content setting type.
+static cef_content_setting_types_t SdkPermissionToContentType(jint permission) {
+  switch (permission) {
+    case (1 << 8):   // PERMISSION_GEOLOCATION
+      return CEF_CONTENT_SETTING_TYPE_GEOLOCATION;
+    case (1 << 2):   // PERMISSION_CAMERA
+      return CEF_CONTENT_SETTING_TYPE_MEDIASTREAM_CAMERA;
+    case (1 << 12):  // PERMISSION_MICROPHONE
+      return CEF_CONTENT_SETTING_TYPE_MEDIASTREAM_MIC;
+    case (1 << 15):  // PERMISSION_NOTIFICATIONS
+    default:
+      return CEF_CONTENT_SETTING_TYPE_NOTIFICATIONS;
+  }
+}
+
+// Maps a CefriumBrowser.SETTING_* value to a CEF content setting value.
+static cef_content_setting_values_t SdkIntToSettingValue(jint value) {
+  switch (value) {
+    case 1:  // SETTING_ALLOW
+      return CEF_CONTENT_SETTING_VALUE_ALLOW;
+    case 2:  // SETTING_BLOCK
+      return CEF_CONTENT_SETTING_VALUE_BLOCK;
+    case 3:  // SETTING_ASK
+      return CEF_CONTENT_SETTING_VALUE_ASK;
+    case 0:  // SETTING_DEFAULT
+    default:
+      return CEF_CONTENT_SETTING_VALUE_DEFAULT;
+  }
+}
+
+// Sets a per-origin content setting (web permission) without a prompt, via the
+// browser's request context. Runs on the CEF UI thread (JNI calls in this SDK
+// are dispatched on the UI thread, same as nativeRespondPermission).
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetContentSetting(
+    JNIEnv* env, jclass, jlong native_ptr, jstring url_jstr, jint permission,
+    jint value) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) {
+    return;
+  }
+  CefRefPtr<CefRequestContext> context = data->browser->GetHost()->GetRequestContext();
+  if (!context) {
+    return;
+  }
+  const char* url = env->GetStringUTFChars(url_jstr, nullptr);
+  context->SetContentSetting(CefString(url), CefString(),
+                             SdkPermissionToContentType(permission),
+                             SdkIntToSettingValue(value));
+  LOGI("setContentSetting url=%s permission=%d value=%d", url, permission, value);
+  env->ReleaseStringUTFChars(url_jstr, url);
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeRespondSslError(
     JNIEnv* env, jclass, jlong native_ptr, jlong id, jboolean proceed) {
