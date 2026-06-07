@@ -57,6 +57,12 @@ class CefriumPlugin implements Plugin<Project> {
                 def generateTask = project.tasks.create(
                     "generateCefriumR${variantName}") {
                     outputs.dir(genDir)
+                    // The generated R depends on the merged R.txt (which changes
+                    // when resources change). Declaring it as an input alone is
+                    // unreliable since it does not exist at configuration time, so
+                    // never cache this cheap task — otherwise a stale R.java is
+                    // served when resources change (FEATURE-041).
+                    outputs.upToDateWhen { false }
                     doLast {
                         def rTxt = new File(project.buildDir,
                             "intermediates/runtime_symbol_list/${variant.name}/process${variantName}Resources/R.txt")
