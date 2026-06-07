@@ -134,6 +134,16 @@ class CefriumNavigator {
         state?.browser?.setPermissionHandler(handler)
     }
 
+    /**
+     * Pre-grants (or blocks) a per-origin web permission without a prompt — e.g.
+     * allow Web Notifications for your own origin so service-worker
+     * `showNotification()` works without asking. [permission] is one of
+     * `CefriumBrowser.PERMISSION_*`; [value] one of `CefriumBrowser.SETTING_*`.
+     */
+    fun setContentSetting(requestingUrl: String, permission: Int, value: Int) {
+        state?.browser?.setContentSetting(requestingUrl, permission, value)
+    }
+
     /** Sets the SSL/certificate error handler (proceed/cancel; null = cancel all). */
     fun setSslErrorHandler(handler: com.cefrium.CefriumBrowser.SslErrorHandler?) {
         state?.browser?.setSslErrorHandler(handler)
