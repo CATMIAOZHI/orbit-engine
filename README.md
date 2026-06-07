@@ -63,6 +63,8 @@ that gap.
 | Cache control (clearCache) | Done |
 | Print to PDF (CefBrowserHost::PrintToPDF, URL/page → PDF) | Done |
 | Web permissions (geolocation; CefPermissionHandler → app decision) | Done |
+| Web Notifications (service-worker showNotification → Android shade) | Done |
+| Per-origin content settings (setContentSetting — pre-grant a permission) | Done |
 | WebRTC getUserMedia (camera + mic capture) | Done |
 | WebGL + WebGPU (hardware-accelerated) | Done |
 | HTML5 fullscreen video (OnFullscreenModeChange) | Done |
@@ -393,7 +395,8 @@ platform integrations it wires up:
 | Web permissions (geolocation, camera, microphone) | Done — routed to your `PermissionHandler` |
 | WebAuthn / Passkeys | Limited — requires Google Play Services browser verification (same constraint as Brave/Firefox). SDK apps can use APP mode + Digital Asset Links for specific domains. |
 | System media controls (lock-screen MediaSession) | Done — `setMediaSessionEnabled(true)` (ships a foreground service; needs POST_NOTIFICATIONS) |
-| Web Notifications (system notification shade) | Not yet — needs a platform notification bridge |
+| Web Notifications (system notification shade) | Done — service-worker `showNotification()` posts to the Android shade; permission via `PermissionHandler` (or pre-grant with `setContentSetting`); needs `androidx.browser` + `POST_NOTIFICATIONS` |
+| Web Push (PushManager / push subscriptions) | API exposed; full FCM registration needs a consumer Firebase project (`google-services.json`) — see docs |
 
 Surface rendering uses `ContentViewRenderView` — the same Chromium
 component as Chrome Android. No additional overhead vs Chrome.
