@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Google Play services common strings. The fat AAR vendors the
+     play-services classes (FirebaseApp / FCM) but not these resources;
+     com.google.android.gms.common code references them by R.string id.
+     Defining them here lets the Cefrium Gradle plugin generate the
+     gms.common R class with these fields (FEATURE-041). -->
+<resources>
+    <string name="common_google_play_services_enable_button" formatted="false">Enable</string>
+    <string name="common_google_play_services_enable_text" formatted="false">Google Play services must be enabled for %1$s.</string>
+    <string name="common_google_play_services_enable_title" formatted="false">Enable Google Play services</string>
+    <string name="common_google_play_services_install_button" formatted="false">Install</string>
+    <string name="common_google_play_services_install_text" formatted="false">Install Google Play services to continue using %1$s.</string>
+    <string name="common_google_play_services_install_title" formatted="false">Install Google Play services</string>
+    <string name="common_google_play_services_notification_channel_name" formatted="false">Google Play services availability</string>
+    <string name="common_google_play_services_notification_ticker" formatted="false">Google Play services error</string>
+    <string name="common_google_play_services_signin_required_text" formatted="false">%1$s couldn\'t connect to Google Play services. Please sign-in to your Google account.</string>
+    <string name="common_google_play_services_signin_required_title" formatted="false">Sign-in required</string>
+    <string name="common_google_play_services_try_again_text" formatted="false">%1$s couldn\'t connect to Google Play services. Please try again.</string>
+    <string name="common_google_play_services_try_again_title" formatted="false">Please try again</string>
+    <string name="common_google_play_services_unknown_issue" formatted="false">%1$s is having trouble with Google Play services. Please try again.</string>
+    <string name="common_google_play_services_unsupported_text" formatted="false">%1$s can\'t run because your device doesn\'t support Google Play services. Please use a supported device.</string>
+    <string name="common_google_play_services_unsupported_title" formatted="false">Device not compatible</string>
+    <string name="common_google_play_services_update_button" formatted="false">Update</string>
+    <string name="common_google_play_services_update_text" formatted="false">Update Google Play services to use %1$s.</string>
+    <string name="common_google_play_services_update_title" formatted="false">Update Google Play services</string>
+    <string name="common_google_play_services_updating_client_title" formatted="false">Google Play services updating</string>
+    <string name="common_google_play_services_updating_text" formatted="false">%1$s will be available once the Google Play services update is complete.</string>
+    <string name="common_google_play_services_wear_update_text" formatted="false">Update Google Play services to use %1$s.</string>
+    <string name="common_open_on_phone" formatted="false">Open on phone</string>
+    <string name="common_signin_button_text" formatted="false">Sign in</string>
+    <string name="common_signin_button_text_long" formatted="false">Sign in with Google</string>
+</resources>
