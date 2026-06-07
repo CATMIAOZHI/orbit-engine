@@ -21,6 +21,10 @@ class CefriumPlugin implements Plugin<Project> {
         'gen.base_module',
         'org.chromium.base',
         'org.chromium.chrome',
+        // Web Notifications: ChromeChannelDefinitions / SiteChannelsManager read
+        // notifications R.string (channel group/name) when a site notification
+        // channel is created on grant/display (FEATURE-037).
+        'org.chromium.chrome.browser.notifications',
         'org.chromium.components.browser_ui.styles',
         'org.chromium.components.browser_ui.widget',
         'org.chromium.components.embedder_support.delegate',
