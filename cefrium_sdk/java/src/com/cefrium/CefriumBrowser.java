@@ -41,6 +41,7 @@ package com.cefrium;
 public class CefriumBrowser {
     private long mNativePtr;  // Pointer to native CefBrowser
     private CefriumRenderHandler mRenderHandler;
+    private String mCurrentUrl;  // Tracked for saveState/getUrl
     private OnUrlChangedListener mUrlListener;
     private OnTitleChangedListener mTitleListener;
     private OnLoadingStateChangedListener mLoadingListener;
@@ -301,9 +302,40 @@ public class CefriumBrowser {
     // Called from native CefDisplayHandler::OnAddressChange.
     @SuppressWarnings("unused")
     private void onUrlChanged(String url) {
+        mCurrentUrl = url;
         if (mCallback != null) mCallback.onUrlChanged(url);
         if (mUrlListener != null) mUrlListener.onUrlChanged(url);
     }
+
+    /** The current top-level URL, or {@code null} before the first navigation. */
+    public String getUrl() {
+        return mCurrentUrl;
+    }
+
+    // ── State preservation (Activity recreation: rotation, process death) ──
+
+    /**
+     * Captures restorable browser state (the current URL) into a Bundle. Call
+     * from {@code Activity.onSaveInstanceState} and pass the result to
+     * {@link #restoreState} after recreating the browser.
+     */
+    public android.os.Bundle saveState() {
+        android.os.Bundle state = new android.os.Bundle();
+        if (mCurrentUrl != null) state.putString(STATE_URL, mCurrentUrl);
+        return state;
+    }
+
+    /**
+     * Restores state previously captured by {@link #saveState} — re-navigates to
+     * the saved URL. No-op if {@code state} is null or holds no saved URL.
+     */
+    public void restoreState(android.os.Bundle state) {
+        if (state == null) return;
+        String url = state.getString(STATE_URL);
+        if (url != null && !url.isEmpty()) loadUrl(url);
+    }
+
+    private static final String STATE_URL = "com.cefrium.browser.url";
 
     /**
      * Set a listener for loading state changes.
