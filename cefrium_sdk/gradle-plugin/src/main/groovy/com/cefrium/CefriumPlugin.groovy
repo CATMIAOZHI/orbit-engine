@@ -25,6 +25,11 @@ class CefriumPlugin implements Plugin<Project> {
         // notifications R.string (channel group/name) when a site notification
         // channel is created on grant/display (FEATURE-037).
         'org.chromium.chrome.browser.notifications',
+        // FirebaseOptions.fromResource() reads com.google.android.gms.common
+        // R.string (google_app_id, gcm_defaultSenderId, ...) when the app uses
+        // native FCM (FirebaseApp.initializeApp / FirebaseMessaging). Without the
+        // generated R class -> NoClassDefFoundError gms/common/R$string.
+        'com.google.android.gms.common',
         'org.chromium.components.browser_ui.styles',
         'org.chromium.components.browser_ui.widget',
         'org.chromium.components.embedder_support.delegate',
