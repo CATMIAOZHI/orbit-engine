@@ -274,6 +274,34 @@ window.cefriumQuery({
 });
 ```
 
+## Web Notifications
+
+A page's **service worker** can post a real Android notification to the system
+shade via `ServiceWorkerRegistration.showNotification()`. (The plain
+`new Notification(...)` constructor is intentionally disabled on Android by
+Chromium — use the service-worker path.)
+
+Requirements:
+- Declare `<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>`
+  and request it at runtime (Android 13+).
+- Keep `implementation 'androidx.browser:browser:1.8.0'` (already in the deps
+  above) — Chromium's notification path references it.
+- The page must be a **secure context** (https, or localhost during dev).
+
+Permission flows through your `PermissionHandler` (the user's grant/deny). To
+**pre-grant** notifications for an origin you own (no prompt), use the per-origin
+content-settings API:
+
+```java
+browser.setContentSetting("https://your-app.example",
+    CefriumBrowser.PERMISSION_NOTIFICATIONS, CefriumBrowser.SETTING_ALLOW);
+```
+
+> **Web Push (PushManager):** the API is exposed, but receiving push messages on
+> Android requires **your own Firebase Cloud Messaging project**
+> (`google-services.json` + sender id) and a push sender — it cannot be shipped by
+> the SDK. Local notifications (above) need no Firebase.
+
 ## Next steps
 
 - Add navigation: `browser.goBack()`, `browser.goForward()`, `browser.reload()`
