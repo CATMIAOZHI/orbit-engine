@@ -21,7 +21,7 @@ export PATH="$PWD/depot_tools:$PATH"
 mkdir chromium && cd chromium
 fetch --nohooks android
 cd src
-git checkout 148.0.7778.167
+git checkout 149.0.7827.53
 gclient sync --with_branch_heads --with_tags
 
 # Clone CEF android-port branch
@@ -32,9 +32,12 @@ git clone -b android-port https://codeberg.org/cefrium/cef-android.git cef
 
 ```bash
 cd chromium/src
-# patcher.py activates the android/* patches when this env var is set. Its name
-# contains '==', which bash rejects in `export name=value`, so pass it via env(1).
-env 'target_os=="android"=1' python3 cef/tools/patcher.py
+# Apply ALL CEF patches (core + android/*). The android patches are gated on the
+# condition key 'target_os=="android"', which is not a legal env var name (it has
+# '=' and '"'): neither `export` nor `env(1)` can set it (both split on the first
+# '='), so they would silently skip the android set. apply-patches.py sets the key
+# correctly and runs patcher.py in-process.
+python3 cef/cefrium_sdk/apply-patches.py
 
 # CRITICAL: touch all patched files to force recompilation
 for patch in cef/patch/patches/*.patch cef/patch/patches/android/*.patch; do
@@ -216,13 +219,13 @@ Then create the release (Codeberg → Releases → *New release*, or the API) wi
 notes following this template:
 
 ```
-CEF branch 7778 · Chromium 148.0.7778.167.
+CEF branch 7827, Chromium 149.0.7827.53.
 
 <one paragraph: what changed in this version>
 
 Published to the Codeberg Maven registry on <YYYY-MM-DD>.
 
-Includes Chromium security fixes through 148.0.7778.167.
+Includes Chromium security fixes through 149.0.7827.53.
 ```
 
 - The **exact Chromium version** is `chrome/VERSION` in the checkout (the Debian
