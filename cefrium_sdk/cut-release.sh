@@ -79,7 +79,31 @@ if run stats;   then hdr "patch stats"; cef/cefrium_sdk/update-patch-stats.sh ||
 if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   cp out/release/cefrium-sdk.aar "$ROOT/cefrium-sample/push-demo/app/libs/cefrium-sdk.aar"
   ( cd "$ROOT/cefrium-sample/push-demo" && ./gradlew clean assembleDebug --no-daemon )
-  echo "Sanity green — the fresh AAR is consumable."
+  echo "Sanity green — the fresh AAR is consumable (compile-time)."
+
+  # Runtime FEATURE gate (the 0.4.0 lesson): compile-time checks miss runtime
+  # feature regressions -- 0.4.0 shipped a 149 flagship crash + a content-setting
+  # break. Run the instrumented suite on a connected device against the fresh AAR
+  # BEFORE the IMMUTABLE publish. A release MUST be runtime-validated on device.
+  ADB="$ANDROID_HOME/platform-tools/adb"; [ -x "$ADB" ] || ADB=adb
+  [ "$("$ADB" devices 2>/dev/null | grep -c 'device$')" -ge 1 ] || {
+    echo "FAIL: no device connected -- the runtime feature gate requires one."; exit 1; }
+  IT=cef/cefrium_instrumentation_test
+  mkdir -p "$IT/app/libs"
+  cp out/release/cefrium-sdk.aar "$IT/app/libs/cefrium-sdk.aar"
+  cp cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar "$IT/app/libs/cefrium-compose.aar"
+  WJI="$IT/gradle/wrapper/gradle-wrapper.jar"   # gitignored; restore from a sample
+  [ -f "$WJI" ] || { mkdir -p "$IT/gradle/wrapper"; cp "$ROOT/cefrium-sample/push-demo/gradle/wrapper/gradle-wrapper.jar" "$WJI"; }
+  [ -f "$IT/gradlew" ] || cp "$ROOT/cefrium-sample/push-demo/gradlew" "$IT/gradlew"
+  chmod +x "$IT/gradlew"
+  ( cd "$IT" && ./gradlew :app:connectedDebugAndroidTest --no-daemon )
+  echo "Runtime feature gate green -- instrumented suite passed on device."
+
+  # Sample launch-smoke gate: build + launch EVERY cefrium-sample on device
+  # against the fresh AAR; fail if any crashes. Samples exercise the SDK in app
+  # configs the instrumented suite does not (compose, kiosk, push). A sample
+  # crashing on a new engine must block the publish (the 0.4.0 flagship lesson).
+  cef/cefrium_sdk/smoke-samples.sh
 fi
 
 if run publish; then hdr "publish to Maven (IMMUTABLE)"
