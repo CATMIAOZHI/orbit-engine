@@ -2,15 +2,24 @@
 
 The authoritative on-device instrumented test host for the Cefrium SDK. It lives
 in the SDK repo (not the samples) so a clone of `cef-android` is self-verifying
-and CI can gate releases on it. Covers both layers:
+and CI can gate releases on it. It covers both the **Java SDK** (`com.cefrium`)
+and the **Compose wrapper** (`com.cefrium.compose`).
 
-- **Java SDK** (`com.cefrium`) — `CefriumSdkTest` (init, browser creation,
-  navigation, unified Callback), `CefriumHardeningTest` (edge cases: double
-  close, use-after-close, dark mode, etc.), `CefriumBridgeTest` (the FEATURE-023
-  `window.cefriumQuery` round trip + unhandled-query failure).
-- **Compose wrapper** (`com.cefrium.compose`) — `CefriumComposeViewTest`:
-  `CefriumViewState` tab keep-alive, and `CefriumNavigator` evaluateJavaScript
-  driving the `onQuery` bridge end-to-end through the public Compose API.
+**Coverage — 16 test classes, 38 `@Test` methods** (run them all with
+`connectedDebugAndroidTest`):
+
+| Area | Classes |
+|------|---------|
+| Core SDK | `CefriumSdkTest` (init, browser creation, navigation, unified Callback), `CefriumHardeningTest` (double-close, use-after-close, dark mode, edge cases), `CefriumBridgeTest` (`window.cefriumQuery` round trip + unhandled-query failure) |
+| Navigation / settings | `CefriumNavigationTest` (loadHtml/postUrl/stop/back-forward), `CefriumSettingsTest` (runtime UA / JS / zoom), `CefriumCookieTest`, `CefriumInterceptorTest` (request block/redirect) |
+| Web platform | `CefriumPermissionTest` (geolocation/camera/mic via `CefPermissionHandler`), `CefriumPdfTest` (print-to-PDF), `CefriumMediaTest` + `CefriumMediaSessionTest` (playback + lock-screen controls), `CefriumPopupTest`, `CefriumJsDialogTest`, `CefriumNestedScrollTest` |
+| Security | `CefriumSslErrorTest`, `CefriumHttpAuthTest` |
+
+When a feature ships, its test joins this suite (e.g. F6 Web Notifications /
+`setContentSetting` and the Compose parity API — find / dark mode / media session
+/ fullscreen — are covered alongside `CefriumPermissionTest` and the Compose
+tests). The Compose layer is exercised through the public
+`CefriumView` / `CefriumViewState` / `CefriumNavigator` API end-to-end.
 
 This is a self-contained Gradle module (like `cefrium_compose`), not part of the
 GN/ninja build. It consumes the built AARs from `app/libs/` (gitignored).
