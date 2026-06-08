@@ -235,12 +235,28 @@ echo ""
 # multipart-upload bug) and API mismatches that per-artifact byte checks and the
 # local-AAR sample builds cannot. Skip with CEFRIUM_SKIP_SMOKE_TEST=1 (e.g. when
 # Gradle/Android SDK are unavailable on the publishing host).
+# Both published SDK coordinates are gated: cefrium-sdk (default) AND
+# cefrium-sdk-libre — distinct artifacts, and the FOSS audience uses libre.
+SMOKE_VARIANTS="cefrium-sdk cefrium-sdk-libre"
 if [ "${CEFRIUM_SKIP_SMOKE_TEST:-0}" = "1" ]; then
   echo "Smoke test skipped (CEFRIUM_SKIP_SMOKE_TEST=1). Run it before announcing:"
-  echo "  $SCRIPT_DIR/test-published-release.sh $VERSION"
+  for art in $SMOKE_VARIANTS; do
+    echo "  ARTIFACT=$art $SCRIPT_DIR/test-published-release.sh $VERSION"
+  done
+elif [ -z "${JAVA_HOME:-}" ] || [ -z "${ANDROID_HOME:-}" ]; then
+  # Uploads already succeeded (immutable); a missing build toolchain on the
+  # publishing host must NOT report the publish as failed. Warn and hand off.
+  echo "Smoke test skipped: JAVA_HOME/ANDROID_HOME not set on this host."
+  echo "Uploads succeeded. Run the consumer smoke test before announcing $VERSION:"
+  for art in $SMOKE_VARIANTS; do
+    echo "  JAVA_HOME=<jdk21> ANDROID_HOME=<sdk> ARTIFACT=$art \\"
+    echo "    $SCRIPT_DIR/test-published-release.sh $VERSION"
+  done
 else
-  echo "Running consumer smoke test (registry-only build)..."
-  "$SCRIPT_DIR/test-published-release.sh" "$VERSION"
+  for art in $SMOKE_VARIANTS; do
+    echo "Running consumer smoke test for $art (registry-only build)..."
+    ARTIFACT="$art" "$SCRIPT_DIR/test-published-release.sh" "$VERSION"
+  done
 fi
 echo ""
 echo "Done — $VERSION published AND verified consumable."
