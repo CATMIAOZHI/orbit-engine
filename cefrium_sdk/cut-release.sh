@@ -59,7 +59,12 @@ if run patches; then hdr "patches + touch"
   touch cef/libcef/browser/android/cefrium_sdk_jni.cc cef/libcef/common/chrome/chrome_main_delegate_cef.cc
 fi
 
-if run build;   then hdr "build 4 variants"; cef/cefrium_sdk/build-all-variants.sh all; fi
+if run build;   then hdr "build 4 variants"; cef/cefrium_sdk/build-all-variants.sh all
+  # Gate: the checked-in GEN_JNI must match the build's freshly generated one,
+  # else consumers hit a runtime NoSuchMethodError (the 0.4.0 root cause -- a
+  # stale GEN_JNI not regenerated on the engine bump). Fail early.
+  cef/cefrium_sdk/regen-gen-jni.sh --check out/Official_android_arm64_codecs
+fi
 if run merge;   then hdr "merge multi-ABI"; cef/cefrium_sdk/merge-multiabi.sh codecs; cef/cefrium_sdk/merge-multiabi.sh libre; fi
 if run compose; then hdr "compose AAR"
   mkdir -p cef/cefrium_compose/libs   # gitignored compileOnly dep dir; may be absent on a fresh tree
@@ -79,7 +84,25 @@ if run stats;   then hdr "patch stats"; cef/cefrium_sdk/update-patch-stats.sh ||
 if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   cp out/release/cefrium-sdk.aar "$ROOT/cefrium-sample/push-demo/app/libs/cefrium-sdk.aar"
   ( cd "$ROOT/cefrium-sample/push-demo" && ./gradlew clean assembleDebug --no-daemon )
-  echo "Sanity green — the fresh AAR is consumable."
+  echo "Sanity green — the fresh AAR is consumable (compile-time)."
+
+  # Runtime FEATURE gate (the 0.4.0 lesson): compile-time checks miss runtime
+  # feature regressions -- 0.4.0 shipped a 149 flagship crash + a content-setting
+  # break. Run the instrumented suite on a connected device against the fresh AAR
+  # BEFORE the IMMUTABLE publish. A release MUST be runtime-validated on device.
+  ADB="$ANDROID_HOME/platform-tools/adb"; [ -x "$ADB" ] || ADB=adb
+  [ "$("$ADB" devices 2>/dev/null | grep -c 'device$')" -ge 1 ] || {
+    echo "FAIL: no device connected -- the runtime feature gate requires one."; exit 1; }
+  IT=cef/cefrium_instrumentation_test
+  mkdir -p "$IT/app/libs"
+  cp out/release/cefrium-sdk.aar "$IT/app/libs/cefrium-sdk.aar"
+  cp cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar "$IT/app/libs/cefrium-compose.aar"
+  WJI="$IT/gradle/wrapper/gradle-wrapper.jar"   # gitignored; restore from a sample
+  [ -f "$WJI" ] || { mkdir -p "$IT/gradle/wrapper"; cp "$ROOT/cefrium-sample/push-demo/gradle/wrapper/gradle-wrapper.jar" "$WJI"; }
+  [ -f "$IT/gradlew" ] || cp "$ROOT/cefrium-sample/push-demo/gradlew" "$IT/gradlew"
+  chmod +x "$IT/gradlew"
+  ( cd "$IT" && ./gradlew :app:connectedDebugAndroidTest --no-daemon )
+  echo "Runtime feature gate green -- instrumented suite passed on device."
 fi
 
 if run publish; then hdr "publish to Maven (IMMUTABLE)"
