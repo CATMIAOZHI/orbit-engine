@@ -1,4 +1,4 @@
-# Quick Start — Cefrium SDK
+# Quick Start - Cefrium SDK
 
 From zero to rendering a web page in 5 minutes.
 
@@ -8,7 +8,7 @@ From zero to rendering a web page in 5 minutes.
 
 ## 1. Create an Android project
 
-In Android Studio: File → New → New Project → Empty Activity.
+In Android Studio: File -> New -> New Project -> Empty Activity.
 - Package: `com.example.myapp`
 - Min SDK: 29
 - Language: Java or Kotlin
@@ -110,12 +110,12 @@ public class MyApp extends Application {
 }
 ```
 
-> **Do not simplify this boilerplate — each line prevents a hard crash:**
+> **Do not simplify this boilerplate - each line prevents a hard crash:**
 > - Pass `this`, **not** `getApplicationContext()`, to
 >   `initApplicationContext()`. `getApplicationContext()` is `null` inside
->   `attachBaseContext()` → `AssertionError` (`appContext != null`).
+>   `attachBaseContext()` -> `AssertionError` (`appContext != null`).
 > - `setLibraryProcessType(...)` must be called for the **browser** process too
->   (`PROCESS_BROWSER`), not only child processes. Skipping it → `AssertionError`
+>   (`PROCESS_BROWSER`), not only child processes. Skipping it -> `AssertionError`
 >   in `LibraryLoader` (`PROCESS_UNINITIALIZED`) when `Cefrium.initialize` loads
 >   the native library.
 > - All of the above must run in `attachBaseContext()` (before `onCreate()`),
@@ -253,7 +253,7 @@ Each `CefriumViewState` owns its browser, so tabs stay alive when inactive
 (no reload on switch). The lower-level `CefriumWebView` (callback-based) is also
 available.
 
-## JavaScript ↔ native bridge
+## JavaScript <-> native bridge
 
 Page JavaScript can call your native code via `window.cefriumQuery` and get an
 async response. Register a handler (Compose: `onQuery` on `CefriumView`; raw:
@@ -261,7 +261,7 @@ async response. Register a handler (Compose: `onQuery` on `CefriumView`; raw:
 
 ```kotlin
 browser.setQueryHandler { queryId, request, origin, callback ->
-    // origin = URL of the calling frame — reject untrusted pages/iframes.
+    // origin = URL of the calling frame - reject untrusted pages/iframes.
     callback.success("native reply to: $request")   // or callback.failure(code, msg)
     true                                              // handled
 }
@@ -279,13 +279,13 @@ window.cefriumQuery({
 A page's **service worker** can post a real Android notification to the system
 shade via `ServiceWorkerRegistration.showNotification()`. (The plain
 `new Notification(...)` constructor is intentionally disabled on Android by
-Chromium — use the service-worker path.)
+Chromium - use the service-worker path.)
 
 Requirements:
 - Declare `<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>`
   and request it at runtime (Android 13+).
 - Keep `implementation 'androidx.browser:browser:1.8.0'` (already in the deps
-  above) — Chromium's notification path references it.
+  above) - Chromium's notification path references it.
 - The page must be a **secure context** (https, or localhost during dev).
 
 Permission flows through your `PermissionHandler` (the user's grant/deny). To
@@ -299,14 +299,14 @@ browser.setContentSetting("https://your-app.example",
 
 There are three notification/push paths, and the choice matters:
 
-- **Web Notifications** (`showNotification`, above) — works out of the box, no
+- **Web Notifications** (`showNotification`, above) - works out of the box, no
   Firebase.
-- **Web Push** (`PushManager.subscribe`) — the W3C API is present and registers
+- **Web Push** (`PushManager.subscribe`) - the W3C API is present and registers
   with FCM, but **production delivery is gated by Google to Chrome's identity**
   (a structural limit for every Chromium fork: the subscription lands on the
   `preprod` channel). Standards-correct, not deliverable in production without
   your own push service.
-- **Native FCM** — the production-capable path, using your own Firebase project.
+- **Native FCM** - the production-capable path, using your own Firebase project.
   Because the SDK AAR **vendors** the Firebase classes, you do **not** add
   `firebase-messaging` (it would duplicate classes); you declare the firebase
   manifest entries yourself. Requires a **Play-certified device**
@@ -320,7 +320,7 @@ push): **<https://cefrium.com/guides/push-notifications/>** and the
 
 - Add navigation: `browser.goBack()`, `browser.goForward()`, `browser.reload()`
 - Run JavaScript: `browser.evaluateJavaScript("...")`
-- JS↔native bridge: `browser.setQueryHandler(...)` + `window.cefriumQuery`
+- JS<->native bridge: `browser.setQueryHandler(...)` + `window.cefriumQuery`
 - Find in page: `browser.find("text", true, false, false)`
 - Dark mode: `browser.setDarkMode(true)`
 - Downloads: `browser.setOnDownloadListener(...)`
