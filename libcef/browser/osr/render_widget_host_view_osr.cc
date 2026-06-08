@@ -909,7 +909,11 @@ viz::SurfaceId CefRenderWidgetHostViewOSR::GetCurrentSurfaceId() const {
 }
 
 bool CefRenderWidgetHostViewOSR::HasSavedCompositorFrame() const {
+#if !BUILDFLAG(IS_ANDROID)
   return delegated_frame_host_ && delegated_frame_host_->HasSavedFrame();
+#else
+  return false;
+#endif
 }
 
 void CefRenderWidgetHostViewOSR::ImeSetComposition(
