@@ -8,6 +8,31 @@ sanity gate (step 7) exists to catch a broken artifact *before* it is published.
 Versions follow `VERSIONING.md`: new public API ⇒ minor, fixes only ⇒ patch,
 engine bumps noted in the `/releases` table regardless.
 
+## Automated — `cut-release.sh`
+
+The whole pipeline below is orchestrated by one script that stops for explicit
+confirmation before the two irreversible steps (immutable publish, destructive
+prune):
+
+```bash
+# Bump Cefrium.java VERSION first, then:
+cef/cefrium_sdk/cut-release.sh <version> <prev-version> --notes "<releases-row HTML>"
+# Resume after a long build:  --from publish   (phases: patches build merge
+#   compose plugin stats sanity publish flagship release web prune)
+```
+
+It chains the per-step scripts (all committed alongside it):
+`build-all-variants.sh` → `merge-multiabi.sh` → compose → `update-patch-stats.sh`
+→ local sanity → **[gate]** `publish-maven.sh` (smoke-tests both coordinates) →
+flagship APK → `release-codeberg.sh` (tag + GPG-signed SHA256SUMS + assets) →
+`release-web-update.sh` (releases row, quickstart bump, previous superseded) →
+**[gate]** `prune-old-versions.sh` (latest-only). Each gate requires typing the
+version; `CEFRIUM_YES=1` bypasses them for CI. After it finishes, commit/push the
+web + cef repos and regenerate Javadoc/Dokka if the API changed.
+
+The manual sequence below is the reference for what each phase does (and for
+running a phase by hand when needed).
+
 ## 0. Environment
 
 ```bash
