@@ -71,7 +71,7 @@ that gap.
 | Picture-in-Picture (web video PiP; Activity PiP app-side) | Done |
 | System media controls (lock-screen / shade, `setMediaSessionEnabled`) | Done |
 | Nested scroll interop (browser inside a scrollable parent) | Done |
-| arm64 + x86_64 validated on device + emulator (36 instrumented tests) | Done |
+| arm64 + x86_64 validated on device + emulator (38 instrumented tests) | Done |
 | Published on Codeberg Packages (Maven) | Done |
 | Android Accessibility (TalkBack) | Done |
 | Android Autofill (Proton Pass, Google) | Done |
@@ -180,6 +180,30 @@ adb shell am start -n org.cefrium.test/.CefriumTestActivity
 # Check logs
 adb logcat -s "chromium:*" "CefriumTest:*"
 ```
+
+## Instrumented tests
+
+The authoritative on-device test suite is `cefrium_instrumentation_test/` — a
+self-contained Gradle module (not part of the GN/ninja build) that exercises the
+public SDK exactly as a consumer would, covering both the Java SDK
+(`com.cefrium`) and the Compose wrapper (`com.cefrium.compose`): **16 test
+classes / 38 `@Test` methods** (core + hardening + JS bridge, navigation /
+cookies / settings / request interceptor, permissions / PDF / media /
+media-session / popups / JS-dialogs / nested-scroll, and SSL / HTTP-auth). When a
+feature ships, its test joins this suite, so it gates releases.
+
+```bash
+cd cefrium_instrumentation_test
+cp ../../out/<dir>/cefrium-sdk.aar app/libs/                 # stage the AAR under test
+cp ../cefrium_compose/build/outputs/aar/cefrium-compose-release.aar app/libs/cefrium-compose.aar
+./gradlew connectedDebugAndroidTest --no-daemon              # whole suite on a connected device
+```
+
+See [`cefrium_instrumentation_test/README.md`](cefrium_instrumentation_test/README.md)
+for the full coverage table, and [`RELEASING.md`](RELEASING.md) for the
+registry-only consumer smoke test that gates each release. The
+[cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) repo runs a
+Woodpecker CI that builds every sample and compiles the test APK on each push.
 
 ## SDK releases
 
