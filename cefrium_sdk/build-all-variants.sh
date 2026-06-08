@@ -18,6 +18,19 @@ SRC_DIR="$(pwd)"
 SLIM_AAR="$SCRIPT_DIR/slim_aar.py"
 RELEASE_DIR="$SRC_DIR/out/release"
 
+# RAM-aware default for ninja parallelism (~3 GB per CEF/Chromium compile job),
+# mirroring the Debian CEF package's debian/rules. Prevents the OOM killer from
+# terminating the link/compile (exit 137). An explicit CEFRIUM_NINJA_JOBS wins;
+# we never exceed the core count.
+if [ -z "${CEFRIUM_NINJA_JOBS:-}" ]; then
+  _ram_gb=$(free -g 2>/dev/null | awk '/^Mem:/{print $2}'); _ram_gb=${_ram_gb:-8}
+  _cores=$(nproc 2>/dev/null || echo 4)
+  _ram_jobs=$(( _ram_gb / 3 )); [ "$_ram_jobs" -lt 1 ] && _ram_jobs=1
+  CEFRIUM_NINJA_JOBS=$(( _ram_jobs < _cores ? _ram_jobs : _cores ))
+  export CEFRIUM_NINJA_JOBS
+  echo ">>> CEFRIUM_NINJA_JOBS auto-set to $CEFRIUM_NINJA_JOBS (RAM ${_ram_gb}GB/3 vs ${_cores} cores)"
+fi
+
 # Verify we're in chromium/src/
 if [ ! -f ".gn" ]; then
   echo "ERROR: Run this script from chromium/src/"
