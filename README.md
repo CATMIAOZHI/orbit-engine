@@ -467,7 +467,7 @@ Cefrium is in early validation.
 
 **What Cefrium gives you:** A complete Chromium engine under your control,
 with the same CEF API that powers Steam, Spotify, and Discord - now on
-Android. Every commit is tested on real devices. All 18 Chromium patches
+Android. Every commit is tested on real devices. All 20 Chromium patches
 are auditable in `patch/patches/android/`.
 
 **What you should know:**
