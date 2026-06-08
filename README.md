@@ -125,7 +125,7 @@ Android.
   framework, no X11, no Wayland
 - **Multi-process** with renderer running as an Android `Service`,
   replacing Unix `fork()`/`execve()`
-- **18 Android-specific Chromium patches** for Android adaptations, managed via
+- **17 Android-specific Chromium patches** for Android adaptations, managed via
   CEF's existing patch infrastructure (`cef/patch/patches/android/`)
 - **Gradle Plugin** generates R.java for Chromium packages in consumer
   projects, solving the multi-package resource ID problem
@@ -148,8 +148,9 @@ Cefrium is built from three deliberately-tracked source inputs:
   matching Chromium's build number (the 3rd version component: Chromium 148 ->
   branch 7778, 149 -> 7827; see `cef/CHROMIUM_BUILD_COMPATIBILITY.txt`). Hosted at
   [codeberg.org/cefrium/cef-android](https://codeberg.org/cefrium/cef-android).
-- **Patches** - applied to the Chromium tree by `cef/tools/patcher.py`: CEF's own
-  Chromium patches plus **18 Android-specific** patches
+- **Patches** - applied to the Chromium tree by `cef/cefrium_sdk/apply-patches.py`
+  (a patcher.py wrapper that activates the android condition): CEF's own
+  Chromium patches plus **17 Android-specific** patches
   (`cef/patch/patches/android/`, all registered in `patch/patch.cfg`). **No Debian
   Chromium patches** - only CEF + Android adaptations.
 
@@ -163,12 +164,12 @@ Prerequisites: a Chromium source tree at the pinned tag (see **Sources** above -
 currently `149.0.7827.53`), ~400 GB disk, 64 GB RAM.
 
 ```bash
-# 1. Apply CEF patches (including Android-specific). The Android patches are
-#    gated on an env var whose NAME is the literal condition string; set it for
-#    the patcher process with `env` (it can't be a normal `export`, since the
-#    name contains '=' and '"').
+# 1. Apply CEF patches (core + Android-specific). The Android patches are gated
+#    on the condition key 'target_os=="android"', which is not a legal env var
+#    name (it has '=' and '"'); neither `export` nor `env` can set it (both split
+#    on the first '='). apply-patches.py sets it correctly and runs patcher.py.
 cd chromium/src
-env 'target_os=="android"=1' python3 cef/tools/patcher.py
+python3 cef/cefrium_sdk/apply-patches.py
 
 # 2. Generate build files
 depot_tools/gn gen out/Official_android_arm64 --args='
@@ -386,7 +387,7 @@ cef/
 |-- cefrium_compose/               # Jetpack Compose wrapper (cefrium-compose.aar)
 |-- cefrium_instrumentation_test/  # On-device instrumented test harness (SDK + Compose)
 |-- tests/cef_android_test/        # Test APK
-`-- patch/patches/android/         # 16 Android-specific Chromium patches
+`-- patch/patches/android/         # 17 Android-specific Chromium patches
 ```
 
 ## Testing
@@ -408,7 +409,7 @@ See `cefrium_instrumentation_test/README.md` for details.
 
 ## Relationship to upstream CEF
 
-Fork of CEF branch 7778, tracking Chromium 148.0.7778.167.
+Fork of CEF branch 7827, tracking Chromium 149.0.7827.53.
 Branch `android-port` contains all Android changes.
 
 ### Contributing upstream
@@ -418,10 +419,10 @@ All Android changes are isolated and reviewable:
 - **CEF changes** (`libcef/browser/android/`, `cefrium_sdk/`): on the
   `android-port` branch. Generate patches with:
   ```bash
-  git format-patch origin/7778..android-port -- \
+  git format-patch origin/7827..android-port -- \
     ':!README.md' ':!assets/screenshots'
   ```
-- **Chromium patches** (`patch/patches/android/`): 16 Android-specific patches applied
+- **Chromium patches** (`patch/patches/android/`): 17 Android-specific patches applied
   via `patcher.py`. Each addresses a specific incompatibility between
   Chromium's assumptions and the Android embedding environment.
   Managed via CEF's existing patch infrastructure.
@@ -475,7 +476,7 @@ are auditable in `patch/patches/android/`.
   Use R8/ProGuard, ABI splits, and AAB format to optimize delivery.
   See [APK size optimization](#apk-size-optimization).
 - **Security updates:** Cefrium tracks Debian Chromium releases for
-  CVE patches. Currently pinned to 148.0.7778.167.
+  CVE patches. Currently pinned to 149.0.7827.53.
 - **Not a WebView replacement:** Cefrium bundles its own Chromium.
   It does not reuse the system WebView. This is by design - it's what
   gives you version control and full API access.

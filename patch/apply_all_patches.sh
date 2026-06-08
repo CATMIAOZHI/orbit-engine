@@ -1,15 +1,15 @@
 #!/bin/bash
-# apply_all_patches.sh — Reconstruct patched Chromium from clean state
+# apply_all_patches.sh -- Reconstruct patched Chromium from clean state
 #
-# This script applies ALL CEF patches to a clean Chromium 148 checkout.
-# Run from chromium/src/ directory.
+# This script applies ALL CEF patches (core + Android-conditional) to a clean
+# Chromium checkout. Run from chromium/src/ directory.
 #
 # Usage:
 #   cd <cef-dev>/chromium/src
 #   bash cef/patch/apply_all_patches.sh
 #
 # Prerequisites:
-#   - Clean Chromium checkout at tag 148.0.7778.167
+#   - Clean Chromium checkout at tag 149.0.7827.53
 #   - CEF source in src/cef/ (branch android-port)
 #   - depot_tools in PATH or at ../depot_tools/
 
@@ -38,42 +38,16 @@ if [ -n "$DIRTY" ]; then
     fi
 fi
 
-echo "=== Step 2: Apply CEF main patches (patcher.py) ==="
-export 'target_os=="android"'=1
-python3 cef/tools/patcher.py
+echo "=== Step 2: Apply ALL CEF patches (core + Android-conditional) ==="
+# Use the wrapper, not `export 'target_os=="android"'=1; python3 cef/tools/patcher.py`.
+# That illegal env name is mangled by the shell and the Android patches are
+# silently skipped. apply-patches.py sets the condition key correctly and runs
+# patcher.py in-process. Every Android patch is registered in patch.cfg with
+# condition target_os=="android" -- there is NO separate git-apply or sed step.
+python3 cef/cefrium_sdk/apply-patches.py
 
 echo ""
-echo "=== Step 3: Apply android patches that need manual handling ==="
-
-# base_test_jni_onload: remove hide_all_but_jni_onload for component target
-# In Chromium 148, test_trace_processor is already 'component' type but
-# still has configs -= hide_all_but_jni_onload which doesn't exist for components
-if git apply --check cef/patch/patches/android/base_test_jni_onload.patch 2>/dev/null; then
-    git apply cef/patch/patches/android/base_test_jni_onload.patch
-    echo "APPLIED: base_test_jni_onload_v2"
-else
-    echo "SKIP: base_test_jni_onload_v2 (already applied or conflict)"
-fi
-
-# chrome_repack_locales: CEF main patch adds cef_strings without !is_android guard.
-# On Android, cef_strings .pak files for all locales are not generated,
-# causing 208 GN input errors. Add the guard.
-if grep -q 'if (enable_cef)' chrome/chrome_repack_locales.gni 2>/dev/null; then
-    sed -i 's/if (enable_cef) {/if (enable_cef \&\& !is_android) {/' chrome/chrome_repack_locales.gni
-    echo "APPLIED: chrome_repack_locales is_android guard"
-elif grep -q 'enable_cef && !is_android' chrome/chrome_repack_locales.gni 2>/dev/null; then
-    echo "SKIP: chrome_repack_locales is_android guard (already applied)"
-fi
-
-echo ""
-echo "=== Step 4: (Cefrium-specific Android patches now applied by patcher.py) ==="
-# accessibility_expanded_state_guard, credman_force_credman_only,
-# password_manager_autofill_guard and webauthn_mode_provider_per_wc are now
-# registered in patch.cfg (condition target_os=="android") and applied by
-# patcher.py in Step 2 — no separate git-apply handling needed.
-
-echo ""
-echo "=== Step 5: Touch all patched files ==="
+echo "=== Step 3: Touch all patched files ==="
 TOUCHED=0
 for patch in cef/patch/patches/*.patch cef/patch/patches/android/*.patch; do
     [ -f "$patch" ] || continue
@@ -87,7 +61,7 @@ done
 echo "Touched $TOUCHED files"
 
 echo ""
-echo "=== Step 6: Generate build files ==="
+echo "=== Step 4: Generate build files ==="
 "$GN" gen out/Official_android_arm64
 echo ""
 echo "=== Done. Run: ninja -C out/Official_android_arm64 cef:libcef cef/cefrium_sdk:cefrium_aar ==="
