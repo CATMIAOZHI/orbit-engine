@@ -33,6 +33,48 @@ web + cef repos and regenerate Javadoc/Dokka if the API changed.
 The manual sequence below is the reference for what each phase does (and for
 running a phase by hand when needed).
 
+## Engine bump — new Chromium / CEF (e.g. 148 → 149)
+
+A release *cut* recompiles the **same** engine. An engine *bump* moves the port
+onto a **new** Chromium/CEF release — a different, harder operation: most patches
+will conflict because Chromium changed the files, and Chromium API breaks need
+fixing by hand. It is **not** fully automatable. The assistant
+`cef/cefrium_sdk/engine-bump.sh` does the **mechanical scaffolding + a per-patch
+conflict report**; it does not auto-resolve conflicts or fix API breaks.
+
+```bash
+cef/cefrium_sdk/engine-bump.sh <chromium-tag> <cef-branch> [--from <phase>]
+#   e.g.  engine-bump.sh 149.0.7827.53 7827      # Debian-tracked Chromium 149
+#   read-only audit of the current tree:  --from report
+```
+
+Phases: `preflight pin sync rebase apply report brand`.
+- **preflight** — verify the cef tree is committed (patches are safe in git), record
+  current vs target, confirm the tag is on the remote.
+- **pin** — set the new version in the three sources of truth: `.gclient`
+  (`@refs/tags/<tag>`), `cef/CHROMIUM_BUILD_COMPATIBILITY.txt`, and
+  `Cefrium.CHROMIUM_VERSION`. Config-only, with `.bak` backups.
+- **sync** *(gated, destructive)* — checkout the new Chromium tag + `gclient sync`.
+  Resets `chromium/src`; the port's patches live in `cef/patch/` so nothing is
+  lost — they get re-applied onto the new tree.
+- **rebase** *(gated, guided)* — fetch the matching upstream CEF branch and rebase
+  `android-port` onto it (core CEF patch conflicts are CEF's, resolved here).
+- **apply** — run `patcher.py` on the new tree.
+- **report** — per Android patch: `OK` (applied) / `PENDING` (applies clean) /
+  `CONFLICT` (regenerate by the patch methodology — see "Patch creation" in
+  `../CLAUDE.md` / the per-patch `.txt` under `upstream-patches/`).
+- **brand** — `regenerate-icons.sh` (the atomic number auto-follows the new
+  `CHROMIUM_VERSION`; no argument needed).
+
+Version target follows **Debian Chromium** for CVE parity (149 = `149.0.7827.53`,
+installed on the workstation). After the bump: resolve every `CONFLICT` patch, fix
+Chromium-version API breaks at build time, then cut a release with `cut-release.sh`.
+
+> Tip: `engine-bump.sh ... --from report` is a safe read-only audit you can run any
+> time to see which Android patches are applied vs missing/conflicting on the
+> current tree — it is how the 3 missing guard patches (accessibility/credman/
+> webauthn) were found and re-applied.
+
 ## 0. Environment
 
 ```bash
