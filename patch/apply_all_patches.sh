@@ -66,18 +66,11 @@ elif grep -q 'enable_cef && !is_android' chrome/chrome_repack_locales.gni 2>/dev
 fi
 
 echo ""
-echo "=== Step 4: Apply Cefrium-specific Chromium patches ==="
-for patch in password_manager_autofill_guard accessibility_expanded_state_guard; do
-    PATCH_FILE="cef/patch/patches/android/${patch}.patch"
-    if [ -f "$PATCH_FILE" ]; then
-        if git apply --check "$PATCH_FILE" 2>/dev/null; then
-            git apply "$PATCH_FILE"
-            echo "APPLIED: $patch"
-        else
-            echo "SKIP: $patch (already applied or conflict)"
-        fi
-    fi
-done
+echo "=== Step 4: (Cefrium-specific Android patches now applied by patcher.py) ==="
+# accessibility_expanded_state_guard, credman_force_credman_only,
+# password_manager_autofill_guard and webauthn_mode_provider_per_wc are now
+# registered in patch.cfg (condition target_os=="android") and applied by
+# patcher.py in Step 2 — no separate git-apply handling needed.
 
 echo ""
 echo "=== Step 5: Touch all patched files ==="
