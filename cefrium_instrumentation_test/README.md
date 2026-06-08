@@ -5,7 +5,7 @@ in the SDK repo (not the samples) so a clone of `cef-android` is self-verifying
 and CI can gate releases on it. It covers both the **Java SDK** (`com.cefrium`)
 and the **Compose wrapper** (`com.cefrium.compose`).
 
-**Coverage — 16 test classes, 38 `@Test` methods** (run them all with
+**Coverage - 16 test classes, 38 `@Test` methods** (run them all with
 `connectedDebugAndroidTest`):
 
 | Area | Classes |
@@ -16,8 +16,8 @@ and the **Compose wrapper** (`com.cefrium.compose`).
 | Security | `CefriumSslErrorTest`, `CefriumHttpAuthTest` |
 
 When a feature ships, its test joins this suite (e.g. F6 Web Notifications /
-`setContentSetting` and the Compose parity API — find / dark mode / media session
-/ fullscreen — are covered alongside `CefriumPermissionTest` and the Compose
+`setContentSetting` and the Compose parity API - find / dark mode / media session
+/ fullscreen - are covered alongside `CefriumPermissionTest` and the Compose
 tests). The Compose layer is exercised through the public
 `CefriumView` / `CefriumViewState` / `CefriumNavigator` API end-to-end.
 
@@ -49,5 +49,5 @@ cp ../cefrium_compose/build/outputs/aar/cefrium-compose-release.aar \
   (CEF process init) and `HostActivity` (a bare Activity for SDK tests to attach
   a browser surface to). No UI, no demo.
 - `app/src/main/res/values/cefrium_compat.xml` (+ `cefrium_integers.xml`,
-  `baseline_colors.xml`) define the stub resources the SDK AAR references — the
+  `baseline_colors.xml`) define the stub resources the SDK AAR references - the
   same compat shim every Cefrium consumer app uses.
