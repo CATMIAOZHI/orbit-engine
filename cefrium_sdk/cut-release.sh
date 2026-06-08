@@ -50,8 +50,9 @@ gate() { # human confirmation for an irreversible step
 cd "$SRC"
 
 if run patches; then hdr "patches + touch"
-  export 'target_os=="android"'=1
-  python3 cef/tools/patcher.py || true   # 3 big patches report "failed" already-applied; benign
+  # apply-patches.py sets the illegal 'target_os=="android"' condition key the
+  # shell cannot (see its header); plain patcher.py would skip the Android set.
+  python3 cef/cefrium_sdk/apply-patches.py || true   # known-fuzz core patches report "failed" already-applied; benign
   for p in cef/patch/patches/android/*.patch; do
     for f in $(grep '^+++ ' "$p" | grep -v /dev/null | sed 's/^+++ [ab]\///;s/\t.*//'); do
       [ -f "$f" ] && touch "$f"; done; done
