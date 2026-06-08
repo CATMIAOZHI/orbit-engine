@@ -1,7 +1,12 @@
 out/
-# Gradle plugin build artifacts
-cefrium_sdk/gradle-plugin/.gradle/
+# Gradle build artifacts (every module). These block an engine-bump rebase when
+# present on disk while early commits (which predate these ignore rules) are
+# replayed, so engine-bump.sh also cleans them defensively before rebasing.
+**/.gradle/
 cefrium_sdk/gradle-plugin/build/
+cefrium_compose/build/
+cefrium_instrumentation_test/build/
+cefrium_instrumentation_test/app/build/
 __pycache__/
 *.pyc
 # JVM heap dumps (e.g. from a Gradle OOM during dex/build)
