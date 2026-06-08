@@ -77,12 +77,18 @@ public class CefriumContentSettingTest {
             browser.setOnLoadingStateChangedListener((loading, back, fwd) -> {
                 if (!loading && !probed[0]) {
                     probed[0] = true;
+                    // Poll for the Notification API: on 149 the first
+                    // loading=false can fire before the page's JS context is
+                    // fully established, so probing once races. Retry up to ~3s.
+                    // If setContentSetting did not grant, permission reports
+                    // 'default' (still a failure) -- this fixes only the timing,
+                    // it does not mask a real content-setting regression.
                     browser.evaluateJavaScript(
-                        "(function(){"
-                        + "var p = (typeof Notification !== 'undefined')"
-                        + "  ? Notification.permission : 'undefined';"
-                        + "window.cefriumQuery({request:'perm:'+p});"
-                        + "})();");
+                        "(function(){var n=0;var iv=setInterval(function(){n++;"
+                        + "if(typeof Notification!=='undefined'){clearInterval(iv);"
+                        + "window.cefriumQuery({request:'perm:'+Notification.permission});}"
+                        + "else if(n>=15){clearInterval(iv);"
+                        + "window.cefriumQuery({request:'perm:undefined'});}},200);})();");
                 }
             });
             browser.loadUrl(url);
