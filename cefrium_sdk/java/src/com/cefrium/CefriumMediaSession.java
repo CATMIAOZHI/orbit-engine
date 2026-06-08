@@ -66,7 +66,12 @@ public class CefriumMediaSession {
             }
         });
 
-        mObserver = new MediaSessionObserver(mChromiumSession) {
+        // MediaSession.fromWebContents() returns null when no native session
+        // exists yet (upstream MediaSessionImpl::GetIfExists contract). Do not
+        // construct the observer with a null session -- MediaSessionObserver's
+        // ctor calls session.addObserver() and would NPE. mObserver is null-guarded
+        // at every use; the session attaches once media actually becomes active.
+        mObserver = mChromiumSession == null ? null : new MediaSessionObserver(mChromiumSession) {
             @Override
             public void mediaSessionStateChanged(boolean isControllable, boolean isSuspended) {
                 mControllable = isControllable;
