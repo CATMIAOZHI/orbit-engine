@@ -89,11 +89,30 @@ fi
 if run rebase; then hdr "rebase CEF android-port onto upstream branch $CEFBR (guided)"
   gate "fetch + rebase cef android-port onto upstream/$CEFBR"
   cd "$CEF"
-  git remote get-url upstream >/dev/null 2>&1 || git remote add upstream https://github.com/chromiumembedded/cef.git
-  git fetch upstream "$CEFBR" || echo "  (could not fetch upstream $CEFBR — set it manually)"
-  echo "  Now rebase by hand (conflicts in CEF core files are expected):"
-  echo "    cd $CEF && git rebase upstream/$CEFBR android-port"
-  echo "  Then re-run: $0 $CTAG $CEFBR --from apply"
+  # CEF's upstream is on bitbucket (origin here) and github; use whichever has it.
+  REBASE_REMOTE=origin
+  git rev-parse --verify "origin/$CEFBR" >/dev/null 2>&1 || \
+    git fetch --depth=200 origin "$CEFBR:refs/remotes/origin/$CEFBR" 2>/dev/null || \
+    { git remote get-url upstream >/dev/null 2>&1 || git remote add upstream https://github.com/chromiumembedded/cef.git; \
+      git fetch --depth=200 upstream "$CEFBR:refs/remotes/upstream/$CEFBR"; REBASE_REMOTE=upstream; }
+  # CRITICAL: remove untracked build artifacts first. During the rebase, early
+  # commits predate the .gitignore rules for build/.gradle/__pycache__, so any
+  # such files on disk make git refuse the checkout ("untracked working tree
+  # files would be overwritten"). The rebase re-creates source from commits.
+  echo "  cleaning untracked build artifacts before rebase..."
+  git clean -fdq
+  FORK=$(git merge-base "$REBASE_REMOTE/$CEFBR" android-port 2>/dev/null || git merge-base origin/7778 android-port)
+  echo "  Rebase (do it by hand so you control conflict resolution):"
+  echo "    cd $CEF"
+  echo "    git branch -f android-port-$CEFBR android-port && git checkout android-port-$CEFBR"
+  echo "    git rebase --onto $REBASE_REMOTE/$CEFBR \$(git merge-base origin/7778 HEAD) android-port-$CEFBR"
+  echo "  Resolution playbook (from the 7778->7827 bump):"
+  echo "    - doc/README conflicts: 'git checkout --theirs <file>; git add <file>' (later"
+  echo "      commits rebuild the final doc), then 'git rebase --continue'."
+  echo "    - a commit that goes empty (its change is already in $CEFBR): 'git rebase --skip'."
+  echo "    - real source conflicts: resolve by hand, then continue."
+  echo "  When the rebase is clean, fast-forward android-port to it, then re-run:"
+  echo "    $0 $CTAG $CEFBR --from apply"
   exit 0
 fi
 
