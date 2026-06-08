@@ -153,6 +153,49 @@ class CefriumNavigator {
     fun setHttpAuthHandler(handler: com.cefrium.CefriumBrowser.HttpAuthHandler?) {
         state?.browser?.setHttpAuthHandler(handler)
     }
+
+    // ── Find in page ──
+
+    /**
+     * Starts/continues a find-in-page for [text]. Results arrive on
+     * [CefriumViewState.findActiveMatch] / [CefriumViewState.findMatchCount].
+     * Set [findNext] true to step to the next match of the same query.
+     */
+    fun find(
+        text: String,
+        forward: Boolean = true,
+        matchCase: Boolean = false,
+        findNext: Boolean = false,
+    ) {
+        state?.browser?.find(text, forward, matchCase, findNext)
+    }
+
+    /** Ends the active find session ([clearSelection] clears the highlight). */
+    fun stopFinding(clearSelection: Boolean = true) {
+        state?.browser?.stopFinding(clearSelection)
+    }
+
+    // ── Context menu ──
+
+    /**
+     * Invokes a context-menu command id (from [CefriumViewState.contextMenu]'s
+     * serialized items) after the user picks one.
+     */
+    fun contextMenuCommand(commandId: Int) {
+        state?.browser?.contextMenuCommand(commandId)
+    }
+
+    // ── Display / media ──
+
+    /** Forces dark mode for page rendering (prefers-color-scheme). */
+    fun setDarkMode(dark: Boolean) {
+        state?.browser?.setDarkMode(dark)
+    }
+
+    /** Enables the lock-screen / shade media-session controls for this browser. */
+    fun setMediaSessionEnabled(enabled: Boolean) {
+        state?.browser?.setMediaSessionEnabled(enabled)
+    }
 }
 
 /** Remembers a [CefriumNavigator] across recompositions. */
