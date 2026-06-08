@@ -116,9 +116,12 @@ if run rebase; then hdr "rebase CEF android-port onto upstream branch $CEFBR (gu
   exit 0
 fi
 
-if run apply; then hdr "apply patches (patcher.py)"
-  cd "$SRC"; export 'target_os=="android"'=1
-  python3 cef/tools/patcher.py 2>&1 | tee /tmp/cefrium-patcher-$CTAG.log || true
+if run apply; then hdr "apply patches (incl. Android-conditional set)"
+  cd "$SRC"
+  # NOTE: do NOT use `export 'target_os=="android"'=1` -- that illegal env name
+  # is mangled by the shell and the Android patches get silently skipped. The
+  # wrapper sets the condition key correctly (see apply-patches.py header).
+  python3 cef/cefrium_sdk/apply-patches.py 2>&1 | tee /tmp/cefrium-patcher-$CTAG.log || true
 fi
 
 if run report; then hdr "patch conflict report"
