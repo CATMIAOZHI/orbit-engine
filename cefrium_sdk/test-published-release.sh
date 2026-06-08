@@ -26,7 +26,20 @@ VERSION="${1:?usage: test-published-release.sh <version>}"
 #   ARTIFACT=cefrium-sdk        (default, full codecs)
 #   ARTIFACT=cefrium-sdk-libre  (royalty-free)
 ARTIFACT="${ARTIFACT:-cefrium-sdk}"
-GRADLE="${GRADLE:-gradle}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# No system gradle is installed on the build host. Honor an explicit GRADLE, else
+# `gradle` on PATH, else fall back to a committed sample-module gradlew wrapper
+# (gradle 8.9). gradlew builds the `-p` project using its own bundled wrapper.
+if [ -z "${GRADLE:-}" ]; then
+  if command -v gradle >/dev/null 2>&1; then
+    GRADLE=gradle
+  else
+    for gw in "$SCRIPT_DIR"/../../../../cefrium-sample/*/gradlew; do
+      [ -x "$gw" ] && { GRADLE="$gw"; break; }
+    done
+  fi
+fi
+: "${GRADLE:?no gradle found: install gradle, set GRADLE, or keep a cefrium-sample/*/gradlew}"
 REPO="https://codeberg.org/api/packages/cefrium/maven"
 : "${JAVA_HOME:?set JAVA_HOME to a JDK 21 (Android Studio JBR)}"
 : "${ANDROID_HOME:?set ANDROID_HOME to the Android SDK}"
