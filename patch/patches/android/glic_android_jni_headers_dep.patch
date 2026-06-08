@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/glic/BUILD.gn b/chrome/browser/glic/BUILD.gn
+index aed8fc9cb7..9f9fd862a2 100644
+--- a/chrome/browser/glic/BUILD.gn
++++ b/chrome/browser/glic/BUILD.gn
+@@ -145,6 +145,7 @@ source_set("glic") {
+       ":actor_types_for_migration",
+       "//chrome/browser/android:tabs_public",
+       "//chrome/browser/context_sharing/tab_bottom_sheet/android",
++      "//chrome/browser/glic/android:jni_headers",
+     ]
+   }
+ 

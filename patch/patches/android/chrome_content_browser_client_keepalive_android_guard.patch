@@ -1,0 +1,24 @@
+diff --git a/chrome/browser/chrome_content_browser_client.cc b/chrome/browser/chrome_content_browser_client.cc
+index e43e35b..e617abd 100644
+--- a/chrome/browser/chrome_content_browser_client.cc
++++ b/chrome/browser/chrome_content_browser_client.cc
+@@ -1468,7 +1468,9 @@ ChromeContentBrowserClient::GetPopupNavigationDelegateFactoryForTesting() {
+ }
+ 
+ ChromeContentBrowserClient::ChromeContentBrowserClient() {
++#if !BUILDFLAG(IS_ANDROID)
+   keepalive_timer_.reset(new base::OneShotTimer());
++#endif
+ 
+ #if BUILDFLAG(ENABLE_PLUGINS)
+   extra_parts_.push_back(
+@@ -1512,7 +1514,9 @@ ChromeContentBrowserClient::~ChromeContentBrowserClient() {
+ 
+ void ChromeContentBrowserClient::CleanupOnUIThread() {
+   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
++#if !BUILDFLAG(IS_ANDROID)
+   keepalive_timer_.reset();
++#endif
+ }
+ 
+ // static
