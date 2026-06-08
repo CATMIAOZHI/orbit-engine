@@ -125,15 +125,42 @@ Android.
   framework, no X11, no Wayland
 - **Multi-process** with renderer running as an Android `Service`,
   replacing Unix `fork()`/`execve()`
-- **16 Android-specific Chromium patches** for Android adaptations, managed via
+- **18 Android-specific Chromium patches** for Android adaptations, managed via
   CEF's existing patch infrastructure (`cef/patch/patches/android/`)
 - **Gradle Plugin** generates R.java for Chromium packages in consumer
   projects, solving the multi-package resource ID problem
 
+## Sources
+
+Cefrium is built from three deliberately-tracked source inputs:
+
+- **Chromium** — upstream Google source,
+  `https://chromium.googlesource.com/chromium/src.git`, via depot_tools/gclient.
+  Pinned (in `.gclient`) to the **exact tag Debian packages**
+  (`apt-cache policy chromium`; currently `149.0.7827.53`) for **CVE parity** — we
+  inherit the security fixes in that upstream release. The bytes are **vanilla
+  upstream**, not Debian's patched source: we use Chromium's bundled deps + the
+  Android NDK toolchain, *not* Debian's system libraries. (The sibling
+  [Debian CEF package](https://salsa.debian.org/mendezr/chromium-embedded-framework),
+  same maintainer, takes the other path — Debian's Chromium tarball + Debian
+  patches via Multiple Upstream Tarballs, system `gn`/`ninja`, no depot_tools.)
+- **CEF** — `cef/`, the `android-port` branch forked from upstream CEF's branch
+  matching Chromium's build number (the 3rd version component: Chromium 148 →
+  branch 7778, 149 → 7827; see `cef/CHROMIUM_BUILD_COMPATIBILITY.txt`). Hosted at
+  [codeberg.org/cefrium/cef-android](https://codeberg.org/cefrium/cef-android).
+- **Patches** — applied to the Chromium tree by `cef/tools/patcher.py`: CEF's own
+  Chromium patches plus **18 Android-specific** patches
+  (`cef/patch/patches/android/`, all registered in `patch/patch.cfg`). **No Debian
+  Chromium patches** — only CEF + Android adaptations.
+
+Engine-version tracking and how to upgrade it (e.g. 148 → 149) are in
+[`RELEASING.md`](RELEASING.md) (the "Engine bump" section); the upgrade is run via
+`cef/cefrium_sdk/engine-bump.sh`.
+
 ## Building from source
 
-Prerequisites: Chromium source tree at tag `148.0.7778.167`, ~400 GB disk,
-64 GB RAM.
+Prerequisites: a Chromium source tree at the pinned tag (see **Sources** above —
+currently `149.0.7827.53`), ~400 GB disk, 64 GB RAM.
 
 ```bash
 # 1. Apply CEF patches (including Android-specific). The Android patches are
