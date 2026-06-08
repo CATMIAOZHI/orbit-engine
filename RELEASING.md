@@ -75,6 +75,32 @@ Chromium-version API breaks at build time, then cut a release with `cut-release.
 > current tree — it is how the 3 missing guard patches (accessibility/credman/
 > webauthn) were found and re-applied.
 
+### Bump scenarios + lessons from the Debian CEF package
+
+The Debian CEF package (`<debian-dev>/chromium-embedded-framework`,
+same maintainer, 2000+ builds) has a mature update methodology
+(`CEF-UPDATE-GUIDE.md`, `debian/README.source`). Key transferable lessons:
+
+- **CEF branch = the Chromium BUILD number** (3rd version component): 149.0.**7827**.53
+  → CEF branch **7827**. `engine-bump.sh` now auto-derives it from the tag.
+- **Three scenarios — only rebase CEF when the BUILD number changes:**
+  1. *Patch-level bump* (same build, e.g. 7827.53 → 7827.99): same CEF branch,
+     **no rebase, patches unchanged** — just re-pin the Chromium tag + sync + rebuild.
+  2. *New build number* (7827 → 7900): rebase `android-port` onto the new CEF
+     branch; expect patch conflicts (regenerate).
+  3. *New major* (148 → 149): as (2) plus version-string churn (Cefrium.VERSION /
+     brand mark). This bump (7778 → 7827) is scenario 2/3.
+- **Known-fuzz core patches:** Debian applies `gn_config` / `chrome_browser_context_menus`
+  with `--fuzz=3` via a skip-list — they routinely "fail" but ARE applied. Our
+  equivalent is `gn_config` / `chrome_runtime` / `chrome_browser_profiles` (the
+  recurring "3 failed"). The report now flags them as known-fuzz and verifies by a
+  signature line, not as conflicts.
+- **RAM-aware parallelism (~3 GB/job):** `build-all-variants.sh` now auto-sets
+  `CEFRIUM_NINJA_JOBS = min(cores, RAM_GB/3)` to avoid the OOM killer (Debian's
+  `debian/rules` does the same).
+- **CVE parity:** track the Debian Chromium version (find it with
+  `apt-cache policy chromium`); that's the tag to pin.
+
 ## 0. Environment
 
 ```bash
