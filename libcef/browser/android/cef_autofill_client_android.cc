@@ -130,6 +130,11 @@ const signin::IdentityManager* CefAutofillClientAndroid::GetIdentityManager()
   return nullptr;
 }
 
+metrics::ProfileMetricsService*
+CefAutofillClientAndroid::GetProfileMetricsService() {
+  return nullptr;
+}
+
 autofill::FormDataImporter* CefAutofillClientAndroid::GetFormDataImporter() {
   return nullptr;
 }
