@@ -84,6 +84,15 @@ if run sync; then hdr "gclient sync to $CTAG (DESTRUCTIVE: resets chromium/src w
   git -C "$SRC" clean -fd -e '/cef' -e '/out'                              # keep cef/ and out/
   ( cd "$ROOT/depot_tools" && cd "$SRC" && gclient sync --no-history -D )
   echo "  synced to $CTAG."
+  # CRITICAL: a BUILD-number bump leaves STALE Java build metadata
+  # (build_config.json + turbine graph) in any pre-existing out/ dir. That stale
+  # state produces a phantom Java turbine "dependency cycle" (actor -> ... ->
+  # actor) when building the AAR/APK. It survives `gn gen` and even
+  # `rm build.ninja` -- ONLY a fresh out dir clears it (a targeted delete of
+  # build_config.json/*.turbine.jar is NOT reliable). So wipe the build dirs:
+  # every post-bump build must start from a clean out dir.
+  echo "  wiping out/ build dirs (stale across a BUILD-number bump -- see above)..."
+  rm -rf "$SRC"/out/* 2>/dev/null || true
 fi
 
 if run rebase; then hdr "rebase CEF android-port onto upstream branch $CEFBR (guided)"

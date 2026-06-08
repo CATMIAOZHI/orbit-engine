@@ -62,6 +62,19 @@ echo "Touched $TOUCHED files"
 
 echo ""
 echo "=== Step 4: Generate build files ==="
+# Recreate the out dir fresh if the engine version changed since it was last built
+# here. Stale Java build metadata (build_config.json + turbine graph) survives a
+# BUILD-number bump in a reused out dir and triggers a phantom Java turbine
+# "dependency cycle"; only a fresh dir clears it. Same-version re-applies stay
+# incremental.
+ENGINE_STAMP="$(git -C "$SRC_DIR" describe --tags 2>/dev/null || echo unknown)"
+if [ -f out/Official_android_arm64/.cefrium_engine ] && \
+   [ "$(cat out/Official_android_arm64/.cefrium_engine 2>/dev/null)" != "$ENGINE_STAMP" ]; then
+    echo "Engine changed -> recreating out/Official_android_arm64 fresh (clears stale turbine cycle)"
+    rm -rf out/Official_android_arm64
+fi
+mkdir -p out/Official_android_arm64
+echo "$ENGINE_STAMP" > out/Official_android_arm64/.cefrium_engine
 "$GN" gen out/Official_android_arm64
 echo ""
 echo "=== Done. Run: ninja -C out/Official_android_arm64 cef:libcef cef/cefrium_sdk:cefrium_aar ==="

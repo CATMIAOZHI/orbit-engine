@@ -70,6 +70,16 @@ Version target follows **Debian Chromium** for CVE parity (149 = `149.0.7827.53`
 installed on the workstation). After the bump: resolve every `CONFLICT` patch, fix
 Chromium-version API breaks at build time, then cut a release with `cut-release.sh`.
 
+> CRITICAL (build dirs after a bump): a BUILD-number bump leaves STALE Java build
+> metadata (`build_config.json` + turbine graph) in any pre-existing `out/` dir,
+> which produces a phantom Java turbine "dependency cycle" (`actor -> ... ->
+> actor`) when building the AAR/APK. It survives `gn gen` and even
+> `rm build.ninja` -- ONLY a fresh out dir clears it. `engine-bump.sh` wipes
+> `out/*` after sync, and `build-all-variants.sh` / `apply_all_patches.sh`
+> auto-recreate their out dir when the engine stamp changes, so the scripted path
+> is safe. If you build MANUALLY in a reused dir and hit that cycle, do
+> `rm -rf out/<dir> && depot_tools/gn gen out/<dir>` -- it is not a real cycle.
+
 > Tip: `engine-bump.sh ... --from report` is a safe read-only audit you can run any
 > time to see which Android patches are applied vs missing/conflicting on the
 > current tree - it is how the 3 missing guard patches (accessibility/credman/
