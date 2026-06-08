@@ -62,6 +62,7 @@ fi
 if run build;   then hdr "build 4 variants"; cef/cefrium_sdk/build-all-variants.sh all; fi
 if run merge;   then hdr "merge multi-ABI"; cef/cefrium_sdk/merge-multiabi.sh codecs; cef/cefrium_sdk/merge-multiabi.sh libre; fi
 if run compose; then hdr "compose AAR"
+  mkdir -p cef/cefrium_compose/libs   # gitignored compileOnly dep dir; may be absent on a fresh tree
   cp out/release/cefrium-sdk.aar cef/cefrium_compose/libs/
   ( cd cef/cefrium_compose && ./gradlew assembleRelease --no-daemon )
 fi
