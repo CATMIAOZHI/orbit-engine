@@ -64,6 +64,10 @@ if run merge;   then hdr "merge multi-ABI"; cef/cefrium_sdk/merge-multiabi.sh co
 if run compose; then hdr "compose AAR"
   mkdir -p cef/cefrium_compose/libs   # gitignored compileOnly dep dir; may be absent on a fresh tree
   cp out/release/cefrium-sdk.aar cef/cefrium_compose/libs/
+  # gradle-wrapper.jar is gitignored in cefrium_compose; restore from a sample
+  # module (committed there) if absent, else ./gradlew can't bootstrap.
+  WJ=cef/cefrium_compose/gradle/wrapper/gradle-wrapper.jar
+  [ -f "$WJ" ] || cp "$ROOT/cefrium-sample/push-demo/gradle/wrapper/gradle-wrapper.jar" "$WJ"
   ( cd cef/cefrium_compose && ./gradlew assembleRelease --no-daemon )
 fi
 if run plugin;  then hdr "plugin jar check"
