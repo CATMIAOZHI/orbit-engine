@@ -103,6 +103,12 @@ if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   chmod +x "$IT/gradlew"
   ( cd "$IT" && ./gradlew :app:connectedDebugAndroidTest --no-daemon )
   echo "Runtime feature gate green -- instrumented suite passed on device."
+
+  # Sample launch-smoke gate: build + launch EVERY cefrium-sample on device
+  # against the fresh AAR; fail if any crashes. Samples exercise the SDK in app
+  # configs the instrumented suite does not (compose, kiosk, push). A sample
+  # crashing on a new engine must block the publish (the 0.4.0 flagship lesson).
+  cef/cefrium_sdk/smoke-samples.sh
 fi
 
 if run publish; then hdr "publish to Maven (IMMUTABLE)"
