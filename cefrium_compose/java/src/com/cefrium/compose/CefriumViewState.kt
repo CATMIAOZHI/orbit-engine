@@ -40,6 +40,29 @@ class CefriumViewState(val initialUrl: String) : RememberObserver {
     var canGoForward: Boolean by mutableStateOf(false)
         internal set
 
+    /** True while a page element is in HTML5 fullscreen. */
+    var isFullscreen: Boolean by mutableStateOf(false)
+        internal set
+
+    /** Find-in-page: 1-based ordinal of the active match (0 = none). */
+    var findActiveMatch: Int by mutableStateOf(0)
+        internal set
+
+    /** Find-in-page: total matches for the current query (0 = none). */
+    var findMatchCount: Int by mutableStateOf(0)
+        internal set
+
+    /** The most recent download update (null until the first download). */
+    var lastDownload: DownloadInfo? by mutableStateOf(null)
+        internal set
+
+    /**
+     * A pending context-menu request from the page, or null. When non-null, show
+     * your menu UI, call [CefriumNavigator.contextMenuCommand] with the chosen
+     * command id, then set this back to null to dismiss.
+     */
+    var contextMenu: ContextMenuInfo? by mutableStateOf(null)
+
     internal var browser: CefriumBrowser? = null
         private set
 
@@ -62,6 +85,26 @@ class CefriumViewState(val initialUrl: String) : RememberObserver {
                 isLoading = loading
                 canGoBack = back
                 canGoForward = forward
+            }
+
+            override fun onFullscreenChanged(fullscreen: Boolean) {
+                isFullscreen = fullscreen
+            }
+
+            override fun onFindResult(activeMatch: Int, totalMatches: Int) {
+                findActiveMatch = activeMatch
+                findMatchCount = totalMatches
+            }
+
+            override fun onDownloadUpdated(
+                name: String, path: String, percent: Int,
+                complete: Boolean, canceled: Boolean,
+            ) {
+                lastDownload = DownloadInfo(name, path, percent, complete, canceled)
+            }
+
+            override fun onContextMenu(menuItems: String, url: String) {
+                contextMenu = ContextMenuInfo(menuItems, url)
             }
         })
         browser = b
@@ -92,3 +135,19 @@ class CefriumViewState(val initialUrl: String) : RememberObserver {
 @Composable
 fun rememberCefriumViewState(url: String): CefriumViewState =
     remember(url) { CefriumViewState(url) }
+
+/** A download progress update, delivered via [CefriumViewState.lastDownload]. */
+data class DownloadInfo(
+    val name: String,
+    val path: String,
+    val percent: Int,
+    val complete: Boolean,
+    val canceled: Boolean,
+)
+
+/**
+ * A pending context-menu request, delivered via [CefriumViewState.contextMenu].
+ * [menuItems] is the engine's serialized menu (the same payload the View API's
+ * context-menu listener receives); [url] is the link/page URL under the cursor.
+ */
+data class ContextMenuInfo(val menuItems: String, val url: String)
