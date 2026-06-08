@@ -21,6 +21,11 @@
 set -euo pipefail
 
 VERSION="${1:?usage: test-published-release.sh <version>}"
+# Which SDK coordinate to exercise. Both are published and distinct, and the FOSS
+# audience goes straight to the libre one, so the release gate must cover both:
+#   ARTIFACT=cefrium-sdk        (default, full codecs)
+#   ARTIFACT=cefrium-sdk-libre  (royalty-free)
+ARTIFACT="${ARTIFACT:-cefrium-sdk}"
 GRADLE="${GRADLE:-gradle}"
 REPO="https://codeberg.org/api/packages/cefrium/maven"
 : "${JAVA_HOME:?set JAVA_HOME to a JDK 21 (Android Studio JBR)}"
@@ -28,7 +33,7 @@ REPO="https://codeberg.org/api/packages/cefrium/maven"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-echo "==> Consumer smoke test for cefrium $VERSION (registry-only) in $WORK"
+echo "==> Consumer smoke test for $ARTIFACT $VERSION (registry-only) in $WORK"
 
 mkdir -p "$WORK/app/src/main/java/com/example/cefriumtest"
 echo "sdk.dir=$ANDROID_HOME" > "$WORK/local.properties"
@@ -98,7 +103,7 @@ configurations.all {
     exclude(group = "com.google.guava", module = "listenablefuture")
 }
 dependencies {
-    implementation("com.cefrium:cefrium-sdk:$VERSION")
+    implementation("com.cefrium:$ARTIFACT:$VERSION")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.mediarouter:mediarouter:1.7.0")
     implementation("androidx.core:core:1.16.0")
@@ -181,9 +186,9 @@ EOF
 
 echo "==> Building the consumer app against the published registry artifacts..."
 if "$GRADLE" -p "$WORK" :app:assembleDebug --no-daemon --console=plain; then
-  echo "==> PASS: cefrium $VERSION resolves and assembles from the Codeberg Maven registry."
+  echo "==> PASS: $ARTIFACT $VERSION resolves and assembles from the Codeberg Maven registry."
 else
-  echo "==> FAIL: cefrium $VERSION is NOT consumable from the registry (corrupt/missing artifacts, or API mismatch)."
+  echo "==> FAIL: $ARTIFACT $VERSION is NOT consumable from the registry (corrupt/missing artifacts, or API mismatch)."
   echo "    Do not announce this release until it builds here."
   exit 1
 fi
