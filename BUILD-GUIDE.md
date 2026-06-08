@@ -155,8 +155,14 @@ Phases (resume after a long build with `--from <phase>`):
 - `merge` -> `merge-multiabi.sh` fuses arm64+x86_64 into `out/release/cefrium-sdk.aar`
   and `cefrium-sdk-libre.aar`
 - `compose` builds the Compose AAR (auto-restores the gitignored gradle-wrapper.jar
-  + `libs/` dir), `sanity` builds push-demo on the fresh AAR, then an interactive
-  **gate** guards the IMMUTABLE `publish`; `prune` (latest-only) is also gated.
+  + `libs/` dir).
+- `build` also runs a **GEN_JNI staleness gate** (`regen-gen-jni.sh --check`): fails
+  if the checked-in GEN_JNI drifted from the build's generated one (the 0.4.0 root
+  cause). `sanity` builds push-demo (compile check) AND runs the **on-device
+  instrumented suite** against the fresh AAR (runtime feature gate -- a release
+  must be runtime-validated on a connected device; compile checks alone let 0.4.0
+  ship a 149 crash). Then an interactive **gate** guards the IMMUTABLE `publish`;
+  `prune` (latest-only) is also gated.
 - `publish` -> `publish-maven.sh <version>` (uploads + smoke-tests both coordinates).
 
 A fresh out dir is used per the engine stamp, so an engine bump never reuses a
