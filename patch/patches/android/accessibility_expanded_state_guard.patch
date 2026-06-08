@@ -1,5 +1,5 @@
 diff --git a/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java b/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
-index e9d5caa..1bf3540 100644
+index 86388143fe..8d822bd274 100644
 --- a/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
 +++ b/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
 @@ -223,13 +223,17 @@ public class AccessibilityNodeInfoBuilder {
@@ -9,7 +9,7 @@ index e9d5caa..1bf3540 100644
 -        node.setFieldRequired(isRequired);
 -        node.setContentInvalid(contentInvalid);
 +        // Guard methods from Chromium's local_modifications of
-+        // AccessibilityNodeInfoCompat — not in public androidx.core.
++        // AccessibilityNodeInfoCompat -- not in public androidx.core.
 +        // Graceful degradation: these attributes won't be reported
 +        // to accessibility services if the method is unavailable.
 +        try { node.setFieldRequired(isRequired); } catch (NoSuchMethodError e) {}
@@ -30,9 +30,9 @@ index e9d5caa..1bf3540 100644
 -        node.setExpandedState(expandedState);
 +        try { node.setExpandedState(expandedState); } catch (NoSuchMethodError e) {}
  
-         // If we have deprecated TYPE_ANNOUNCEMENT, we should properly mark live region root nodes.
-         // Otherwise, we choose to use AnnounceLiveRegionText() to make this announcement for us.
-@@ -450,11 +454,14 @@ public class AccessibilityNodeInfoBuilder {
+         // If we have deprecated TYPE_ANNOUNCEMENT or enabled the new live region behavior, we
+         // should properly mark live region root nodes.
+@@ -451,11 +455,14 @@ public class AccessibilityNodeInfoBuilder {
              bundle.putInt(EXTRAS_KEY_CLICKABLE_SCORE, clickableScore);
          }
  
@@ -51,7 +51,7 @@ index e9d5caa..1bf3540 100644
      }
  
      @SuppressLint("NewApi")
-@@ -501,7 +508,7 @@ public class AccessibilityNodeInfoBuilder {
+@@ -502,7 +509,7 @@ public class AccessibilityNodeInfoBuilder {
  
          // We add the supplementalDescription attribute when it is non-null and not empty.
          if (supplementalDescription != null && !supplementalDescription.isEmpty()) {
@@ -60,7 +60,7 @@ index e9d5caa..1bf3540 100644
          }
  
          // We expose the nested structure of links, which results in the roles of all nested nodes
-@@ -570,7 +577,7 @@ public class AccessibilityNodeInfoBuilder {
+@@ -571,7 +578,7 @@ public class AccessibilityNodeInfoBuilder {
  
          // We add the supplementalDescription attribute when it is non-null and not empty.
          if (supplementalDescription != null && !supplementalDescription.isEmpty()) {
@@ -69,7 +69,7 @@ index e9d5caa..1bf3540 100644
          }
  
          // We expose the nested structure of links, which results in the roles of all nested nodes
-@@ -742,18 +749,20 @@ public class AccessibilityNodeInfoBuilder {
+@@ -717,18 +724,20 @@ public class AccessibilityNodeInfoBuilder {
              int startOffset,
              int endVirtualViewId,
              int endOffset) {

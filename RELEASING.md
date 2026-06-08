@@ -123,8 +123,10 @@ curl -s -o /dev/null -w '%{http_code}\n' \
   "https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk/<version>/cefrium-sdk-<version>.aar"
 
 # (c) Apply the CEF patches and force-recompile the deltas.
-export 'target_os=="android"'=1
-python3 cef/tools/patcher.py
+#   apply-patches.py sets the illegal 'target_os=="android"' condition key (which
+#   neither export nor env can) and runs patcher.py; a bare patcher.py would
+#   silently skip every android/* patch.
+python3 cef/cefrium_sdk/apply-patches.py
 #   NOTE: gn_config / chrome_runtime / chrome_browser_profiles may report
 #   "failed" - that is the benign already-applied quirk on CEF's largest
 #   patches, NOT a broken tree. Spot-check a signature line from each if unsure
