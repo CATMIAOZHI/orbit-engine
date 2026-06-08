@@ -16,10 +16,19 @@
 # so a clean re-sync never loses them — it re-applies them onto the new tree.
 set -euo pipefail
 
-CTAG="${1:?usage: engine-bump.sh <chromium-tag> <cef-branch> [--from phase]}"
-CEFBR="${2:?need the CEF upstream branch for this Chromium (e.g. 7827)}"; shift 2
+CTAG="${1:?usage: engine-bump.sh <chromium-tag> [cef-branch] [--from phase]}"; shift
+# CEF branch = the Chromium BUILD number (3rd version component). This is the
+# Debian CEF mapping ("CEF branch number = Chromium BUILD number": 149.0.7827.53
+# -> 7827). Defaulted from the tag; pass an explicit branch to override.
+CEFBR="$(echo "$CTAG" | cut -d. -f3)"
+if [ $# -gt 0 ] && [ "${1#--}" = "$1" ]; then CEFBR="$1"; shift; fi
 FROM="preflight"
 while [ $# -gt 0 ]; do case "$1" in --from) FROM="$2"; shift 2;; *) echo "unknown arg: $1"; exit 1;; esac; done
+
+# Core CEF patches that are large and routinely apply with fuzz on a new Chromium
+# (Debian handles the same class via a skip-list + `--fuzz=3`). They are NOT real
+# conflicts — the report flags them separately so a bump isn't derailed by them.
+KNOWN_FUZZ="gn_config chrome_runtime chrome_browser_profiles"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC="$(cd "$SCRIPT_DIR/../.." && pwd)"            # chromium/src
@@ -114,8 +123,21 @@ if run report; then hdr "patch conflict report"
   echo
   echo "  Summary: $clean applied, $conflict conflicting (need manual regeneration)."
   [ -f "$log" ] && echo "  Full patcher log: $log"
-  echo "  Core CEF patch conflicts (gn_config/chrome_runtime/etc.) are resolved by the"
-  echo "  CEF rebase, not here; the 3 'already-applied' ones report failed harmlessly."
+  echo
+  echo "  Known-fuzz core CEF patches (Debian applies these with --fuzz=3; patcher.py"
+  echo "  reports them 'failed' but they ARE applied — verify by a signature line, don't"
+  echo "  treat as conflicts):"
+  for kf in $KNOWN_FUZZ; do
+    pf="cef/patch/patches/$kf.patch"
+    [ -f "$pf" ] || { echo "    -        $kf (patch not present)"; continue; }
+    tgt=$(grep -E '^\+\+\+ ' "$pf" | head -1 | sed 's/^+++ [ab]\///;s/\t.*//')
+    tok=$(grep -E '^\+' "$pf" | grep -viE '^\+\+\+' | grep -iE 'cef' | head -1 | sed 's/^+//;s/^[[:space:]]*//')
+    if [ -n "$tok" ] && grep -qF "$tok" "$tgt" 2>/dev/null; then
+      echo "    APPLIED  $kf (signature present in $tgt)"
+    else
+      echo "    CHECK    $kf (signature absent — this one may be a real conflict from the rebase)"
+    fi
+  done
 fi
 
 # `--from report` is a read-only audit: stop before touching the brand mark.
