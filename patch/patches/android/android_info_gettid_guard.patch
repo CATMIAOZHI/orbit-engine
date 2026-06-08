@@ -24,11 +24,11 @@ index d42a851cf6..39730170ae 100644
 +    if (syscall(__NR_gettid) != getpid()) {
 +      holder.emplace(IApkInfo{
 +          .hostPackageLabel = "",
-+          .hostPackageName = "org.cefrium.test",
++          .hostPackageName = "",
 +          .hostVersionCode = "1",
 +          .installerPackageName = "",
 +          .isDebugApp = false,
-+          .packageName = "org.cefrium.test",
++          .packageName = "",
 +          .packageVersionCode = "1",
 +          .packageVersionName = "1.0",
 +          .resourcesVersion = "",
@@ -39,11 +39,11 @@ index d42a851cf6..39730170ae 100644
 +      if (!holder.has_value()) {
 +        holder.emplace(IApkInfo{
 +            .hostPackageLabel = "",
-+            .hostPackageName = "org.cefrium.test",
++            .hostPackageName = "",
 +            .hostVersionCode = "1",
 +            .installerPackageName = "",
 +            .isDebugApp = false,
-+            .packageName = "org.cefrium.test",
++            .packageName = "",
 +            .packageVersionCode = "1",
 +            .packageVersionName = "1.0",
 +            .resourcesVersion = "",
