@@ -68,9 +68,12 @@ echo "=== Step 4: Generate build files ==="
 # "dependency cycle"; only a fresh dir clears it. Same-version re-applies stay
 # incremental.
 ENGINE_STAMP="$(git -C "$SRC_DIR" describe --tags 2>/dev/null || echo unknown)"
-if [ -f out/Official_android_arm64/.cefrium_engine ] && \
+# Recreate fresh unless the dir exists AND its stamp matches. A missing stamp (dir
+# predates this mechanism / pre-bump 148 dir) counts as mismatch -> recreate, so a
+# stale dir is NEVER reused without a manual wipe.
+if [ -d out/Official_android_arm64 ] && \
    [ "$(cat out/Official_android_arm64/.cefrium_engine 2>/dev/null)" != "$ENGINE_STAMP" ]; then
-    echo "Engine changed -> recreating out/Official_android_arm64 fresh (clears stale turbine cycle)"
+    echo "Engine stamp mismatch/missing -> recreating out/Official_android_arm64 fresh (clears stale turbine cycle)"
     rm -rf out/Official_android_arm64
 fi
 mkdir -p out/Official_android_arm64

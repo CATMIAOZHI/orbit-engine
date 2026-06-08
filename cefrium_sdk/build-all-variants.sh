@@ -119,9 +119,12 @@ build_variant() {
   # The stamp auto-detects, so same-version rebuilds stay incremental (fast).
   local engine_stamp
   engine_stamp="$(git -C "$SRC_DIR" describe --tags 2>/dev/null || echo unknown)"
-  if [ -f "$build_dir/.cefrium_engine" ] && \
+  # Recreate fresh unless the dir exists AND its stamp matches the current engine.
+  # A missing stamp (dir predates this mechanism, e.g. a pre-bump 148 dir) counts
+  # as a mismatch -> recreate, so stale dirs are NEVER reused without a manual wipe.
+  if [ -d "$build_dir" ] && \
      [ "$(cat "$build_dir/.cefrium_engine" 2>/dev/null)" != "$engine_stamp" ]; then
-    echo ">>> engine changed ($(cat "$build_dir/.cefrium_engine") -> $engine_stamp); recreating $dir_name fresh"
+    echo ">>> engine stamp mismatch/missing for $dir_name ('$(cat "$build_dir/.cefrium_engine" 2>/dev/null)' != '$engine_stamp'); recreating fresh"
     rm -rf "$build_dir"
   fi
   mkdir -p "$build_dir"
