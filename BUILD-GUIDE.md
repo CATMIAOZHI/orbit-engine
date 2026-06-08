@@ -137,6 +137,31 @@ A Cefrium release has three parts that must stay in sync:
    record that [cefrium.com/releases](https://cefrium.com/releases/) links to.
 3. **The cefrium.com/releases row** linking the two.
 
+### 7.0 Recommended: one orchestrator
+
+`cut-release.sh` runs the whole cut end-to-end so you don't drive the sub-scripts
+by hand. The sections below (7.1-7.5) document what each phase does; reach for them
+only to run a phase in isolation or debug a failure.
+
+```bash
+export JAVA_HOME=<dev>/android/android-studio/android-studio/jbr
+export ANDROID_HOME=$PWD/third_party/android_sdk/public
+cef/cefrium_sdk/cut-release.sh <version> <prev-version>     # e.g. 0.4.0 0.3.2
+```
+
+Phases (resume after a long build with `--from <phase>`):
+`patches build merge compose plugin stats sanity publish flagship release web prune`.
+- `build` -> `build-all-variants.sh all` (4 variants; runs `slim_aar.py` per variant)
+- `merge` -> `merge-multiabi.sh` fuses arm64+x86_64 into `out/release/cefrium-sdk.aar`
+  and `cefrium-sdk-libre.aar`
+- `compose` builds the Compose AAR (auto-restores the gitignored gradle-wrapper.jar
+  + `libs/` dir), `sanity` builds push-demo on the fresh AAR, then an interactive
+  **gate** guards the IMMUTABLE `publish`; `prune` (latest-only) is also gated.
+- `publish` -> `publish-maven.sh <version>` (uploads + smoke-tests both coordinates).
+
+A fresh out dir is used per the engine stamp, so an engine bump never reuses a
+stale build dir (see "After an engine bump" in CLAUDE.md / RELEASING.md).
+
 ### 7.1 Build the artifacts publish-maven.sh uploads
 
 1. **SDK variant AARs** in `out/release/` (`cefrium-sdk.aar`,
