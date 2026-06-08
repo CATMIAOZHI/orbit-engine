@@ -125,7 +125,7 @@ Android.
   framework, no X11, no Wayland
 - **Multi-process** with renderer running as an Android `Service`,
   replacing Unix `fork()`/`execve()`
-- **17 Android-specific Chromium patches** for Android adaptations, managed via
+- **20 Android-specific Chromium patches** for Android adaptations, managed via
   CEF's existing patch infrastructure (`cef/patch/patches/android/`)
 - **Gradle Plugin** generates R.java for Chromium packages in consumer
   projects, solving the multi-package resource ID problem
@@ -150,7 +150,7 @@ Cefrium is built from three deliberately-tracked source inputs:
   [codeberg.org/cefrium/cef-android](https://codeberg.org/cefrium/cef-android).
 - **Patches** - applied to the Chromium tree by `cef/cefrium_sdk/apply-patches.py`
   (a patcher.py wrapper that activates the android condition): CEF's own
-  Chromium patches plus **17 Android-specific** patches
+  Chromium patches plus **20 Android-specific** patches
   (`cef/patch/patches/android/`, all registered in `patch/patch.cfg`). **No Debian
   Chromium patches** - only CEF + Android adaptations.
 
@@ -387,7 +387,7 @@ cef/
 |-- cefrium_compose/               # Jetpack Compose wrapper (cefrium-compose.aar)
 |-- cefrium_instrumentation_test/  # On-device instrumented test harness (SDK + Compose)
 |-- tests/cef_android_test/        # Test APK
-`-- patch/patches/android/         # 17 Android-specific Chromium patches
+`-- patch/patches/android/         # 20 Android-specific Chromium patches
 ```
 
 ## Testing
@@ -422,7 +422,7 @@ All Android changes are isolated and reviewable:
   git format-patch origin/7827..android-port -- \
     ':!README.md' ':!assets/screenshots'
   ```
-- **Chromium patches** (`patch/patches/android/`): 17 Android-specific patches applied
+- **Chromium patches** (`patch/patches/android/`): 20 Android-specific patches applied
   via `patcher.py`. Each addresses a specific incompatibility between
   Chromium's assumptions and the Android embedding environment.
   Managed via CEF's existing patch infrastructure.
