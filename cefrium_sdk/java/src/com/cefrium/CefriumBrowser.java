@@ -695,6 +695,40 @@ public class CefriumBrowser {
         h.onPermissionRequest(origin, permissions, cb);
     }
 
+    // ── Web Share (navigator.share) ──
+
+    // Called from native (UI thread) when a page calls navigator.share(). Opens
+    // the Android share sheet from the hosting Activity. Returns true if a share
+    // chooser was started (the page's share() promise then resolves).
+    private boolean onWebShare(String title, String text, String url) {
+        if (mActivity == null) {
+            return false;
+        }
+        StringBuilder body = new StringBuilder();
+        if (text != null && !text.isEmpty()) {
+            body.append(text);
+        }
+        if (url != null && !url.isEmpty()) {
+            if (body.length() > 0) body.append('\n');
+            body.append(url);
+        }
+        android.content.Intent send =
+                new android.content.Intent(android.content.Intent.ACTION_SEND);
+        send.setType("text/plain");
+        if (title != null && !title.isEmpty()) {
+            send.putExtra(android.content.Intent.EXTRA_SUBJECT, title);
+        }
+        send.putExtra(android.content.Intent.EXTRA_TEXT, body.toString());
+        try {
+            mActivity.startActivity(
+                    android.content.Intent.createChooser(send,
+                            (title != null && !title.isEmpty()) ? title : null));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     // ── Per-origin content settings ──
 
     /** Content setting values for {@link #setContentSetting}. */
@@ -1125,6 +1159,77 @@ public class CefriumBrowser {
         if (mRenderHandler != null) {
             mRenderHandler.onPaint(width, height, pixels);
         }
+        BitmapCallback cap = mPendingCapture;
+        if (cap != null) {
+            mPendingCapture = null;
+            android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
+                    width, height, android.graphics.Bitmap.Config.ARGB_8888);
+            pixels.rewind();
+            bmp.copyPixelsFromBuffer(pixels);
+            cap.onBitmap(bmp);
+        }
+    }
+
+    // ── Snapshot / capture ──
+
+    /** Receives the captured page bitmap (null on failure). */
+    public interface BitmapCallback {
+        void onBitmap(android.graphics.Bitmap bitmap);
+    }
+
+    private BitmapCallback mPendingCapture;
+
+    /**
+     * Captures the current page to a {@link android.graphics.Bitmap}, delivered
+     * asynchronously on the main thread. In off-screen mode the next painted
+     * frame is returned; in Surface mode the visible surface is copied via
+     * {@code PixelCopy}. The callback receives null if capture is unavailable.
+     */
+    public void captureBitmap(BitmapCallback callback) {
+        if (callback == null) {
+            return;
+        }
+        if (mContentViewRenderView != null) {
+            // Surface mode: PixelCopy the rendering SurfaceView.
+            android.view.SurfaceView sv = findSurfaceView(mContentViewRenderView);
+            if (sv != null && sv.getWidth() > 0 && sv.getHeight() > 0
+                    && android.os.Build.VERSION.SDK_INT
+                            >= android.os.Build.VERSION_CODES.N) {
+                android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(
+                        sv.getWidth(), sv.getHeight(),
+                        android.graphics.Bitmap.Config.ARGB_8888);
+                try {
+                    android.view.PixelCopy.request(sv, bmp,
+                            (result) -> callback.onBitmap(
+                                    result == android.view.PixelCopy.SUCCESS ? bmp : null),
+                            new android.os.Handler(android.os.Looper.getMainLooper()));
+                } catch (IllegalArgumentException e) {
+                    callback.onBitmap(null);
+                }
+                return;
+            }
+            callback.onBitmap(null);
+            return;
+        }
+        // Off-screen mode: capture the next painted frame.
+        mPendingCapture = callback;
+        invalidate();
+    }
+
+    private static android.view.SurfaceView findSurfaceView(android.view.View v) {
+        if (v instanceof android.view.SurfaceView) {
+            return (android.view.SurfaceView) v;
+        }
+        if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                android.view.SurfaceView r = findSurfaceView(g.getChildAt(i));
+                if (r != null) {
+                    return r;
+                }
+            }
+        }
+        return null;
     }
 
     /**
