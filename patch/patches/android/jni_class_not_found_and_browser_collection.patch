@@ -1,7 +1,7 @@
-diff --git a/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc b/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
+diff --git chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
 index d03e8b261b..dd3b71ffde 100644
---- a/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
-+++ b/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
+--- chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
++++ chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
 @@ -12,12 +12,23 @@ GlobalBrowserCollectionPlatformDelegate::
      GlobalBrowserCollectionPlatformDelegate(GlobalBrowserCollection& parent)
      : parent_(parent) {

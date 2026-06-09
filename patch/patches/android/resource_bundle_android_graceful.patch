@@ -1,7 +1,7 @@
-diff --git a/ui/base/resource/resource_bundle.cc b/ui/base/resource/resource_bundle.cc
+diff --git ui/base/resource/resource_bundle.cc ui/base/resource/resource_bundle.cc
 index 2c07c1f..f04913a 100644
---- a/ui/base/resource/resource_bundle.cc
-+++ b/ui/base/resource/resource_bundle.cc
+--- ui/base/resource/resource_bundle.cc
++++ ui/base/resource/resource_bundle.cc
 @@ -1292,6 +1292,15 @@ std::u16string ResourceBundle::GetLocalizedStringImpl(int resource_id) const {
      // Fall back on the main data pack (shouldn't be any strings here except
      // in unittests).

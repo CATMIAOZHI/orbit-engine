@@ -1,7 +1,7 @@
-diff --git a/base/android/apk_info.cc b/base/android/apk_info.cc
+diff --git base/android/apk_info.cc base/android/apk_info.cc
 index d42a851cf6..39730170ae 100644
---- a/base/android/apk_info.cc
-+++ b/base/android/apk_info.cc
+--- base/android/apk_info.cc
++++ base/android/apk_info.cc
 @@ -5,6 +5,9 @@
  #include "base/android/apk_info.h"
  
@@ -54,10 +54,10 @@ index d42a851cf6..39730170ae 100644
    }
    return *holder;
  }
-diff --git a/base/android/device_info.cc b/base/android/device_info.cc
+diff --git base/android/device_info.cc base/android/device_info.cc
 index f69a39d59a..f0bfd918d4 100644
---- a/base/android/device_info.cc
-+++ b/base/android/device_info.cc
+--- base/android/device_info.cc
++++ base/android/device_info.cc
 @@ -5,6 +5,9 @@
  #include "base/android/device_info.h"
  

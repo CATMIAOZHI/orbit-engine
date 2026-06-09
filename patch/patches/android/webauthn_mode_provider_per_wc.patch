@@ -1,6 +1,6 @@
-diff --git a/components/webauthn/android/java/src/org/chromium/components/webauthn/WebauthnModeProvider.java b/components/webauthn/android/java/src/org/chromium/components/webauthn/WebauthnModeProvider.java
---- a/components/webauthn/android/java/src/org/chromium/components/webauthn/WebauthnModeProvider.java
-+++ b/components/webauthn/android/java/src/org/chromium/components/webauthn/WebauthnModeProvider.java
+diff --git components/webauthn/android/java/src/org/chromium/components/webauthn/WebauthnModeProvider.java components/webauthn/android/java/src/org/chromium/components/webauthn/WebauthnModeProvider.java
+--- components/webauthn/android/java/src/org/chromium/components/webauthn/WebauthnModeProvider.java
++++ components/webauthn/android/java/src/org/chromium/components/webauthn/WebauthnModeProvider.java
 @@ -65,8 +65,15 @@
      }
  
