@@ -220,6 +220,17 @@ public final class Cefrium {
             org.chromium.components.webauthn.WebauthnModeProvider.getInstance()
                     .setGlobalWebauthnMode(
                             org.chromium.components.webauthn.WebauthnMode.BROWSER);
+            // Diagnostic: confirm CredMan is actually selected in this process.
+            Object credSvc = null;
+            try {
+                credSvc = org.chromium.base.ContextUtils.getApplicationContext()
+                        .getSystemService("credential");
+            } catch (Throwable ignore) {}
+            int support = org.chromium.components.webauthn.cred_man.CredManSupportProvider
+                    .getCredManSupport();
+            android.util.Log.i("Cefrium", "WebAuthn configured: getCredManSupport="
+                    + support + " credentialService="
+                    + (credSvc != null ? "present" : "null"));
         } catch (Throwable t) {
             android.util.Log.w("Cefrium", "WebAuthn CredMan setup skipped: " + t);
         }
