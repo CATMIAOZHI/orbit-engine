@@ -23,6 +23,7 @@
 #include "cef/include/cef_request_context.h"
 #include "cef/include/cef_values.h"
 #include "cef/include/cef_context_menu_handler.h"
+#include "cef/include/cef_device_chooser_handler.h"
 #include "cef/include/cef_display_handler.h"
 #include "cef/include/cef_download_handler.h"
 #include "cef/include/cef_find_handler.h"
@@ -1148,6 +1149,164 @@ class SdkPermissionHandler : public CefPermissionHandler {
   IMPLEMENT_REFCOUNTING(SdkPermissionHandler);
 };
 
+// FEATURE-053: routes the frontier device choosers (Web Bluetooth/USB/Serial)
+// to the Java app. OnShow/OnDeviceAdded/OnDeviceChooserClosed all run on the CEF
+// UI thread; the same CefDeviceChooserCallback instance is handed back on each
+// call, so it is correlated with a Java-visible long id (assigned on show).
+class SdkDeviceChooserHandler : public CefDeviceChooserHandler {
+ public:
+  void SetJavaBrowser(JNIEnv* env, jobject jb) {
+    if (jb) {
+      java_browser_ = env->NewGlobalRef(jb);
+    }
+  }
+
+  // Toggled by CefriumBrowser.setDeviceChooserHandler(): when the app has no
+  // handler the request is cancelled (the page promise rejects) rather than
+  // hanging on a picker that will never appear.
+  void SetEnabled(bool enabled) { enabled_ = enabled; }
+
+  bool OnShowDeviceChooser(CefRefPtr<CefBrowser> browser,
+                           CefRefPtr<CefFrame> frame,
+                           DeviceChooserType type,
+                           const CefString& requesting_origin,
+                           CefRefPtr<CefDeviceChooserCallback> callback) override {
+    if (!java_browser_ || !enabled_) {
+      return false;  // cancels the request
+    }
+    uint64_t id;
+    {
+      base::AutoLock lock(lock_);
+      id = next_id_++;
+      pending_[id] = callback;
+      by_callback_[callback.get()] = id;
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onDeviceChooserShow",
+                                     "(JILjava/lang/String;)V");
+    if (mid) {
+      jstring jorigin =
+          env->NewStringUTF(requesting_origin.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, static_cast<jlong>(id),
+                          static_cast<jint>(type), jorigin);
+      env->DeleteLocalRef(jorigin);
+    } else {
+      Erase(id);
+      env->DeleteLocalRef(cls);
+      return false;
+    }
+    env->DeleteLocalRef(cls);
+    return true;
+  }
+
+  void OnDeviceAdded(CefRefPtr<CefBrowser> browser,
+                     CefRefPtr<CefDeviceChooserCallback> callback,
+                     const CefString& device_id,
+                     const CefString& device_name) override {
+    if (!java_browser_) {
+      return;
+    }
+    uint64_t id;
+    {
+      base::AutoLock lock(lock_);
+      auto it = by_callback_.find(callback.get());
+      if (it == by_callback_.end()) {
+        return;
+      }
+      id = it->second;
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid =
+        env->GetMethodID(cls, "onDeviceChooserDeviceAdded",
+                         "(JLjava/lang/String;Ljava/lang/String;)V");
+    if (mid) {
+      jstring jid = env->NewStringUTF(device_id.ToString().c_str());
+      jstring jname = env->NewStringUTF(device_name.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, static_cast<jlong>(id), jid,
+                          jname);
+      env->DeleteLocalRef(jid);
+      env->DeleteLocalRef(jname);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  void OnDeviceChooserClosed(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefDeviceChooserCallback> callback) override {
+    uint64_t id;
+    {
+      base::AutoLock lock(lock_);
+      auto it = by_callback_.find(callback.get());
+      if (it == by_callback_.end()) {
+        return;
+      }
+      id = it->second;
+      pending_.erase(id);
+      by_callback_.erase(it);
+    }
+    if (!java_browser_) {
+      return;
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onDeviceChooserClosed", "(J)V");
+    if (mid) {
+      env->CallVoidMethod(java_browser_, mid, static_cast<jlong>(id));
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  // Called from nativeDeviceChooserSelect once the app's picker resolves.
+  void Select(uint64_t id, const CefString& device_id) {
+    CefRefPtr<CefDeviceChooserCallback> cb = Find(id);
+    if (cb) {
+      cb->Select(device_id);
+    }
+  }
+
+  // Called from nativeDeviceChooserCancel when the app dismisses the picker.
+  void Cancel(uint64_t id) {
+    CefRefPtr<CefDeviceChooserCallback> cb = Find(id);
+    if (cb) {
+      cb->Cancel();
+    }
+  }
+
+  ~SdkDeviceChooserHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) {
+        env->DeleteGlobalRef(java_browser_);
+      }
+    }
+  }
+
+ private:
+  CefRefPtr<CefDeviceChooserCallback> Find(uint64_t id) {
+    base::AutoLock lock(lock_);
+    auto it = pending_.find(id);
+    return it == pending_.end() ? nullptr : it->second;
+  }
+  void Erase(uint64_t id) {
+    base::AutoLock lock(lock_);
+    auto it = pending_.find(id);
+    if (it != pending_.end()) {
+      by_callback_.erase(it->second.get());
+      pending_.erase(it);
+    }
+  }
+
+  jobject java_browser_ = nullptr;
+  bool enabled_ = false;
+  base::Lock lock_;
+  uint64_t next_id_ = 1;
+  std::map<uint64_t, CefRefPtr<CefDeviceChooserCallback>> pending_;
+  std::map<CefDeviceChooserCallback*, uint64_t> by_callback_;
+  IMPLEMENT_REFCOUNTING(SdkDeviceChooserHandler);
+};
+
 class SdkClient : public CefClient {
  public:
   SdkClient(CefRefPtr<SdkRenderHandler> render_handler,
@@ -1163,6 +1322,7 @@ class SdkClient : public CefClient {
         find_handler_(new SdkFindHandler()),
         js_dialog_handler_(new SdkJSDialogHandler()),
         permission_handler_(new SdkPermissionHandler()),
+        device_chooser_handler_(new SdkDeviceChooserHandler()),
         request_handler_(blocked_count ? new SdkRequestHandler(blocked_count) : nullptr) {
     if (browser_data) {
       load_handler_->SetBrowserData(browser_data);
@@ -1236,8 +1396,15 @@ class SdkClient : public CefClient {
     return permission_handler_;
   }
 
+  CefRefPtr<CefDeviceChooserHandler> GetDeviceChooserHandler() override {
+    return device_chooser_handler_;
+  }
+
   CefRefPtr<SdkPermissionHandler> permission_handler() {
     return permission_handler_;
+  }
+  CefRefPtr<SdkDeviceChooserHandler> device_chooser_handler() {
+    return device_chooser_handler_;
   }
   CefRefPtr<SdkRequestHandler> request_handler() { return request_handler_; }
   CefRefPtr<SdkJSDialogHandler> js_dialog_handler() { return js_dialog_handler_; }
@@ -1259,6 +1426,7 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkFindHandler> find_handler_;
   CefRefPtr<SdkJSDialogHandler> js_dialog_handler_;
   CefRefPtr<SdkPermissionHandler> permission_handler_;
+  CefRefPtr<SdkDeviceChooserHandler> device_chooser_handler_;
   CefRefPtr<SdkRequestHandler> request_handler_;
   // Declared last so the router is destroyed before the handler it references.
   std::unique_ptr<CefriumBridgeHandler> bridge_handler_;
@@ -1457,6 +1625,7 @@ Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
     data->client->find_handler()->SetJavaBrowser(env, java_browser);
     data->client->js_dialog_handler()->SetJavaBrowser(env, java_browser);
     data->client->permission_handler()->SetJavaBrowser(env, java_browser);
+    data->client->device_chooser_handler()->SetJavaBrowser(env, java_browser);
     if (data->client->request_handler()) {
       data->client->request_handler()->SetJavaBrowser(env, java_browser);
     }
@@ -1492,6 +1661,40 @@ Java_com_cefrium_CefriumBrowser_nativeRespondPermission(
   if (data && data->client) {
     data->client->permission_handler()->Respond(
         static_cast<uint64_t>(prompt_id), grant == JNI_TRUE);
+  }
+}
+
+// FEATURE-053: enable/disable routing of device chooser requests to the app
+// (called from CefriumBrowser.setDeviceChooserHandler).
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetDeviceChooserHandler(
+    JNIEnv* env, jclass, jlong native_ptr, jboolean enabled) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client) {
+    data->client->device_chooser_handler()->SetEnabled(enabled == JNI_TRUE);
+  }
+}
+
+// FEATURE-053: the app's picker selected a device.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeDeviceChooserSelect(
+    JNIEnv* env, jclass, jlong native_ptr, jlong id, jstring device_id_jstr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client) {
+    const char* device_id = env->GetStringUTFChars(device_id_jstr, nullptr);
+    data->client->device_chooser_handler()->Select(static_cast<uint64_t>(id),
+                                                    CefString(device_id));
+    env->ReleaseStringUTFChars(device_id_jstr, device_id);
+  }
+}
+
+// FEATURE-053: the app dismissed the picker.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeDeviceChooserCancel(
+    JNIEnv* env, jclass, jlong native_ptr, jlong id) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client) {
+    data->client->device_chooser_handler()->Cancel(static_cast<uint64_t>(id));
   }
 }
 
