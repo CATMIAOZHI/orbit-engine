@@ -1,7 +1,7 @@
-diff --git a/chrome/browser/glic/BUILD.gn b/chrome/browser/glic/BUILD.gn
+diff --git chrome/browser/glic/BUILD.gn chrome/browser/glic/BUILD.gn
 index aed8fc9cb7..9f9fd862a2 100644
---- a/chrome/browser/glic/BUILD.gn
-+++ b/chrome/browser/glic/BUILD.gn
+--- chrome/browser/glic/BUILD.gn
++++ chrome/browser/glic/BUILD.gn
 @@ -145,6 +145,7 @@ source_set("glic") {
        ":actor_types_for_migration",
        "//chrome/browser/android:tabs_public",
