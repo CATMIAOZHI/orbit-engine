@@ -33,7 +33,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=6227ec1019357411bf4a404cbda4c4fecbfcd5b3$
+// $hash=105dc2001ffb1797b8e43b3ccd9092004d1a2d4e$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_CLIENT_CAPI_H_
@@ -48,6 +48,7 @@
 #include "include/capi/cef_base_capi.h"
 #include "include/capi/cef_command_handler_capi.h"
 #include "include/capi/cef_context_menu_handler_capi.h"
+#include "include/capi/cef_device_chooser_handler_capi.h"
 #include "include/capi/cef_dialog_handler_capi.h"
 #include "include/capi/cef_display_handler_capi.h"
 #include "include/capi/cef_download_handler_capi.h"
@@ -185,6 +186,15 @@ typedef struct _cef_client_t {
   /// keep a reference to |message| outside of this callback.
   ///
   int (CEF_CALLBACK *on_process_message_received)(struct _cef_client_t* self, struct _cef_browser_t* browser, struct _cef_frame_t* frame, cef_process_id_t source_process, struct _cef_process_message_t* message);
+
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+  ///
+  /// Return the handler for device chooser requests (the frontier web device
+  /// APIs: WebUSB, Web Bluetooth, Web Serial). If no handler is provided such
+  /// requests are cancelled.
+  ///
+  struct _cef_device_chooser_handler_t* (CEF_CALLBACK *get_device_chooser_handler)(struct _cef_client_t* self);
+#endif
 } cef_client_t;
 
 
