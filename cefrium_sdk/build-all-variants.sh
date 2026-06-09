@@ -1,11 +1,16 @@
 #!/bin/bash
 # Build all Cefrium SDK variants.
-# Usage: cd chromium/src && cef/cefrium_sdk/build-all-variants.sh [arm64|x64|all] [codecs|libre|all]
+# Usage: cd chromium/src && cef/cefrium_sdk/build-all-variants.sh [arm64|x64|all] [codecs|libre|all] [--clean]
 #
 # Examples:
-#   cef/cefrium_sdk/build-all-variants.sh              # build all 4 variants
+#   cef/cefrium_sdk/build-all-variants.sh              # build all 4 variants (incremental: dev)
 #   cef/cefrium_sdk/build-all-variants.sh arm64         # arm64 codecs + libre
 #   cef/cefrium_sdk/build-all-variants.sh x64 codecs    # x64 with codecs only
+#   cef/cefrium_sdk/build-all-variants.sh all --clean   # fresh out dirs (release reproducibility)
+#
+# Build modes: incremental by default (reuses out dirs unless the engine changed --
+# fast, for DEV). --clean / CEFRIUM_CLEAN=1 forces a from-scratch build for RELEASE
+# reproducibility (cut-release sets it by default). See CLAUDE.md "Two flows".
 #
 # Output: out/release/cefrium-sdk-{arm64,x64}-{codecs,libre}.aar
 #
@@ -55,8 +60,16 @@ if [ -z "$GN" ] || [ ! -f "$GN" ]; then
 fi
 echo "Using GN: $GN"
 
-ARCH="${1:-all}"
-CODECS="${2:-all}"
+# Positional args: [arch] [codecs]. Flag: --clean forces fresh out dirs
+# (release reproducibility); equivalent to CEFRIUM_CLEAN=1.
+ARCH="all"; CODECS="all"; _posn=0
+for _arg in "$@"; do
+  case "$_arg" in
+    --clean) CEFRIUM_CLEAN=1; export CEFRIUM_CLEAN ;;
+    *) _posn=$((_posn + 1))
+       if [ "$_posn" = 1 ]; then ARCH="$_arg"; elif [ "$_posn" = 2 ]; then CODECS="$_arg"; fi ;;
+  esac
+done
 
 mkdir -p "$RELEASE_DIR"
 
@@ -122,7 +135,15 @@ build_variant() {
   # Recreate fresh unless the dir exists AND its stamp matches the current engine.
   # A missing stamp (dir predates this mechanism, e.g. a pre-bump 148 dir) counts
   # as a mismatch -> recreate, so stale dirs are NEVER reused without a manual wipe.
-  if [ -d "$build_dir" ] && \
+  if [ "${CEFRIUM_CLEAN:-0}" = "1" ] && [ -d "$build_dir" ]; then
+    # Release builds (CEFRIUM_CLEAN=1 / --clean) wipe unconditionally: a published,
+    # immutable artifact must be reproducible from committed source, not from
+    # accumulated incremental state (a stale .o ninja can't detect would otherwise
+    # ride into the release). Dev builds leave this off and rely on the engine-stamp
+    # auto-detect below to stay incremental (fast). See CLAUDE.md "Two flows".
+    echo ">>> CEFRIUM_CLEAN=1 -> wiping $dir_name for a clean from-scratch build"
+    rm -rf "$build_dir"
+  elif [ -d "$build_dir" ] && \
      [ "$(cat "$build_dir/.cefrium_engine" 2>/dev/null)" != "$engine_stamp" ]; then
     echo ">>> engine stamp mismatch/missing for $dir_name ('$(cat "$build_dir/.cefrium_engine" 2>/dev/null)' != '$engine_stamp'); recreating fresh"
     rm -rf "$build_dir"
