@@ -8,7 +8,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=c3f26c9bda1733a544eb53d729c6b3f833fdcff9$
+// $hash=922395b88164d0b04cd3f45b7c971069f7e6f903$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_BROWSER_CAPI_VERSIONS_H_
@@ -35,6 +35,7 @@ extern "C" {
 struct _cef_browser_host_0_t;
 struct _cef_browser_host_999999_t;
 struct _cef_client_0_t;
+struct _cef_client_999999_t;
 
 typedef struct _cef_browser_0_t {
   cef_base_ref_counted_t base;
