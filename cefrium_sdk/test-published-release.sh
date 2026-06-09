@@ -205,3 +205,32 @@ else
   echo "    Do not announce this release until it builds here."
   exit 1
 fi
+
+# On-device e2e: if a device is connected, install + launch the registry-sourced
+# consumer (which inits Cefrium + creates a browser) and assert it runs. assemble
+# only proves it compiles/resolves; this proves the PUBLISHED artifact loads its
+# native lib, resolves GEN_JNI, and inits CEF at runtime -- the 0.4.0-class
+# regression (stale GEN_JNI -> NoSuchMethodError) that compile-only checks miss.
+# Skips cleanly on a headless publishing host.
+ADB="${ANDROID_HOME:-}/platform-tools/adb"; [ -x "$ADB" ] || ADB="$(command -v adb || true)"
+if [ -n "$ADB" ] && [ "$("$ADB" devices 2>/dev/null | grep -c 'device$')" -ge 1 ]; then
+  echo "==> On-device e2e: installing + launching the registry-sourced consumer..."
+  apk="$(find "$WORK/app/build/outputs/apk/debug" -name '*.apk' 2>/dev/null | head -1)"
+  aapt="$(ls "${ANDROID_HOME:-}"/build-tools/*/aapt2 2>/dev/null | head -1)"
+  pkg="$("$aapt" dump badging "$apk" 2>/dev/null | grep -oP "package: name='\K[^']+")"
+  act="$("$aapt" dump badging "$apk" 2>/dev/null | grep -oP "launchable-activity: name='\K[^']+")"
+  "$ADB" install -r "$apk" >/dev/null 2>&1
+  "$ADB" shell am force-stop "$pkg" >/dev/null 2>&1; "$ADB" logcat -c >/dev/null 2>&1
+  "$ADB" shell am start -n "$pkg/$act" >/dev/null 2>&1
+  sleep 12
+  crash="$("$ADB" logcat -d 2>/dev/null | grep -icE 'FATAL EXCEPTION|NoSuchMethodError|tombstone|SIGSEGV')"
+  "$ADB" shell am force-stop "$pkg" >/dev/null 2>&1
+  if [ "$crash" -gt 0 ]; then
+    echo "==> FAIL (on-device): registry-sourced $ARTIFACT $VERSION crashed at runtime:"
+    "$ADB" logcat -d 2>/dev/null | grep -E 'FATAL|NoSuchMethod' | head -3 | sed 's/^/      /'
+    exit 1
+  fi
+  echo "==> PASS (on-device): registry-sourced $ARTIFACT $VERSION launches + inits CEF, no crash."
+else
+  echo "==> note: no device connected -- on-device e2e skipped (assemble-only validated)."
+fi
