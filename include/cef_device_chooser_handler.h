@@ -116,6 +116,18 @@ class CefDeviceChooserHandler : public virtual CefBaseRefCounted {
                              const CefString& device_name) {}
 
   ///
+  /// Called when a device previously reported to OnDeviceAdded is no longer
+  /// available for the chooser associated with |callback| (for example a USB or
+  /// serial device was unplugged mid-chooser). |device_id| matches the id from
+  /// the corresponding OnDeviceAdded. The client should remove it from its
+  /// picker. Not called for Web Bluetooth scans (which only add).
+  ///
+  /*--cef()--*/
+  virtual void OnDeviceRemoved(CefRefPtr<CefBrowser> browser,
+                               CefRefPtr<CefDeviceChooserCallback> callback,
+                               const CefString& device_id) {}
+
+  ///
   /// Called when the chooser associated with |callback| is closed by the
   /// framework (for example the requesting frame navigated away). The client
   /// should dismiss its picker UI. After this call |callback| is invalid.
