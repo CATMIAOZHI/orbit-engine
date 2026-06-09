@@ -347,6 +347,38 @@ For Web Bluetooth, declare and request the runtime permissions
 backend (the chooser opens but stays empty). See the flagship `SurfaceActivity`
 for a complete `AlertDialog` picker. Compose: `navigator.setDeviceChooserHandler(...)`.
 
+## WebAuthn / passkeys (0.5.0+)
+
+`navigator.credentials.create()` / `.get()` work end-to-end through the Android
+**Credential Manager** (the system passkey UI: fingerprint/PIN, Google Password
+Manager, third-party providers). **No app code is required** - the SDK routes
+WebAuthn to Credential Manager and declares the needed
+`CREDENTIAL_MANAGER_SET_ORIGIN` permission in its manifest (inherited via manifest
+merge). Requirements: a **secure context** (https; `localhost` is rejected by
+passkey providers for *creation*), **Android 14+**, and a Play-certified device
+with a screen lock. On older devices the request falls back gracefully (rejects,
+no crash). Validated end-to-end against webauthn.io (register + authenticate).
+
+## Other APIs (0.5.0+)
+
+```java
+// Web Share: navigator.share() opens the Android share sheet automatically
+// (no app code needed; the hosting Activity is used).
+
+// Proxy (e.g. kiosk/enterprise): route this browser's traffic.
+browser.setProxy("myproxy.example:8080");   // fixed server
+browser.clearProxy();                        // back to direct
+
+// Snapshot the current page to a Bitmap (OSR next-frame; Surface via PixelCopy).
+browser.captureBitmap(bitmap -> { /* use or save bitmap (may be null) */ });
+
+// Clipboard: navigator.clipboard.writeText/readText work; readText prompts via
+// your PermissionHandler (CefriumBrowser.PERMISSION_CLIPBOARD).
+```
+
+Compose equivalents live on `CefriumNavigator` (`setProxy`, `clearProxy`,
+`captureBitmap`, `setDeviceChooserHandler`).
+
 ## Next steps
 
 - Add navigation: `browser.goBack()`, `browser.goForward()`, `browser.reload()`
