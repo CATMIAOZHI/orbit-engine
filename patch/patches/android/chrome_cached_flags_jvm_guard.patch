@@ -1,7 +1,7 @@
-diff --git a/chrome/browser/android/flags/chrome_cached_flags.cc b/chrome/browser/android/flags/chrome_cached_flags.cc
+diff --git chrome/browser/android/flags/chrome_cached_flags.cc chrome/browser/android/flags/chrome_cached_flags.cc
 index c81932b308..4f41ee568b 100644
---- a/chrome/browser/android/flags/chrome_cached_flags.cc
-+++ b/chrome/browser/android/flags/chrome_cached_flags.cc
+--- chrome/browser/android/flags/chrome_cached_flags.cc
++++ chrome/browser/android/flags/chrome_cached_flags.cc
 @@ -7,6 +7,7 @@
  
  #include "base/android/jni_string.h"
