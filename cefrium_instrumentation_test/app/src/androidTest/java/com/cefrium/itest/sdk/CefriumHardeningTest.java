@@ -36,7 +36,7 @@ public class CefriumHardeningTest {
             CountDownLatch latch = new CountDownLatch(1);
             activity.runOnUiThread(() -> {
                 CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
-                browser.loadUrl("https://example.com");
+                browser.loadUrl("data:text/html,<title>CefriumTest</title><h1>ok</h1>");
                 browser.close();
                 latch.countDown();
             });
@@ -68,7 +68,7 @@ public class CefriumHardeningTest {
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
             browser.loadUrl("");  // Should not crash
-            browser.loadUrl("https://example.com");
+            browser.loadUrl("data:text/html,<title>CefriumTest</title><h1>ok</h1>");
             browser.close();
             latch.countDown();
         });
@@ -102,7 +102,7 @@ public class CefriumHardeningTest {
             CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
             browser.close();
             // All of these should log warnings but not crash
-            browser.loadUrl("https://example.com");
+            browser.loadUrl("data:text/html,<title>CefriumTest</title><h1>ok</h1>");
             browser.goBack();
             browser.goForward();
             browser.reload();
@@ -150,7 +150,7 @@ public class CefriumHardeningTest {
             browser.setOnLoadingStateChangedListener((isLoading, b, f) -> {
                 if (!isLoading) loadLatch.countDown();
             });
-            browser.loadUrl("https://example.com");
+            browser.loadUrl("data:text/html,<title>CefriumTest</title><h1>ok</h1>");
         });
 
         Assert.assertTrue(loadLatch.await(20, TimeUnit.SECONDS));
