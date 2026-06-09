@@ -245,9 +245,14 @@ void CefDeviceChooserView::OnOptionAdded(size_t index) {
 }
 
 void CefDeviceChooserView::OnOptionRemoved(size_t index) {
-  if (index < ids_.size()) {
-    ids_.erase(ids_.begin() + index);
+  if (index >= ids_.size()) {
+    return;
   }
+  if (started_ && handler_) {
+    handler_->OnDeviceRemoved(browser_.get(), callback_,
+                              CefString(std::to_string(ids_[index])));
+  }
+  ids_.erase(ids_.begin() + index);
 }
 
 void CefDeviceChooserView::OnOptionUpdated(size_t index) {

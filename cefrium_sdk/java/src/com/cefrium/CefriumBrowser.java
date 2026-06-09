@@ -781,6 +781,14 @@ public class CefriumBrowser {
          */
         void onDeviceAdded(DeviceChooserSession session, ChooserDevice device);
 
+        /**
+         * A device previously reported to {@link #onDeviceAdded} is no longer
+         * available (e.g. a USB/serial device was unplugged mid-chooser). Remove
+         * it from the picker. Not called for Bluetooth scans (which only add).
+         * Optional; the default does nothing.
+         */
+        default void onDeviceRemoved(DeviceChooserSession session, String deviceId) {}
+
         /** The engine closed the chooser (e.g. navigation); dismiss the picker. */
         void onDeviceChooserClosed(DeviceChooserSession session);
     }
@@ -844,6 +852,15 @@ public class CefriumBrowser {
         DeviceChooserSessionImpl session = mDeviceChooserSessions.get(id);
         if (h != null && session != null) {
             h.onDeviceAdded(session, new ChooserDevice(deviceId, deviceName));
+        }
+    }
+
+    // Called from native (UI thread) when a candidate device goes away.
+    private void onDeviceChooserDeviceRemoved(long id, String deviceId) {
+        DeviceChooserHandler h = mDeviceChooserHandler;
+        DeviceChooserSessionImpl session = mDeviceChooserSessions.get(id);
+        if (h != null && session != null) {
+            h.onDeviceRemoved(session, deviceId);
         }
     }
 
