@@ -1,0 +1,21 @@
+diff --git content/public/android/java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java content/public/android/java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java
+index e76f297..32fa7e8 100644
+--- content/public/android/java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java
++++ content/public/android/java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java
+@@ -194,10 +194,14 @@ public class ScreenCapture implements ImageHandler.Delegate {
+     @CalledByNative
+     boolean startCapture() {
+         final PickState pickState = sNextPickState.getAndSet(null);
+-        assert pickState != null;
++        // An embedder that hasn't wired the MediaProjection consent flow (no
++        // ScreenCapture.onPick) leaves this null; assert would crash the capture
++        // thread (uncaught across JNI). Fail the capture gracefully instead so
++        // getDisplayMedia() rejects rather than killing the process.
++        if (pickState == null) return false;
+ 
+         final ActivityResult activityResult = pickState.mActivityResult;
+-        assert activityResult.getData() != null;
++        if (activityResult == null || activityResult.getData() == null) return false;
+ 
+         // We need to wait for the foreground service to start before trying to use the
+         // MediaProjection API. It's okay to block here since we are on the desktop capturer thread.
