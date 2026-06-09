@@ -33,7 +33,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=05c714fbd299a8ef0b99ae5f7655f9c5062f280c$
+// $hash=96d3a99b2d945bc7ed947f0142abcc5cc2b157a0$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_DEVICE_CHOOSER_HANDLER_CAPI_H_
@@ -126,6 +126,15 @@ typedef struct _cef_device_chooser_handler_t {
   /// be called multiple times for the same |device_id| to update its label.
   ///
   void (CEF_CALLBACK *on_device_added)(struct _cef_device_chooser_handler_t* self, struct _cef_browser_t* browser, struct _cef_device_chooser_callback_t* callback, const cef_string_t* device_id, const cef_string_t* device_name);
+
+  ///
+  /// Called when a device previously reported to OnDeviceAdded is no longer
+  /// available for the chooser associated with |callback| (for example a USB or
+  /// serial device was unplugged mid-chooser). |device_id| matches the id from
+  /// the corresponding OnDeviceAdded. The client should remove it from its
+  /// picker. Not called for Web Bluetooth scans (which only add).
+  ///
+  void (CEF_CALLBACK *on_device_removed)(struct _cef_device_chooser_handler_t* self, struct _cef_browser_t* browser, struct _cef_device_chooser_callback_t* callback, const cef_string_t* device_id);
 
   ///
   /// Called when the chooser associated with |callback| is closed by the

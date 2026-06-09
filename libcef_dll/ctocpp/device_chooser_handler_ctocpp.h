@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=6991a7f631b43c6a306d5b8a86783fda2c523b27$
+// $hash=0a37a35f9faf325f4588ddd407a2b12d68199b52$
 //
 
 #ifndef CEF_LIBCEF_DLL_CTOCPP_DEVICE_CHOOSER_HANDLER_CTOCPP_H_
@@ -35,6 +35,7 @@ class CefDeviceChooserHandler_999999_CToCpp
   // CefDeviceChooserHandler methods.
   bool OnShowDeviceChooser(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, DeviceChooserType type, const CefString& requesting_origin, CefRefPtr<CefDeviceChooserCallback> callback) override;
   void OnDeviceAdded(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDeviceChooserCallback> callback, const CefString& device_id, const CefString& device_name) override;
+  void OnDeviceRemoved(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDeviceChooserCallback> callback, const CefString& device_id) override;
   void OnDeviceChooserClosed(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDeviceChooserCallback> callback) override;
 };
 
