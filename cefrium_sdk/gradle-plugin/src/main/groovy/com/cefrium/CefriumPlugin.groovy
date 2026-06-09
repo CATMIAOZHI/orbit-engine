@@ -32,6 +32,9 @@ class CefriumPlugin implements Plugin<Project> {
         'com.google.android.gms.common',
         'org.chromium.components.browser_ui.styles',
         'org.chromium.components.browser_ui.widget',
+        // Contact Picker (navigator.contacts.select): PickerCategoryView /
+        // ContactsPickerDialog read contacts_picker R.color/R.layout/R.string.
+        'org.chromium.components.browser_ui.contacts_picker',
         'org.chromium.components.embedder_support.delegate',
         'org.chromium.components.infobars',
         'org.chromium.components.input',
