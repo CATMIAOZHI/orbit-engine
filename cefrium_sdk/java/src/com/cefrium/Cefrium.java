@@ -197,10 +197,32 @@ public final class Cefrium {
             return false;
         }
 
+        // WebAuthn / passkeys: route navigator.credentials through the Android
+        // Credential Manager (any app can use it) instead of the Play Services
+        // FIDO2 *privileged* API, which is allowlisted to browser packages and
+        // fails with RESTRICTED_PROFILE for an embedding app. Requires Android
+        // 14+ with Credential Manager; harmless (best-effort) otherwise.
+        configureWebAuthn();
+
         sInitialized = true;
         // No manual message loop pumping needed — CEF integrates with
         // Android's Looper when multi_threaded_message_loop = false.
         return true;
+    }
+
+    // Route WebAuthn through the Credential Manager (CredMan-only) and set a
+    // non-NONE global WebAuthn mode so the platform passkey UI is used. Guarded
+    // so a build without these Chromium classes (or pre-Android-14) is a no-op.
+    private static void configureWebAuthn() {
+        try {
+            org.chromium.components.webauthn.cred_man.CredManSupportProvider
+                    .setForceCredManOnly(true);
+            org.chromium.components.webauthn.WebauthnModeProvider.getInstance()
+                    .setGlobalWebauthnMode(
+                            org.chromium.components.webauthn.WebauthnMode.BROWSER);
+        } catch (Throwable t) {
+            android.util.Log.w("Cefrium", "WebAuthn CredMan setup skipped: " + t);
+        }
     }
 
     /**
