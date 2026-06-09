@@ -161,7 +161,7 @@ CefriumWebView(
 | Feature | WebView | Cefrium |
 |---------|---------|---------|
 | Off-screen rendering | No | Yes (OnPaint pixel buffer) |
-| Pinned Chromium version | No (system) | Yes (148) |
+| Pinned Chromium version | No (system) | Yes (149) |
 | Multi-process control | No | Yes |
 | Network request interception (full) | Partial (GET) | Yes (all) |
 | Built-in ad blocking | No | Yes (EasyList 61K rules) |
@@ -169,11 +169,13 @@ CefriumWebView(
 | Context menu API | Limited | Full (CEF API) |
 | File dialog | Yes | Yes |
 | Dark mode API | API 33+ | All versions |
+| Web Bluetooth / WebUSB / Web Serial | No | Yes (CefDeviceChooserHandler, 0.5.0+) |
 
 ## What WebView has that Cefrium doesn't (yet)
 
-- Android Accessibility (TalkBack)
-- Autofill framework
-- Widevine DRM
-- WebAuthn / Passkeys
-- Smaller size (0 MB vs 150 MB)
+- WebAuthn / Passkeys end-to-end (the API is exposed, but the Android platform
+  authenticator bridge is not wired yet)
+- Smaller size (0 MB vs ~150 MB per ABI)
+
+(Android Accessibility/TalkBack, the Autofill framework, and Widevine DRM are now
+supported - see the README "What works" table.)
