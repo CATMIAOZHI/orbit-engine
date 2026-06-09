@@ -170,12 +170,14 @@ CefriumWebView(
 | File dialog | Yes | Yes |
 | Dark mode API | API 33+ | All versions |
 | Web Bluetooth / WebUSB / Web Serial | No | Yes (CefDeviceChooserHandler, 0.5.0+) |
+| WebAuthn / passkeys (web origin) | No | Yes (Credential Manager, 0.5.0+, Android 14+) |
+| Web Share | No (manual intent) | Yes (navigator.share, 0.5.0+) |
+| Clipboard read/write | Partial | Yes (navigator.clipboard) |
+| Proxy configuration | No | Yes (setProxy / PAC) |
 
 ## What WebView has that Cefrium doesn't (yet)
 
-- WebAuthn / Passkeys end-to-end (the API is exposed, but the Android platform
-  authenticator bridge is not wired yet)
 - Smaller size (0 MB vs ~150 MB per ABI)
 
-(Android Accessibility/TalkBack, the Autofill framework, and Widevine DRM are now
-supported - see the README "What works" table.)
+(Android Accessibility/TalkBack, the Autofill framework, Widevine DRM, and
+WebAuthn/passkeys are all supported - see the README "What works" table.)
