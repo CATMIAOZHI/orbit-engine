@@ -302,6 +302,17 @@ public class CefriumBrowser {
     // Called from native CefDisplayHandler::OnAddressChange.
     @SuppressWarnings("unused")
     private void onUrlChanged(String url) {
+        // Register the no-UI PaymentRequest factory here (idempotent): this
+        // navigation callback runs after the browser process is fully started
+        // (so after Chrome's ChromeInterfaceRegistrar has added its payment
+        // factory) and before the user can invoke payment (the frame's Java
+        // InterfaceProvider map is built lazily on the first PaymentRequest).
+        // Registering last makes our factory win the last-writer-wins registry.
+        try {
+            com.cefrium.payments.CefPaymentInterfaceRegistrar.register();
+        } catch (Throwable t) {
+            android.util.Log.w("Cefrium", "PaymentRequest registrar skipped: " + t);
+        }
         mCurrentUrl = url;
         if (mCallback != null) mCallback.onUrlChanged(url);
         if (mUrlListener != null) mUrlListener.onUrlChanged(url);

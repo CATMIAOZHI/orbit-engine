@@ -359,6 +359,53 @@ passkey providers for *creation*), **Android 14+**, and a Play-certified device
 with a screen lock. On older devices the request falls back gracefully (rejects,
 no crash). Validated end-to-end against webauthn.io (register + authenticate).
 
+## Payment Request / Google Pay (0.5.0+)
+
+The W3C **Payment Request API** (`new PaymentRequest(...).show()`) works end-to-end
+and launches installed **Android payment apps** (Google Pay, bank apps, etc.) - the
+same model as Android System WebView. **No app code is required**; the SDK registers
+a no-UI payment factory at first navigation and the invoked payment app draws its own
+UI. `canMakePayment()` / `hasEnrolledInstrument()` also work.
+
+Requirements:
+- A **secure context** (https). `localhost`/http is rejected by Google Pay.
+- A matching **installed Android payment app**. Google Pay additionally needs a Google
+  account + Google Wallet on the device.
+- Only installed Android payment apps are supported (not web/service-worker payment
+  handlers) - identical to WebView.
+
+```js
+// Minimal Google Pay request (TEST environment shown; no real charge).
+const googlePay = {
+  supportedMethods: "https://google.com/pay",
+  data: {
+    environment: "TEST", apiVersion: 2, apiVersionMinor: 0,
+    allowedPaymentMethods: [{
+      type: "CARD",
+      parameters: { allowedAuthMethods: ["PAN_ONLY", "CRYPTOGRAM_3DS"],
+                    allowedCardNetworks: ["MASTERCARD", "VISA"] },
+      tokenizationSpecification: {
+        type: "PAYMENT_GATEWAY",
+        parameters: { gateway: "example", gatewayMerchantId: "exampleGatewayMerchantId" }
+      }
+    }],
+    merchantInfo: { merchantName: "Your Store" }
+  }
+};
+const request = new PaymentRequest([googlePay],
+    { total: { label: "Total", amount: { currency: "USD", value: "1.00" } } });
+const response = await request.show();   // opens the Google Pay sheet
+await response.complete("success");
+```
+
+For production, replace `environment: "TEST"`, the gateway, and the merchant ID with
+your real Google Pay merchant configuration, and serve the page over https. Quick way
+to see the live sheet on a device with Google Wallet: open the Chrome team's public
+test page `https://rsolomakhin.github.io/pr/gp2-test/` in the browser and tap pay -
+the Google Pay sheet ("Pay ... to Example Merchant", TEST) opens. Cefrium enables
+PaymentRequest **by default**; System WebView requires an explicit per-WebView opt-in
+(`WebSettingsCompat.setPaymentRequestEnabled`) and only on recent WebView versions.
+
 ## Other APIs (0.5.0+)
 
 ```java
