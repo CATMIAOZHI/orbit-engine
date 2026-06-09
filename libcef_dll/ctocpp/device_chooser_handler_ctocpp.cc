@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=09f9f01ab3523fe1b7cb5379add81fe04df1e497$
+// $hash=0fca7e0196951692a4ff7ddf79ea54fe4dbe5831$
 //
 
 #include "include/cef_api_hash.h"
@@ -102,6 +102,39 @@ NO_SANITIZE("cfi-icall") void CefDeviceChooserHandler_999999_CToCpp::OnDeviceAdd
       CefDeviceChooserCallbackCppToC_Wrap(callback),
       device_id.GetStruct(),
       device_name.GetStruct());
+}
+
+NO_SANITIZE("cfi-icall") void CefDeviceChooserHandler_999999_CToCpp::OnDeviceRemoved(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDeviceChooserCallback> callback, const CefString& device_id) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->on_device_removed) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: browser; type: refptr_diff
+  DCHECK(browser.get());
+  if (!browser.get()) {
+    return;
+  }
+  // Verify param: callback; type: refptr_diff
+  DCHECK(callback.get());
+  if (!callback.get()) {
+    return;
+  }
+  // Verify param: device_id; type: string_byref_const
+  DCHECK(!device_id.empty());
+  if (device_id.empty()) {
+    return;
+  }
+
+  // Execute
+  _struct->on_device_removed(_struct,
+      CefBrowserCppToC_Wrap(browser),
+      CefDeviceChooserCallbackCppToC_Wrap(callback),
+      device_id.GetStruct());
 }
 
 NO_SANITIZE("cfi-icall") void CefDeviceChooserHandler_999999_CToCpp::OnDeviceChooserClosed(CefRefPtr<CefBrowser> browser, CefRefPtr<CefDeviceChooserCallback> callback) {
