@@ -165,6 +165,20 @@ class CefriumNavigator {
         state?.browser?.setDeviceChooserHandler(handler)
     }
 
+    /**
+     * Configures the proxy for this browser's request context. [mode] is one of
+     * `CefriumBrowser.PROXY_*`; [server] is `"host:port"` for fixed servers, the
+     * PAC URL for `PROXY_PAC`, ignored otherwise. Returns false if not applied.
+     */
+    fun setProxy(mode: String, server: String?): Boolean =
+        state?.browser?.setProxy(mode, server) ?: false
+
+    /** Convenience: route through a fixed proxy `"host:port"`. */
+    fun setProxy(server: String): Boolean = state?.browser?.setProxy(server) ?: false
+
+    /** Convenience: disable proxying (direct connection). */
+    fun clearProxy(): Boolean = state?.browser?.clearProxy() ?: false
+
     // ── Find in page ──
 
     /**
