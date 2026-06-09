@@ -560,6 +560,8 @@ source_set("libcef_static") {
     "libcef/browser/chrome/chrome_content_browser_client_cef.h",
     "libcef/browser/chrome/chrome_context_menu_handler.cc",
     "libcef/browser/chrome/chrome_context_menu_handler.h",
+    "libcef/browser/chrome/device_chooser_impl.cc",
+    "libcef/browser/chrome/device_chooser_impl.h",
     "libcef/browser/chrome/chrome_startup_browser_creator.cc",
     "libcef/browser/chrome/chrome_startup_browser_creator.h",
     "libcef/browser/chrome/chrome_web_contents_view_delegate_cef.h",
