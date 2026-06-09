@@ -766,6 +766,23 @@ ChromeContentBrowserClientCef::GetBluetoothDelegate() {
   return cef_bluetooth_delegate_.get();
 }
 
+content::UsbDelegate* ChromeContentBrowserClientCef::GetUsbDelegate() {
+  // Route the WebUSB chooser to the embedder's CefDeviceChooserHandler. All
+  // device enumeration / permission logic is inherited from ChromeUsbDelegate.
+  if (!cef_usb_delegate_) {
+    cef_usb_delegate_ = std::make_unique<CefUsbDelegate>();
+  }
+  return cef_usb_delegate_.get();
+}
+
+content::SerialDelegate* ChromeContentBrowserClientCef::GetSerialDelegate() {
+  // Route the Web Serial chooser to the embedder's CefDeviceChooserHandler.
+  if (!cef_serial_delegate_) {
+    cef_serial_delegate_ = std::make_unique<CefSerialDelegate>();
+  }
+  return cef_serial_delegate_.get();
+}
+
 CefRefPtr<CefRequestContextImpl>
 ChromeContentBrowserClientCef::request_context() const {
   return browser_main_parts_->request_context();
