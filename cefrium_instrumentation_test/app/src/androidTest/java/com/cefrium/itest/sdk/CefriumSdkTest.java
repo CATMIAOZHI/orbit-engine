@@ -64,7 +64,7 @@ public class CefriumSdkTest {
             browser.setOnLoadingStateChangedListener((isLoading, canGoBack, canGoForward) -> {
                 if (!isLoading) loadLatch.countDown();
             });
-            browser.loadUrl("https://example.com");
+            browser.loadUrl("data:text/html,<title>CefriumTest</title><h1>ok</h1>");
         });
 
         Assert.assertTrue("Page load timed out",
@@ -89,7 +89,7 @@ public class CefriumSdkTest {
                     }
                 }
             });
-            browser.loadUrl("https://example.com");
+            browser.loadUrl("data:text/html,<title>CefriumTest</title><h1>ok</h1>");
         });
 
         Assert.assertTrue("Loading did not complete in time",
@@ -115,7 +115,7 @@ public class CefriumSdkTest {
                     }
                 }
             });
-            browser.loadUrl("https://example.com");
+            browser.loadUrl("data:text/html,<title>CefriumTest</title><h1>ok</h1>");
         });
 
         Assert.assertTrue("Title change timed out",
@@ -145,7 +145,7 @@ public class CefriumSdkTest {
                     if (!isLoading) loadLatch.countDown();
                 }
             });
-            browser.loadUrl("https://example.com");
+            browser.loadUrl("data:text/html,<title>CefriumTest</title><h1>ok</h1>");
         });
 
         // Loading callback fires reliably; URL/title may need more time.

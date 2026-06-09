@@ -3,17 +3,21 @@ package com.cefrium.itest.sdk;
 import com.cefrium.itest.HostActivity;
 
 import android.app.Activity;
+import android.content.Context;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.rule.ActivityTestRule;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.cefrium.CefriumBrowser;
+import com.cefrium.itest.LocalHttpsServer;
 
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.io.InputStream;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -34,8 +38,10 @@ public class CefriumSslErrorTest {
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
 
-    // Self-signed certificate → fails validation → OnCertificateError fires.
-    private static final String BAD_CERT_URL = "https://self-signed.badssl.com/";
+    // A local HTTPS server with a self-signed cert: Chromium validates the cert
+    // even on 127.0.0.1, so it fails validation and OnCertificateError fires. No
+    // external bad-cert host -- the gate must be hermetic.
+    private static final String LOCAL_TITLE = "local-ssl-ok";
 
     /** Proceed: the handler is consulted and the self-signed page then loads. */
     @Test
@@ -46,6 +52,12 @@ public class CefriumSslErrorTest {
         final AtomicReference<String> seenUrl = new AtomicReference<>(null);
         final AtomicReference<String> result = new AtomicReference<>(null);
         final boolean[] probed = {false};
+        Context testCtx = InstrumentationRegistry.getInstrumentation().getContext();
+        InputStream ks = testCtx.getAssets().open("test-selfsigned.p12");
+        final LocalHttpsServer server = new LocalHttpsServer(ks, "changeit".toCharArray(),
+                "<!doctype html><title>" + LOCAL_TITLE + "</title><body>ssl</body>");
+        ks.close();
+        final String serverUrl = server.url();
 
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
@@ -72,20 +84,21 @@ public class CefriumSslErrorTest {
                         "window.cefriumQuery({request:'ssl:'+document.title});");
                 }
             });
-            browser.loadUrl(BAD_CERT_URL);
+            browser.loadUrl(serverUrl);
         });
 
         boolean arrived = got.await(40, TimeUnit.SECONDS);
+        server.close();
         Assert.assertTrue("SslErrorHandler was not consulted for an invalid cert",
                 consulted.get());
         Assert.assertNotNull("invalid-cert URL not delivered to the handler",
                 seenUrl.get());
-        Assert.assertTrue("handler URL should be the badssl host: " + seenUrl.get(),
-                seenUrl.get().contains("badssl.com"));
+        Assert.assertTrue("handler URL should be the local server: " + seenUrl.get(),
+                seenUrl.get().contains("127.0.0.1"));
         Assert.assertTrue("proceed() did not continue the load (no page result)",
                 arrived);
         Assert.assertTrue("self-signed page did not render after proceed: "
                         + result.get(),
-                result.get() != null && result.get().contains("badssl.com"));
+                result.get() != null && result.get().contains(LOCAL_TITLE));
     }
 }

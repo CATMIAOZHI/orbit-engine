@@ -9,6 +9,7 @@ import androidx.test.rule.ActivityTestRule;
 import androidx.test.rule.GrantPermissionRule;
 
 import com.cefrium.CefriumBrowser;
+import com.cefrium.itest.LocalHttpServer;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -45,6 +46,11 @@ public class CefriumMediaTest {
         final AtomicReference<String> gum = new AtomicReference<>(null);
         final AtomicInteger seenMask = new AtomicInteger(0);
         final boolean[] probed = {false};
+        // Hermetic secure origin: Chromium treats http://127.0.0.1 as secure, so
+        // getUserMedia is allowed without an external site.
+        final LocalHttpServer server = new LocalHttpServer(
+                "<!doctype html><title>media</title><body>media</body>");
+        final String url = server.url();
 
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
@@ -70,10 +76,12 @@ public class CefriumMediaTest {
                         + ".catch(function(e){window.cefriumQuery({request:'gum:err:'+e.name});});");
                 }
             });
-            browser.loadUrl("https://cefrium.com/");
+            browser.loadUrl(url);
         });
 
-        Assert.assertTrue("getUserMedia produced no result", done.await(40, TimeUnit.SECONDS));
+        boolean arrived = done.await(40, TimeUnit.SECONDS);
+        server.close();
+        Assert.assertTrue("getUserMedia produced no result", arrived);
         // The media permission must have been routed to our handler with the
         // camera and microphone bits.
         Assert.assertTrue("media permission not routed to handler (mask=" + seenMask.get() + ")",
