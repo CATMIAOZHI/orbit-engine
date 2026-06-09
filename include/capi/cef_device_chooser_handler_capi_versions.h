@@ -8,7 +8,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=61e02f99026d23287fa40b169d97a6718eb6a62a$
+// $hash=8f0d5f4e646933590be23976c0aa69ada01f409c$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_DEVICE_CHOOSER_HANDLER_CAPI_VERSIONS_H_
@@ -37,6 +37,7 @@ typedef struct _cef_device_chooser_handler_999999_t {
   cef_base_ref_counted_t base;
   int (CEF_CALLBACK *on_show_device_chooser)(struct _cef_device_chooser_handler_999999_t* self, struct _cef_browser_0_t* browser, struct _cef_frame_0_t* frame, cef_device_chooser_type_t type, const cef_string_t* requesting_origin, struct _cef_device_chooser_callback_999999_t* callback);
   void (CEF_CALLBACK *on_device_added)(struct _cef_device_chooser_handler_999999_t* self, struct _cef_browser_0_t* browser, struct _cef_device_chooser_callback_999999_t* callback, const cef_string_t* device_id, const cef_string_t* device_name);
+  void (CEF_CALLBACK *on_device_removed)(struct _cef_device_chooser_handler_999999_t* self, struct _cef_browser_0_t* browser, struct _cef_device_chooser_callback_999999_t* callback, const cef_string_t* device_id);
   void (CEF_CALLBACK *on_device_chooser_closed)(struct _cef_device_chooser_handler_999999_t* self, struct _cef_browser_0_t* browser, struct _cef_device_chooser_callback_999999_t* callback);
 } cef_device_chooser_handler_999999_t;
 
