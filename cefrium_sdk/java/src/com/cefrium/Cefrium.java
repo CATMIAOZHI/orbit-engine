@@ -203,6 +203,7 @@ public final class Cefrium {
         // fails with RESTRICTED_PROFILE for an embedding app. Requires Android
         // 14+ with Credential Manager; harmless (best-effort) otherwise.
         configureWebAuthn();
+        configureContactsPicker();
 
         sInitialized = true;
         // No manual message loop pumping needed — CEF integrates with
@@ -233,6 +234,24 @@ public final class Cefrium {
                     + (credSvc != null ? "present" : "null"));
         } catch (Throwable t) {
             android.util.Log.w("Cefrium", "WebAuthn CredMan setup skipped: " + t);
+        }
+    }
+
+    // Wire the Contact Picker (navigator.contacts.select): a permission provider
+    // and an app-drawn picker delegate (CefContactsPickerDelegate reads
+    // ContactsContract and shows an AlertDialog). Chrome sets these from
+    // chrome/android; an embedder must do it too or the API throws "Unable to
+    // open a contact selector". Consumers also need the READ_CONTACTS runtime
+    // permission. Guarded for builds without these classes.
+    private static void configureContactsPicker() {
+        try {
+            org.chromium.content_public.browser.ContactsDialogHost.setPermissionProvider(
+                    new org.chromium.components.browser_ui.contacts_picker
+                            .AndroidContactsPermissionProviderImpl());
+            org.chromium.content_public.browser.ContactsPicker.setContactsPickerDelegate(
+                    new CefContactsPickerDelegate());
+        } catch (Throwable t) {
+            android.util.Log.w("Cefrium", "Contacts picker setup skipped: " + t);
         }
     }
 
