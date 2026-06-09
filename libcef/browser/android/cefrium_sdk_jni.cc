@@ -15,6 +15,7 @@
 #include "cef/include/cef_app.h"
 #include "cef/libcef/browser/android/cef_autofill_client_android.h"
 #include "components/android_autofill/browser/autofill_provider.h"
+#include "components/version_info/version_info.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_client.h"
 #include "cef/include/cef_cookie.h"
@@ -1341,10 +1342,13 @@ Java_com_cefrium_Cefrium_nativeInitialize(
   settings.log_severity = LOGSEVERITY_INFO;
   CefString(&settings.root_cache_path).FromASCII(cache_dir);
 
-  // Identify as Chrome Android so sites serve full-featured content.
-  // CEF IS Chromium — this is accurate identification, not spoofing.
-  CefString(&settings.user_agent_product)
-      .FromASCII("Chrome/148.0.7778.167 Cefrium/1.0 Mobile");
+  // Identify as Chrome Android so sites serve full-featured content. CEF IS
+  // Chromium -- accurate identification, not spoofing. The Chrome version token
+  // is derived from the actual engine version so it never goes stale on a bump.
+  std::string ua_product =
+      "Chrome/" + std::string(version_info::GetVersionNumber()) +
+      " Cefrium/1.0 Mobile";
+  CefString(&settings.user_agent_product).FromASCII(ua_product.c_str());
 
   std::string locales_dir = std::string(data_dir) + "/locales";
   CefString(&settings.locales_dir_path).FromASCII(locales_dir.c_str());
