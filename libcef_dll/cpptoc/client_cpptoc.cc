@@ -9,13 +9,14 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=03c042cc96459c016ae64f4cfcc628e823b74f9e$
+// $hash=e3c3ec60c8b47eb2d812c6364db2403dba6844d3$
 //
 
 #include "libcef_dll/cpptoc/audio_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/client_cpptoc.h"
 #include "libcef_dll/cpptoc/command_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/context_menu_handler_cpptoc.h"
+#include "libcef_dll/cpptoc/device_chooser_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/dialog_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/display_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/download_handler_cpptoc.h"
@@ -83,6 +84,23 @@ struct _cef_context_menu_handler_t* CEF_CALLBACK client_get_context_menu_handler
   // Return type: refptr_same
   return CefContextMenuHandlerCppToC_Wrap(_retval);
 }
+
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+struct _cef_device_chooser_handler_t* CEF_CALLBACK client_get_device_chooser_handler(struct _cef_client_t* self) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return NULL;
+  }
+
+  // Execute
+  CefRefPtr<CefDeviceChooserHandler> _retval = CefClientCppToC::Get(self)->GetDeviceChooserHandler();
+
+  // Return type: refptr_same
+  return CefDeviceChooserHandlerCppToC_Wrap(_retval);
+}
+#endif  // CEF_API_ADDED(CEF_EXPERIMENTAL)
 
 struct _cef_dialog_handler_t* CEF_CALLBACK client_get_dialog_handler(struct _cef_client_t* self) {
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
@@ -367,6 +385,9 @@ CefClientCppToC::CefClientCppToC() {
   GetStruct()->get_render_handler = client_get_render_handler;
   GetStruct()->get_request_handler = client_get_request_handler;
   GetStruct()->on_process_message_received = client_on_process_message_received;
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+  GetStruct()->get_device_chooser_handler = client_get_device_chooser_handler;
+#endif
 }
 
 // DESTRUCTOR - Do not edit by hand.
