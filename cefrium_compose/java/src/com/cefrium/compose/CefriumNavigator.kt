@@ -154,6 +154,17 @@ class CefriumNavigator {
         state?.browser?.setHttpAuthHandler(handler)
     }
 
+    /**
+     * Sets the device chooser handler for the frontier device APIs (Web
+     * Bluetooth, WebUSB, Web Serial). When a page calls `requestDevice()` /
+     * `requestPort()` the handler presents a picker and resolves it via the
+     * [com.cefrium.CefriumBrowser.DeviceChooserSession]. Null = cancel all
+     * device requests (the page promise rejects).
+     */
+    fun setDeviceChooserHandler(handler: com.cefrium.CefriumBrowser.DeviceChooserHandler?) {
+        state?.browser?.setDeviceChooserHandler(handler)
+    }
+
     // ── Find in page ──
 
     /**
