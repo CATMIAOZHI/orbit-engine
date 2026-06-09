@@ -1,0 +1,18 @@
+diff --git base/test/BUILD.gn base/test/BUILD.gn
+index 26e6931..e8ab8d2 100644
+--- base/test/BUILD.gn
++++ base/test/BUILD.gn
+@@ -675,7 +675,12 @@ target(_target_type, "test_trace_processor") {
+     "//third_party/abseil-cpp:absl",
+     "//third_party/perfetto:libtrace_processor",
+   ]
+-  if (is_android) {
++  if (is_android && is_component_build) {
++    # In non-component builds this component is a static_library, which does not
++    # carry hide_all_but_jni_onload (it is a default only for shared_library), so
++    # removing it would error ("Item not found"). The version-script config is a
++    # link-time concern and irrelevant to a static_library, so only strip it when
++    # the component is actually a shared_library (component builds).
+     configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+   }
+ 

@@ -1,7 +1,7 @@
-diff --git a/chrome/app/chrome_main_delegate.cc b/chrome/app/chrome_main_delegate.cc
+diff --git chrome/app/chrome_main_delegate.cc chrome/app/chrome_main_delegate.cc
 index f1eacda..2682d35 100644
---- a/chrome/app/chrome_main_delegate.cc
-+++ b/chrome/app/chrome_main_delegate.cc
+--- chrome/app/chrome_main_delegate.cc
++++ chrome/app/chrome_main_delegate.cc
 @@ -1043,25 +1043,22 @@ void ChromeMainDelegate::SetupTracing() {
    // When we're the browser on android, use only libunwindstack for the tracing
    // sampler profiler because it can support java frames which is essential for
@@ -36,10 +36,10 @@ index f1eacda..2682d35 100644
  }
  
  std::optional<int> ChromeMainDelegate::BasicStartupComplete() {
-diff --git a/chrome/browser/browser_process_impl.cc b/chrome/browser/browser_process_impl.cc
+diff --git chrome/browser/browser_process_impl.cc chrome/browser/browser_process_impl.cc
 index 1c3854d029..db8d7d3ffd 100644
---- a/chrome/browser/browser_process_impl.cc
-+++ b/chrome/browser/browser_process_impl.cc
+--- chrome/browser/browser_process_impl.cc
++++ chrome/browser/browser_process_impl.cc
 @@ -314,7 +314,7 @@ BrowserProcessImpl::BrowserProcessImpl(StartupData* startup_data)
        active_primary_accounts_metrics_recorder_(
            std::make_unique<signin::ActivePrimaryAccountsMetricsRecorder>(
@@ -49,38 +49,10 @@ index 1c3854d029..db8d7d3ffd 100644
        device_parental_controls_(
            std::make_unique<supervised_user::AndroidParentalControls>()),
  #else
-diff --git a/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc b/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
-index d03e8b261b..dd3b71ffde 100644
---- a/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
-+++ b/chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
-@@ -12,12 +12,23 @@ GlobalBrowserCollectionPlatformDelegate::
-     GlobalBrowserCollectionPlatformDelegate(GlobalBrowserCollection& parent)
-     : parent_(parent) {
-   JNIEnv* env = base::android::AttachCurrentThread();
-+  // Check if the Java class exists before calling. In CEF/embedder mode,
-+  // Chrome-specific Java classes may not be present.
-+  jclass clazz = env->FindClass(
-+      "org/chromium/chrome/browser/ui/browser_window/"
-+      "GlobalBrowserCollectionPlatformDelegate");
-+  if (!clazz || env->ExceptionCheck()) {
-+    if (env->ExceptionCheck()) env->ExceptionClear();
-+    return;
-+  }
-+  env->DeleteLocalRef(clazz);
-   j_delegate_.Reset(Java_GlobalBrowserCollectionPlatformDelegate_create(
-       env, reinterpret_cast<int64_t>(this)));
- }
- 
- GlobalBrowserCollectionPlatformDelegate::
-     ~GlobalBrowserCollectionPlatformDelegate() {
-+  if (j_delegate_.is_null()) return;
-   JNIEnv* env = base::android::AttachCurrentThread();
-   Java_GlobalBrowserCollectionPlatformDelegate_destroy(env, j_delegate_);
- }
-diff --git a/chrome/renderer/chrome_content_renderer_client.cc b/chrome/renderer/chrome_content_renderer_client.cc
+diff --git chrome/renderer/chrome_content_renderer_client.cc chrome/renderer/chrome_content_renderer_client.cc
 index 347d6c4d50..23bd1a4f25 100644
---- a/chrome/renderer/chrome_content_renderer_client.cc
-+++ b/chrome/renderer/chrome_content_renderer_client.cc
+--- chrome/renderer/chrome_content_renderer_client.cc
++++ chrome/renderer/chrome_content_renderer_client.cc
 @@ -381,13 +381,19 @@ ChromeContentRendererClient::~ChromeContentRendererClient() = default;
  void ChromeContentRendererClient::RenderThreadStarted() {
    RenderThread* thread = RenderThread::Get();
@@ -106,10 +78,10 @@ index 347d6c4d50..23bd1a4f25 100644
  
    const bool is_extension = IsStandaloneContentExtensionProcess();
  
-diff --git a/services/device/device_service.cc b/services/device/device_service.cc
+diff --git services/device/device_service.cc services/device/device_service.cc
 index ebc9c88793..e00a3f9f9d 100644
---- a/services/device/device_service.cc
-+++ b/services/device/device_service.cc
+--- services/device/device_service.cc
++++ services/device/device_service.cc
 @@ -157,7 +157,9 @@ void DeviceService::OverrideUsbDeviceManagerBinderForTesting(
  void DeviceService::BindBatteryMonitor(
      mojo::PendingReceiver<mojom::BatteryMonitor> receiver) {

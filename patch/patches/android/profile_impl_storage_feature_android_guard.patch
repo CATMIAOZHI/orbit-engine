@@ -1,7 +1,7 @@
-diff --git a/chrome/browser/profiles/profile_impl.cc b/chrome/browser/profiles/profile_impl.cc
+diff --git chrome/browser/profiles/profile_impl.cc chrome/browser/profiles/profile_impl.cc
 index 2d8bcb9..5a61965 100644
---- a/chrome/browser/profiles/profile_impl.cc
-+++ b/chrome/browser/profiles/profile_impl.cc
+--- chrome/browser/profiles/profile_impl.cc
++++ chrome/browser/profiles/profile_impl.cc
 @@ -286,7 +286,7 @@ class ScopedAllowBlockingForProfile : public base::ScopedAllowBlocking {};
  
  namespace {

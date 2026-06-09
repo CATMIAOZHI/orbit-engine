@@ -1,7 +1,7 @@
-diff --git a/components/permissions/android/permission_prompt/permission_prompt_android_factory.cc b/components/permissions/android/permission_prompt/permission_prompt_android_factory.cc
+diff --git components/permissions/android/permission_prompt/permission_prompt_android_factory.cc components/permissions/android/permission_prompt/permission_prompt_android_factory.cc
 index 949b255d2a..9dcf6a1029 100644
---- a/components/permissions/android/permission_prompt/permission_prompt_android_factory.cc
-+++ b/components/permissions/android/permission_prompt/permission_prompt_android_factory.cc
+--- components/permissions/android/permission_prompt/permission_prompt_android_factory.cc
++++ components/permissions/android/permission_prompt/permission_prompt_android_factory.cc
 @@ -17,9 +17,38 @@
  
  namespace permissions {
@@ -41,10 +41,10 @@ index 949b255d2a..9dcf6a1029 100644
    if (permissions::PermissionUtil::
            ShouldCurrentRequestUsePermissionElementSecondaryUI(delegate)) {
      if (auto embedded_prompt =
-diff --git a/components/permissions/permission_prompt.h b/components/permissions/permission_prompt.h
+diff --git components/permissions/permission_prompt.h components/permissions/permission_prompt.h
 index 97468dddb5..1ae2a3d2d4 100644
---- a/components/permissions/permission_prompt.h
-+++ b/components/permissions/permission_prompt.h
+--- components/permissions/permission_prompt.h
++++ components/permissions/permission_prompt.h
 @@ -11,6 +11,7 @@
  
  #include "base/functional/callback.h"
