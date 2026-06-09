@@ -1159,6 +1159,7 @@ source_set("libcef_static") {
       "libcef/browser/android/adblock_filter.h",
       "libcef/browser/android/browser_surface_android.cc",
       "libcef/browser/android/browser_surface_android.h",
+      "libcef/browser/android/cef_share_service.h",
       "libcef/browser/chrome/chrome_web_contents_view_delegate_android.cc",
       "libcef/browser/chrome/chrome_web_contents_view_delegate_android.h",
       "libcef/browser/native/browser_platform_delegate_native_android.cc",

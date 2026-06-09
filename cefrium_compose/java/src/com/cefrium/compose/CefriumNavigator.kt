@@ -179,6 +179,17 @@ class CefriumNavigator {
     /** Convenience: disable proxying (direct connection). */
     fun clearProxy(): Boolean = state?.browser?.clearProxy() ?: false
 
+    /**
+     * Captures the current page to a Bitmap, delivered on the main thread
+     * ([onBitmap] receives null on failure). Off-screen mode returns the next
+     * painted frame; Surface mode copies the visible surface.
+     */
+    fun captureBitmap(onBitmap: (android.graphics.Bitmap?) -> Unit) {
+        val b = state?.browser
+        if (b == null) { onBitmap(null); return }
+        b.captureBitmap { bmp -> onBitmap(bmp) }
+    }
+
     // ── Find in page ──
 
     /**
