@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=b846a26541b75004b3f5757df23dc2b077190448$
+// $hash=34c939634c4e31cc5178832bf185abd6367a97f8$
 //
 
 #include "libcef_dll/cpptoc/device_chooser_handler_cpptoc.h"
@@ -104,6 +104,38 @@ void CEF_CALLBACK device_chooser_handler_on_device_added(struct _cef_device_choo
       CefString(device_name));
 }
 
+void CEF_CALLBACK device_chooser_handler_on_device_removed(struct _cef_device_chooser_handler_t* self, struct _cef_browser_t* browser, struct _cef_device_chooser_callback_t* callback, const cef_string_t* device_id) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return;
+  }
+  // Verify param: browser; type: refptr_diff
+  DCHECK(browser);
+  if (!browser) {
+    return;
+  }
+  // Verify param: callback; type: refptr_diff
+  DCHECK(callback);
+  if (!callback) {
+    return;
+  }
+  // Verify param: device_id; type: string_byref_const
+  DCHECK(device_id);
+  if (!device_id) {
+    return;
+  }
+
+  // Execute
+  CefDeviceChooserHandlerCppToC::Get(self)->OnDeviceRemoved(
+      CefBrowserCToCpp_Wrap(browser),
+      CefDeviceChooserCallbackCToCpp_Wrap(callback),
+      CefString(device_id));
+}
+
 void CEF_CALLBACK device_chooser_handler_on_device_chooser_closed(struct _cef_device_chooser_handler_t* self, struct _cef_browser_t* browser, struct _cef_device_chooser_callback_t* callback) {
   shutdown_checker::AssertNotShutdown();
 
@@ -137,6 +169,7 @@ void CEF_CALLBACK device_chooser_handler_on_device_chooser_closed(struct _cef_de
 CefDeviceChooserHandlerCppToC::CefDeviceChooserHandlerCppToC() {
   GetStruct()->on_show_device_chooser = device_chooser_handler_on_show_device_chooser;
   GetStruct()->on_device_added = device_chooser_handler_on_device_added;
+  GetStruct()->on_device_removed = device_chooser_handler_on_device_removed;
   GetStruct()->on_device_chooser_closed = device_chooser_handler_on_device_chooser_closed;
 }
 

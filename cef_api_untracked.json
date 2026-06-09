@@ -9,10 +9,10 @@
     },
     "999999": {
       "comment": "Experimental version last updated June 09, 2026.",
-      "linux": "6456d1bb3af5d2f1d279795de2eecc11b5fcc4d5",
-      "mac": "09e3b07f49ee833825284fdebdad50d3eb4a2a15",
+      "linux": "9854154cd5d9c7105e3a9a486dfa1764d844a672",
+      "mac": "4aa082445a43745abcef2d5d1712fa275e39dfff",
       "sandbox_compat": "6c5b35ad81055c14",
-      "windows": "a4bc47619236ccbbea71fdc2f6b651f1be685fed"
+      "windows": "afe05a30ac0235fe1bd089aeda94b8505af9c055"
     }
   }
 }
