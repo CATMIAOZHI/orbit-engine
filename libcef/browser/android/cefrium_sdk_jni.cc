@@ -1812,6 +1812,46 @@ Java_com_cefrium_CefriumBrowser_nativeSetContentSetting(
   env->ReleaseStringUTFChars(url_jstr, url);
 }
 
+// FEATURE: proxy configuration via the request context "proxy" preference.
+// |mode| is a Chromium proxy mode ("direct", "system", "auto_detect",
+// "fixed_servers", "pac_script"); |server| is "host:port" (fixed_servers) or the
+// PAC URL (pac_script), ignored for the others. Returns false if the preference
+// could not be set.
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetProxy(
+    JNIEnv* env, jclass, jlong native_ptr, jstring mode_jstr, jstring server_jstr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) {
+    return JNI_FALSE;
+  }
+  CefRefPtr<CefRequestContext> context =
+      data->browser->GetHost()->GetRequestContext();
+  if (!context) {
+    return JNI_FALSE;
+  }
+  const char* mode = env->GetStringUTFChars(mode_jstr, nullptr);
+  CefRefPtr<CefDictionaryValue> dict = CefDictionaryValue::Create();
+  dict->SetString("mode", mode);
+  if (server_jstr) {
+    const char* server = env->GetStringUTFChars(server_jstr, nullptr);
+    if (std::string(mode) == "pac_script") {
+      dict->SetString("pac_url", server);
+    } else {
+      dict->SetString("server", server);
+    }
+    env->ReleaseStringUTFChars(server_jstr, server);
+  }
+  CefRefPtr<CefValue> val = CefValue::Create();
+  val->SetDictionary(dict);
+  CefString error;
+  bool ok = context->SetPreference("proxy", val, error);
+  if (!ok) {
+    LOGI("setProxy(%s) failed: %s", mode, error.ToString().c_str());
+  }
+  env->ReleaseStringUTFChars(mode_jstr, mode);
+  return ok ? JNI_TRUE : JNI_FALSE;
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeRespondSslError(
     JNIEnv* env, jclass, jlong native_ptr, jlong id, jboolean proceed) {

@@ -653,6 +653,8 @@ public class CefriumBrowser {
     public static final int PERMISSION_CAMERA = 1 << 2;
     public static final int PERMISSION_MICROPHONE = 1 << 12;
     public static final int PERMISSION_NOTIFICATIONS = 1 << 15;
+    /** Clipboard read (navigator.clipboard.readText). Writing needs no prompt. */
+    public static final int PERMISSION_CLIPBOARD = 1 << 4;
 
     /** Receives the app's grant/deny decision for a permission request. */
     public interface PermissionCallback {
@@ -719,6 +721,36 @@ public class CefriumBrowser {
         if (mNativePtr != 0) {
             nativeSetContentSetting(mNativePtr, requestingUrl, permission, value);
         }
+    }
+
+    // ── Proxy ──
+
+    /** Proxy modes for {@link #setProxy(String, String)} (Chromium proxy modes). */
+    public static final String PROXY_DIRECT = "direct";
+    public static final String PROXY_SYSTEM = "system";
+    public static final String PROXY_AUTO_DETECT = "auto_detect";
+    public static final String PROXY_FIXED = "fixed_servers";
+    public static final String PROXY_PAC = "pac_script";
+
+    /**
+     * Configures the proxy for this browser's request context. [mode] is one of
+     * the {@code PROXY_*} constants; [server] is {@code "host:port"} (or
+     * {@code "scheme://host:port"}) for {@link #PROXY_FIXED}, the PAC URL for
+     * {@link #PROXY_PAC}, and ignored otherwise. Returns false if the preference
+     * could not be applied. Useful for kiosk/enterprise deployments.
+     */
+    public boolean setProxy(String mode, String server) {
+        return mNativePtr != 0 && nativeSetProxy(mNativePtr, mode, server);
+    }
+
+    /** Convenience: route all traffic through a fixed proxy {@code "host:port"}. */
+    public boolean setProxy(String server) {
+        return setProxy(PROXY_FIXED, server);
+    }
+
+    /** Convenience: disable proxying (direct connection). */
+    public boolean clearProxy() {
+        return setProxy(PROXY_DIRECT, null);
     }
 
     // ── Device choosers (Web Bluetooth / WebUSB / Web Serial) ──
@@ -1467,6 +1499,7 @@ public class CefriumBrowser {
     private static native void nativeJsDialogResult(long nativePtr, long token, boolean success, String userInput);
     private static native void nativeRespondPermission(long nativePtr, long promptId, boolean grant);
     private static native void nativeSetContentSetting(long nativePtr, String requestingUrl, int permission, int value);
+    private static native boolean nativeSetProxy(long nativePtr, String mode, String server);
     private static native void nativeSetDeviceChooserHandler(long nativePtr, boolean enabled);
     private static native void nativeDeviceChooserSelect(long nativePtr, long id, String deviceId);
     private static native void nativeDeviceChooserCancel(long nativePtr, long id);
