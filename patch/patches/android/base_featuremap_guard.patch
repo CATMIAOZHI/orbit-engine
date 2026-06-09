@@ -1,7 +1,7 @@
-diff --git a/base/android/java/src/org/chromium/base/FeatureMap.java b/base/android/java/src/org/chromium/base/FeatureMap.java
+diff --git base/android/java/src/org/chromium/base/FeatureMap.java base/android/java/src/org/chromium/base/FeatureMap.java
 index 562bd9048a..27886aa385 100644
---- a/base/android/java/src/org/chromium/base/FeatureMap.java
-+++ b/base/android/java/src/org/chromium/base/FeatureMap.java
+--- base/android/java/src/org/chromium/base/FeatureMap.java
++++ base/android/java/src/org/chromium/base/FeatureMap.java
 @@ -54,6 +54,10 @@ public abstract class FeatureMap {
      public boolean isEnabledInNative(String featureName) {
          Boolean testValue = FeatureOverrides.getTestValueForFeatureStrict(featureName);

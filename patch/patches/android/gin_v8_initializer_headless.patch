@@ -1,7 +1,7 @@
-diff --git a/gin/v8_initializer.cc b/gin/v8_initializer.cc
+diff --git gin/v8_initializer.cc gin/v8_initializer.cc
 index f32f4077d5..f6d33e76dd 100644
---- a/gin/v8_initializer.cc
-+++ b/gin/v8_initializer.cc
+--- gin/v8_initializer.cc
++++ gin/v8_initializer.cc
 @@ -48,7 +48,10 @@
  
  #if defined(V8_USE_EXTERNAL_STARTUP_DATA)
