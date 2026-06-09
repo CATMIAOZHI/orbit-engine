@@ -49,9 +49,12 @@
 #include "base/android/jni_android.h"
 #include "cef/libcef/browser/android/adblock_filter.h"
 #include "cef/libcef/browser/android/browser_surface_android.h"
+#include "cef/libcef/browser/android/cef_share_service.h"
 #include "cef/libcef/browser/browser_host_base.h"
+#include "content/public/browser/document_service.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/android/window_android.h"
+#include "url/gurl.h"
 
 #define TAG "Cefrium"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
@@ -1467,6 +1470,39 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkDeviceChooserHandler> device_chooser_handler() {
     return device_chooser_handler_;
   }
+
+  void SetJavaBrowser(JNIEnv* env, jobject jb) {
+    if (jb && !java_browser_) {
+      java_browser_ = env->NewGlobalRef(jb);
+    }
+  }
+
+  // FEATURE: Web Share (navigator.share) -> the app's Android share sheet.
+  // Returns false if there is no Java browser / activity to share from.
+  bool FireWebShare(const std::string& title,
+                    const std::string& text,
+                    const std::string& url) {
+    if (!java_browser_) {
+      return false;
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(
+        cls, "onWebShare",
+        "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Z");
+    bool ok = false;
+    if (mid) {
+      jstring jt = env->NewStringUTF(title.c_str());
+      jstring jx = env->NewStringUTF(text.c_str());
+      jstring ju = env->NewStringUTF(url.c_str());
+      ok = env->CallBooleanMethod(java_browser_, mid, jt, jx, ju) == JNI_TRUE;
+      env->DeleteLocalRef(jt);
+      env->DeleteLocalRef(jx);
+      env->DeleteLocalRef(ju);
+    }
+    env->DeleteLocalRef(cls);
+    return ok;
+  }
   CefRefPtr<SdkRequestHandler> request_handler() { return request_handler_; }
   CefRefPtr<SdkJSDialogHandler> js_dialog_handler() { return js_dialog_handler_; }
   CefRefPtr<SdkDisplayHandler> display_handler() { return display_handler_; }
@@ -1474,6 +1510,14 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkDownloadHandler> download_handler() { return download_handler_; }
   CefRefPtr<SdkFindHandler> find_handler() { return find_handler_; }
   CefriumBridgeHandler* bridge_handler() { return bridge_handler_.get(); }
+
+  ~SdkClient() override {
+    if (java_browser_) {
+      if (JNIEnv* env = base::android::AttachCurrentThread()) {
+        env->DeleteGlobalRef(java_browser_);
+      }
+    }
+  }
 
   IMPLEMENT_REFCOUNTING(SdkClient);
 
@@ -1492,6 +1536,7 @@ class SdkClient : public CefClient {
   // Declared last so the router is destroyed before the handler it references.
   std::unique_ptr<CefriumBridgeHandler> bridge_handler_;
   CefRefPtr<CefMessageRouterBrowserSide> message_router_;
+  jobject java_browser_ = nullptr;  // global ref; for Web Share routing.
 };
 
 // Per-browser data stored as the native pointer in Java.
@@ -1541,6 +1586,54 @@ void SdkLoadHandler::OnLoadEnd(CefRefPtr<CefBrowser> browser,
     }
   }
 }
+
+// FEATURE: Web Share (navigator.share). A DocumentService-scoped implementation
+// of blink::mojom::ShareService that routes the share to the embedding app's
+// Android share sheet via the SdkClient. Replaces the default Android binding
+// (ForwardToJavaWebContents), whose Chrome Java share machinery is absent here.
+class CefShareServiceImpl
+    : public content::DocumentService<blink::mojom::ShareService> {
+ public:
+  static void Create(
+      content::RenderFrameHost* render_frame_host,
+      mojo::PendingReceiver<blink::mojom::ShareService> receiver) {
+    // Owns itself; destroyed when the document goes away or the pipe closes.
+    new CefShareServiceImpl(*render_frame_host, std::move(receiver));
+  }
+
+  // blink::mojom::ShareService:
+  void Share(const std::string& title,
+             const std::string& text,
+             const GURL& url,
+             std::vector<blink::mojom::SharedFilePtr> files,
+             ShareCallback callback) override {
+    // File sharing is not supported yet; title/text/url cover navigator.share's
+    // common case.
+    CefRefPtr<CefBrowserHostBase> browser =
+        CefBrowserHostBase::GetBrowserForHost(&render_frame_host());
+    SdkClient* client =
+        browser ? static_cast<SdkClient*>(browser->GetClient().get()) : nullptr;
+    const bool ok =
+        client && client->FireWebShare(title, text, url.is_valid() ? url.spec()
+                                                                    : std::string());
+    std::move(callback).Run(ok ? blink::mojom::ShareError::OK
+                               : blink::mojom::ShareError::INTERNAL_ERROR);
+  }
+
+ private:
+  CefShareServiceImpl(
+      content::RenderFrameHost& render_frame_host,
+      mojo::PendingReceiver<blink::mojom::ShareService> receiver)
+      : DocumentService(render_frame_host, std::move(receiver)) {}
+};
+
+namespace cefrium {
+void BindShareService(
+    content::RenderFrameHost* frame,
+    mojo::PendingReceiver<blink::mojom::ShareService> receiver) {
+  CefShareServiceImpl::Create(frame, std::move(receiver));
+}
+}  // namespace cefrium
 
 // --- Cefrium.java native methods ---
 
@@ -1687,6 +1780,7 @@ Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
     data->client->js_dialog_handler()->SetJavaBrowser(env, java_browser);
     data->client->permission_handler()->SetJavaBrowser(env, java_browser);
     data->client->device_chooser_handler()->SetJavaBrowser(env, java_browser);
+    data->client->SetJavaBrowser(env, java_browser);  // for Web Share
     if (data->client->request_handler()) {
       data->client->request_handler()->SetJavaBrowser(env, java_browser);
     }

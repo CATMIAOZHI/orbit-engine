@@ -15,6 +15,7 @@
 #include "cef/libcef/browser/browser_info_manager.h"
 #include "cef/libcef/browser/browser_manager.h"
 #include "cef/libcef/browser/certificate_query.h"
+#include "cef/libcef/browser/android/cef_share_service.h"
 #include "cef/libcef/browser/chrome/chrome_browser_main_extra_parts_cef.h"
 #include "cef/libcef/browser/chrome/device_chooser_impl.h"
 #include "cef/libcef/browser/context.h"
@@ -693,6 +694,14 @@ void ChromeContentBrowserClientCef::RegisterBrowserInterfaceBindersForFrame(
 
   CefBrowserFrame::RegisterBrowserInterfaceBindersForFrame(render_frame_host,
                                                            map);
+
+#if BUILDFLAG(IS_ANDROID)
+  // Web Share: route navigator.share to the embedder's Android share sheet. The
+  // base class binds it to ForwardToJavaWebContents (Chrome's Java share, absent
+  // in this embedding); re-Add overrides that with our implementation.
+  map->Add<blink::mojom::ShareService>(
+      base::BindRepeating(&cefrium::BindShareService));
+#endif
 }
 
 std::unique_ptr<content::WebContentsViewDelegate>
