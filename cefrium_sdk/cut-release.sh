@@ -63,7 +63,19 @@ if run patches; then hdr "patches + touch"
   touch cef/libcef/browser/android/cefrium_sdk_jni.cc cef/libcef/common/chrome/chrome_main_delegate_cef.cc
 fi
 
-if run build;   then hdr "build 4 variants"; cef/cefrium_sdk/build-all-variants.sh all; fi
+if run build;   then hdr "build 4 variants"
+  # Release builds CLEAN by default: a published, immutable artifact must be
+  # reproducible from committed source, not from accumulated incremental state.
+  # (After an engine bump the dirs are already fresh, so this only adds cost on a
+  # same-engine re-cut.) Opt out with CEFRIUM_INCREMENTAL=1 for a fast re-cut when
+  # the delta is isolated (e.g. a doc-only or single-file fix you've judged safe).
+  [ "${CEFRIUM_INCREMENTAL:-0}" = "1" ] || export CEFRIUM_CLEAN=1
+  cef/cefrium_sdk/build-all-variants.sh all
+  # Gate: the checked-in GEN_JNI must match the build's freshly generated one,
+  # else consumers hit a runtime NoSuchMethodError (the 0.4.0 root cause -- a
+  # stale GEN_JNI not regenerated on the engine bump). Fail early.
+  cef/cefrium_sdk/regen-gen-jni.sh --check out/Official_android_arm64_codecs
+fi
 if run merge;   then hdr "merge multi-ABI"; cef/cefrium_sdk/merge-multiabi.sh codecs; cef/cefrium_sdk/merge-multiabi.sh libre; fi
 if run compose; then hdr "compose AAR"
   mkdir -p cef/cefrium_compose/libs   # gitignored compileOnly dep dir; may be absent on a fresh tree
@@ -123,9 +135,14 @@ if run release; then hdr "Codeberg release (tag + GPG-signed SHA256SUMS + assets
   cef/cefrium_sdk/release-codeberg.sh "$VERSION" \
     "$ROOT/cefrium-sample/cefrium-browser/app/build/outputs/apk/debug/app-debug.apk"
 fi
-if run web;     then hdr "update cefrium.com pages"
+if run web;     then hdr "update cefrium.com pages + committed repo docs"
   cef/cefrium_sdk/release-web-update.sh "$VERSION" "$PREV" "$(date +%F)" "$NOTES"
-  echo "Review + commit the web repo (quickstart, releases) and push pages."
+  # Bump the committed cef/ consumer docs too (QUICKSTART.md, README coordinates +
+  # download URLs). release-web-update.sh only touches the cefrium.com web tree, so
+  # without this the repo docs go stale (they sat at 0.3.1 through 0.4.1).
+  cef/cefrium_sdk/release-bump-docs.sh "$VERSION" "$PREV"
+  echo "Review + commit the web repo (quickstart, releases -> push pages) AND the"
+  echo "cef repo (QUICKSTART.md, README -> push android-port)."
 fi
 if run prune;   then hdr "prune previous versions (DESTRUCTIVE, latest-only)"
   gate "prune every registry version except $VERSION"
