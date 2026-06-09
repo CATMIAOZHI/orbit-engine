@@ -1266,6 +1266,33 @@ class SdkDeviceChooserHandler : public CefDeviceChooserHandler {
     env->DeleteLocalRef(cls);
   }
 
+  void OnDeviceRemoved(CefRefPtr<CefBrowser> browser,
+                       CefRefPtr<CefDeviceChooserCallback> callback,
+                       const CefString& device_id) override {
+    if (!java_browser_) {
+      return;
+    }
+    uint64_t id;
+    {
+      base::AutoLock lock(lock_);
+      auto it = by_callback_.find(callback.get());
+      if (it == by_callback_.end()) {
+        return;
+      }
+      id = it->second;
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onDeviceChooserDeviceRemoved",
+                                     "(JLjava/lang/String;)V");
+    if (mid) {
+      jstring jid = env->NewStringUTF(device_id.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, static_cast<jlong>(id), jid);
+      env->DeleteLocalRef(jid);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
   void OnDeviceChooserClosed(
       CefRefPtr<CefBrowser> browser,
       CefRefPtr<CefDeviceChooserCallback> callback) override {
