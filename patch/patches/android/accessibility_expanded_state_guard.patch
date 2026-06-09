@@ -1,7 +1,7 @@
-diff --git a/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java b/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
+diff --git content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
 index 86388143fe..8d822bd274 100644
---- a/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
-+++ b/content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
+--- content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
++++ content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
 @@ -223,13 +223,17 @@ public class AccessibilityNodeInfoBuilder {
          node.setScrollable(scrollable);
          node.setSelected(selected);
