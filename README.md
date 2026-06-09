@@ -77,6 +77,11 @@ that gap.
 | Android Autofill (Proton Pass, Google) | Done |
 | Widevine DRM (Netflix, Disney+, Spotify) | Done |
 | Web Bluetooth / WebUSB / Web Serial device chooser (CefDeviceChooserHandler) | Done (0.5.0) |
+| WebAuthn / passkeys (navigator.credentials via Android Credential Manager) | Done (0.5.0) |
+| Web Share (navigator.share -> Android share sheet) | Done (0.5.0) |
+| Clipboard (navigator.clipboard read/write) | Done (0.5.0) |
+| Page snapshot to Bitmap (captureBitmap; OSR + Surface) | Done (0.5.0) |
+| Proxy configuration (CefRequestContext; setProxy/clearProxy) | Done (0.5.0) |
 
 ## Why Cefrium, not WebView?
 
@@ -111,6 +116,8 @@ Activity, no UI, no Surface required.
 | Autofill (password managers) | Yes | Yes |
 | Accessibility (TalkBack) | Yes | Yes |
 | Web Bluetooth / WebUSB / Web Serial | Yes (CefDeviceChooserHandler) | No |
+| WebAuthn / passkeys (web origin) | Yes (Credential Manager) | No |
+| Web Share to the system sheet | Yes (navigator.share) | No (needs app glue) |
 
 ### What is CEF?
 
