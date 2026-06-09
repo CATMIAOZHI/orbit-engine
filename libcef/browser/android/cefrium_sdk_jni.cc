@@ -1209,6 +1209,9 @@ class SdkDeviceChooserHandler : public CefDeviceChooserHandler {
       pending_[id] = callback;
       by_callback_[callback.get()] = id;
     }
+    LOGI("DeviceChooser: OnShow type=%d origin=%s id=%llu",
+         static_cast<int>(type), requesting_origin.ToString().c_str(),
+         (unsigned long long)id);
     JNIEnv* env = base::android::AttachCurrentThread();
     jclass cls = env->GetObjectClass(java_browser_);
     jmethodID mid = env->GetMethodID(cls, "onDeviceChooserShow",
@@ -1244,6 +1247,9 @@ class SdkDeviceChooserHandler : public CefDeviceChooserHandler {
       }
       id = it->second;
     }
+    LOGI("DeviceChooser: OnDeviceAdded id=%llu device_id='%s' name='%s'",
+         (unsigned long long)id, device_id.ToString().c_str(),
+         device_name.ToString().c_str());
     JNIEnv* env = base::android::AttachCurrentThread();
     jclass cls = env->GetObjectClass(java_browser_);
     jmethodID mid =
