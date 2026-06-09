@@ -80,6 +80,9 @@ that gap.
 | WebAuthn / passkeys (navigator.credentials via Android Credential Manager) | Done (0.5.0) |
 | Web Share (navigator.share -> Android share sheet) | Done (0.5.0) |
 | Clipboard (navigator.clipboard read/write) | Done (0.5.0) |
+| Payment Request / Google Pay (navigator PaymentRequest -> Android payment apps) | Done (0.5.0) |
+| Contact Picker (navigator.contacts.select) | Done (0.5.0) |
+| Screen capture (getDisplayMedia -> MediaProjection) | Done (0.5.0) |
 | Page snapshot to Bitmap (captureBitmap; OSR + Surface) | Done (0.5.0) |
 | Proxy configuration (CefRequestContext; setProxy/clearProxy) | Done (0.5.0) |
 
@@ -118,6 +121,8 @@ Activity, no UI, no Surface required.
 | Web Bluetooth / WebUSB / Web Serial | Yes (CefDeviceChooserHandler) | No |
 | WebAuthn / passkeys (web origin) | Yes (Credential Manager) | No |
 | Web Share to the system sheet | Yes (navigator.share) | No (needs app glue) |
+| Payment Request / Google Pay | Yes (on by default) | Opt-in, recent WebView only |
+| Contact Picker (navigator.contacts.select) | Yes (app-drawn) | No |
 
 ### What is CEF?
 
