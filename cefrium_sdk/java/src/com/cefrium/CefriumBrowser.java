@@ -721,6 +721,141 @@ public class CefriumBrowser {
         }
     }
 
+    // ── Device choosers (Web Bluetooth / WebUSB / Web Serial) ──
+
+    /** Device chooser kinds, passed to {@link DeviceChooserHandler}. */
+    public static final int DEVICE_BLUETOOTH = 0;
+    public static final int DEVICE_USB = 1;
+    public static final int DEVICE_SERIAL = 2;
+
+    /** A candidate device offered to a {@link DeviceChooserSession}. */
+    public static final class ChooserDevice {
+        /** Opaque id to pass to {@link DeviceChooserSession#select}. */
+        public final String id;
+        /** Human-readable label for the picker (may be empty). */
+        public final String name;
+
+        ChooserDevice(String id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+    }
+
+    /**
+     * A live device chooser. When a page calls {@code
+     * navigator.bluetooth.requestDevice()}, {@code navigator.usb.requestDevice()}
+     * or {@code navigator.serial.requestPort()} under a user gesture, the handler
+     * receives a session; candidate devices then stream in via {@link
+     * DeviceChooserHandler#onDeviceAdded}. The app presents its own picker and
+     * calls {@link #select} or {@link #cancel}. Exactly one of those should be
+     * called; further calls are ignored.
+     */
+    public interface DeviceChooserSession {
+        /** One of {@link #DEVICE_BLUETOOTH}, {@link #DEVICE_USB}, {@link #DEVICE_SERIAL}. */
+        int getType();
+
+        /** The origin (e.g. {@code "https://example.com"}) that requested a device. */
+        String getOrigin();
+
+        /** Continue the request with the chosen device (an id from {@link ChooserDevice}). */
+        void select(String deviceId);
+
+        /** Dismiss the chooser; the page's request promise rejects. */
+        void cancel();
+    }
+
+    /**
+     * Presents device chooser UI for the frontier web device APIs. Without a
+     * handler set, such requests are cancelled (the page promise rejects) &mdash;
+     * the engine has no built-in picker in this embedding. All methods are called
+     * on the UI thread.
+     */
+    public interface DeviceChooserHandler {
+        /** A chooser opened; present UI and keep {@code session} to resolve it. */
+        void onShowDeviceChooser(DeviceChooserSession session);
+
+        /**
+         * A candidate device became available (called repeatedly while a Bluetooth
+         * scan runs; once per present device for USB/Serial). May repeat for the
+         * same id to update its label.
+         */
+        void onDeviceAdded(DeviceChooserSession session, ChooserDevice device);
+
+        /** The engine closed the chooser (e.g. navigation); dismiss the picker. */
+        void onDeviceChooserClosed(DeviceChooserSession session);
+    }
+
+    private DeviceChooserHandler mDeviceChooserHandler;
+    private final java.util.concurrent.ConcurrentHashMap<Long, DeviceChooserSessionImpl>
+            mDeviceChooserSessions = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Sets the device chooser handler (null = cancel all device requests). */
+    public void setDeviceChooserHandler(DeviceChooserHandler handler) {
+        mDeviceChooserHandler = handler;
+        if (mNativePtr != 0) {
+            nativeSetDisplayCallback(mNativePtr, this);
+            nativeSetDeviceChooserHandler(mNativePtr, handler != null);
+        }
+    }
+
+    private final class DeviceChooserSessionImpl implements DeviceChooserSession {
+        private final long mId;
+        private final int mType;
+        private final String mOrigin;
+        private boolean mResolved;
+
+        DeviceChooserSessionImpl(long id, int type, String origin) {
+            mId = id;
+            mType = type;
+            mOrigin = origin;
+        }
+
+        @Override public int getType() { return mType; }
+        @Override public String getOrigin() { return mOrigin; }
+
+        @Override public void select(String deviceId) {
+            if (mResolved) return;
+            mResolved = true;
+            if (mNativePtr != 0) nativeDeviceChooserSelect(mNativePtr, mId, deviceId);
+        }
+
+        @Override public void cancel() {
+            if (mResolved) return;
+            mResolved = true;
+            if (mNativePtr != 0) nativeDeviceChooserCancel(mNativePtr, mId);
+        }
+    }
+
+    // Called from native (UI thread) when a page requests a device.
+    private void onDeviceChooserShow(long id, int type, String origin) {
+        DeviceChooserHandler h = mDeviceChooserHandler;
+        if (h == null) {
+            if (mNativePtr != 0) nativeDeviceChooserCancel(mNativePtr, id);
+            return;
+        }
+        DeviceChooserSessionImpl session = new DeviceChooserSessionImpl(id, type, origin);
+        mDeviceChooserSessions.put(id, session);
+        h.onShowDeviceChooser(session);
+    }
+
+    // Called from native (UI thread) as a candidate device becomes available.
+    private void onDeviceChooserDeviceAdded(long id, String deviceId, String deviceName) {
+        DeviceChooserHandler h = mDeviceChooserHandler;
+        DeviceChooserSessionImpl session = mDeviceChooserSessions.get(id);
+        if (h != null && session != null) {
+            h.onDeviceAdded(session, new ChooserDevice(deviceId, deviceName));
+        }
+    }
+
+    // Called from native (UI thread) when the engine closes the chooser.
+    private void onDeviceChooserClosed(long id) {
+        DeviceChooserHandler h = mDeviceChooserHandler;
+        DeviceChooserSessionImpl session = mDeviceChooserSessions.remove(id);
+        if (h != null && session != null) {
+            h.onDeviceChooserClosed(session);
+        }
+    }
+
     // ── SSL / certificate errors ──
 
     /** Receives the app's proceed/cancel decision for an invalid certificate. */
@@ -1315,6 +1450,9 @@ public class CefriumBrowser {
     private static native void nativeJsDialogResult(long nativePtr, long token, boolean success, String userInput);
     private static native void nativeRespondPermission(long nativePtr, long promptId, boolean grant);
     private static native void nativeSetContentSetting(long nativePtr, String requestingUrl, int permission, int value);
+    private static native void nativeSetDeviceChooserHandler(long nativePtr, boolean enabled);
+    private static native void nativeDeviceChooserSelect(long nativePtr, long id, String deviceId);
+    private static native void nativeDeviceChooserCancel(long nativePtr, long id);
     private static native void nativeRespondSslError(long nativePtr, long id, boolean proceed);
     private static native void nativeRespondHttpAuth(long nativePtr, long id, String username, String password);
     private static native boolean nativeCanGoBack(long nativePtr);
