@@ -9,6 +9,7 @@ import androidx.test.rule.ActivityTestRule;
 import androidx.test.rule.GrantPermissionRule;
 
 import com.cefrium.CefriumBrowser;
+import com.cefrium.itest.LocalHttpServer;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -46,14 +47,14 @@ public class CefriumPermissionTest {
     /** A handler that grants must be consulted, and geolocation must proceed
      *  past the permission gate (result is NOT PERMISSION_DENIED, no crash). */
     // Distinct secure origins per test: geolocation decisions persist per-origin
-    // in the shared profile, so reusing one origin would let the deny test's
-    // persisted block poison the grant test (and vice versa).
-    private static final String GRANT_URL = "https://cefrium.com/";
-    private static final String DENY_URL = "https://codeberg.org/";
+    // in the shared profile, so the grant and deny tests must not share an origin.
+    // Each runGeolocation() starts its own loopback server -- a fresh
+    // 127.0.0.1:<port> origin (localhost is the secure context geolocation needs),
+    // so the two tests are isolated, with no external site.
 
     @Test
     public void testGeolocationGrantedReachesProvider() throws Exception {
-        String geo = runGeolocation(/*grant=*/true, GRANT_URL);
+        String geo = runGeolocation(/*grant=*/true);
         // Granted: must not be permission-denied (err code 1). With no OS
         // location permission in the harness it will be err:2 (unavailable) or
         // err:3 (timeout), or geo:ok — any of these proves the gate was passed.
@@ -65,18 +66,21 @@ public class CefriumPermissionTest {
     /** A handler that denies must produce PERMISSION_DENIED (err code 1). */
     @Test
     public void testGeolocationDenied() throws Exception {
-        String geo = runGeolocation(/*grant=*/false, DENY_URL);
+        String geo = runGeolocation(/*grant=*/false);
         Assert.assertNotNull("no geolocation result (request hung/crashed)", geo);
         Assert.assertTrue("denied request should be PERMISSION_DENIED: " + geo,
                 geo.startsWith("geo:err:1"));
     }
 
-    private String runGeolocation(boolean grant, String url) throws Exception {
+    private String runGeolocation(boolean grant) throws Exception {
         Activity activity = activityRule.getActivity();
         final CountDownLatch got = new CountDownLatch(1);
         final AtomicReference<String> result = new AtomicReference<>(null);
         final AtomicInteger seenPermissions = new AtomicInteger(-1);
         final boolean[] probed = {false};
+        final LocalHttpServer server = new LocalHttpServer(
+                "<!doctype html><title>geo</title><body>geo</body>");
+        final String url = server.url();
 
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
@@ -111,6 +115,7 @@ public class CefriumPermissionTest {
         });
 
         boolean arrived = got.await(40, TimeUnit.SECONDS);
+        server.close();
         // The handler must have been consulted with the geolocation bit set.
         Assert.assertTrue("PermissionHandler was not consulted (perms="
                         + seenPermissions.get() + ")",
