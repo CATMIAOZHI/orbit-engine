@@ -53,6 +53,7 @@
 #include "include/cef_keyboard_handler.h"
 #include "include/cef_life_span_handler.h"
 #include "include/cef_load_handler.h"
+#include "include/cef_device_chooser_handler.h"
 #include "include/cef_permission_handler.h"
 #include "include/cef_print_handler.h"
 #include "include/cef_process_message.h"
@@ -84,6 +85,16 @@ class CefClient : public virtual CefBaseRefCounted {
   ///
   /*--cef()--*/
   virtual CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() {
+    return nullptr;
+  }
+
+  ///
+  /// Return the handler for device chooser requests (the frontier web device
+  /// APIs: WebUSB, Web Bluetooth, Web Serial). If no handler is provided such
+  /// requests are cancelled.
+  ///
+  /*--cef(added=experimental)--*/
+  virtual CefRefPtr<CefDeviceChooserHandler> GetDeviceChooserHandler() {
     return nullptr;
   }
 
