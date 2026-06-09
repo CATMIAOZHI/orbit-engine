@@ -14,6 +14,7 @@
 #include "content/public/browser/web_contents_view_delegate.h"
 
 class ChromeBrowserMainExtraPartsCef;
+class CefBluetoothDelegate;
 
 // CEF override of ChromeContentBrowserClient.
 class ChromeContentBrowserClientCef : public ChromeContentBrowserClient {
@@ -144,6 +145,7 @@ class ChromeContentBrowserClientCef : public ChromeContentBrowserClient {
       mojo::BinderMapWithContext<content::RenderFrameHost*>* map) override;
   std::unique_ptr<content::WebContentsViewDelegate> GetWebContentsViewDelegate(
       content::WebContents* web_contents) override;
+  content::BluetoothDelegate* GetBluetoothDelegate() override;
 
   CefRefPtr<CefRequestContextImpl> request_context() const;
 
@@ -156,6 +158,7 @@ class ChromeContentBrowserClientCef : public ChromeContentBrowserClient {
   CreateWebContentsViewDelegate(content::WebContents* web_contents);
 
   raw_ptr<ChromeBrowserMainExtraPartsCef> browser_main_parts_ = nullptr;
+  std::unique_ptr<CefBluetoothDelegate> cef_bluetooth_delegate_;
 };
 
 #endif  // CEF_LIBCEF_BROWSER_CHROME_CHROME_CONTENT_BROWSER_CLIENT_CEF_
