@@ -8,7 +8,7 @@
 # by hand. See the translator.README.txt file in the tools directory for
 # more information.
 #
-# $hash=f60f3f389b5f7dce8be4bff5ff16474bad33b26d$
+# $hash=c79c1eea442b76ada4514a56a60853c559b4b1f9$
 #
 
 {
@@ -28,6 +28,7 @@
       'include/cef_context_menu_handler.h',
       'include/cef_cookie.h',
       'include/cef_crash_util.h',
+      'include/cef_device_chooser_handler.h',
       'include/cef_devtools_message_observer.h',
       'include/cef_dialog_handler.h',
       'include/cef_display_handler.h',
@@ -134,6 +135,7 @@
       'include/capi/cef_context_menu_handler_capi.h',
       'include/capi/cef_cookie_capi.h',
       'include/capi/cef_crash_util_capi.h',
+      'include/capi/cef_device_chooser_handler_capi.h',
       'include/capi/cef_devtools_message_observer_capi.h',
       'include/capi/cef_dialog_handler_capi.h',
       'include/capi/cef_display_handler_capi.h',
@@ -240,6 +242,7 @@
       'include/capi/cef_context_menu_handler_capi_versions.h',
       'include/capi/cef_cookie_capi_versions.h',
       'include/capi/cef_crash_util_capi_versions.h',
+      'include/capi/cef_device_chooser_handler_capi_versions.h',
       'include/capi/cef_devtools_message_observer_capi_versions.h',
       'include/capi/cef_dialog_handler_capi_versions.h',
       'include/capi/cef_display_handler_capi_versions.h',
@@ -430,6 +433,10 @@
       'libcef_dll/ctocpp/delete_cookies_callback_ctocpp.h',
       'libcef_dll/ctocpp/dev_tools_message_observer_ctocpp.cc',
       'libcef_dll/ctocpp/dev_tools_message_observer_ctocpp.h',
+      'libcef_dll/cpptoc/device_chooser_callback_cpptoc.cc',
+      'libcef_dll/cpptoc/device_chooser_callback_cpptoc.h',
+      'libcef_dll/ctocpp/device_chooser_handler_ctocpp.cc',
+      'libcef_dll/ctocpp/device_chooser_handler_ctocpp.h',
       'libcef_dll/ctocpp/dialog_handler_ctocpp.cc',
       'libcef_dll/ctocpp/dialog_handler_ctocpp.h',
       'libcef_dll/cpptoc/dictionary_value_cpptoc.cc',
@@ -802,6 +809,10 @@
       'libcef_dll/cpptoc/delete_cookies_callback_cpptoc.h',
       'libcef_dll/cpptoc/dev_tools_message_observer_cpptoc.cc',
       'libcef_dll/cpptoc/dev_tools_message_observer_cpptoc.h',
+      'libcef_dll/ctocpp/device_chooser_callback_ctocpp.cc',
+      'libcef_dll/ctocpp/device_chooser_callback_ctocpp.h',
+      'libcef_dll/cpptoc/device_chooser_handler_cpptoc.cc',
+      'libcef_dll/cpptoc/device_chooser_handler_cpptoc.h',
       'libcef_dll/cpptoc/dialog_handler_cpptoc.cc',
       'libcef_dll/cpptoc/dialog_handler_cpptoc.h',
       'libcef_dll/ctocpp/dictionary_value_ctocpp.cc',

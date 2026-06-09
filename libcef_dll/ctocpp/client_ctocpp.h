@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=1d45a91b8ea9675876644d53b006358e1d3125b3$
+// $hash=118dbaa292ba7619f3d6ab6edb3d37689fe141bf$
 //
 
 #ifndef CEF_LIBCEF_DLL_CTOCPP_CLIENT_CTOCPP_H_
@@ -36,6 +36,7 @@ class CefClient_0_CToCpp
   CefRefPtr<CefAudioHandler> GetAudioHandler() override;
   CefRefPtr<CefCommandHandler> GetCommandHandler() override;
   CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override;
+  CefRefPtr<CefDeviceChooserHandler> GetDeviceChooserHandler() override;
   CefRefPtr<CefDialogHandler> GetDialogHandler() override;
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override;
   CefRefPtr<CefDownloadHandler> GetDownloadHandler() override;
@@ -54,7 +55,39 @@ class CefClient_0_CToCpp
   bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefProcessId source_process, CefRefPtr<CefProcessMessage> message) override;
 };
 
-constexpr auto CefClientCToCpp_Wrap = CefClient_0_CToCpp::Wrap;
-constexpr auto CefClientCToCpp_Unwrap = CefClient_0_CToCpp::Unwrap;
+// Wrap a C structure with a C++ class at API version 999999.
+// This class may be instantiated and accessed DLL-side only.
+class CefClient_999999_CToCpp
+    : public CefCToCppRefCounted<CefClient_999999_CToCpp, CefClient, cef_client_999999_t> {
+ public:
+  CefClient_999999_CToCpp();
+  virtual ~CefClient_999999_CToCpp();
+
+  // CefClient methods.
+  CefRefPtr<CefAudioHandler> GetAudioHandler() override;
+  CefRefPtr<CefCommandHandler> GetCommandHandler() override;
+  CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override;
+  CefRefPtr<CefDeviceChooserHandler> GetDeviceChooserHandler() override;
+  CefRefPtr<CefDialogHandler> GetDialogHandler() override;
+  CefRefPtr<CefDisplayHandler> GetDisplayHandler() override;
+  CefRefPtr<CefDownloadHandler> GetDownloadHandler() override;
+  CefRefPtr<CefDragHandler> GetDragHandler() override;
+  CefRefPtr<CefFindHandler> GetFindHandler() override;
+  CefRefPtr<CefFocusHandler> GetFocusHandler() override;
+  CefRefPtr<CefFrameHandler> GetFrameHandler() override;
+  CefRefPtr<CefPermissionHandler> GetPermissionHandler() override;
+  CefRefPtr<CefJSDialogHandler> GetJSDialogHandler() override;
+  CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override;
+  CefRefPtr<CefLifeSpanHandler> GetLifeSpanHandler() override;
+  CefRefPtr<CefLoadHandler> GetLoadHandler() override;
+  CefRefPtr<CefPrintHandler> GetPrintHandler() override;
+  CefRefPtr<CefRenderHandler> GetRenderHandler() override;
+  CefRefPtr<CefRequestHandler> GetRequestHandler() override;
+  bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefProcessId source_process, CefRefPtr<CefProcessMessage> message) override;
+};
+
+// Helpers to return objects at the globally configured API version.
+CefRefPtr<CefClient> CefClientCToCpp_Wrap(cef_client_0_t* s);
+cef_client_0_t* CefClientCToCpp_Unwrap(CefRefPtr<CefClient> c);
 
 #endif  // CEF_LIBCEF_DLL_CTOCPP_CLIENT_CTOCPP_H_

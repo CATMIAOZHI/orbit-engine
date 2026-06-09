@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=109103cd5be5c5f4cbf925bf359b676a1a9758b7$
+// $hash=534423e013c5ddb80107731182e421b54fd959a1$
 //
 
 #include "include/cef_api_hash.h"
@@ -20,6 +20,7 @@
 #include "libcef_dll/ctocpp/client_ctocpp.h"
 #include "libcef_dll/ctocpp/command_handler_ctocpp.h"
 #include "libcef_dll/ctocpp/context_menu_handler_ctocpp.h"
+#include "libcef_dll/ctocpp/device_chooser_handler_ctocpp.h"
 #include "libcef_dll/ctocpp/dialog_handler_ctocpp.h"
 #include "libcef_dll/ctocpp/display_handler_ctocpp.h"
 #include "libcef_dll/ctocpp/download_handler_ctocpp.h"
@@ -35,6 +36,30 @@
 #include "libcef_dll/ctocpp/print_handler_ctocpp.h"
 #include "libcef_dll/ctocpp/render_handler_ctocpp.h"
 #include "libcef_dll/ctocpp/request_handler_ctocpp.h"
+
+// HELPER FUNCTIONS - Do not edit by hand.
+
+CefRefPtr<CefClient> CefClientCToCpp_Wrap(cef_client_0_t* s) {
+  const int version = cef_api_version();
+  if (version >= 999999) {
+    return CefClient_999999_CToCpp::Wrap(reinterpret_cast<cef_client_999999_t*>(s));
+  }
+  if (version >= 0) {
+    return CefClient_0_CToCpp::Wrap(s);
+  }
+  NOTREACHED() << __func__ << " called with invalid version " << version;
+}
+
+cef_client_0_t* CefClientCToCpp_Unwrap(CefRefPtr<CefClient> c) {
+  const int version = cef_api_version();
+  if (version >= 999999) {
+    return reinterpret_cast<cef_client_0_t*>(CefClient_999999_CToCpp::Unwrap(c));
+  }
+  if (version >= 0) {
+    return CefClient_0_CToCpp::Unwrap(c);
+  }
+  NOTREACHED() << __func__ << " called with invalid version " << version;
+}
 
 
 // VIRTUAL METHODS FOR VERSION 0 - Body may be edited by hand.
@@ -82,6 +107,11 @@ NO_SANITIZE("cfi-icall") CefRefPtr<CefContextMenuHandler> CefClient_0_CToCpp::Ge
 
   // Return type: refptr_same
   return CefContextMenuHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefDeviceChooserHandler> CefClient_0_CToCpp::GetDeviceChooserHandler() {
+  // AUTO-GENERATED CONTENT
+  NOTREACHED() << __func__ << " should not be called at version 0";
 }
 
 NO_SANITIZE("cfi-icall") CefRefPtr<CefDialogHandler> CefClient_0_CToCpp::GetDialogHandler() {
@@ -348,7 +378,7 @@ NO_SANITIZE("cfi-icall") bool CefClient_0_CToCpp::OnProcessMessageReceived(CefRe
 
 CefClient_0_CToCpp::CefClient_0_CToCpp() {
   const int version = cef_api_version();
-  LOG_IF(FATAL, version < 0) << __func__ << " called with invalid version " << version;
+  LOG_IF(FATAL, version < 0 || version >= 999999) << __func__ << " called with invalid version " << version;
 }
 
 // DESTRUCTOR FOR VERSION 0 - Do not edit by hand.
@@ -361,5 +391,346 @@ template<> cef_client_0_t* CefCToCppRefCounted<CefClient_0_CToCpp, CefClient, ce
 }
 
 template<> CefWrapperType CefCToCppRefCounted<CefClient_0_CToCpp, CefClient, cef_client_0_t>::kWrapperType = WT_CLIENT;
+
+
+// VIRTUAL METHODS FOR VERSION 999999 - Body may be edited by hand.
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefAudioHandler> CefClient_999999_CToCpp::GetAudioHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_audio_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_audio_handler(_struct);
+
+  // Return type: refptr_same
+  return CefAudioHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefCommandHandler> CefClient_999999_CToCpp::GetCommandHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_command_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_command_handler(_struct);
+
+  // Return type: refptr_same
+  return CefCommandHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefContextMenuHandler> CefClient_999999_CToCpp::GetContextMenuHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_context_menu_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_context_menu_handler(_struct);
+
+  // Return type: refptr_same
+  return CefContextMenuHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefDeviceChooserHandler> CefClient_999999_CToCpp::GetDeviceChooserHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_device_chooser_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_device_chooser_handler(_struct);
+
+  // Return type: refptr_same
+  return CefDeviceChooserHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefDialogHandler> CefClient_999999_CToCpp::GetDialogHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_dialog_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_dialog_handler(_struct);
+
+  // Return type: refptr_same
+  return CefDialogHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefDisplayHandler> CefClient_999999_CToCpp::GetDisplayHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_display_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_display_handler(_struct);
+
+  // Return type: refptr_same
+  return CefDisplayHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefDownloadHandler> CefClient_999999_CToCpp::GetDownloadHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_download_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_download_handler(_struct);
+
+  // Return type: refptr_same
+  return CefDownloadHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefDragHandler> CefClient_999999_CToCpp::GetDragHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_drag_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_drag_handler(_struct);
+
+  // Return type: refptr_same
+  return CefDragHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefFindHandler> CefClient_999999_CToCpp::GetFindHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_find_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_find_handler(_struct);
+
+  // Return type: refptr_same
+  return CefFindHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefFocusHandler> CefClient_999999_CToCpp::GetFocusHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_focus_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_focus_handler(_struct);
+
+  // Return type: refptr_same
+  return CefFocusHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefFrameHandler> CefClient_999999_CToCpp::GetFrameHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_frame_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_frame_handler(_struct);
+
+  // Return type: refptr_same
+  return CefFrameHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefPermissionHandler> CefClient_999999_CToCpp::GetPermissionHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_permission_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_permission_handler(_struct);
+
+  // Return type: refptr_same
+  return CefPermissionHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefJSDialogHandler> CefClient_999999_CToCpp::GetJSDialogHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_jsdialog_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_jsdialog_handler(_struct);
+
+  // Return type: refptr_same
+  return CefJSDialogHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefKeyboardHandler> CefClient_999999_CToCpp::GetKeyboardHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_keyboard_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_keyboard_handler(_struct);
+
+  // Return type: refptr_same
+  return CefKeyboardHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefLifeSpanHandler> CefClient_999999_CToCpp::GetLifeSpanHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_life_span_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_life_span_handler(_struct);
+
+  // Return type: refptr_same
+  return CefLifeSpanHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefLoadHandler> CefClient_999999_CToCpp::GetLoadHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_load_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_load_handler(_struct);
+
+  // Return type: refptr_same
+  return CefLoadHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefPrintHandler> CefClient_999999_CToCpp::GetPrintHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_print_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_print_handler(_struct);
+
+  // Return type: refptr_same
+  return CefPrintHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefRenderHandler> CefClient_999999_CToCpp::GetRenderHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_render_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_render_handler(_struct);
+
+  // Return type: refptr_same
+  return CefRenderHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefRequestHandler> CefClient_999999_CToCpp::GetRequestHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_request_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_request_handler(_struct);
+
+  // Return type: refptr_same
+  return CefRequestHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") bool CefClient_999999_CToCpp::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefProcessId source_process, CefRefPtr<CefProcessMessage> message) {
+  auto* _struct = GetStruct();
+  if (!_struct->on_process_message_received) {
+    return false;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: browser; type: refptr_diff
+  DCHECK(browser.get());
+  if (!browser.get()) {
+    return false;
+  }
+  // Verify param: frame; type: refptr_diff
+  DCHECK(frame.get());
+  if (!frame.get()) {
+    return false;
+  }
+  // Verify param: message; type: refptr_diff
+  DCHECK(message.get());
+  if (!message.get()) {
+    return false;
+  }
+
+  // Execute
+  int _retval = _struct->on_process_message_received(_struct,
+      CefBrowserCppToC_Wrap(browser),
+      CefFrameCppToC_Wrap(frame),
+      source_process,
+      CefProcessMessageCppToC_Wrap(message));
+
+  // Return type: bool
+  return _retval?true:false;
+}
+
+// CONSTRUCTOR FOR VERSION 999999 - Do not edit by hand.
+
+CefClient_999999_CToCpp::CefClient_999999_CToCpp() {
+  const int version = cef_api_version();
+  LOG_IF(FATAL, version < 999999) << __func__ << " called with invalid version " << version;
+}
+
+// DESTRUCTOR FOR VERSION 999999 - Do not edit by hand.
+
+CefClient_999999_CToCpp::~CefClient_999999_CToCpp() {
+}
+
+template<> cef_client_999999_t* CefCToCppRefCounted<CefClient_999999_CToCpp, CefClient, cef_client_999999_t>::UnwrapDerived(CefWrapperType type, CefClient* c) {
+  NOTREACHED() << __func__ << " called with unexpected class type " << type;
+}
+
+template<> CefWrapperType CefCToCppRefCounted<CefClient_999999_CToCpp, CefClient, cef_client_999999_t>::kWrapperType = WT_CLIENT;
 
 
