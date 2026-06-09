@@ -8,6 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.rule.ActivityTestRule;
 
 import com.cefrium.CefriumBrowser;
+import com.cefrium.itest.LocalHttpServer;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -35,18 +36,19 @@ public class CefriumContentSettingTest {
 
     // Distinct secure origins: notification decisions persist per-origin in the
     // shared profile, so the allow and block probes must not share an origin.
-    private static final String ALLOW_URL = "https://cefrium.com/";
-    private static final String BLOCK_URL = "https://codeberg.org/";
+    // Distinct secure origins per test: notification decisions persist per-origin
+    // in the shared profile, so each probe starts its own loopback server -- a
+    // fresh 127.0.0.1:<port> secure origin -- with no external site.
 
     @Test
     public void testPreGrantMakesNotificationPermissionGranted() throws Exception {
-        String perm = probeNotificationPermission(ALLOW_URL, CefriumBrowser.SETTING_ALLOW);
+        String perm = probeNotificationPermission(CefriumBrowser.SETTING_ALLOW);
         Assert.assertEquals("pre-granted origin should report granted", "granted", perm);
     }
 
     @Test
     public void testPreBlockMakesNotificationPermissionDenied() throws Exception {
-        String perm = probeNotificationPermission(BLOCK_URL, CefriumBrowser.SETTING_BLOCK);
+        String perm = probeNotificationPermission(CefriumBrowser.SETTING_BLOCK);
         Assert.assertEquals("pre-blocked origin should report denied", "denied", perm);
     }
 
@@ -54,12 +56,15 @@ public class CefriumContentSettingTest {
      * Applies [value] to PERMISSION_NOTIFICATIONS for [url]'s origin, loads the
      * page, and reads back Notification.permission via the JS bridge.
      */
-    private String probeNotificationPermission(String url, int value) throws Exception {
+    private String probeNotificationPermission(int value) throws Exception {
         Activity activity = activityRule.getActivity();
         final CountDownLatch got = new CountDownLatch(1);
         final AtomicReference<String> result = new AtomicReference<>(null);
         final boolean[] probed = {false};
-        final String origin = originOf(url);
+        final LocalHttpServer server = new LocalHttpServer(
+                "<!doctype html><title>n</title><body>n</body>");
+        final String origin = server.origin();
+        final String url = server.url();
 
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
@@ -95,18 +100,8 @@ public class CefriumContentSettingTest {
         });
 
         boolean arrived = got.await(40, TimeUnit.SECONDS);
+        server.close();
         Assert.assertTrue("Notification.permission probe never returned (hung/crashed)", arrived);
         return result.get();
-    }
-
-    private static String originOf(String url) {
-        try {
-            java.net.URI u = new java.net.URI(url);
-            String o = u.getScheme() + "://" + u.getHost();
-            if (u.getPort() > 0) o += ":" + u.getPort();
-            return o;
-        } catch (Exception e) {
-            return url;
-        }
     }
 }
