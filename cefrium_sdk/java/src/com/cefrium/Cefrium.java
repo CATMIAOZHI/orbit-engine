@@ -25,7 +25,7 @@ import org.chromium.ui.base.ResourceBundle;
  *
  * <pre>
  * Mozilla/5.0 (Linux; Android ...) AppleWebKit/537.36 (KHTML, like Gecko)
- *     Chrome/148.0.7778.167 Cefrium/1.0 Mobile Safari/537.36
+ *     Chrome/149.0.7827.102 Cefrium/1.0 Mobile Safari/537.36
  * </pre>
  *
  * <p>This ensures full site compatibility while transparently identifying
@@ -37,7 +37,7 @@ import org.chromium.ui.base.ResourceBundle;
  * // Custom product string (replaces the default):
  * CommandLine.getInstance().appendSwitchWithValue(
  *     "user-agent-product",
- *     "Chrome/148.0.7778.167 MyApp/2.0 Mobile");
+ *     "Chrome/149.0.7827.102 MyApp/2.0 Mobile");
  * Cefrium.initialize(context);
  * </pre>
  *
@@ -235,7 +235,7 @@ public final class Cefrium {
     }
 
     /**
-     * @return the bundled Chromium engine version, e.g. {@code "148.0.7778.167"}.
+     * @return the bundled Chromium engine version, e.g. {@code "149.0.7827.102"}.
      */
     public static String getChromiumVersion() {
         return CHROMIUM_VERSION;
