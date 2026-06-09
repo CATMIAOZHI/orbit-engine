@@ -16,6 +16,7 @@
 #include "cef/include/cef_life_span_handler.h"
 #include "cef/include/cef_load_handler.h"
 #include "cef/include/cef_render_handler.h"
+#include "components/version_info/version_info.h"
 
 #include <android/log.h>
 
@@ -162,9 +163,13 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   std::string locales_dir = std::string(data_dir) + "/locales";
   CefString(&settings.locales_dir_path).FromASCII(locales_dir.c_str());
 
-  // Identify as Chrome Android so sites serve full-featured content.
-  CefString(&settings.user_agent_product)
-      .FromASCII("Chrome/148.0.7778.167 Cefrium/1.0 Mobile");
+  // Identify as Chrome Android so sites serve full-featured content. The Chrome
+  // version token is derived from the actual engine version so it never goes
+  // stale on an engine bump.
+  std::string ua_product =
+      "Chrome/" + std::string(version_info::GetVersionNumber()) +
+      " Cefrium/1.0 Mobile";
+  CefString(&settings.user_agent_product).FromASCII(ua_product.c_str());
 
   LOGI("Calling CefInitialize...");
   bool result = CefInitialize(main_args, settings, nullptr, nullptr);
