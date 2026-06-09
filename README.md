@@ -38,7 +38,7 @@ that gap.
 | Scroll-driven CSS animations | Done |
 | Mobile viewport (device scale factor) | Done |
 | Ad blocking (network-level request interception) | Done |
-| User-Agent: Chrome/148 Cefrium/1.0 | Done |
+| User-Agent: Chrome/149 Cefrium/1.0 (derived from engine version) | Done |
 | H.264/AAC video (proprietary codecs build) | Done |
 | **Video playback (Surface rendering)** | **Done** |
 | **Audio output** | **Done** |
@@ -84,7 +84,7 @@ may be outdated, broken by manufacturer customization, or missing features
 your app depends on. Cefrium solves three problems that WebView cannot:
 
 **1. Version consistency.** Cefrium pins to a specific Chromium version
-(currently 148). Your web code runs identically on every device, regardless
+(currently 149). Your web code runs identically on every device, regardless
 of the system WebView version. No more "works on Pixel, breaks on Samsung."
 
 **2. Full network control.** WebView's `shouldInterceptRequest` is limited
@@ -100,7 +100,7 @@ Activity, no UI, no Surface required.
 
 | Capability | Cefrium | Android WebView |
 |------------|---------|-----------------|
-| Chromium version control | Pinned (148) | Varies by device |
+| Chromium version control | Pinned (149) | Varies by device |
 | Off-screen rendering (pixel buffer) | Yes (OnPaint) | No |
 | Network-level ad blocking | Yes (CefRequestHandler) | Limited (shouldInterceptRequest) |
 | Multi-process control | Yes | No |
@@ -125,7 +125,7 @@ Android.
   framework, no X11, no Wayland
 - **Multi-process** with renderer running as an Android `Service`,
   replacing Unix `fork()`/`execve()`
-- **20 Android-specific Chromium patches** for Android adaptations, managed via
+- **21 Android-specific Chromium patches** for Android adaptations, managed via
   CEF's existing patch infrastructure (`cef/patch/patches/android/`)
 - **Gradle Plugin** generates R.java for Chromium packages in consumer
   projects, solving the multi-package resource ID problem
@@ -150,7 +150,7 @@ Cefrium is built from three deliberately-tracked source inputs:
   [codeberg.org/cefrium/cef-android](https://codeberg.org/cefrium/cef-android).
 - **Patches** - applied to the Chromium tree by `cef/cefrium_sdk/apply-patches.py`
   (a patcher.py wrapper that activates the android condition): CEF's own
-  Chromium patches plus **20 Android-specific** patches
+  Chromium patches plus **21 Android-specific** patches
   (`cef/patch/patches/android/`, all registered in `patch/patch.cfg`). **No Debian
   Chromium patches** - only CEF + Android adaptations.
 
@@ -396,7 +396,7 @@ cef/
 |-- cefrium_compose/               # Jetpack Compose wrapper (cefrium-compose.aar)
 |-- cefrium_instrumentation_test/  # On-device instrumented test harness (SDK + Compose)
 |-- tests/cef_android_test/        # Test APK
-`-- patch/patches/android/         # 20 Android-specific Chromium patches
+`-- patch/patches/android/         # 21 Android-specific Chromium patches
 ```
 
 ## Testing
@@ -477,7 +477,7 @@ Cefrium is in early validation.
 
 **What Cefrium gives you:** A complete Chromium engine under your control,
 with the same CEF API that powers Steam, Spotify, and Discord - now on
-Android. Every commit is tested on real devices. All 20 Chromium patches
+Android. Every commit is tested on real devices. All 21 Chromium patches
 are auditable in `patch/patches/android/`.
 
 **What you should know:**
