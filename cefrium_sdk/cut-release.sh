@@ -50,6 +50,10 @@ gate() { # human confirmation for an irreversible step
 cd "$SRC"
 
 if run patches; then hdr "patches + touch"
+  # Gate: every stored patch must be -p0 / no-prefix (patcher applies with -p0).
+  # A git-default a/b-prefixed patch fails on a clean apply -- invisible on an
+  # incremental tree. Fail before applying. See cef/PATCHING.md.
+  cef/cefrium_sdk/check-patch-format.sh
   # apply-patches.py sets the illegal 'target_os=="android"' condition key the
   # shell cannot (see its header); plain patcher.py would skip the Android set.
   python3 cef/cefrium_sdk/apply-patches.py || true   # known-fuzz core patches report "failed" already-applied; benign
