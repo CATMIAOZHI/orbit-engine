@@ -80,9 +80,20 @@ if run sync; then hdr "gclient sync to $CTAG (DESTRUCTIVE: resets chromium/src w
   gate "reset chromium/src to clean $CTAG and gclient sync (downloads; ~hours)"
   echo "  reverting chromium/src patched files to clean state (patches are in cef/, safe)..."
   git -C "$SRC" fetch --tags origin "refs/tags/$CTAG"
-  git -C "$SRC" -c advice.detachedHead=false checkout "refs/tags/$CTAG"   # discards applied patches
+  # -f is REQUIRED: after any build the tree carries our applied Chromium patches
+  # (modified tracked files), so a plain checkout aborts with "local changes would
+  # be overwritten". Forcing discards those working-tree mods -- safe because the
+  # patch SOURCES live in cef/patch/ (committed) and are re-applied in the apply
+  # phase; cef/ and out/ are nested/gitignored so checkout never touches them.
+  git -C "$SRC" -c advice.detachedHead=false checkout -f "refs/tags/$CTAG"  # discards applied patches
   git -C "$SRC" clean -fd -e '/cef' -e '/out'                              # keep cef/ and out/
-  ( cd "$ROOT/depot_tools" && cd "$SRC" && gclient sync --no-history -D )
+  # --force --reset: gclient-managed deps (third_party/dawn, angle, ...) are
+  # SEPARATE git checkouts; the checkout -f above only reset the main src tree, so
+  # a dep left dirty by a prior sync/build makes gclient refuse ("you have
+  # uncommitted changes"). --reset cleans each dep to its DEPS pin first. Safe: our
+  # CEF patches only target main-src files (incl. third_party/blink, which lives IN
+  # main src), never a separate dep repo, so nothing of ours is discarded here.
+  ( cd "$ROOT/depot_tools" && cd "$SRC" && gclient sync --no-history -D --force --reset )
   echo "  synced to $CTAG."
   # CRITICAL: a BUILD-number bump leaves STALE Java build metadata
   # (build_config.json + turbine graph) in any pre-existing out/ dir. That stale
