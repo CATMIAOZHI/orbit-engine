@@ -1,0 +1,63 @@
+diff --git components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManHelper.java components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManHelper.java
+index fb9ad22..4169484 100644
+--- components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManHelper.java
++++ components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManHelper.java
+@@ -236,7 +236,17 @@ public class CredManHelper {
+         assumeNonNull(context);
+         final CredentialManager manager =
+                 (CredentialManager) context.getSystemService(Context.CREDENTIAL_SERVICE);
+-        manager.createCredential(context, request, null, context.getMainExecutor(), receiver);
++        try {
++            manager.createCredential(
++                    context, request, null, context.getMainExecutor(), receiver);
++        } catch (RuntimeException e) {
++            // An embedder lacking CREDENTIAL_MANAGER_SET_ORIGIN (or otherwise
++            // unable to call CredentialManager) gets a SecurityException here;
++            // left uncaught it is fatal across the JNI boundary. Fail the
++            // request gracefully instead.
++            logError(TAG, "CredMan createCredential threw: " + e);
++            return AuthenticatorStatus.NOT_ALLOWED_ERROR;
++        }
+         mMetricsHelper.recordCredManCreateRequestHistogram(CredManCreateRequestEnum.SENT_REQUEST);
+         return AuthenticatorStatus.SUCCESS;
+     }
+@@ -423,8 +433,19 @@ public class CredManHelper {
+         assumeNonNull(context);
+         final CredentialManager manager =
+                 (CredentialManager) context.getSystemService(Context.CREDENTIAL_SERVICE);
+-        manager.prepareGetCredential(
+-                getCredentialRequest, null, context.getMainExecutor(), receiver);
++        try {
++            manager.prepareGetCredential(
++                    getCredentialRequest, null, context.getMainExecutor(), receiver);
++        } catch (RuntimeException e) {
++            // A missing CREDENTIAL_MANAGER_SET_ORIGIN permission throws here on
++            // the conditional-get prefetch (fired on page load), which left
++            // uncaught crashes the browser process. Degrade gracefully.
++            logError(TAG, "CredMan prepareGetCredential threw: " + e);
++            mMetricsHelper.recordCredmanPrepareRequestHistogram(
++                    CredManPrepareRequestEnum.COULD_NOT_SEND_REQUEST);
++            localBarrier.onCredManFailed(AuthenticatorStatus.NOT_ALLOWED_ERROR);
++            return;
++        }
+         mMetricsHelper.recordCredmanPrepareRequestHistogram(CredManPrepareRequestEnum.SENT_REQUEST);
+     }
+ 
+@@ -704,8 +725,15 @@ public class CredManHelper {
+         assumeNonNull(context);
+         final CredentialManager manager =
+                 (CredentialManager) context.getSystemService(Context.CREDENTIAL_SERVICE);
+-        manager.getCredential(
+-                context, getCredentialRequest, null, context.getMainExecutor(), receiver);
++        try {
++            manager.getCredential(
++                    context, getCredentialRequest, null, context.getMainExecutor(), receiver);
++        } catch (RuntimeException e) {
++            // See createCredential: a SecurityException from a missing
++            // CREDENTIAL_MANAGER_SET_ORIGIN permission would otherwise be fatal.
++            logError(TAG, "CredMan getCredential threw: " + e);
++            return AuthenticatorStatus.NOT_ALLOWED_ERROR;
++        }
+         mMetricsHelper.reportGetCredentialMetrics(
+                 CredManGetRequestEnum.SENT_REQUEST, mCancellableUiState);
+         return AuthenticatorStatus.SUCCESS;
