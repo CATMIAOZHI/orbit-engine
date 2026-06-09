@@ -3951,6 +3951,18 @@ typedef enum {
 } cef_permission_request_result_t;
 
 ///
+/// Device type for a CefDeviceChooserHandler request (the frontier web device
+/// APIs). Maps to navigator.bluetooth, navigator.usb and navigator.serial.
+///
+typedef enum {
+  CEF_DEVICE_CHOOSER_TYPE_BLUETOOTH,
+  CEF_DEVICE_CHOOSER_TYPE_USB,
+  CEF_DEVICE_CHOOSER_TYPE_SERIAL,
+
+  CEF_DEVICE_CHOOSER_TYPE_NUM_VALUES,
+} cef_device_chooser_type_t;
+
+///
 /// Certificate types supported by CefTestServer::CreateAndStart. The matching
 /// certificate file must exist in the "net/data/ssl/certificates" directory.
 /// See CefSetDataDirectoryForTests() for related configuration.
