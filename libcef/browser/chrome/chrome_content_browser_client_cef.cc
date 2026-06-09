@@ -16,6 +16,7 @@
 #include "cef/libcef/browser/browser_manager.h"
 #include "cef/libcef/browser/certificate_query.h"
 #include "cef/libcef/browser/chrome/chrome_browser_main_extra_parts_cef.h"
+#include "cef/libcef/browser/chrome/device_chooser_impl.h"
 #include "cef/libcef/browser/context.h"
 #include "cef/libcef/browser/net/throttle_handler.h"
 #include "cef/libcef/browser/net_service/cookie_manager_impl.h"
@@ -28,6 +29,7 @@
 #include "cef/libcef/common/app_manager.h"
 #include "cef/libcef/common/cef_switches.h"
 #include "cef/libcef/common/command_line_impl.h"
+#include "chrome/browser/bluetooth/chrome_bluetooth_delegate_impl_client.h"
 #include "chrome/browser/chrome_browser_main.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/profiles/profile.h"
@@ -711,6 +713,19 @@ ChromeContentBrowserClientCef::GetWebContentsViewDelegate(
 #else
   return CreateWebContentsViewDelegate(web_contents);
 #endif
+}
+
+content::BluetoothDelegate*
+ChromeContentBrowserClientCef::GetBluetoothDelegate() {
+  // Route the Web Bluetooth chooser to the embedder's CefDeviceChooserHandler
+  // (Chrome's native chooser UI is unavailable in this embedding). Permission
+  // and device-tracking logic is inherited unchanged from ChromeBluetooth
+  // Delegate.
+  if (!cef_bluetooth_delegate_) {
+    cef_bluetooth_delegate_ = std::make_unique<CefBluetoothDelegate>(
+        std::make_unique<ChromeBluetoothDelegateImplClient>());
+  }
+  return cef_bluetooth_delegate_.get();
 }
 
 CefRefPtr<CefRequestContextImpl>
