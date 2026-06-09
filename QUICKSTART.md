@@ -316,6 +316,37 @@ Full walkthrough (with the manifest, Gradle, token retrieval, and sending a test
 push): **<https://cefrium.com/guides/push-notifications/>** and the
 [push-demo sample](https://codeberg.org/cefrium/cefrium-sample/src/branch/main/push-demo).
 
+## Device choosers: Web Bluetooth / WebUSB / Web Serial (0.5.0+)
+
+When a page calls `navigator.bluetooth.requestDevice()`,
+`navigator.usb.requestDevice()` or `navigator.serial.requestPort()` (under a user
+gesture, in a secure context), Cefrium asks your app to present the picker -
+there is no built-in chooser dialog in this embedding. Without a handler the
+request is cancelled (the page promise rejects); it never hangs.
+
+```java
+browser.setDeviceChooserHandler(new CefriumBrowser.DeviceChooserHandler() {
+    @Override public void onShowDeviceChooser(CefriumBrowser.DeviceChooserSession s) {
+        // s.getType() is DEVICE_BLUETOOTH / DEVICE_USB / DEVICE_SERIAL.
+        // Show your own UI; keep the session to resolve it.
+    }
+    @Override public void onDeviceAdded(CefriumBrowser.DeviceChooserSession s,
+                                        CefriumBrowser.ChooserDevice d) {
+        // A candidate appeared (streams in while a Bluetooth scan runs).
+        // d.name (may be empty) and d.id; call s.select(d.id) to pick it.
+    }
+    @Override public void onDeviceChooserClosed(CefriumBrowser.DeviceChooserSession s) {
+        // The engine closed the chooser; dismiss your UI.
+    }
+    // Optional: onDeviceRemoved(session, deviceId) when a device goes away.
+});
+```
+
+For Web Bluetooth, declare and request the runtime permissions
+`BLUETOOTH_SCAN` + `BLUETOOTH_CONNECT` (Android 12+). Web Serial has no Android
+backend (the chooser opens but stays empty). See the flagship `SurfaceActivity`
+for a complete `AlertDialog` picker. Compose: `navigator.setDeviceChooserHandler(...)`.
+
 ## Next steps
 
 - Add navigation: `browser.goBack()`, `browser.goForward()`, `browser.reload()`
