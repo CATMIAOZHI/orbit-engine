@@ -34,6 +34,7 @@
 #include "chrome/browser/chrome_browser_main.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/speech/chrome_speech_recognition_manager_delegate.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
 #include "components/performance_manager/embedder/performance_manager_registry.h"
@@ -61,6 +62,29 @@
 #endif
 
 namespace {
+
+// Web Speech recognition delegate that allows recognition for any WebContents.
+// Chrome's ChromeSpeechRecognitionManagerDelegate::CheckRecognitionIsAllowed
+// only allows tab/extension WebContents; a CEF embedding's WebContents is
+// neither, so recognition was rejected with "not-allowed". The embedding still
+// controls the microphone via RECORD_AUDIO + the CefPermissionHandler.
+class CefSpeechRecognitionManagerDelegate
+    : public speech::ChromeSpeechRecognitionManagerDelegate {
+ public:
+  CefSpeechRecognitionManagerDelegate() = default;
+
+  CefSpeechRecognitionManagerDelegate(
+      const CefSpeechRecognitionManagerDelegate&) = delete;
+  CefSpeechRecognitionManagerDelegate& operator=(
+      const CefSpeechRecognitionManagerDelegate&) = delete;
+
+  void CheckRecognitionIsAllowed(
+      int session_id,
+      base::OnceCallback<void(bool ask_user, bool is_allowed)> callback)
+      override {
+    std::move(callback).Run(/*ask_user=*/false, /*is_allowed=*/true);
+  }
+};
 
 class CefSelectClientCertificateCallbackImpl
     : public CefSelectClientCertificateCallback {
@@ -299,6 +323,11 @@ void ChromeContentBrowserClientCef::RenderProcessWillLaunch(
   // to avoid DCHECKs.
   host->RemoveObserver(CefBrowserInfoManager::GetInstance());
   host->AddObserver(CefBrowserInfoManager::GetInstance());
+}
+
+content::SpeechRecognitionManagerDelegate*
+ChromeContentBrowserClientCef::CreateSpeechRecognitionManagerDelegate() {
+  return new CefSpeechRecognitionManagerDelegate();
 }
 
 void ChromeContentBrowserClientCef::AllowCertificateError(
