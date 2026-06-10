@@ -238,7 +238,9 @@ done
 - Attach the merged AARs to the Codeberg release with a `SHA256SUMS`,
   **GPG-signed** (hardware signing key); document verification on `/releases`.
 - Rebuild / relabel the flagship `cefrium-browser` APK on `<version>` - never a
-  version-ambiguous binary link.
+  version-ambiguous binary link. The browser lives in its own repo
+  (cefrium/cefrium-browser); `cut-release.sh` builds it in `local` source mode
+  (`-PcefriumSource=local`) against the freshly built AAR.
 - Remove any "releasing shortly" version notice from the guides now that the
   coordinate resolves.
 
