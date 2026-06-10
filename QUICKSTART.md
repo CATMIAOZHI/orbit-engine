@@ -406,6 +406,52 @@ the Google Pay sheet ("Pay ... to Example Merchant", TEST) opens. Cefrium enable
 PaymentRequest **by default**; System WebView requires an explicit per-WebView opt-in
 (`WebSettingsCompat.setPaymentRequestEnabled`) and only on recent WebView versions.
 
+## File uploads & File System Access (0.5.0+)
+
+`<input type=file>`, camera/gallery capture, and the **File System Access API**
+(`window.showOpenFilePicker()` / `showSaveFilePicker()` / `showDirectoryPicker()`)
+all open the Android document/photo picker and deliver the chosen file(s) to the
+page. `showDirectoryPicker()` additionally shows a "let this site view files in
+this folder?" permission prompt.
+
+**Required setup:** these flows launch the Android picker with
+`startActivityForResult`, so your Activity must forward its result to the browser,
+or the picker opens but never returns a file:
+
+```kotlin
+// View API
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    browser.onActivityResult(requestCode, resultCode, data)
+}
+
+// Compose API — forward to each visible CefriumViewState
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    state.onActivityResult(requestCode, resultCode, data)
+}
+```
+
+For reading files you typically also declare `READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO`
+(API 33+) or `READ_EXTERNAL_STORAGE` (API <= 32). The SDK supplies a
+`ModalDialogManager` to its window, so tab-modal prompts like the folder-permission
+dialog work without app code. The `cefrium-sample` flagship shows the full wiring.
+
+## WebOTP - SMS one-time-code autofill (0.5.0+)
+
+`navigator.credentials.get({ otp: { transport: ["sms"] } })` resolves with the
+one-time code from an incoming SMS, via the Android SMS User Consent API (a system
+"let [app] read this message?" prompt - **no SMS permission required**). Works with
+no app code beyond the `onActivityResult` forwarding above (the consent prompt
+returns through it).
+
+Requirements: a **secure context** with a **default port** (https on 443, or
+http://localhost on 80) - the WebOTP SMS binding `@host #code` cannot encode a
+non-default port. The SMS's last line must be `@<your-origin-host> #<code>` (e.g.
+`@example.com #123456`), and it must come from a sender that is not in the user's
+contacts. Validated end-to-end on device (page on https origin, SMS from a third
+party -> consent prompt -> `OTPCredential.code`).
+
 ## Other APIs (0.5.0+)
 
 ```java
