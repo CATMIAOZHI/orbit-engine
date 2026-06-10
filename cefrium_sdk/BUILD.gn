@@ -30,6 +30,8 @@ android_library("cefrium_java") {
   sources = [
     "java/src/com/cefrium/Cefrium.java",
     "java/src/com/cefrium/CefContactsPickerDelegate.java",
+    "java/src/com/cefrium/CefModalDialogPresenter.java",
+    "java/src/com/cefrium/CefWindowAndroid.java",
     "java/src/com/cefrium/payments/CefPaymentInterfaceRegistrar.java",
     "java/src/com/cefrium/payments/CefPaymentRequestFactory.java",
     "java/src/com/cefrium/payments/CefPaymentRequestService.java",
@@ -61,6 +63,7 @@ android_library("cefrium_java") {
     "//content/public/android:content_java",
     "//services/media_session/public/cpp/android:media_session_java",
     "//services/service_manager/public/java:service_manager_java",
+    "//third_party/androidx:androidx_activity_activity_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/blink/public/mojom:android_mojo_bindings_java",
     "//third_party/androidx:androidx_core_core_java",
