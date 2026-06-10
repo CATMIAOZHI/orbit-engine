@@ -1309,12 +1309,14 @@ public class CefriumBrowser {
         CefriumBrowser browser = new CefriumBrowser(true);
 
         // Create Chromium rendering infrastructure internally.
-        // Use ActivityWindowAndroid (not plain WindowAndroid) to support
-        // intents — required for file picker (<input type=file>),
-        // permission requests, and other Activity-based flows.
+        // Use CefWindowAndroid (an ActivityWindowAndroid) to support intents —
+        // required for the file picker (<input type=file>, File System Access),
+        // permission requests, and other Activity-based flows — and to provide a
+        // ModalDialogManager so tab-modal dialogs (e.g. the File System Access
+        // folder-permission prompt) do not crash the native CHECK.
         browser.mIntentTracker =
                 org.chromium.ui.base.IntentRequestTracker.createFromActivity(activity);
-        browser.mWindowAndroid = new org.chromium.ui.base.ActivityWindowAndroid(
+        browser.mWindowAndroid = new CefWindowAndroid(
                 activity, true, browser.mIntentTracker, null, false);
 
         browser.mContentViewRenderView =
