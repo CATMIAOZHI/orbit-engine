@@ -37,7 +37,7 @@ dependencyResolutionManagement {
 ```groovy
 plugins {
     id 'com.android.application'
-    id 'com.cefrium' version '0.4.1'
+    id 'com.cefrium' version '0.5.0'
 }
 
 android {
@@ -53,7 +53,7 @@ android {
 }
 
 dependencies {
-    implementation 'com.cefrium:cefrium-sdk:0.4.1'  // multi-ABI; App Bundle/ABI splits ship one ABI per device
+    implementation 'com.cefrium:cefrium-sdk:0.5.0'  // multi-ABI; App Bundle/ABI splits ship one ABI per device
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.mediarouter:mediarouter:1.7.0'
     implementation 'androidx.core:core:1.16.0'
@@ -471,6 +471,29 @@ browser.captureBitmap(bitmap -> { /* use or save bitmap (may be null) */ });
 
 Compose equivalents live on `CefriumNavigator` (`setProxy`, `clearProxy`,
 `captureBitmap`, `setDeviceChooserHandler`).
+
+## Web NFC (0.5.0+)
+
+`new NDEFReader().scan()` / `.write()` read and write NDEF tags - no app code beyond
+declaring `android.permission.NFC` in your manifest (NFC must be enabled on the
+device). A unique differentiator: System WebView has no Web NFC.
+
+## The rest of the web platform (0.5.0+)
+
+Because Cefrium runs the full Chromium engine, the broad modern web platform works
+out of the box with no SDK code - verified on device: Web Speech recognition
+(`SpeechRecognition`) and synthesis, Generic Sensors (Accelerometer / Gyroscope /
+Orientation / Gravity / LinearAcceleration), WebRTC (`RTCPeerConnection` + data
+channels), `MediaRecorder`, `ImageCapture`, WebCodecs, `MediaCapabilities`,
+`BarcodeDetector` (QR/EAN/Code128/...), WebGL2, WebGPU, OffscreenCanvas, Origin
+Private File System (`navigator.storage.getDirectory`), IndexedDB, Cache API, Web
+Locks, Cookie Store, Storage Access, Battery, Network Information, Idle Detection,
+Vibration (needs `android.permission.VIBRATE`; Android skips it in silent mode),
+Gamepad, Pointer Lock, Presentation / Remote Playback, getScreenDetails, Permissions
+API, FedCM, AudioContext / AudioWorklet, CompressionStream, BroadcastChannel, and
+View Transitions. Not available on Android (platform, not Cefrium): Face/Text
+Detector, Handwriting Recognition, Chrome built-in AI (Translator / Language
+Detector), Compute Pressure, Local Font Access, registerProtocolHandler.
 
 ## Next steps
 
