@@ -82,6 +82,9 @@ that gap.
 | Clipboard (navigator.clipboard read/write) | Done (0.5.0) |
 | Payment Request / Google Pay (navigator PaymentRequest -> Android payment apps) | Done (0.5.0) |
 | Contact Picker (navigator.contacts.select) | Done (0.5.0) |
+| File System Access (showOpenFilePicker / showSaveFilePicker / showDirectoryPicker) | Done (0.5.0) |
+| File upload (`<input type=file>`) + camera/gallery capture | Done (0.5.0) |
+| WebOTP (navigator.credentials OTPCredential - SMS one-time-code autofill) | Done (0.5.0) |
 | Screen capture (getDisplayMedia -> MediaProjection) | Done (0.5.0) |
 | Page snapshot to Bitmap (captureBitmap; OSR + Surface) | Done (0.5.0) |
 | Proxy configuration (CefRequestContext; setProxy/clearProxy) | Done (0.5.0) |
@@ -123,6 +126,8 @@ Activity, no UI, no Surface required.
 | Web Share to the system sheet | Yes (navigator.share) | No (needs app glue) |
 | Payment Request / Google Pay | Yes (on by default) | Opt-in, recent WebView only |
 | Contact Picker (navigator.contacts.select) | Yes (app-drawn) | No |
+| File System Access (open/save/directory pickers) | Yes | No |
+| WebOTP (SMS one-time-code autofill) | Yes | No |
 
 ### What is CEF?
 

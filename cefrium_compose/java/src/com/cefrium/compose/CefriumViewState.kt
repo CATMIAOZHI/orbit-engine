@@ -112,6 +112,17 @@ class CefriumViewState(val initialUrl: String) : RememberObserver {
         return b
     }
 
+    /**
+     * Forward the hosting Activity's `onActivityResult` to this browser so the
+     * file picker (`<input type=file>`, File System Access), camera capture and
+     * other intent-for-result flows can deliver their result. Call this from your
+     * Activity's `onActivityResult` for every visible state. Returns true if the
+     * result was consumed.
+     */
+    fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?): Boolean {
+        return browser?.onActivityResult(requestCode, resultCode, data) ?: false
+    }
+
     /** Releases the browser. Idempotent. */
     fun close() {
         if (closed) return
