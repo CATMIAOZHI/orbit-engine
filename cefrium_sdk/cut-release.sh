@@ -128,12 +128,18 @@ if run publish; then hdr "publish to Maven (IMMUTABLE)"
 fi
 
 if run flagship; then hdr "flagship APK on $VERSION"
-  cp out/release/cefrium-sdk.aar "$ROOT/cefrium-sample/cefrium-browser/app/libs/cefrium-sdk.aar"
-  ( cd "$ROOT/cefrium-sample/cefrium-browser" && ./gradlew clean assembleDebug --no-daemon )
+  # The browser lives in its own repo (cefrium/cefrium-browser). It defaults to
+  # the Maven registry, but we build the flagship in LOCAL mode against the
+  # freshly built AARs: reproducible, and independent of registry propagation.
+  BROWSER="$ROOT/cefrium-browser/cefrium-browser"
+  mkdir -p "$BROWSER/app/libs"
+  cp out/release/cefrium-sdk.aar "$BROWSER/app/libs/cefrium-sdk.aar"
+  cp cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar "$BROWSER/app/libs/cefrium-compose.aar"
+  ( cd "$BROWSER" && ./gradlew clean assembleDebug -PcefriumSource=local --no-daemon )
 fi
 if run release; then hdr "Codeberg release (tag + GPG-signed SHA256SUMS + assets)"
   cef/cefrium_sdk/release-codeberg.sh "$VERSION" \
-    "$ROOT/cefrium-sample/cefrium-browser/app/build/outputs/apk/debug/app-debug.apk"
+    "$ROOT/cefrium-browser/cefrium-browser/app/build/outputs/apk/debug/app-debug.apk"
 fi
 if run web;     then hdr "update cefrium.com pages + committed repo docs"
   cef/cefrium_sdk/release-web-update.sh "$VERSION" "$PREV" "$(date +%F)" "$NOTES"

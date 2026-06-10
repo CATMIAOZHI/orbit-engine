@@ -121,7 +121,8 @@ public class MyApp extends Application {
 > - All of the above must run in `attachBaseContext()` (before `onCreate()`),
 >   and `Cefrium.initialize()` only in the browser process.
 >
-> Kotlin is identical (see `compose-browser` / `cefrium-browser` samples).
+> Kotlin is identical (see the `compose-browser` / `cefrium-browser` apps in the
+> cefrium/cefrium-browser repo).
 
 ## 4. Configure AndroidManifest.xml
 
