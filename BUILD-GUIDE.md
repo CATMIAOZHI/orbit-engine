@@ -108,13 +108,17 @@ python3 cef/cefrium_sdk/slim_aar.py \
 export JAVA_HOME=/path/to/android-studio/jbr  # JDK 21 REQUIRED
 export ANDROID_HOME=/path/to/android-sdk
 
-# Copy AAR to sample project
-cp out/Official_android_arm64/cefrium-sdk.aar \
-  ../cefrium-sample/cefrium-browser/app/libs/
+# The browser lives in its own repo (cefrium/cefrium-browser). It defaults to
+# the Maven registry; for a local build against your freshly built AAR use the
+# 'local' source mode. dev-build.sh stages the fresh AARs in and builds it:
+cd ../cefrium-browser
+./dev-build.sh cefrium-browser        # or compose-browser
 
-# Build browser
-cd ../cefrium-sample/cefrium-browser
-./gradlew assembleDebug --no-daemon
+# Equivalent manual form:
+cp out/Official_android_arm64/cefrium-sdk.aar \
+  cefrium-browser/app/libs/
+cd cefrium-browser
+./gradlew assembleDebug -PcefriumSource=local --no-daemon
 
 # Install on device
 adb install -r app/build/outputs/apk/debug/app-debug.apk
@@ -123,8 +127,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ## 6. Run tests
 
 ```bash
-cd cefrium-sample/cefrium-browser
-./gradlew connectedAndroidTest  # requires connected device
+cd cefrium-browser/cefrium-browser
+./gradlew connectedAndroidTest -PcefriumSource=local  # requires connected device
 ```
 
 ## 7. Cut a release
