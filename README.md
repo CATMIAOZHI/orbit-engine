@@ -85,6 +85,7 @@ that gap.
 | File System Access (showOpenFilePicker / showSaveFilePicker / showDirectoryPicker) | Done (0.5.0) |
 | File upload (`<input type=file>`) + camera/gallery capture | Done (0.5.0) |
 | WebOTP (navigator.credentials OTPCredential - SMS one-time-code autofill) | Done (0.5.0) |
+| Web Speech recognition (SpeechRecognition - voice to text) | Done (0.5.0) |
 | Screen capture (getDisplayMedia -> MediaProjection) | Done (0.5.0) |
 | Page snapshot to Bitmap (captureBitmap; OSR + Surface) | Done (0.5.0) |
 | Proxy configuration (CefRequestContext; setProxy/clearProxy) | Done (0.5.0) |

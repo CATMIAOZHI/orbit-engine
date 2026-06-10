@@ -43,6 +43,10 @@ class ChromeContentBrowserClientCef : public ChromeContentBrowserClient {
   void AppendExtraCommandLineSwitches(base::CommandLine* command_line,
                                       int child_process_id) override;
   void RenderProcessWillLaunch(content::RenderProcessHost* host) override;
+  // Allow Web Speech recognition for the embedding. Chrome's delegate only
+  // allows tab/extension WebContents, which a CEF embedding is not.
+  content::SpeechRecognitionManagerDelegate*
+  CreateSpeechRecognitionManagerDelegate() override;
   void AllowCertificateError(
       content::WebContents* web_contents,
       int cert_error,
