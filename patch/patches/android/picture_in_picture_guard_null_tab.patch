@@ -1,0 +1,18 @@
+diff --git chrome/android/java/src/org/chromium/chrome/browser/media/PictureInPictureActivity.java chrome/android/java/src/org/chromium/chrome/browser/media/PictureInPictureActivity.java
+index fa17fa2..3a3f18b 100644
+--- chrome/android/java/src/org/chromium/chrome/browser/media/PictureInPictureActivity.java
++++ chrome/android/java/src/org/chromium/chrome/browser/media/PictureInPictureActivity.java
+@@ -1005,6 +1005,13 @@ public class PictureInPictureActivity extends AsyncInitializationActivity {
+             int sourceY,
+             int sourceWidth,
+             int sourceHeight) {
++        // In an embedding (e.g. CEF) there is no Chrome Tab backing the
++        // WebContents, so the native side passes a null initiator tab. Without a
++        // Tab there is no activity to host the floating video window; bail out
++        // instead of crashing on a null-cast NPE.
++        if (!(initiatorTab instanceof Tab)) {
++            return;
++        }
+         Context activityContext = null;
+         final WindowAndroid window = ((Tab) initiatorTab).getWindowAndroid();
+         if (window != null) {
