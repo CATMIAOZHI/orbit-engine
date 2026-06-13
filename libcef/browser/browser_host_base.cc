@@ -6,6 +6,7 @@
 
 #include <tuple>
 
+#include "base/base64.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted_memory.h"
 #include "build/build_config.h"
@@ -1519,17 +1520,25 @@ void CefBrowserHostBase::LoadMainFrameDataWithBaseURL(
   // origin.
   const std::string mime = mime_type.empty() ? "text/html" : mime_type;
   const std::string cs = charset.empty() ? "utf-8" : charset;
-  const std::string header = "data:" + mime + ";charset=" + cs + ",";
+  // BASE64-encode the payload (like loadHtml(), which paints correctly, and like
+  // Android WebView's loadDataWithBaseURL via LoadUrlParams.buildDataUri). Raw HTML
+  // placed in a data: URL is mangled by GURL canonicalization (spaces, quotes, and
+  // the &?=/ in an embed src) -- base64 is URL-safe and survives intact.
+  const std::string header = "data:" + mime + ";charset=" + cs + ";base64,";
+  const std::string data_url = header + base::Base64Encode(data);
 
   content::NavigationController::LoadURLParams params{GURL()};
 #if BUILDFLAG(IS_ANDROID)
-  // Pass the payload via data_url_as_string so content larger than the GURL/IPC
-  // size cap (kMaxURLChars) still loads; the url field carries only the header.
+  // Android path (matches WebView/content_shell): url carries only the data: header
+  // (empty body), the full data: URL goes in data_url_as_string -- this also lifts
+  // the GURL/IPC kMaxURLChars cap so large pages load. The renderer's
+  // should_handle_data_url_as_string path then renders the content with base_url as
+  // the document origin.
   params.url = GURL(header);
   params.data_url_as_string =
-      base::MakeRefCounted<base::RefCountedString>(header + data);
+      base::MakeRefCounted<base::RefCountedString>(data_url);
 #else
-  params.url = GURL(header + data);
+  params.url = GURL(data_url);
 #endif
   params.load_type = content::NavigationController::LOAD_TYPE_DATA;
   params.base_url_for_data_url = GURL(base_url);
