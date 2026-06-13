@@ -1,5 +1,7 @@
 # Security Policy
 
+Scope: this document is for CEFRIUM (CEF ported to native Android) and its SDK, not upstream CEF.
+
 ## Status
 
 Cefrium is in **early validation**. It is not recommended for
