@@ -1512,12 +1512,24 @@ class SdkClient : public CefClient {
 };
 
 // Per-browser data stored as the native pointer in Java.
+// A loadDataWithBaseUrl() requested before the native browser exists. The browser
+// is created lazily (it needs a URL at creation for the renderer to spawn), so a
+// cold first data-load is created at about:blank and applied in OnAfterCreated.
+struct SdkPendingDataLoad {
+  std::string data;
+  std::string mime_type;
+  std::string charset;
+  std::string base_url;
+  std::string history_url;
+};
+
 struct SdkBrowserData {
   CefRefPtr<CefBrowser> browser;
   CefRefPtr<SdkRenderHandler> render_handler;
   CefRefPtr<SdkLifeSpanHandler> life_span_handler;
   CefRefPtr<SdkClient> client;
   std::string pending_url;
+  std::unique_ptr<SdkPendingDataLoad> pending_data;
   int blocked_count = 0;
   bool adblock_enabled = false;
 
@@ -1542,6 +1554,20 @@ void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
         data_->surface_bridge->AttachWebContents(web_contents);
         LOGI("Surface mode: WebContents attached to compositor");
       }
+    }
+
+    // Apply a loadDataWithBaseUrl() that arrived before the browser existed
+    // (the browser was created at about:blank to spawn the renderer).
+    if (data_->pending_data) {
+      auto* host =
+          static_cast<CefBrowserHostBase*>(browser->GetHost().get());
+      if (host) {
+        host->LoadMainFrameDataWithBaseURL(
+            data_->pending_data->data, data_->pending_data->mime_type,
+            data_->pending_data->charset, data_->pending_data->base_url,
+            data_->pending_data->history_url);
+      }
+      data_->pending_data.reset();
     }
   }
 }
@@ -1704,6 +1730,56 @@ Java_com_cefrium_CefriumBrowser_nativeLoadUrl(
     LOGI("loadUrl: %s", url);
   }
   env->ReleaseStringUTFChars(url_jstr, url);
+}
+
+// Load an HTML/data string with an explicit base URL (origin + referrer),
+// mirroring Android WebView.loadDataWithBaseURL(). Gives string-loaded content a
+// real (non-opaque) origin so embeds that validate their parent origin (e.g. the
+// YouTube IFrame player) work. See CefBrowserHostBase::LoadMainFrameDataWithBaseURL.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeLoadDataWithBaseUrl(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jstring base_url_j,
+    jstring data_j, jstring mime_j, jstring charset_j, jstring history_j) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data) return;
+  // Self-contained jstring -> std::string (the file's JStr() helper is defined
+  // later in an anonymous namespace; this function precedes it).
+  auto to_str = [env](jstring j) -> std::string {
+    if (!j) return std::string();
+    const char* s = env->GetStringUTFChars(j, nullptr);
+    std::string out(s ? s : "");
+    if (s) env->ReleaseStringUTFChars(j, s);
+    return out;
+  };
+  const std::string base_url = to_str(base_url_j);
+  const std::string html = to_str(data_j);
+  const std::string mime = to_str(mime_j);
+  const std::string charset = to_str(charset_j);
+  const std::string history = to_str(history_j);
+
+  if (!data->browser) {
+    // First load — create the browser at about:blank so the renderer spawns,
+    // then apply the data load in OnAfterCreated.
+    data->pending_data = std::make_unique<SdkPendingDataLoad>(
+        SdkPendingDataLoad{html, mime, charset, base_url, history});
+    CefWindowInfo window_info;
+    window_info.SetAsWindowless(0);
+    CefBrowserSettings browser_settings;
+    browser_settings.background_color = CefColorSetARGB(255, 255, 255, 255);
+    data->pending_url = "about:blank";
+    CefBrowserHost::CreateBrowser(window_info, data->client,
+                                  CefString("about:blank"), browser_settings,
+                                  nullptr, nullptr);
+    LOGI("CreateBrowser (data w/ base url=%s)", base_url.c_str());
+  } else {
+    auto* host =
+        static_cast<CefBrowserHostBase*>(data->browser->GetHost().get());
+    if (host) {
+      host->LoadMainFrameDataWithBaseURL(html, mime, charset, base_url,
+                                         history);
+    }
+    LOGI("loadDataWithBaseUrl base=%s", base_url.c_str());
+  }
 }
 
 extern "C" JNIEXPORT void JNICALL
