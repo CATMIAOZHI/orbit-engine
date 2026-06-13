@@ -1,0 +1,35 @@
+diff --git ui/android/java/src/org/chromium/ui/base/DeviceFormFactor.java ui/android/java/src/org/chromium/ui/base/DeviceFormFactor.java
+index 789c3a2..df6ab6e 100644
+--- ui/android/java/src/org/chromium/ui/base/DeviceFormFactor.java
++++ ui/android/java/src/org/chromium/ui/base/DeviceFormFactor.java
+@@ -159,14 +159,28 @@ public class DeviceFormFactor {
+      * @return The screen width bucket the device is in (see constants at the top of this class).
+      */
+     private static int detectScreenWidthBucket(Context context) {
+-        return context.getResources().getInteger(R.integer.min_screen_width_bucket);
++        try {
++            return context.getResources().getInteger(R.integer.min_screen_width_bucket);
++        } catch (android.content.res.Resources.NotFoundException e) {
++            // Some OEM resource resolvers (e.g. MIUI / HyperOS MiResources) fail to
++            // resolve packaged config integers and throw, even though the entry is
++            // present in the APK. This read happens during native init via JNI
++            // (isTablet() is @CalledByNative); left uncaught the exception is
++            // converted to a fatal process abort in jni_android.cc. Fall back to the
++            // default (phone) bucket -- the value in res/values/values.xml.
++            return 1;
++        }
+     }
+ 
+     private static int detectScreenWidthBucket(WindowAndroid windowAndroid) {
+         ThreadUtils.assertOnUiThread();
+         Context context = windowAndroid.getContext().get();
+         if (context == null) return 0;
+-        return context.getResources().getInteger(R.integer.min_screen_width_bucket);
++        try {
++            return context.getResources().getInteger(R.integer.min_screen_width_bucket);
++        } catch (android.content.res.Resources.NotFoundException e) {
++            return 1; // OEM resolver fallback (phone bucket); see the Context overload.
++        }
+     }
+ 
+     /**
