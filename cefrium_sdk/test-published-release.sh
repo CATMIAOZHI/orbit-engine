@@ -198,7 +198,12 @@ class MainActivity : Activity() {
 EOF
 
 echo "==> Building the consumer app against the published registry artifacts..."
-if "$GRADLE" -p "$WORK" :app:assembleDebug --no-daemon --console=plain; then
+# --refresh-dependencies: Maven versions are immutable, so Gradle caches an
+# artifact by coordinate and reuses it. During dev we sometimes delete+republish a
+# version with FIXED content (e.g. okio stripped from the AAR); without a refresh,
+# this smoke test resolves the STALE cached aar and false-fails (or false-passes).
+# Force a re-fetch so the test always validates exactly what the registry serves.
+if "$GRADLE" -p "$WORK" :app:assembleDebug --no-daemon --console=plain --refresh-dependencies; then
   echo "==> PASS: $ARTIFACT $VERSION resolves and assembles from the Codeberg Maven registry."
 else
   echo "==> FAIL: $ARTIFACT $VERSION is NOT consumable from the registry (corrupt/missing artifacts, or API mismatch)."
@@ -215,22 +220,40 @@ fi
 ADB="${ANDROID_HOME:-}/platform-tools/adb"; [ -x "$ADB" ] || ADB="$(command -v adb || true)"
 if [ -n "$ADB" ] && [ "$("$ADB" devices 2>/dev/null | grep -c 'device$')" -ge 1 ]; then
   echo "==> On-device e2e: installing + launching the registry-sourced consumer..."
-  apk="$(find "$WORK/app/build/outputs/apk/debug" -name '*.apk' 2>/dev/null | head -1)"
-  aapt="$(ls "${ANDROID_HOME:-}"/build-tools/*/aapt2 2>/dev/null | head -1)"
-  pkg="$("$aapt" dump badging "$apk" 2>/dev/null | grep -oP "package: name='\K[^']+")"
-  act="$("$aapt" dump badging "$apk" 2>/dev/null | grep -oP "launchable-activity: name='\K[^']+")"
-  "$ADB" install -r "$apk" >/dev/null 2>&1
-  "$ADB" shell am force-stop "$pkg" >/dev/null 2>&1; "$ADB" logcat -c >/dev/null 2>&1
-  "$ADB" shell am start -n "$pkg/$act" >/dev/null 2>&1
+  # NOTE: `... | head -1` makes head close the pipe early -> the upstream cmd gets
+  # SIGPIPE (exit 141); under `set -o pipefail` that fails the whole substitution
+  # and `set -e` would abort the release silently. `|| true` keeps these best-effort
+  # extractions from killing the run; empty values are handled below.
+  apk="$(find "$WORK/app/build/outputs/apk/debug" -name '*.apk' 2>/dev/null | head -1 || true)"
+  aapt="$(ls "${ANDROID_HOME:-}"/build-tools/*/aapt2 2>/dev/null | head -1 || true)"
+  pkg="$("$aapt" dump badging "$apk" 2>/dev/null | grep -oP "package: name='\K[^']+" || true)"
+  act="$("$aapt" dump badging "$apk" 2>/dev/null | grep -oP "launchable-activity: name='\K[^']+" || true)"
+  if [ -z "$apk" ] || [ -z "$pkg" ] || [ -z "$act" ]; then
+    echo "==> note: on-device e2e skipped (could not resolve apk/pkg/activity)."
+  else
+  # Uninstall first: each throwaway consumer build is signed with a fresh debug
+  # key, so `install -r` over a prior run's APK fails with a signature mismatch
+  # (INSTALL_FAILED_UPDATE_INCOMPATIBLE). Clear it so the install is clean.
+  "$ADB" uninstall "$pkg" >/dev/null 2>&1 || true
+  if ! "$ADB" install "$apk" >/dev/null 2>&1; then
+    echo "==> FAIL (on-device): could not install $pkg ($ARTIFACT $VERSION) on the device:"
+    "$ADB" install "$apk" 2>&1 | grep -iE 'fail|error' | head -3 | sed 's/^/      /'
+    exit 1
+  fi
+  "$ADB" shell am force-stop "$pkg" >/dev/null 2>&1 || true; "$ADB" logcat -c >/dev/null 2>&1 || true
+  "$ADB" shell am start -n "$pkg/$act" >/dev/null 2>&1 || true
   sleep 12
-  crash="$("$ADB" logcat -d 2>/dev/null | grep -icE 'FATAL EXCEPTION|NoSuchMethodError|tombstone|SIGSEGV')"
-  "$ADB" shell am force-stop "$pkg" >/dev/null 2>&1
-  if [ "$crash" -gt 0 ]; then
+  # grep -c exits 1 on ZERO matches (the no-crash happy path); under pipefail+set -e
+  # that would abort. `|| true` keeps it; empty -> treat as 0 below.
+  crash="$("$ADB" logcat -d 2>/dev/null | grep -icE 'FATAL EXCEPTION|NoSuchMethodError|tombstone|SIGSEGV' || true)"
+  "$ADB" shell am force-stop "$pkg" >/dev/null 2>&1 || true
+  if [ "${crash:-0}" -gt 0 ]; then
     echo "==> FAIL (on-device): registry-sourced $ARTIFACT $VERSION crashed at runtime:"
-    "$ADB" logcat -d 2>/dev/null | grep -E 'FATAL|NoSuchMethod' | head -3 | sed 's/^/      /'
+    "$ADB" logcat -d 2>/dev/null | grep -E 'FATAL|NoSuchMethod' | head -3 | sed 's/^/      /' || true
     exit 1
   fi
   echo "==> PASS (on-device): registry-sourced $ARTIFACT $VERSION launches + inits CEF, no crash."
+  fi
 else
   echo "==> note: no device connected -- on-device e2e skipped (assemble-only validated)."
 fi
