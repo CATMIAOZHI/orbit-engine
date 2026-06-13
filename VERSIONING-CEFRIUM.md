@@ -1,5 +1,7 @@
 # Versioning
 
+Scope: this document is for CEFRIUM (CEF ported to native Android) and its SDK, not upstream CEF.
+
 Cefrium follows a semantic-versioning convention during pre-1.0 validation:
 
 - **Minor** (`0.X.0` → `0.(X+1).0`): a release that adds public API.

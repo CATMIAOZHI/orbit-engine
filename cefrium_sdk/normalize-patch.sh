@@ -13,7 +13,7 @@
 # (`git diff --no-prefix` does both at once; this script makes the plain-`git diff`
 # habit safe, and repairs any already-prefixed patch.)
 #
-# Idempotent: a patch already in -p0 format is left unchanged. See cef/PATCHING.md.
+# Idempotent: a patch already in -p0 format is left unchanged. See cef/PATCHING-CEFRIUM.md.
 #
 # Usage:  cef/cefrium_sdk/normalize-patch.sh <patch> [<patch> ...]
 set -uo pipefail

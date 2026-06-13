@@ -1,7 +1,7 @@
 #!/bin/bash
 # Orchestrate a full Cefrium release cut. Chains the per-step scripts in order
 # and STOPS for explicit confirmation before the two irreversible steps
-# (immutable Maven publish, destructive registry prune). See RELEASING.md.
+# (immutable Maven publish, destructive registry prune). See RELEASING-CEFRIUM.md.
 #
 # Usage:
 #   cef/cefrium_sdk/cut-release.sh <version> <prev-version> [--from <phase>] [--notes "<html>"]
@@ -52,7 +52,7 @@ cd "$SRC"
 if run patches; then hdr "patches + touch"
   # Gate: every stored patch must be -p0 / no-prefix (patcher applies with -p0).
   # A git-default a/b-prefixed patch fails on a clean apply -- invisible on an
-  # incremental tree. Fail before applying. See cef/PATCHING.md.
+  # incremental tree. Fail before applying. See cef/PATCHING-CEFRIUM.md.
   cef/cefrium_sdk/check-patch-format.sh
   # apply-patches.py sets the illegal 'target_os=="android"' condition key the
   # shell cannot (see its header); plain patcher.py would skip the Android set.
@@ -143,12 +143,12 @@ if run release; then hdr "Codeberg release (tag + GPG-signed SHA256SUMS + assets
 fi
 if run web;     then hdr "update cefrium.com pages + committed repo docs"
   cef/cefrium_sdk/release-web-update.sh "$VERSION" "$PREV" "$(date +%F)" "$NOTES"
-  # Bump the committed cef/ consumer docs too (QUICKSTART.md, README coordinates +
+  # Bump the committed cef/ consumer docs too (QUICKSTART-CEFRIUM.md, README coordinates +
   # download URLs). release-web-update.sh only touches the cefrium.com web tree, so
   # without this the repo docs go stale (they sat at 0.3.1 through 0.4.1).
   cef/cefrium_sdk/release-bump-docs.sh "$VERSION" "$PREV"
   echo "Review + commit the web repo (quickstart, releases -> push pages) AND the"
-  echo "cef repo (QUICKSTART.md, README -> push android-port)."
+  echo "cef repo (QUICKSTART-CEFRIUM.md, README -> push android-port)."
 fi
 if run prune;   then hdr "prune previous versions (DESTRUCTIVE, latest-only)"
   gate "prune every registry version except $VERSION"

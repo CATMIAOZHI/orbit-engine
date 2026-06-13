@@ -2,7 +2,7 @@
 # Enforce the latest-only retention policy: delete every Cefrium Maven version
 # from the Codeberg registry EXCEPT the one to keep. Superseded versions are
 # preserved as the git tag + the GPG-signed SHA256SUMS on their Codeberg release
-# (not as registry binaries) — see /releases and RELEASING.md.
+# (not as registry binaries) — see /releases and RELEASING-CEFRIUM.md.
 #
 # Usage: cef/cefrium_sdk/prune-old-versions.sh <keep-version> [--yes]
 #   Without --yes (or CEFRIUM_YES=1) it prints what it WOULD delete and stops.
