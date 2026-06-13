@@ -335,6 +335,21 @@ class CefBrowserHostBase : public CefBrowserHost,
 
   // Methods called from CefFrameHostImpl.
   void LoadMainFrameURL(const content::OpenURLParams& params);
+
+  // Load a data string into the main frame with an explicit base URL, mirroring
+  // Android WebView's WebView.loadDataWithBaseURL() (and content_shell's
+  // LoadDataWithBaseURL). The resulting document gets base_url as its origin and
+  // referrer instead of an opaque origin, so string-loaded content can host
+  // embeds that postMessage-validate their parent origin (e.g. the YouTube
+  // IFrame player). history_url, if non-empty, is the document's virtual URL
+  // (shown in history); otherwise base_url is used. Empty mime_type/charset
+  // default to "text/html"/"utf-8".
+  void LoadMainFrameDataWithBaseURL(const std::string& data,
+                                    const std::string& mime_type,
+                                    const std::string& charset,
+                                    const std::string& base_url,
+                                    const std::string& history_url);
+
   virtual void OnSetFocus(cef_focus_source_t source) = 0;
   void ViewText(const std::string& text);
 
