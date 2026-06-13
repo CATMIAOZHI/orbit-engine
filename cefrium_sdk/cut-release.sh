@@ -13,7 +13,9 @@ set -euo pipefail
 
 VERSION="${1:?usage: cut-release.sh <version> <prev-version> [--from phase] [--notes ...]}"
 PREV="${2:?need previous version (the one being superseded)}"; shift 2
-FROM="patches"; NOTES="New release."
+# Empty by default so release-web-update.sh derives the /releases note from the
+# CHANGELOG-CEFRIUM.md [<version>] section. --notes overrides with explicit text.
+FROM="patches"; NOTES=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --from) FROM="$2"; shift 2 ;;
