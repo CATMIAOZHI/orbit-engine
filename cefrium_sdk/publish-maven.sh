@@ -93,11 +93,44 @@ upload() {
   # NEVER use `-F`/`--form` here: that sends multipart/form-data, which bakes the
   # MIME envelope (boundary + headers) into the stored artifact and corrupts every
   # POM/AAR/JAR. Use --upload-file (raw PUT body). See verify_artifact() below.
-  local status
-  status=$(curl -s -o /dev/null -w "%{http_code}" \
-    -H "Authorization: token $TOKEN" \
-    --upload-file "$file" \
-    "$url")
+  #
+  # Retry on a non-terminal upload result. When a version was just DELETEd
+  # (republishing a fixed POM for the same version), the registry tears the version
+  # down asynchronously and a PUT in that window either returns HTTP 400 or hangs/
+  # drops the connection (curl exit -> status "000") until teardown completes.
+  # Codeberg's package API is also intermittently slow. Treat 400 and 000 as
+  # transient, bound each attempt with --max-time so a hung PUT can't kill the
+  # release (curl exit 28), and back off generously (up to ~2 min) -- teardown has
+  # been observed to take well over a minute. 201/409 are terminal-success;
+  # anything else is a real failure.
+  #
+  # BUT a 400 whose body is a content-validation error (e.g. "XML syntax error" for
+  # a malformed POM) is PERMANENT, not the teardown window -- retrying it just burns
+  # 2 min and then fails anyway. Capture the body and fail fast on those.
+  local status attempt=0 body
+  while :; do
+    status=$(curl -s --max-time 180 -o /tmp/cefrium-upload-resp.$$ -w "%{http_code}" \
+      -H "Authorization: token $TOKEN" \
+      --upload-file "$file" \
+      "$url" || echo "000")
+    if [ "$status" = "400" ]; then
+      body=$(cat /tmp/cefrium-upload-resp.$$ 2>/dev/null)
+      if echo "$body" | grep -qiE "syntax error|invalid|malformed|not allowed|parse"; then
+        echo "    FAILED (HTTP 400, permanent): $body"
+        rm -f /tmp/cefrium-upload-resp.$$
+        return 1
+      fi
+    fi
+    rm -f /tmp/cefrium-upload-resp.$$
+    case "$status" in
+      400|000) : ;;          # transient: teardown window / API blip -> retry
+      *) break ;;            # 201/409 success, or a real error code -> stop
+    esac
+    attempt=$((attempt + 1))
+    [ "$attempt" -ge 12 ] && break
+    echo "    (HTTP $status — teardown/API blip, retry $attempt/12 after backoff)"
+    sleep 10
+  done
 
   if [ "$status" = "201" ]; then
     echo "    OK (201 Created)"
@@ -175,7 +208,11 @@ read -r -d '' SDK_DEPS <<'XML' || true
          vendor. Without it FirebaseMessaging.getToken() hangs with
          NoClassDefFoundError androidx/datastore/preferences/core/PreferencesKeys
          (getId() still works). Declare it so consumers get it transitively.
-         Validated on Redmi Note 13 Pro / HyperOS / Android 16 (0.5.1). -->
+         Validated on Redmi Note 13 Pro / HyperOS / Android 16 (0.5.1).
+         NOTE: do NOT exclude okio here. slim_aar.py strips the orphaned okio from
+         the AAR (it had 0 references), so the consumer must get the single okio
+         from datastore's transitive okio-jvm. Same consumer-provides model the AAR
+         already uses for androidx/kotlin/kotlinx. No duplicate-class collision. -->
     <dependency><groupId>androidx.datastore</groupId><artifactId>datastore-preferences</artifactId><version>1.1.1</version></dependency>
   </dependencies>
 XML
