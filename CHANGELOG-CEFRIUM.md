@@ -7,7 +7,7 @@ changelog. For upstream CEF release notes see the upstream project
 `LICENSE-CEFRIUM.md` to keep Cefrium-specific docs distinct from CEF's own.
 
 Versioning: Cefrium version numbers (0.x.y) are INDEPENDENT of CEF/Chromium version
-numbers; the Chromium engine version is noted under each release. See VERSIONING.md.
+numbers; the Chromium engine version is noted under each release. See VERSIONING-CEFRIUM.md.
 
 This file records, per release, what changed for SDK consumers and the FINAL
 solution behind each notable item (with a one-line decision note where the "why"

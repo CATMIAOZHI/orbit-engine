@@ -1,5 +1,7 @@
 # Migrating from Android WebView to Cefrium
 
+Scope: this document is for CEFRIUM (CEF ported to native Android) and its SDK, not upstream CEF.
+
 Side-by-side comparison for developers migrating from WebView.
 
 ## Setup

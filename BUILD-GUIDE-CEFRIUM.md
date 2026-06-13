@@ -1,5 +1,7 @@
 # Building Cefrium from Source
 
+Scope: this document is for CEFRIUM (CEF ported to native Android) and its SDK, not upstream CEF.
+
 Complete instructions for building the Cefrium SDK from Chromium source.
 
 ## System requirements
@@ -170,7 +172,7 @@ Phases (resume after a long build with `--from <phase>`):
 - `publish` -> `publish-maven.sh <version>` (uploads + smoke-tests both coordinates).
 
 A fresh out dir is used per the engine stamp, so an engine bump never reuses a
-stale build dir (see "After an engine bump" in CLAUDE.md / RELEASING.md).
+stale build dir (see "After an engine bump" in CLAUDE.md / RELEASING-CEFRIUM.md).
 
 ### 7.1 Build the artifacts publish-maven.sh uploads
 
