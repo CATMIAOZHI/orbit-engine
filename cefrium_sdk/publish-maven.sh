@@ -145,6 +145,13 @@ read -r -d '' SDK_DEPS <<'XML' || true
     <dependency><groupId>androidx.mediarouter</groupId><artifactId>mediarouter</artifactId><version>1.7.0</version></dependency>
     <dependency><groupId>androidx.core</groupId><artifactId>core</artifactId><version>1.16.0</version></dependency>
     <dependency><groupId>androidx.browser</groupId><artifactId>browser</artifactId><version>1.8.0</version></dependency>
+    <!-- The vendored Firebase classes (Installations/FCM-token path:
+         HeartBeatInfoStorage) need datastore-preferences, which the AAR does NOT
+         vendor. Without it FirebaseMessaging.getToken() hangs with
+         NoClassDefFoundError androidx/datastore/preferences/core/PreferencesKeys
+         (getId() still works). Declare it so consumers get it transitively.
+         Validated on Redmi Note 13 Pro / HyperOS / Android 16 (0.5.1). -->
+    <dependency><groupId>androidx.datastore</groupId><artifactId>datastore-preferences</artifactId><version>1.1.1</version></dependency>
   </dependencies>
 XML
 
