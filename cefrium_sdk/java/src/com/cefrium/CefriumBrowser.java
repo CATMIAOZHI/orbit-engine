@@ -576,6 +576,34 @@ public class CefriumBrowser {
         nativeLoadUrl(mNativePtr, dataUrl);
     }
 
+    /**
+     * Loads a data string with an explicit base URL, mirroring Android WebView's
+     * {@link android.webkit.WebView#loadDataWithBaseURL}. The loaded document's
+     * origin and referrer become {@code baseUrl} instead of an opaque origin, so
+     * string-loaded content can host embeds that validate their parent origin --
+     * e.g. the YouTube IFrame player (which otherwise fails with Error 153).
+     *
+     * @param baseUrl    origin/referrer for the document, e.g. {@code "https://www.youtube.com"}
+     * @param data       the HTML (or other) content to load
+     * @param mimeType   content type, e.g. {@code "text/html"} (defaults to text/html if null/empty)
+     * @param encoding   charset, e.g. {@code "utf-8"} (defaults to utf-8 if null/empty)
+     * @param historyUrl URL used for the document's virtual/history URL (defaults to baseUrl if null/empty)
+     */
+    public void loadDataWithBaseUrl(String baseUrl, String data, String mimeType,
+                                    String encoding, String historyUrl) {
+        if (mNativePtr == 0 || baseUrl == null || data == null) return;
+        nativeLoadDataWithBaseUrl(mNativePtr, baseUrl, data, mimeType, encoding, historyUrl);
+    }
+
+    /**
+     * Convenience: load an HTML string with the given base URL (text/html, utf-8,
+     * history = baseUrl). Use this for inline YouTube embeds, e.g.
+     * {@code loadHtmlWithBaseUrl("<iframe src='https://www.youtube.com/embed/ID'></iframe>", "https://www.youtube.com")}.
+     */
+    public void loadHtmlWithBaseUrl(String html, String baseUrl) {
+        loadDataWithBaseUrl(baseUrl, html, "text/html", "utf-8", baseUrl);
+    }
+
     /** Loads {@code url} with an HTTP POST body. */
     public void postUrl(String url, byte[] postData) {
         if (mNativePtr != 0) nativePostUrl(mNativePtr, url, postData);
@@ -1589,6 +1617,8 @@ public class CefriumBrowser {
             android.view.Surface surface, int width, int height, float scale);
     private static native void nativeSetRenderHandler(long nativePtr, CefriumBrowser browser);
     private static native void nativeLoadUrl(long nativePtr, String url);
+    private static native void nativeLoadDataWithBaseUrl(long nativePtr, String baseUrl,
+            String data, String mimeType, String encoding, String historyUrl);
     private static native void nativeInvalidate(long nativePtr);
     private static native void nativeSendTouchEvent(long nativePtr, int action, float x, float y, int pointerId);
     private static native void nativeSetAdBlockEnabled(long nativePtr, boolean enabled);
