@@ -1,5 +1,7 @@
 # Patching Chromium for Cefrium
 
+Scope: this document is for CEFRIUM (CEF ported to native Android) and its SDK, not upstream CEF.
+
 How the Android port modifies the Chromium/CEF source tree, how those changes
 are stored, and how to add or regenerate a patch correctly. Read this before
 touching anything under `cef/patch/`.

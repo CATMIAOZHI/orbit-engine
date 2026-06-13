@@ -273,7 +273,7 @@ def main():
         # Chromium's modified AccessibilityNodeInfoCompat includes methods
         # not in public androidx.core (setExpandedState, setChecked(int), etc.).
         # Required for TalkBack accessibility. Consumer must disable
-        # checkDuplicateClasses in build.gradle (documented in QUICKSTART.md).
+        # checkDuplicateClasses in build.gradle (documented in QUICKSTART-CEFRIUM.md).
         # 'androidx/core/view/accessibility/',  # Needs shadow/relocate solution
     )
     if 'classes.jar' in standard_entries:

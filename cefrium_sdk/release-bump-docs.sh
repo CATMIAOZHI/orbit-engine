@@ -2,7 +2,7 @@
 # release-bump-docs.sh <new-version> <prev-version>
 #
 # Bump the cefrium version references in the COMMITTED cef/ consumer docs
-# (QUICKSTART.md, README.md): Gradle coordinates, the plugin `version`, and the
+# (QUICKSTART-CEFRIUM.md, README.md): Gradle coordinates, the plugin `version`, and the
 # registry download URLs. release-web-update.sh already bumps the cefrium.com web
 # quickstart; this covers the in-repo docs, which otherwise go stale (they sat at
 # 0.3.1 through 0.4.0 and 0.4.1 because nothing bumped them automatically).
@@ -18,7 +18,7 @@ PREV="${2:?need previous version}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CEF="$(cd "$SCRIPT_DIR/.." && pwd)"          # cef/
 
-for f in "$CEF/QUICKSTART.md" "$CEF/README.md"; do
+for f in "$CEF/QUICKSTART-CEFRIUM.md" "$CEF/README.md"; do
   [ -f "$f" ] || { echo "  skip (missing): ${f#"$CEF"/}"; continue; }
   perl -0777 -pi -e "
     # Gradle coordinate: com.cefrium:cefrium-{sdk,compose,gradle-plugin}:<ver>
@@ -36,8 +36,8 @@ done
 
 # Sanity: no cefrium coordinate/url should still carry the previous version.
 stale="$(grep -rnE "com\.cefrium:cefrium-(sdk|compose|gradle-plugin):$PREV|cefrium-(sdk|compose)-$PREV\.aar|/cefrium-(sdk|compose)/$PREV/" \
-  "$CEF/QUICKSTART.md" "$CEF/README.md" 2>/dev/null || true)"
+  "$CEF/QUICKSTART-CEFRIUM.md" "$CEF/README.md" 2>/dev/null || true)"
 if [ -n "$stale" ]; then
   echo "FAIL: stale $PREV cefrium refs remain after bump:"; echo "$stale" | sed 's/^/    /'; exit 1
 fi
-echo "Consumer docs (QUICKSTART.md, README.md) at cefrium $NEW."
+echo "Consumer docs (QUICKSTART-CEFRIUM.md, README.md) at cefrium $NEW."

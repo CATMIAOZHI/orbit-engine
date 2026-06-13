@@ -1,5 +1,7 @@
 # Contributing to CEF Android Port
 
+Scope: this document is for CEFRIUM (CEF ported to native Android) and its SDK, not upstream CEF.
+
 This document explains how changes are tracked, reviewed, and
 contributed upstream to the Chromium Embedded Framework.
 
