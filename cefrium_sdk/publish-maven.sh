@@ -36,7 +36,32 @@ TOKEN=$(cat "$TOKEN_FILE")
 verify_artifact() {
   local url="$1" ext="$2"
   local tmp; tmp=$(mktemp)
-  curl -s -H "Authorization: token $TOKEN" -r 0-255 "$url" -o "$tmp"
+  # Read the first bytes from a FULL GET, NOT a range request: Codeberg answers a
+  # range request with a multipart/byteranges body (starts with "--boundary"),
+  # which this check would misread as a corrupt multipart upload (false positive
+  # that aborted the 0.5.1 publish even though the artifact was byte-perfect).
+  #
+  # An EMPTY body is a transient fetch failure (network blip, SIGPIPE race when head
+  # closes the pipe early), NOT a corrupt artifact -- treating it as corruption
+  # false-aborted a release whose POM was byte-perfect. So retry the fetch a few
+  # times until we get a non-empty body, and only run the magic-byte checks on real
+  # content. Use a plain `-s` GET to a temp file (no `-f`, no pipe-to-head race):
+  # curl writes the whole short body, then we inspect the head locally.
+  local tries=0 bytes=0
+  while [ "$tries" -lt 5 ]; do
+    : > "$tmp"
+    curl -s -H "Authorization: token $TOKEN" "$url" -o "$tmp" 2>/dev/null || true
+    bytes=$(wc -c < "$tmp" 2>/dev/null || echo 0)
+    [ "$bytes" -gt 0 ] && break
+    tries=$((tries + 1))
+    sleep 2
+  done
+  if [ "$bytes" -eq 0 ]; then
+    rm -f "$tmp"
+    echo "    *** VERIFY FAILED: could not fetch published $url (empty after 5 tries)"
+    echo "    *** (transient fetch failure, NOT necessarily a corrupt artifact)"
+    return 1
+  fi
   local ok=1
   case "$ext" in
     aar|jar)
