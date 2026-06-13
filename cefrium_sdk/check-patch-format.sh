@@ -9,7 +9,7 @@
 # an incremental tree (it "works" only because the change is already there).
 #
 # This guard fails if any patch carries an a/ or b/ prefix, so the regression
-# cannot reach a release. See cef/PATCHING.md.
+# cannot reach a release. See cef/PATCHING-CEFRIUM.md.
 #
 # Usage:  cef/cefrium_sdk/check-patch-format.sh
 # Exit:   0 = all patches are -p0 / no-prefix; 1 = at least one is prefixed.
@@ -31,7 +31,7 @@ done < <(find "$PATCHDIR" -name '*.patch' | sort)
 
 if [ "$bad" -gt 0 ]; then
   echo "FAIL: $bad patch(es) use git's a/b prefix. Regenerate with"
-  echo "      'git diff --no-prefix'. See cef/PATCHING.md."
+  echo "      'git diff --no-prefix'. See cef/PATCHING-CEFRIUM.md."
   exit 1
 fi
 echo "All patches are -p0 / no-prefix format."

@@ -1,5 +1,7 @@
 # Quick Start - Cefrium SDK
 
+Scope: this document is for CEFRIUM (CEF ported to native Android) and its SDK, not upstream CEF.
+
 From zero to rendering a web page in 5 minutes.
 
 > **App size.** Cefrium bundles the Chromium engine (~150 MB native per ABI).
@@ -507,7 +509,7 @@ Detector), Compute Pressure, Local Font Access, registerProtocolHandler.
 - Context menu: `browser.setOnContextMenuListener(...)`
 - Compose: `CefriumView` / `CefriumWebView` from `cefrium-compose`
 - See [cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) for complete examples
-- See [MIGRATION.md](MIGRATION.md) for WebView migration guide
+- See [MIGRATION-CEFRIUM.md](MIGRATION-CEFRIUM.md) for WebView migration guide
 - See [API docs](https://cefrium.com/docs) for full Javadoc
 
 ## Resource files
