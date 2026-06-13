@@ -1,11 +1,13 @@
 # Releasing Cefrium
 
+Scope: this document is for CEFRIUM (CEF ported to native Android) and its SDK, not upstream CEF.
+
 Runbook for cutting a Cefrium SDK release (the exact, verified sequence:
 **build -> merge -> publish -> test**). The Codeberg Maven registry is
 **immutable** - a version is uploaded once and never overwritten, so the local
 sanity gate (step 7) exists to catch a broken artifact *before* it is published.
 
-Versions follow `VERSIONING.md`: new public API => minor, fixes only => patch,
+Versions follow `VERSIONING-CEFRIUM.md`: new public API => minor, fixes only => patch,
 engine bumps noted in the `/releases` table regardless.
 
 ## Automated - `cut-release.sh`

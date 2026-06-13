@@ -19,7 +19,7 @@ that gap.
 > downloads only their architecture (~150 MB), not all ABIs - the same approach
 > GeckoView, Flutter, and other engine-bundling SDKs use.
 
-**[Quick Start](QUICKSTART.md)** | [API Docs](https://cefrium.com/docs) | [Compose API](https://cefrium.com/docs/compose) | [Migration from WebView](MIGRATION.md) | [Build from Source](BUILD-GUIDE.md) | [Samples](https://codeberg.org/cefrium/cefrium-sample)
+**[Quick Start](QUICKSTART-CEFRIUM.md)** | [API Docs](https://cefrium.com/docs) | [Compose API](https://cefrium.com/docs/compose) | [Migration from WebView](MIGRATION-CEFRIUM.md) | [Build from Source](BUILD-GUIDE-CEFRIUM.md) | [Samples](https://codeberg.org/cefrium/cefrium-sample)
 
 ## What works
 
@@ -184,7 +184,7 @@ Cefrium is built from three deliberately-tracked source inputs:
   Chromium patches** - only CEF + Android adaptations.
 
 Engine-version tracking and how to upgrade it (e.g. 148 -> 149) are in
-[`RELEASING.md`](RELEASING.md) (the "Engine bump" section); the upgrade is run via
+[`RELEASING-CEFRIUM.md`](RELEASING-CEFRIUM.md) (the "Engine bump" section); the upgrade is run via
 `cef/cefrium_sdk/engine-bump.sh`.
 
 ## Building from source
@@ -195,7 +195,7 @@ currently `149.0.7827.102`), ~400 GB disk, 64 GB RAM.
 > **Modifying the Chromium tree?** All port changes to Chromium files are stored
 > as patches under `cef/patch/patches/` and re-applied on every build -- the tree
 > is never committed to. Before adding or regenerating a patch, read
-> **[PATCHING.md](PATCHING.md)**: the storage format (`-p0`, no `a/`/`b/` prefix),
+> **[PATCHING-CEFRIUM.md](PATCHING-CEFRIUM.md)**: the storage format (`-p0`, no `a/`/`b/` prefix),
 > `patch.cfg` registration, one-file-one-patch ownership, and the workdir
 > regeneration method are strict, and a clean `apply-patches.py` must report
 > `0 failed`. A format guard (`check-patch-format.sh`) enforces this in the
@@ -266,7 +266,7 @@ cp ../cefrium_compose/build/outputs/aar/cefrium-compose-release.aar app/libs/cef
 ```
 
 See [`cefrium_instrumentation_test/README.md`](cefrium_instrumentation_test/README.md)
-for the full coverage table, and [`RELEASING.md`](RELEASING.md) for the
+for the full coverage table, and [`RELEASING-CEFRIUM.md`](RELEASING-CEFRIUM.md) for the
 registry-only consumer smoke test that gates each release. The
 [cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) repo runs a
 Woodpecker CI that builds every sample and compiles the test APK on each push.
@@ -368,7 +368,7 @@ test (`test-published-release.sh`) that resolves and builds from the registry, s
 a corrupt or unconsumable publish fails *before* it is announced. Versions are
 immutable - bump, or delete first to re-publish. Full step-by-step (build ->
 publish -> smoke test -> signed tag + release notes template -> site row) in
-[BUILD-GUIDE.md - section 7 Cut a release](BUILD-GUIDE.md#7-cut-a-release).
+[BUILD-GUIDE-CEFRIUM.md - section 7 Cut a release](BUILD-GUIDE-CEFRIUM.md#7-cut-a-release).
 
 ### APK size optimization
 
@@ -464,7 +464,7 @@ All Android changes are isolated and reviewable:
   applied via `apply-patches.py` (CEF's `patcher.py`, `-p0`). Each addresses a
   specific incompatibility between Chromium's assumptions and the Android
   embedding environment. Format, registration and regeneration are documented in
-  **[PATCHING.md](PATCHING.md)**; a clean reapply must report `0 failed`.
+  **[PATCHING-CEFRIUM.md](PATCHING-CEFRIUM.md)**; a clean reapply must report `0 failed`.
 - **Build changes** (`BUILD.gn`): Android-specific sources, deps, and
   `embedder_support` integration.
 
