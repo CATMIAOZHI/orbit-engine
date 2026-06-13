@@ -257,6 +257,13 @@ def main():
         'org/intellij/',
         'org/jetbrains/',
         'org/jspecify/',
+        # okio is an orphaned transitive artifact: its androidx users are stripped
+        # above, so 0 classes in this AAR reference okio (verified). Keeping it only
+        # caused checkDuplicateClasses collisions for any consumer that also pulls
+        # okio-jvm (e.g. via androidx.datastore, which the SDK POM declares for the
+        # native-FCM getToken path). Strip it; the consumer's Gradle provides the
+        # single okio-jvm. Same consumer-provides model as androidx/kotlin above.
+        'okio/',
     )
     # Keep these even if they match STRIP_FROM_JAR prefixes.
     # Chromium loads them at runtime — stripping causes crashes.
