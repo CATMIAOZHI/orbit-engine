@@ -72,10 +72,15 @@ apply "$QS" "s{(com\\.cefrium['\"]\\)? version ['\"])$PREV(['\"])}{\${1}$NEW\${2
   "$NEW" "quickstart version"
 
 # 2. Releases — insert the new release block (metadata row + full-width notes row)
-# right after the "add a release" comment.
-NEWROW="      <tr class=\"rel\">\n        <td class=\"ver\"><a href=\"https://codeberg.org/cefrium/cef-android/releases/tag/v$NEW\">$NEW</a></td>\n        <td class=\"mono\">$BRANCH</td>\n        <td class=\"mono\">$CHROMIUM</td>\n        <td class=\"date\">$DATE</td>\n        <td class=\"art\"><a href=\"https://codeberg.org/cefrium/-/packages/maven/com.cefrium:cefrium-sdk/$NEW\">com.cefrium:cefrium-sdk:$NEW</a></td>\n      </tr>\n      <tr class=\"notes\"><td colspan=\"5\">$NOTES</td></tr>"
-apply "$REL" "s{(for the notes\\. -->\\n)}{\${1}$NEWROW\\n}" \
-  "tag/v$NEW" "releases new row"
+# right after the "add a release" comment. Skip if a row for this version already
+# exists (a same-version re-cut), so we don't insert a duplicate row.
+if [ -f "$REL" ] && grep -qF "tag/v$NEW\">$NEW</a>" "$REL"; then
+  echo "  releases new row: v$NEW already present (re-cut) — skipping insert"
+else
+  NEWROW="      <tr class=\"rel\">\n        <td class=\"ver\"><a href=\"https://codeberg.org/cefrium/cef-android/releases/tag/v$NEW\">$NEW</a></td>\n        <td class=\"mono\">$BRANCH</td>\n        <td class=\"mono\">$CHROMIUM</td>\n        <td class=\"date\">$DATE</td>\n        <td class=\"art\"><a href=\"https://codeberg.org/cefrium/-/packages/maven/com.cefrium:cefrium-sdk/$NEW\">com.cefrium:cefrium-sdk:$NEW</a></td>\n      </tr>\n      <tr class=\"notes\"><td colspan=\"5\">$NOTES</td></tr>"
+  apply "$REL" "s{(for the notes\\. -->\\n)}{\${1}$NEWROW\\n}" \
+    "tag/v$NEW" "releases new row"
+fi
 
 # 3. Mark the previous version superseded: turn its metadata-row artifact cell into
 # "superseded" AND append the supersede note to its full-width notes row (the <tr
