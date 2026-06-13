@@ -7,6 +7,8 @@
 #include <tuple>
 
 #include "base/logging.h"
+#include "base/memory/ref_counted_memory.h"
+#include "build/build_config.h"
 #include "cef/libcef/browser/browser_guest_util.h"
 #include "cef/libcef/browser/browser_info_manager.h"
 #include "cef/libcef/browser/browser_platform_delegate.h"
@@ -33,9 +35,11 @@
 #include "content/public/browser/download_manager.h"
 #include "content/public/browser/download_request_utils.h"
 #include "content/public/browser/file_select_listener.h"
+#include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
+#include "content/public/browser/web_contents.h"
 #include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/shell_dialogs/select_file_policy.h"
@@ -1416,6 +1420,60 @@ bool CefBrowserHostBase::Navigate(const content::OpenURLParams& params) {
     return true;
   }
   return false;
+}
+
+void CefBrowserHostBase::LoadMainFrameDataWithBaseURL(
+    const std::string& data,
+    const std::string& mime_type,
+    const std::string& charset,
+    const std::string& base_url,
+    const std::string& history_url) {
+  auto callback = base::BindOnce(
+      &CefBrowserHostBase::LoadMainFrameDataWithBaseURL, this, data, mime_type,
+      charset, base_url, history_url);
+  if (!CEF_CURRENTLY_ON_UIT()) {
+    CEF_POST_TASK(CEF_UIT, std::move(callback));
+    return;
+  }
+
+  if (browser_info_->IsNavigationLocked(std::move(callback))) {
+    return;
+  }
+
+  auto web_contents = GetWebContents();
+  if (!web_contents) {
+    return;
+  }
+
+  // Mirror Android WebView's loadDataWithBaseURL() / content_shell's
+  // LoadDataWithBaseURL(): a LOAD_TYPE_DATA navigation whose document content is
+  // the data: payload but whose origin and referrer come from base_url. This is
+  // what gives the loaded document a real (non-opaque) origin -- required by
+  // embeds such as the YouTube IFrame API that postMessage-validate their parent
+  // origin.
+  const std::string mime = mime_type.empty() ? "text/html" : mime_type;
+  const std::string cs = charset.empty() ? "utf-8" : charset;
+  const std::string header = "data:" + mime + ";charset=" + cs + ",";
+
+  content::NavigationController::LoadURLParams params{GURL()};
+#if BUILDFLAG(IS_ANDROID)
+  // Pass the payload via data_url_as_string so content larger than the GURL/IPC
+  // size cap (kMaxURLChars) still loads; the url field carries only the header.
+  params.url = GURL(header);
+  params.data_url_as_string =
+      base::MakeRefCounted<base::RefCountedString>(header + data);
+#else
+  params.url = GURL(header + data);
+#endif
+  params.load_type = content::NavigationController::LOAD_TYPE_DATA;
+  params.base_url_for_data_url = GURL(base_url);
+  params.virtual_url_for_special_cases =
+      history_url.empty() ? GURL(base_url) : GURL(history_url);
+  params.override_user_agent =
+      content::NavigationController::UA_OVERRIDE_FALSE;
+
+  web_contents->GetController().LoadURLWithParams(params);
+  OnSetFocus(FOCUS_SOURCE_NAVIGATION);
 }
 
 void CefBrowserHostBase::ShowDevToolsOnUIThread(
