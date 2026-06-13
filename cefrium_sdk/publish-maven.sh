@@ -109,10 +109,15 @@ upload() {
   # 2 min and then fails anyway. Capture the body and fail fast on those.
   local status attempt=0 body
   while :; do
+    # curl -w already prints "000" on a connection failure (and exits non-zero).
+    # Do NOT append `|| echo 000` to the substitution: that concatenates to
+    # "000000", which misses the 000 retry case and aborts on a transient blip.
+    # Normalize after instead.
     status=$(curl -s --max-time 180 -o /tmp/cefrium-upload-resp.$$ -w "%{http_code}" \
       -H "Authorization: token $TOKEN" \
       --upload-file "$file" \
-      "$url" || echo "000")
+      "$url") || true
+    status="${status:-000}"
     if [ "$status" = "400" ]; then
       body=$(cat /tmp/cefrium-upload-resp.$$ 2>/dev/null)
       if echo "$body" | grep -qiE "syntax error|invalid|malformed|not allowed|parse"; then
