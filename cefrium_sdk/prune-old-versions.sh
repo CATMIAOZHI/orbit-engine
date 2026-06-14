@@ -13,13 +13,20 @@ YES=0
 [ "${2:-}" = "--yes" ] && YES=1
 [ "${CEFRIUM_YES:-0}" = "1" ] && YES=1
 TOKEN="$(cat "$HOME/.registry-token")"
+# Keep the token OUT of argv (`ps`): pass the auth header via a 0600 curl config
+# file (`curl -K`) instead of putting it on the command line. Removed on exit.
+CURL_AUTH_CFG="$(mktemp "${TMPDIR:-/tmp}/cefrium-curl-auth.XXXXXX")"
+chmod 600 "$CURL_AUTH_CFG"
+printf 'header = "Authorization: token %s"\n' "$TOKEN" > "$CURL_AUTH_CFG"
+trap 'rm -f "$CURL_AUTH_CFG"' EXIT
+unset TOKEN
 API="https://codeberg.org/api/v1/packages/cefrium"
 
 # All Maven coordinates the publish step creates.
 COORDS="cefrium-sdk cefrium-sdk-libre cefrium-compose cefrium-gradle-plugin com.cefrium.gradle.plugin"
 
 # Distinct published versions.
-versions=$(curl -s "$API?type=maven&limit=100" -H "Authorization: token $TOKEN" \
+versions=$(curl -s "$API?type=maven&limit=100" -K "$CURL_AUTH_CFG" \
             | grep -oE '"version":"[^"]*"' | cut -d'"' -f4 | sort -u)
 to_prune=$(echo "$versions" | grep -vx "$KEEP" || true)
 
@@ -42,7 +49,7 @@ for v in $to_prune; do
   for art in $COORDS; do
     enc="com.cefrium%3A$art"
     code=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$API/maven/$enc/$v" \
-            -H "Authorization: token $TOKEN")
+            -K "$CURL_AUTH_CFG")
     case "$code" in
       204) echo "  deleted $art $v" ;;
       404) ;;  # coordinate didn't exist for this version — fine
@@ -51,6 +58,6 @@ for v in $to_prune; do
   done
 done
 
-remaining=$(curl -s "$API?type=maven&limit=100" -H "Authorization: token $TOKEN" \
+remaining=$(curl -s "$API?type=maven&limit=100" -K "$CURL_AUTH_CFG" \
              | grep -oE '"version":"[^"]*"' | cut -d'"' -f4 | sort -u | tr '\n' ' ')
 echo "Done. Registry now serves: $remaining"
