@@ -2406,7 +2406,7 @@ class SdkCookieVisitor : public CefCookieVisitor {
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeSetCookie(
     JNIEnv* env, jclass, jlong native_ptr, jstring url_j, jstring name_j,
-    jstring value_j) {
+    jstring value_j, jboolean secure, jboolean http_only, jint same_site) {
   CefRefPtr<CefCookieManager> mgr = CookieManagerFor(native_ptr);
   if (!mgr) return;
   CefString url = JStr(env, url_j);
@@ -2414,6 +2414,11 @@ Java_com_cefrium_CefriumBrowser_nativeSetCookie(
   CefString(&cookie.name) = JStr(env, name_j);
   CefString(&cookie.value) = JStr(env, value_j);
   cookie.has_expires = false;  // session cookie; domain/path inferred from url
+  cookie.secure = secure ? 1 : 0;
+  cookie.httponly = http_only ? 1 : 0;
+  // same_site matches CefriumBrowser.SAME_SITE_* == cef_cookie_same_site_t
+  // (0 unspecified, 1 no-restriction/None, 2 Lax, 3 Strict). None requires Secure.
+  cookie.same_site = static_cast<cef_cookie_same_site_t>(same_site);
   mgr->SetCookie(url, cookie, nullptr);
 }
 
