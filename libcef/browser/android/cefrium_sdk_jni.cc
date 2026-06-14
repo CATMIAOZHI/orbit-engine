@@ -44,6 +44,11 @@
 #include "cef/include/wrapper/cef_message_router.h"
 #include "cef/libcef/browser/android/cefrium_bridge_constants.h"
 #include "cef/include/cef_resource_request_handler.h"
+#include "cef/include/cef_resource_handler.h"
+#include "cef/include/cef_response.h"
+#include "cef/include/cef_callback.h"
+#include <algorithm>
+#include <cstring>
 
 #include <android/log.h>
 #include "base/android/jni_android.h"
@@ -568,6 +573,87 @@ class SdkContextMenuHandler : public CefContextMenuHandler {
 // Global AdBlock filter engine — shared across all browsers.
 static AdBlockFilter* g_adblock_filter = nullptr;
 
+// loadHtmlWithBaseUrl via a GENUINE network-served response (not a data: URL).
+//
+// A data-with-base (data:) document is rejected client-side by some embedded
+// players -- notably the YouTube IFrame player, which returns Error 152 because
+// the embedding document was never served over the network (verified on device:
+// origin/Referer/Origin are correct, yet the player aborts; the same HTML served
+// from a real http origin PLAYS). So instead of a LOAD_TYPE_DATA navigation, we
+// register the HTML under its base_url and, when the browser navigates there,
+// serve it as a real 200 response. The committed document then has a true network
+// origin == base_url. Every OTHER request (the embed iframe, base.js, googlevideo)
+// passes through to the real network. This is something CEF can do that Android
+// WebView cannot: WebView's loadDataWithBaseURL always yields a data: document.
+struct PendingDataDoc {
+  std::string html;
+  std::string content_type;  // e.g. "text/html; charset=utf-8"
+};
+
+base::Lock& PendingDocsLock() {
+  static base::NoDestructor<base::Lock> lock;
+  return *lock;
+}
+std::map<std::string, PendingDataDoc>& PendingDocs() {
+  static base::NoDestructor<std::map<std::string, PendingDataDoc>> docs;
+  return *docs;
+}
+void RegisterPendingDataDoc(const std::string& url,
+                            std::string html,
+                            std::string content_type) {
+  base::AutoLock lock(PendingDocsLock());
+  PendingDocs()[url] = PendingDataDoc{std::move(html), std::move(content_type)};
+}
+
+// Serves stored bytes as the response for an intercepted main-frame navigation.
+class DataDocResourceHandler : public CefResourceHandler {
+ public:
+  DataDocResourceHandler(std::string data, std::string content_type)
+      : data_(std::move(data)), content_type_(std::move(content_type)) {}
+
+  bool Open(CefRefPtr<CefRequest> request,
+            bool& handle_request,
+            CefRefPtr<CefCallback> callback) override {
+    handle_request = true;  // handle synchronously, no rescheduling
+    return true;
+  }
+
+  void GetResponseHeaders(CefRefPtr<CefResponse> response,
+                          int64_t& response_length,
+                          CefString& redirectUrl) override {
+    response->SetStatus(200);
+    response->SetStatusText("OK");
+    response->SetMimeType("text/html");
+    response->SetHeaderByName("Content-Type", content_type_, true);
+    response_length = static_cast<int64_t>(data_.size());
+  }
+
+  bool Read(void* data_out,
+            int bytes_to_read,
+            int& bytes_read,
+            CefRefPtr<CefResourceReadCallback> callback) override {
+    const size_t remaining = data_.size() - offset_;
+    if (remaining == 0) {
+      bytes_read = 0;
+      return false;  // EOF
+    }
+    const int n = static_cast<int>(
+        std::min(static_cast<size_t>(bytes_to_read), remaining));
+    std::memcpy(data_out, data_.data() + offset_, n);
+    offset_ += n;
+    bytes_read = n;
+    return true;
+  }
+
+  void Cancel() override {}
+
+ private:
+  std::string data_;
+  std::string content_type_;
+  size_t offset_ = 0;
+  IMPLEMENT_REFCOUNTING(DataDocResourceHandler);
+};
+
 // Ad-blocking request handler using EasyList filter engine.
 class SdkResourceRequestHandler : public CefResourceRequestHandler {
  public:
@@ -636,6 +722,27 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
     }
 
     return blocked ? RV_CANCEL : RV_CONTINUE;
+  }
+
+  // Serve a registered loadHtmlWithBaseUrl document as a real network response.
+  // One-shot: the entry is removed on first serve so it can't hijack later
+  // navigations to the same URL. Returns nullptr for everything else -> the
+  // request takes the normal network path.
+  CefRefPtr<CefResourceHandler> GetResourceHandler(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request) override {
+    const std::string url = request->GetURL().ToString();
+    base::AutoLock lock(PendingDocsLock());
+    auto& docs = PendingDocs();
+    auto it = docs.find(url);
+    if (it == docs.end()) {
+      return nullptr;
+    }
+    PendingDataDoc doc = std::move(it->second);
+    docs.erase(it);
+    return new DataDocResourceHandler(std::move(doc.html),
+                                      std::move(doc.content_type));
   }
 
   ~SdkResourceRequestHandler() override {
@@ -1785,28 +1892,38 @@ Java_com_cefrium_CefriumBrowser_nativeLoadDataWithBaseUrl(
   const std::string charset = to_str(charset_j);
   const std::string history = to_str(history_j);
 
+  // approach (A): serve the HTML from a genuine network origin == base_url so the
+  // committed document is network-served (embeds like the YouTube IFrame player
+  // play; a data: document is rejected client-side -> Error 152). Register the
+  // HTML under the normalized base_url; the navigation there is intercepted by
+  // SdkResourceRequestHandler::GetResourceHandler and served as a real 200.
+  GURL gurl(base_url);
+  if (!gurl.is_valid()) {
+    LOGI("loadDataWithBaseUrl: invalid base_url '%s' -- ignored",
+         base_url.c_str());
+    return;
+  }
+  const std::string served_url = gurl.spec();
+  const std::string ctype =
+      (mime.empty() ? std::string("text/html") : mime) +
+      "; charset=" + (charset.empty() ? std::string("utf-8") : charset);
+  RegisterPendingDataDoc(served_url, html, ctype);
+
   if (!data->browser) {
-    // First load — create the browser at about:blank so the renderer spawns,
-    // then apply the data load in OnAfterCreated.
-    data->pending_data = std::make_unique<SdkPendingDataLoad>(
-        SdkPendingDataLoad{html, mime, charset, base_url, history});
+    // First load — create the browser directly at the served URL; the renderer
+    // spawns and the navigation is intercepted to deliver our HTML.
     CefWindowInfo window_info;
     window_info.SetAsWindowless(0);
     CefBrowserSettings browser_settings;
     browser_settings.background_color = CefColorSetARGB(255, 255, 255, 255);
-    data->pending_url = "about:blank";
+    data->pending_url = served_url;
     CefBrowserHost::CreateBrowser(window_info, data->client,
-                                  CefString("about:blank"), browser_settings,
+                                  CefString(served_url), browser_settings,
                                   nullptr, nullptr);
-    LOGI("CreateBrowser (data w/ base url=%s)", base_url.c_str());
+    LOGI("CreateBrowser (data-with-base served origin=%s)", served_url.c_str());
   } else {
-    auto* host =
-        static_cast<CefBrowserHostBase*>(data->browser->GetHost().get());
-    if (host) {
-      host->LoadMainFrameDataWithBaseURL(html, mime, charset, base_url,
-                                         history);
-    }
-    LOGI("loadDataWithBaseUrl base=%s", base_url.c_str());
+    data->browser->GetMainFrame()->LoadURL(served_url);
+    LOGI("loadDataWithBaseUrl served origin=%s", served_url.c_str());
   }
 }
 
