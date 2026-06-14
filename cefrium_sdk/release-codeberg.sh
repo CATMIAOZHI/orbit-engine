@@ -19,6 +19,13 @@ COMPOSE_AAR="$CEF_DIR/cefrium_compose/build/outputs/aar/cefrium-compose-release.
 GPG_KEY="2A840ED00DE669F4219B8B3302A79E3B82151695"
 API="https://codeberg.org/api/v1/repos/cefrium/cef-android"
 TOKEN="$(cat "$HOME/.registry-token")"
+# Keep the token OUT of argv (`ps`): pass the auth header via a 0600 curl config
+# file (`curl -K`) instead of putting it on the command line. Removed on exit.
+CURL_AUTH_CFG="$(mktemp "${TMPDIR:-/tmp}/cefrium-curl-auth.XXXXXX")"
+chmod 600 "$CURL_AUTH_CFG"
+printf 'header = "Authorization: token %s"\n' "$TOKEN" > "$CURL_AUTH_CFG"
+trap 'rm -f "$CURL_AUTH_CFG"' EXIT
+unset TOKEN
 TAG="v$VERSION"
 
 say() { echo ">>> $*"; }
@@ -62,11 +69,11 @@ done
 
 # 4. Create the release object (skip if it exists), capture its id.
 say "ensuring release $TAG exists"
-rid=$(curl -s "$API/releases/tags/$TAG" -H "Authorization: token $TOKEN" \
+rid=$(curl -s "$API/releases/tags/$TAG" -K "$CURL_AUTH_CFG" \
         | grep -oE '"id":[0-9]+' | head -1 | cut -d: -f2 || true)
 if [ -z "$rid" ]; then
   body="Cefrium $VERSION. Artifacts on the Codeberg Maven registry (com.cefrium:cefrium-sdk:$VERSION and -libre). SHA256SUMS (GPG-signed) attached; the listed AAR hashes are byte-identical to the registry artifacts. https://cefrium.com/releases"
-  rid=$(curl -s -X POST "$API/releases" -H "Authorization: token $TOKEN" \
+  rid=$(curl -s -X POST "$API/releases" -K "$CURL_AUTH_CFG" \
     -H "Content-Type: application/json" \
     -d "{\"tag_name\":\"$TAG\",\"name\":\"Cefrium $VERSION\",\"body\":\"$body\"}" \
     | grep -oE '"id":[0-9]+' | head -1 | cut -d: -f2)
@@ -78,12 +85,12 @@ say "release id $rid"
 upload_asset() {
   local file="$1" name; name="$(basename "$file")"
   local existing
-  existing=$(curl -s "$API/releases/$rid/assets" -H "Authorization: token $TOKEN" \
+  existing=$(curl -s "$API/releases/$rid/assets" -K "$CURL_AUTH_CFG" \
               | grep -oE "\"name\":\"$name\"" | head -1 || true)
   if [ -n "$existing" ]; then say "asset $name already present"; return; fi
   local code
   code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API/releases/$rid/assets?name=$name" \
-          -H "Authorization: token $TOKEN" -F "attachment=@$file")
+          -K "$CURL_AUTH_CFG" -F "attachment=@$file")
   [ "$code" = "201" ] && say "uploaded $name" || { echo "ERROR: upload $name -> HTTP $code"; exit 1; }
 }
 upload_asset "$REL_DIR/$SUMS"

@@ -28,6 +28,16 @@ fi
 
 TOKEN=$(cat "$TOKEN_FILE")
 
+# Keep the token OUT of argv (and thus `ps`/process listings): instead of
+# `-H "Authorization: token $TOKEN"` on every curl command line (world-visible),
+# write the auth header into a 0600 curl config file and pass it with `curl -K`.
+# The file is removed on exit. Fully non-interactive.
+CURL_AUTH_CFG="$(mktemp "${TMPDIR:-/tmp}/cefrium-curl-auth.XXXXXX")"
+chmod 600 "$CURL_AUTH_CFG"
+printf 'header = "Authorization: token %s"\n' "$TOKEN" > "$CURL_AUTH_CFG"
+trap 'rm -f "$CURL_AUTH_CFG"' EXIT
+unset TOKEN  # no longer needed; header now lives only in the 0600 config file
+
 # DEP-8-style integrity gate: re-fetch a just-published artifact and confirm it is
 # what a consumer will actually download — not a multipart envelope, an HTML error
 # page, or an empty body. AAR/JAR must start with the ZIP magic "PK"; POM/XML must
@@ -50,7 +60,7 @@ verify_artifact() {
   local tries=0 bytes=0
   while [ "$tries" -lt 5 ]; do
     : > "$tmp"
-    curl -s -H "Authorization: token $TOKEN" "$url" -o "$tmp" 2>/dev/null || true
+    curl -s -K "$CURL_AUTH_CFG" "$url" -o "$tmp" 2>/dev/null || true
     bytes=$(wc -c < "$tmp" 2>/dev/null || echo 0)
     [ "$bytes" -gt 0 ] && break
     tries=$((tries + 1))
@@ -114,7 +124,7 @@ upload() {
     # "000000", which misses the 000 retry case and aborts on a transient blip.
     # Normalize after instead.
     status=$(curl -s --max-time 180 -o /tmp/cefrium-upload-resp.$$ -w "%{http_code}" \
-      -H "Authorization: token $TOKEN" \
+      -K "$CURL_AUTH_CFG" \
       --upload-file "$file" \
       "$url") || true
     status="${status:-000}"
