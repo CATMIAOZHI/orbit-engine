@@ -39,7 +39,7 @@ dependencyResolutionManagement {
 ```groovy
 plugins {
     id 'com.android.application'
-    id 'com.cefrium' version '0.5.1'
+    id 'com.cefrium' version '0.5.2'
 }
 
 android {
@@ -55,7 +55,7 @@ android {
 }
 
 dependencies {
-    implementation 'com.cefrium:cefrium-sdk:0.5.1'  // multi-ABI; App Bundle/ABI splits ship one ABI per device
+    implementation 'com.cefrium:cefrium-sdk:0.5.2'  // multi-ABI; App Bundle/ABI splits ship one ABI per device
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.mediarouter:mediarouter:1.7.0'
     implementation 'androidx.core:core:1.16.0'
