@@ -495,9 +495,29 @@ public class CefriumBrowser {
     private final java.util.concurrent.atomic.AtomicLong mCookieReqId =
             new java.util.concurrent.atomic.AtomicLong(1);
 
-    /** Sets a cookie for {@code url} (domain/path inferred from the URL). */
+    // SameSite values for {@link #setCookie}; match Chromium's cookie SameSite.
+    public static final int SAME_SITE_UNSPECIFIED = 0;
+    public static final int SAME_SITE_NONE = 1;   // cross-site; REQUIRES secure=true
+    public static final int SAME_SITE_LAX = 2;
+    public static final int SAME_SITE_STRICT = 3;
+
+    /** Sets a session cookie for {@code url} (domain/path inferred from the URL). */
     public void setCookie(String url, String name, String value) {
-        if (mNativePtr != 0) nativeSetCookie(mNativePtr, url, name, value);
+        setCookie(url, name, value, false, false, SAME_SITE_UNSPECIFIED);
+    }
+
+    /**
+     * Sets a session cookie for {@code url} with explicit attributes. Use this for
+     * cookies a third-party/cross-site context must send (e.g. a consent cookie an
+     * embedded iframe needs): pass {@code secure=true} and
+     * {@code sameSite=SAME_SITE_NONE} -- Chromium rejects {@code SameSite=None}
+     * without {@code Secure}. domain/path are inferred from the URL.
+     */
+    public void setCookie(String url, String name, String value,
+                          boolean secure, boolean httpOnly, int sameSite) {
+        if (mNativePtr != 0) {
+            nativeSetCookie(mNativePtr, url, name, value, secure, httpOnly, sameSite);
+        }
     }
 
     /** Reads cookies visible to {@code url}; the callback fires on the UI thread. */
@@ -1633,7 +1653,8 @@ public class CefriumBrowser {
     private static native void nativeEvaluateJavaScript(long nativePtr, String script);
     private static native void nativeQueryResult(long nativePtr, long queryId,
             boolean success, String response, int errorCode, String errorMessage);
-    private static native void nativeSetCookie(long nativePtr, String url, String name, String value);
+    private static native void nativeSetCookie(long nativePtr, String url, String name,
+            String value, boolean secure, boolean httpOnly, int sameSite);
     private static native void nativeGetCookies(long nativePtr, CefriumBrowser browser, String url, long requestId);
     private static native void nativeDeleteCookies(long nativePtr, String url, String name);
     private static native void nativeFlushCookies(long nativePtr);

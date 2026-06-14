@@ -104,6 +104,23 @@ class CefriumNavigator {
         state?.browser?.setCookie(url, name, value)
     }
 
+    /**
+     * Sets a session cookie for [url] with explicit attributes. For a cookie a
+     * cross-site/embedded iframe must send (e.g. a consent cookie), pass
+     * [secure] = true and [sameSite] = [com.cefrium.CefriumBrowser.SAME_SITE_NONE]
+     * (Chromium rejects SameSite=None without Secure).
+     */
+    fun setCookie(
+        url: String,
+        name: String,
+        value: String,
+        secure: Boolean,
+        httpOnly: Boolean = false,
+        sameSite: Int = com.cefrium.CefriumBrowser.SAME_SITE_UNSPECIFIED,
+    ) {
+        state?.browser?.setCookie(url, name, value, secure, httpOnly, sameSite)
+    }
+
     /** Reads cookies visible to [url]; [callback] fires on the UI thread. */
     fun getCookies(url: String, callback: com.cefrium.CefriumBrowser.CookieCallback) {
         state?.browser?.getCookies(url, callback)
