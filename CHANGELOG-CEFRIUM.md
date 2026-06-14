@@ -15,6 +15,29 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.5.2] -- 2026-06-14
+
+Chromium 149.0.7827.102.
+
+### Added
+- `CefriumBrowser.setCookie(url, name, value, secure, httpOnly, sameSite)` and the
+  Compose `CefriumNavigator` parity overload. Sets a cookie with explicit
+  `Secure` / `HttpOnly` / `SameSite` attributes (`SAME_SITE_NONE`/`LAX`/`STRICT`/
+  `UNSPECIFIED`), required for a cookie a cross-site/embedded context must send --
+  Chromium rejects `SameSite=None` without `Secure`. The existing 3-arg `setCookie`
+  is unchanged.
+  - Solution: `nativeSetCookie` now carries the three attributes into `CefCookie`
+    (`secure`, `httponly`, `same_site` -> `cef_cookie_same_site_t`).
+
+### Notes
+- Inline YouTube IFrame embeds via `loadHtmlWithBaseUrl` load YouTube's real player
+  and pass its origin check, but YouTube then applies a SERVER-SIDE integrity check
+  that rejects locally-injected documents and shows Error 152 for all videos -- the
+  same limitation Android WebView's `loadDataWithBaseURL` has. To embed YouTube
+  inline, serve the embed HTML from a real HTTP(S)/localhost origin and use
+  `loadUrl()`. `loadHtmlWithBaseUrl` is for documents whose own scripts need a real
+  origin, not for third-party players that verify the document was network-served.
+
 ## [0.5.1] -- 2026-06-13
 
 Chromium 149.0.7827.102.
