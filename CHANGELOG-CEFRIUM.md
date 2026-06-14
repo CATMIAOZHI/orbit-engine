@@ -15,6 +15,28 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.5.3] -- 2026-06-14
+
+Chromium 149.0.7827.102.
+
+### Fixed
+- `loadHtmlWithBaseUrl` / `loadDataWithBaseUrl` now render an HTML string as a
+  GENUINE network response at `baseUrl`, not a `data:` document. Inline embedded
+  players that require a network-served parent -- notably the YouTube IFrame player
+  -- now PLAY; previously they failed with Error 152 (the `data:` document is
+  rejected client-side, the same way Android WebView's `loadDataWithBaseURL` fails).
+  Validated on device: a YouTube IFrame plays inline via
+  `loadHtmlWithBaseUrl(html, "https://your-app-origin")`.
+  - Solution: register the HTML under `baseUrl` and serve it as a real 200 response
+    on navigation (one-shot `CefResourceRequestHandler` intercept); all other
+    requests hit the network. The committed document then has a true network origin
+    == `baseUrl`. This is something CEF can do that WebView cannot.
+  - API note: pass YOUR OWN app origin as `baseUrl` (as any website embedding
+    YouTube does), NOT `https://www.youtube.com` -- YouTube rejects same-origin
+    self-embedding with 152.
+  - This corrects the 0.5.2 note that called the 152 a WebView-equivalent
+    limitation: it is fixable, and is fixed here.
+
 ## [0.5.2] -- 2026-06-14
 
 Chromium 149.0.7827.102.
