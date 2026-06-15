@@ -1871,6 +1871,25 @@ Java_com_cefrium_CefriumBrowser_nativeReapUnusedRenderers(JNIEnv*, jclass) {
       TID_UI, CefCreateClosureTask(base::BindOnce(&ReapUnusedRenderersOnUI)), 1500);
 }
 
+// Exact count of live RENDERER processes (RenderProcessHost only -- utility,
+// network, audio, storage and GPU use separate host types and are NOT counted, so
+// this sidesteps the `ps | grep sandboxed_process` ambiguity). Excludes the spare.
+extern "C" JNIEXPORT jint JNICALL
+Java_com_cefrium_CefriumBrowser_nativeActiveRenderProcessCount(JNIEnv*, jclass) {
+  if (!CEF_CURRENTLY_ON_UIT()) {
+    return -1;  // RenderProcessHost is UI-thread-only; call on the main thread.
+  }
+  jint n = 0;
+  for (auto it = content::RenderProcessHost::AllHostsIterator(); !it.IsAtEnd();
+       it.Advance()) {
+    content::RenderProcessHost* host = it.GetCurrentValue();
+    if (host && host->IsInitializedAndNotDead() && !host->IsSpare()) {
+      n++;
+    }
+  }
+  return n;
+}
+
 // Load an HTML/data string with an explicit base URL (origin + referrer),
 // mirroring Android WebView.loadDataWithBaseURL(). Gives string-loaded content a
 // real (non-opaque) origin so embeds that validate their parent origin (e.g. the
