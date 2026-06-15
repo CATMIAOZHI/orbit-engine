@@ -1167,36 +1167,108 @@ public class CefriumBrowser {
         return mNativePtr != 0 && nativeCanGoBack(mNativePtr);
     }
 
+    // ---- Media / page lifecycle controls ----------------------------------
+    //
+    // Granular levers so a host can compose ANY background behavior. The Compose
+    // CefriumView wires onPause()/onResume() to the host lifecycle by default
+    // (see CefriumView's backgroundMediaPolicy); these are the building blocks
+    // for custom policies (mute-only, keep-playing background audio, etc.).
+
+    private org.chromium.content_public.browser.WebContents webContents() {
+        return mNativePtr != 0 ? nativeGetWebContents(mNativePtr) : null;
+    }
+
     /**
-     * Notify the browser that the Activity is pausing.
-     * Suspends the compositor to save battery and GPU resources.
-     * Call from Activity.onPause() or Activity.onStop().
+     * Suspends active media (audio + video) at the browser-process level
+     * (MediaSession Suspend == the audio-focus-loss path). Position is preserved;
+     * {@link #resumeMedia()} resumes. Works even after the renderer JS is
+     * suspended -- unlike {@code evaluateJavaScript("...pause()")}, which is
+     * queued and never runs once backgrounded.
      */
-    public void onPause() {
-        if (mNativePtr != 0) {
-            org.chromium.content_public.browser.WebContents wc =
-                    nativeGetWebContents(mNativePtr);
-            if (wc != null) {
-                wc.updateWebContentsVisibility(
-                        org.chromium.content_public.browser.Visibility.HIDDEN);
-            }
+    public void suspendMedia() {
+        org.chromium.content_public.browser.WebContents wc = webContents();
+        if (wc != null) {
+            org.chromium.content_public.browser.MediaSession ms =
+                    org.chromium.content_public.browser.MediaSession.fromWebContents(wc);
+            if (ms != null) ms.suspend();
+        }
+    }
+
+    /** Resumes media suspended by {@link #suspendMedia()} (resumes where it left off). */
+    public void resumeMedia() {
+        org.chromium.content_public.browser.WebContents wc = webContents();
+        if (wc != null) {
+            org.chromium.content_public.browser.MediaSession ms =
+                    org.chromium.content_public.browser.MediaSession.fromWebContents(wc);
+            if (ms != null) ms.resume();
         }
     }
 
     /**
-     * Notify the browser that the Activity is resuming.
-     * Resumes the compositor and rendering.
-     * Call from Activity.onResume() or Activity.onStart().
+     * Mutes/unmutes ALL audio output of the page (keeps media decoding/playing,
+     * just silenced). Use this for a "go quiet but keep position/time advancing"
+     * policy; use {@link #suspendMedia()} to actually pause.
+     */
+    public void setAudioMuted(boolean muted) {
+        org.chromium.content_public.browser.WebContents wc = webContents();
+        if (wc != null) wc.setAudioMuted(muted);
+    }
+
+    /** Whether the page's audio is currently muted via {@link #setAudioMuted}. */
+    public boolean isAudioMuted() {
+        org.chromium.content_public.browser.WebContents wc = webContents();
+        return wc != null && wc.isAudioMuted();
+    }
+
+    /**
+     * Sets the page's visibility (compositor + Page Visibility API
+     * {@code document.hidden}). HIDDEN saves GPU/battery and fires
+     * {@code visibilitychange}, but does NOT by itself stop audio.
+     */
+    public void setPageVisible(boolean visible) {
+        org.chromium.content_public.browser.WebContents wc = webContents();
+        if (wc != null) {
+            wc.updateWebContentsVisibility(visible
+                    ? org.chromium.content_public.browser.Visibility.VISIBLE
+                    : org.chromium.content_public.browser.Visibility.HIDDEN);
+        }
+    }
+
+    /**
+     * Hard-stops all media players (not resumable like {@link #suspendMedia()})
+     * and mutes audio. For "fully release audio on background" when you do not
+     * need to resume in place.
+     */
+    public void stopAllMedia() {
+        org.chromium.content_public.browser.WebContents wc = webContents();
+        if (wc != null) {
+            wc.suspendAllMediaPlayers();
+            wc.setAudioMuted(true);
+        }
+    }
+
+    /**
+     * Convenience for "host is backgrounding": hide the page, suspend media and
+     * mute audio so inline audio/video actually stops (visibility HIDDEN alone
+     * keeps background audio playing). Resumable via {@link #onResume()}. Call
+     * from Activity.onPause()/onStop(); the Compose {@code CefriumView} wires this
+     * automatically (see its {@code backgroundMediaPolicy}).
+     */
+    public void onPause() {
+        setPageVisible(false);
+        suspendMedia();
+        setAudioMuted(true);
+    }
+
+    /**
+     * Convenience for "host is foregrounding": unmute, make the page visible and
+     * resume media suspended by {@link #onPause()}. Call from
+     * Activity.onResume()/onStart(); wired automatically by {@code CefriumView}.
      */
     public void onResume() {
-        if (mNativePtr != 0) {
-            org.chromium.content_public.browser.WebContents wc =
-                    nativeGetWebContents(mNativePtr);
-            if (wc != null) {
-                wc.updateWebContentsVisibility(
-                        org.chromium.content_public.browser.Visibility.VISIBLE);
-            }
-        }
+        setAudioMuted(false);
+        setPageVisible(true);
+        resumeMedia();
     }
 
     /**
