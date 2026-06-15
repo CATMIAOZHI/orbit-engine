@@ -20,6 +20,18 @@ in the internal FEATURE-NNN.md working docs (not published).
 Chromium 149.0.7827.102.
 
 ### Added
+- `rememberCefriumBrowserPool(maxAlive)` (Compose) -- a bounded LRU of browsers for
+  lesson/article lists: keeps at most `maxAlive` alive and CLOSES the
+  least-recently-used on eviction, so memory stays bounded instead of one heavy
+  renderer per item ever opened. On eviction it also reaps the orphaned render
+  CHILD-PROCESS (`CefriumBrowser.reapUnusedRenderers()` ->
+  `RenderProcessHost::FastShutdownIfPossible` on 0-frame, non-spare processes; no-op
+  when unsafe -> never kills a live renderer), bounding the OS sandboxed-process
+  count on process-per-browser devices (HyperOS/Android 16). Diagnostic:
+  `CefriumBrowser.activeRenderProcessCount()` returns the exact live renderer count
+  (RenderProcessHost only -- excludes utility/network/GPU). Validated: pool size and
+  the renderer count both stay at `maxAlive`; on HyperOS the sandboxed-process count
+  is bounded (drops on eviction/idle) with video playing across 13 lessons, PSS flat.
 - Inline-media lifecycle API. `CefriumView` now auto-wires to the host lifecycle and
   PAUSES inline media (video/audio) when the host is backgrounded (HOME/recents),
   resuming on return -- zero work for the consumer (default
