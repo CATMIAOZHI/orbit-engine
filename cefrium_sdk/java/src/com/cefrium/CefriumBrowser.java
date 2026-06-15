@@ -598,12 +598,20 @@ public class CefriumBrowser {
 
     /**
      * Loads a data string with an explicit base URL, mirroring Android WebView's
-     * {@link android.webkit.WebView#loadDataWithBaseURL}. The loaded document's
-     * origin and referrer become {@code baseUrl} instead of an opaque origin, so
-     * string-loaded content can host embeds that validate their parent origin --
-     * e.g. the YouTube IFrame player (which otherwise fails with Error 153).
+     * {@link android.webkit.WebView#loadDataWithBaseURL}. Unlike WebView, Cefrium
+     * delivers the content as a GENUINE network response at {@code baseUrl} (not a
+     * {@code data:} document), so the loaded document has a real, network-served
+     * origin == {@code baseUrl}. This is what lets inline embedded players that
+     * require a network-served parent -- notably the YouTube IFrame player -- play;
+     * a {@code data:} document is rejected by such players (Error 152), which is why
+     * the same content fails under WebView's {@code loadDataWithBaseURL}.
      *
-     * @param baseUrl    origin/referrer for the document, e.g. {@code "https://www.youtube.com"}
+     * <p><b>Origin guidance:</b> pass <i>your own app origin</i> as {@code baseUrl}
+     * (as any website embedding YouTube does), e.g. {@code "https://app.example.com"}
+     * -- NOT {@code "https://www.youtube.com"}. YouTube rejects same-origin
+     * self-embedding with Error 152.
+     *
+     * @param baseUrl    network origin for the document, e.g. {@code "https://app.example.com"}
      * @param data       the HTML (or other) content to load
      * @param mimeType   content type, e.g. {@code "text/html"} (defaults to text/html if null/empty)
      * @param encoding   charset, e.g. {@code "utf-8"} (defaults to utf-8 if null/empty)
@@ -617,8 +625,12 @@ public class CefriumBrowser {
 
     /**
      * Convenience: load an HTML string with the given base URL (text/html, utf-8,
-     * history = baseUrl). Use this for inline YouTube embeds, e.g.
-     * {@code loadHtmlWithBaseUrl("<iframe src='https://www.youtube.com/embed/ID'></iframe>", "https://www.youtube.com")}.
+     * history = baseUrl). The document is served from a real network origin ==
+     * {@code baseUrl}, so an inline YouTube IFrame embedded in {@code html} plays.
+     * Pass YOUR OWN app origin as {@code baseUrl}, e.g.
+     * {@code loadHtmlWithBaseUrl("<iframe src='https://www.youtube.com/embed/ID'></iframe>", "https://app.example.com")}
+     * -- not {@code "https://www.youtube.com"} (YouTube rejects same-origin
+     * self-embedding). See {@link #loadDataWithBaseUrl}.
      */
     public void loadHtmlWithBaseUrl(String html, String baseUrl) {
         loadDataWithBaseUrl(baseUrl, html, "text/html", "utf-8", baseUrl);
