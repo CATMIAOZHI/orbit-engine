@@ -1285,6 +1285,18 @@ public class CefriumBrowser {
     }
 
     /**
+     * Exact number of live renderer processes the engine currently has -- counts
+     * {@code RenderProcessHost} only, so utility/network/audio/storage and GPU child
+     * processes are NOT included (this is the clean renderer count, unlike
+     * {@code ps | grep sandboxed_process} which mixes them all). Excludes the spare
+     * renderer. After a browser pool settles this is approximately its
+     * {@code maxAlive}. Diagnostic; call on the main thread (returns -1 otherwise).
+     */
+    public static int activeRenderProcessCount() {
+        return nativeActiveRenderProcessCount();
+    }
+
+    /**
      * Close this browser and release all native resources.
      * After calling this method, no other methods may be called on this instance.
      * For Surface mode, also removes the rendering views.
@@ -1753,6 +1765,7 @@ public class CefriumBrowser {
     private static native void nativeSetCookie(long nativePtr, String url, String name,
             String value, boolean secure, boolean httpOnly, int sameSite);
     private static native void nativeReapUnusedRenderers();
+    private static native int nativeActiveRenderProcessCount();
     private static native void nativeGetCookies(long nativePtr, CefriumBrowser browser, String url, long requestId);
     private static native void nativeDeleteCookies(long nativePtr, String url, String name);
     private static native void nativeFlushCookies(long nativePtr);
