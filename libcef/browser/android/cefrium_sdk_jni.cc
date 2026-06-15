@@ -57,6 +57,7 @@
 #include "cef/libcef/browser/android/cef_share_service.h"
 #include "cef/libcef/browser/browser_host_base.h"
 #include "content/public/browser/document_service.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/android/window_android.h"
 #include "url/gurl.h"
@@ -1837,6 +1838,37 @@ Java_com_cefrium_CefriumBrowser_nativeLoadUrl(
     LOGI("loadUrl: %s", url);
   }
   env->ReleaseStringUTFChars(url_jstr, url);
+}
+
+// Reap render processes left orphaned (0 RenderFrameHosts) after a browser closes
+// -- e.g. when CefriumBrowserPool evicts an LRU browser. CloseBrowser destroys the
+// WebContents but Chromium may keep the child process around; on process-per-browser
+// devices (HyperOS / Android 16) the sandboxed_process count then climbs ~1 per
+// eviction (PSS stays flat). Only truly unreferenced, non-spare processes are shut
+// down (FastShutdownIfPossible is a no-op when unsafe), so this never kills a live
+// renderer; on shared-renderer devices it simply finds nothing to reap.
+static void ReapUnusedRenderersOnUI() {
+  CEF_REQUIRE_UIT();
+  int reaped = 0;
+  for (auto it = content::RenderProcessHost::AllHostsIterator(); !it.IsAtEnd();
+       it.Advance()) {
+    content::RenderProcessHost* host = it.GetCurrentValue();
+    if (host && host->IsInitializedAndNotDead() && !host->IsSpare() &&
+        host->GetRenderFrameHostCount() == 0) {
+      if (host->FastShutdownIfPossible()) {
+        reaped++;
+      }
+    }
+  }
+  LOGI("ReapUnusedRenderers: shut down %d orphaned render process(es)", reaped);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeReapUnusedRenderers(JNIEnv*, jclass) {
+  // Delay so a just-closed browser's RenderFrameHosts finish tearing down (its
+  // process then reports 0 frames and becomes reapable).
+  CefPostDelayedTask(
+      TID_UI, CefCreateClosureTask(base::BindOnce(&ReapUnusedRenderersOnUI)), 1500);
 }
 
 // Load an HTML/data string with an explicit base URL (origin + referrer),

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
+import com.cefrium.CefriumBrowser
 
 /**
  * A bounded LRU pool of [CefriumViewState] for screens that show many different
@@ -47,6 +48,10 @@ class CefriumBrowserPool internal constructor(private val maxAlive: Int) : Remem
             ): Boolean {
                 if (size > maxAlive) {
                     eldest.value.close()
+                    // Reap the closed browser's orphaned render process so the
+                    // sandboxed-process count stays bounded (process-per-browser
+                    // devices); no-op where renderers are shared.
+                    CefriumBrowser.reapUnusedRenderers()
                     return true
                 }
                 return false
@@ -64,7 +69,10 @@ class CefriumBrowserPool internal constructor(private val maxAlive: Int) : Remem
 
     /** Closes and evicts the state for [key] (no-op if not pooled). */
     fun evict(key: String) {
-        states.remove(key)?.close()
+        states.remove(key)?.let {
+            it.close()
+            CefriumBrowser.reapUnusedRenderers()
+        }
     }
 
     /** Number of states currently held alive by the pool. */
