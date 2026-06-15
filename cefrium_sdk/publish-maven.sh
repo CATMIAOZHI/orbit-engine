@@ -321,7 +321,8 @@ echo ""
 # Gradle/Android SDK are unavailable on the publishing host).
 # Both published SDK coordinates are gated: cefrium-sdk (default) AND
 # cefrium-sdk-libre — distinct artifacts, and the FOSS audience uses libre.
-SMOKE_VARIANTS="cefrium-sdk cefrium-sdk-libre"
+# Override for a single-variant publish (no libre): CEFRIUM_SMOKE_VARIANTS="cefrium-sdk".
+SMOKE_VARIANTS="${CEFRIUM_SMOKE_VARIANTS:-cefrium-sdk cefrium-sdk-libre}"
 if [ "${CEFRIUM_SKIP_SMOKE_TEST:-0}" = "1" ]; then
   echo "Smoke test skipped (CEFRIUM_SKIP_SMOKE_TEST=1). Run it before announcing:"
   for art in $SMOKE_VARIANTS; do

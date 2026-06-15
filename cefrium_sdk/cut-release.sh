@@ -9,6 +9,9 @@
 #   patches build merge compose plugin stats sanity publish flagship release web prune
 #
 # Bypass the confirmation gates non-interactively with CEFRIUM_YES=1 (CI only).
+# Fast DEV cut of only the build we use (arm64+codecs; skips libre + x86_64):
+#   CEFRIUM_VARIANTS=arm64:codecs CEFRIUM_INCREMENTAL=1 CEFRIUM_YES=1 cut-release.sh <ver> <prev>
+# Use the default (all 4 variants) for the PUBLIC ANNOUNCEMENT.
 set -euo pipefail
 
 VERSION="${1:?usage: cut-release.sh <version> <prev-version> [--from phase] [--notes ...]}"
@@ -32,6 +35,13 @@ export ANDROID_HOME="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}"
 export PATH="$ROOT/depot_tools:$PATH"
 export CEFRIUM_NINJA_JOBS="${CEFRIUM_NINJA_JOBS:-16}"
 PHASES="patches build merge compose plugin stats sanity publish flagship release web prune"
+# Variant scope. Default "all" = the 4 published variants (codecs/libre x arm64/x64).
+# Set CEFRIUM_VARIANTS="arm64:codecs" for a fast DEV cut that builds + publishes ONLY
+# the build we use (arm64 + codecs) -- skips libre and x86_64. The 4-variant build
+# relinks libcef.so per variant and is the biggest time sink; single is ~4x faster.
+# Use the full default only at the public announcement. See feedback memory + ROADMAP.
+VARIANTS="${CEFRIUM_VARIANTS:-all}"
+V_ARCH="${VARIANTS%%:*}"; V_CODEC="${VARIANTS##*:}"
 
 # phase N is active if its index >= index(FROM)
 idx() { local i=0; for p in $PHASES; do [ "$p" = "$1" ] && { echo $i; return; }; i=$((i+1)); done; echo 999; }
@@ -72,13 +82,30 @@ if run build;   then hdr "build 4 variants"
   # same-engine re-cut.) Opt out with CEFRIUM_INCREMENTAL=1 for a fast re-cut when
   # the delta is isolated (e.g. a doc-only or single-file fix you've judged safe).
   [ "${CEFRIUM_INCREMENTAL:-0}" = "1" ] || export CEFRIUM_CLEAN=1
-  cef/cefrium_sdk/build-all-variants.sh all
+  if [ "$VARIANTS" = "all" ]; then
+    cef/cefrium_sdk/build-all-variants.sh all
+  else
+    echo ">>> single-variant build: $V_ARCH $V_CODEC (CEFRIUM_VARIANTS=$VARIANTS)"
+    cef/cefrium_sdk/build-all-variants.sh "$V_ARCH" "$V_CODEC"
+  fi
   # Gate: the checked-in GEN_JNI must match the build's freshly generated one,
   # else consumers hit a runtime NoSuchMethodError (the 0.4.0 root cause -- a
-  # stale GEN_JNI not regenerated on the engine bump). Fail early.
-  cef/cefrium_sdk/regen-gen-jni.sh --check out/Official_android_arm64_codecs
+  # stale GEN_JNI not regenerated on the engine bump). Fail early. Only when the
+  # arm64-codecs dir was built (it is, for "all" and the default dev variant).
+  [ -d out/Official_android_arm64_codecs ] && \
+    cef/cefrium_sdk/regen-gen-jni.sh --check out/Official_android_arm64_codecs
 fi
-if run merge;   then hdr "merge multi-ABI"; cef/cefrium_sdk/merge-multiabi.sh codecs; cef/cefrium_sdk/merge-multiabi.sh libre; fi
+if run merge;   then hdr "merge multi-ABI"
+  if [ "$VARIANTS" = "all" ]; then
+    cef/cefrium_sdk/merge-multiabi.sh codecs; cef/cefrium_sdk/merge-multiabi.sh libre
+  else
+    # Single ABI: nothing to fuse -- the slimmed per-variant AAR IS the published
+    # cefrium-sdk. Remove any stale libre so it is skipped by publish/release.
+    cp "out/release/cefrium-sdk-${V_ARCH}-${V_CODEC}.aar" out/release/cefrium-sdk.aar
+    rm -f out/release/cefrium-sdk-libre.aar
+    echo ">>> single-variant: cefrium-sdk.aar = ${V_ARCH}-${V_CODEC}; libre skipped"
+  fi
+fi
 if run compose; then hdr "compose AAR"
   mkdir -p cef/cefrium_compose/libs   # gitignored compileOnly dep dir; may be absent on a fresh tree
   cp out/release/cefrium-sdk.aar cef/cefrium_compose/libs/
@@ -126,7 +153,9 @@ fi
 
 if run publish; then hdr "publish to Maven (IMMUTABLE)"
   gate "publish $VERSION to the Codeberg Maven registry (cannot be overwritten)"
-  cef/cefrium_sdk/publish-maven.sh "$VERSION"   # uploads + smoke-tests BOTH coordinates
+  # Single-variant: only cefrium-sdk exists (no libre), so smoke only that coordinate.
+  [ "$VARIANTS" = "all" ] || export CEFRIUM_SMOKE_VARIANTS="cefrium-sdk"
+  cef/cefrium_sdk/publish-maven.sh "$VERSION"   # uploads + smoke-tests the coordinate(s)
 fi
 
 if run flagship; then hdr "flagship APK on $VERSION"
