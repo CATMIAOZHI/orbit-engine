@@ -522,6 +522,36 @@ does not have (it always yields a `data:` document, so the embed fails there).
 View API: `browser.loadHtmlWithBaseUrl(html, baseUrl)`. Full sample:
 `cefrium-sample/loaddata-baseurl`.
 
+## Many pages / lesson lists: reuse or pool, don't keep N alive (0.5.2+)
+
+A Cefrium browser is HEAVY -- a full Chromium engine context, far more memory than a
+WebView. Do NOT keep one alive per item the user ever opened (a list of lessons,
+articles, tabs) or memory grows without bound. Two correct patterns:
+
+1. **One view, swap content (cheapest).** Keep a single `CefriumView` and change
+   page with `navigator.loadUrl(...)` / `loadHtmlWithBaseUrl(...)`. No accumulation;
+   the previous page (and its media) is replaced.
+2. **Bounded pool (keep the last few warm).** Use `rememberCefriumBrowserPool` to
+   keep at most N browsers alive, closing the least-recently-used automatically:
+
+   ```kotlin
+   val pool = rememberCefriumBrowserPool(maxAlive = 2)
+   val state = pool.stateFor(lesson.id, lesson.url)   // reuses or creates
+   CefriumView(state = state)
+   // Opening a 3rd lesson closes the least-recently-used browser; memory stays bounded.
+   ```
+
+By default a `rememberCefriumViewState` browser is released automatically when its
+`CefriumView` leaves composition (e.g. navigating away in a NavHost), so a
+one-screen-per-page app does not leak. The pool is for when you want the last few
+pages to stay warm (instant back, preserved scroll/video position) without unbounded
+growth. To preserve a video's position without keeping the browser warm, save the
+timestamp and `seekTo` on return instead. Sample: `cefrium-sample/loaddata-baseurl`
+(`PoolActivity`).
+
+Background media: `CefriumView` auto-pauses inline video/audio when the host is
+backgrounded (see `backgroundMediaPolicy`); no work required.
+
 ## Next steps
 
 - Add navigation: `browser.goBack()`, `browser.goForward()`, `browser.reload()`
