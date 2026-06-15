@@ -280,6 +280,56 @@ class CefriumNavigator {
     fun setMediaSessionEnabled(enabled: Boolean) {
         state?.browser?.setMediaSessionEnabled(enabled)
     }
+
+    // ── Media / page lifecycle ──
+    //
+    // CefriumView wires onHostPause()/onHostResume() to the host lifecycle by
+    // default (its backgroundMediaPolicy). These granular controls let a host
+    // build any custom policy (mute-only, keep-playing background audio, etc.).
+
+    /**
+     * "Host is backgrounding": hide the page, suspend media and mute audio so
+     * inline audio/video actually stops. Resumable via [onHostResume]. Usually
+     * automatic via [CefriumView]'s `backgroundMediaPolicy`; call manually only
+     * for a custom lifecycle setup.
+     */
+    fun onHostPause() {
+        state?.browser?.onPause()
+    }
+
+    /** "Host is foregrounding": unmute, show the page and resume suspended media. */
+    fun onHostResume() {
+        state?.browser?.onResume()
+    }
+
+    /** Suspends active media (pause; position preserved). See [resumeMedia]. */
+    fun suspendMedia() {
+        state?.browser?.suspendMedia()
+    }
+
+    /** Resumes media suspended by [suspendMedia] / [onHostPause]. */
+    fun resumeMedia() {
+        state?.browser?.resumeMedia()
+    }
+
+    /** Mutes/unmutes all page audio (media keeps playing, just silenced). */
+    fun setAudioMuted(muted: Boolean) {
+        state?.browser?.setAudioMuted(muted)
+    }
+
+    /** Whether page audio is muted via [setAudioMuted]. */
+    val isAudioMuted: Boolean
+        get() = state?.browser?.isAudioMuted ?: false
+
+    /** Sets page visibility (compositor + `document.hidden`); does not stop audio. */
+    fun setPageVisible(visible: Boolean) {
+        state?.browser?.setPageVisible(visible)
+    }
+
+    /** Hard-stops all media (not resumable) and mutes; for "release audio on background". */
+    fun stopAllMedia() {
+        state?.browser?.stopAllMedia()
+    }
 }
 
 /** Remembers a [CefriumNavigator] across recompositions. */
