@@ -40,11 +40,16 @@ class CefriumNavigator {
 
     /**
      * Loads an HTML string with an explicit base-URL origin, mirroring Android
-     * WebView's loadDataWithBaseURL. The document's origin/referrer become
-     * [baseUrl] instead of an opaque origin, so embeds that validate their parent
-     * origin work -- e.g. an inline YouTube IFrame player (which otherwise fails
-     * with Error 153). Example:
-     * `loadHtmlWithBaseUrl("<iframe src='https://www.youtube.com/embed/ID'></iframe>", "https://www.youtube.com")`.
+     * WebView's loadDataWithBaseURL. Unlike WebView, Cefrium serves the content as
+     * a GENUINE network response at [baseUrl] (not a `data:` document), so the
+     * document has a real network origin and inline embedded players that require a
+     * network-served parent -- e.g. the YouTube IFrame player -- PLAY (a `data:`
+     * document is rejected with Error 152, which is why WebView's
+     * loadDataWithBaseURL fails here).
+     *
+     * Pass YOUR OWN app origin as [baseUrl], e.g.
+     * `loadHtmlWithBaseUrl("<iframe src='https://www.youtube.com/embed/ID'></iframe>", "https://app.example.com")`
+     * -- NOT `"https://www.youtube.com"` (YouTube rejects same-origin self-embedding).
      */
     fun loadHtmlWithBaseUrl(html: String, baseUrl: String) {
         state?.browser?.loadHtmlWithBaseUrl(html, baseUrl)

@@ -498,6 +498,30 @@ View Transitions. Not available on Android (platform, not Cefrium): Face/Text
 Detector, Handwriting Recognition, Chrome built-in AI (Translator / Language
 Detector), Compute Pressure, Local Font Access, registerProtocolHandler.
 
+## Inline HTML with a real origin: loadHtmlWithBaseUrl (0.5.2+)
+
+Render an HTML string that has a REAL, network-served origin -- so inline embedded
+players work, notably an inline YouTube IFrame:
+
+```kotlin
+val html = """
+  <!doctype html><body style="margin:0;background:#000">
+  <iframe width="100%" height="100%" frameborder="0" allow="autoplay; encrypted-media"
+    src="https://www.youtube.com/embed/VIDEO_ID?autoplay=1&mute=1&playsinline=1"></iframe>
+  </body>
+"""
+navigator.loadHtmlWithBaseUrl(html, "https://app.example.com")   // your own app origin
+```
+
+Cefrium serves the document as a genuine 200 network response at `baseUrl` (not a
+`data:` document), which is what the YouTube player requires. **Pass your own app
+origin as `baseUrl`** (as any website embedding YouTube does) -- NOT
+`https://www.youtube.com` (YouTube rejects same-origin self-embedding with Error
+152). This is a Cefrium capability that Android WebView's `loadDataWithBaseURL`
+does not have (it always yields a `data:` document, so the embed fails there).
+View API: `browser.loadHtmlWithBaseUrl(html, baseUrl)`. Full sample:
+`cefrium-sample/loaddata-baseurl`.
+
 ## Next steps
 
 - Add navigation: `browser.goBack()`, `browser.goForward()`, `browser.reload()`
