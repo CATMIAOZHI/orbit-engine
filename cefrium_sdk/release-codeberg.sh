@@ -45,14 +45,18 @@ git remote -v | grep -q "cefrium/cef-android" || { echo "ERROR: codeberg remote 
 git push codeberg "$TAG" 2>&1 | grep -vi "already exists\|up-to-date" || true
 
 # 2. Versioned AAR copies + SHA256SUMS + GPG signature.
+# cefrium-sdk-libre is absent on a single-variant (dev) cut -- include it only if built.
 cd "$REL_DIR"
 cp -f cefrium-sdk.aar "cefrium-sdk-$VERSION.aar"
-cp -f cefrium-sdk-libre.aar "cefrium-sdk-libre-$VERSION.aar"
-[ -f "$COMPOSE_AAR" ] && cp -f "$COMPOSE_AAR" "cefrium-compose-$VERSION.aar"
+SUM_FILES="cefrium-sdk-$VERSION.aar"
+if [ -f cefrium-sdk-libre.aar ]; then
+  cp -f cefrium-sdk-libre.aar "cefrium-sdk-libre-$VERSION.aar"
+  SUM_FILES="$SUM_FILES cefrium-sdk-libre-$VERSION.aar"
+fi
+[ -f "$COMPOSE_AAR" ] && { cp -f "$COMPOSE_AAR" "cefrium-compose-$VERSION.aar"; SUM_FILES="$SUM_FILES cefrium-compose-$VERSION.aar"; }
 SUMS="SHA256SUMS-$VERSION"
 say "generating $SUMS"
-sha256sum "cefrium-sdk-$VERSION.aar" "cefrium-sdk-libre-$VERSION.aar" \
-  $( [ -f "cefrium-compose-$VERSION.aar" ] && echo "cefrium-compose-$VERSION.aar" ) > "$SUMS"
+sha256sum $SUM_FILES > "$SUMS"
 say "GPG-signing $SUMS (hardware signing key may prompt for PIN/touch)"
 gpg --batch --yes --armor --local-user "$GPG_KEY" \
     --detach-sign --output "$SUMS.asc" "$SUMS"
@@ -60,7 +64,7 @@ gpg --verify "$SUMS.asc" "$SUMS" 2>&1 | grep -i "Good signature" \
   || { echo "ERROR: signature verification failed"; exit 1; }
 
 # 3. Cross-check the archived AAR hashes against the live registry artifacts.
-for art in cefrium-sdk cefrium-sdk-libre; do
+for art in cefrium-sdk $( [ -f cefrium-sdk-libre.aar ] && echo cefrium-sdk-libre ); do
   reg=$(curl -s "https://codeberg.org/api/packages/cefrium/maven/com/cefrium/$art/$VERSION/$art-$VERSION.aar" | sha256sum | cut -d' ' -f1)
   loc=$(sha256sum "$art-$VERSION.aar" | cut -d' ' -f1)
   [ "$reg" = "$loc" ] && say "$art: archived == registry ($loc)" \
