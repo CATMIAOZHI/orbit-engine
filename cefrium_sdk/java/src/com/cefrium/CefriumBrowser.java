@@ -1272,6 +1272,19 @@ public class CefriumBrowser {
     }
 
     /**
+     * Shuts down render child-processes left orphaned after browsers were closed
+     * (e.g. LRU eviction in a browser pool). Closing a browser destroys its
+     * WebContents but Chromium may keep the child process around; on
+     * process-per-browser devices the sandboxed process count then grows. This
+     * reaps processes with zero frames only (never a live renderer), after a short
+     * delay to let the just-closed browser tear down. Memory-neutral but keeps the
+     * process count bounded. Safe no-op on shared-renderer devices.
+     */
+    public static void reapUnusedRenderers() {
+        nativeReapUnusedRenderers();
+    }
+
+    /**
      * Close this browser and release all native resources.
      * After calling this method, no other methods may be called on this instance.
      * For Surface mode, also removes the rendering views.
@@ -1739,6 +1752,7 @@ public class CefriumBrowser {
             boolean success, String response, int errorCode, String errorMessage);
     private static native void nativeSetCookie(long nativePtr, String url, String name,
             String value, boolean secure, boolean httpOnly, int sameSite);
+    private static native void nativeReapUnusedRenderers();
     private static native void nativeGetCookies(long nativePtr, CefriumBrowser browser, String url, long requestId);
     private static native void nativeDeleteCookies(long nativePtr, String url, String name);
     private static native void nativeFlushCookies(long nativePtr);
