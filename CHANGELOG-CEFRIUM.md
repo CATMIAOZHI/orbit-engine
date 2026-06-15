@@ -20,6 +20,19 @@ in the internal FEATURE-NNN.md working docs (not published).
 Chromium 149.0.7827.102.
 
 ### Added
+- Inline-media lifecycle API. `CefriumView` now auto-wires to the host lifecycle and
+  PAUSES inline media (video/audio) when the host is backgrounded (HOME/recents),
+  resuming on return -- zero work for the consumer (default
+  `backgroundMediaPolicy = PAUSE_ON_STOP`). Other policies: `PAUSE_ON_PAUSE`,
+  `MUTE_ON_STOP`, `NONE` (keep playing, e.g. background audio); or pass
+  `onHostLifecycle` for full control. Granular controls on `CefriumBrowser` /
+  `CefriumNavigator`: `suspendMedia()`/`resumeMedia()`, `setAudioMuted(boolean)`,
+  `setPageVisible(boolean)`, `stopAllMedia()`, and the `onPause()`/`onResume()`
+  convenience. Fixes inline audio continuing to play in the background.
+  - Solution: browser-process media control (MediaSession suspend/resume == the
+    audio-focus-loss path) + `WebContents.setAudioMuted` -- works even after the
+    renderer JS is suspended, unlike a queued `evaluateJavaScript("pause()")`.
+    Validated on device: started media players 1 -> 0 on HOME, 0 -> 1 on resume.
 - `CefriumBrowser.setCookie(url, name, value, secure, httpOnly, sameSite)` and the
   Compose `CefriumNavigator` parity overload. Sets a cookie with explicit
   `Secure` / `HttpOnly` / `SameSite` attributes (`SAME_SITE_NONE`/`LAX`/`STRICT`/
