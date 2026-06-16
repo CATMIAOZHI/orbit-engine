@@ -138,27 +138,13 @@ public class MyApp extends Application {
         android:label="My Cefrium App"
         android:extractNativeLibs="true">
 
-        <!-- Required: Chromium renderer processes -->
-        <meta-data android:name="org.chromium.content.browser.NUM_SANDBOXED_SERVICES"
-            android:value="5"/>
-        <service android:name="org.chromium.content.app.SandboxedProcessService0"
-            android:process=":sandboxed_process0" android:exported="false"/>
-        <service android:name="org.chromium.content.app.SandboxedProcessService1"
-            android:process=":sandboxed_process1" android:exported="false"/>
-        <service android:name="org.chromium.content.app.SandboxedProcessService2"
-            android:process=":sandboxed_process2" android:exported="false"/>
-        <service android:name="org.chromium.content.app.SandboxedProcessService3"
-            android:process=":sandboxed_process3" android:exported="false"/>
-        <service android:name="org.chromium.content.app.SandboxedProcessService4"
-            android:process=":sandboxed_process4" android:exported="false"/>
-        <meta-data android:name="org.chromium.content.browser.NUM_PRIVILEGED_SERVICES"
-            android:value="3"/>
-        <service android:name="org.chromium.content.app.PrivilegedProcessService0"
-            android:process=":privileged_process0" android:exported="false"/>
-        <service android:name="org.chromium.content.app.PrivilegedProcessService1"
-            android:process=":privileged_process1" android:exported="false"/>
-        <service android:name="org.chromium.content.app.PrivilegedProcessService2"
-            android:process=":privileged_process2" android:exported="false"/>
+        <!-- Do NOT declare Chromium child-process services here. The SDK AAR
+             provides them (40 sandboxed + 3 privileged) and merges them into your
+             app. Declaring your own with a lower NUM_SANDBOXED_SERVICES OVERRIDES
+             the AAR and caps the render-process pool, which crashes multi-browser /
+             iframe-heavy apps on process-per-browser devices ("isolated not
+             needed"). If you copied such a block from an older guide, remove it;
+             the merged APK manifest should read NUM_SANDBOXED_SERVICES=40. -->
 
         <activity
             android:name=".MainActivity"
@@ -579,8 +565,16 @@ for release builds.
 
 ## Troubleshooting
 
-**App crashes on launch:** Check that `android:name=".MyApp"` is set
-in the manifest and that all SandboxedProcessService entries are present.
+**App crashes on launch:** Check that `android:name=".MyApp"` is set in the
+manifest. Do NOT declare your own `SandboxedProcessService` entries -- the SDK
+provides them; declaring your own caps the render-process pool and crashes
+multi-browser apps (see step 4).
+
+**Crash opening many pages ("isolated not needed"):** Your app manifest declares
+its own `SandboxedProcessService0..N` with `NUM_SANDBOXED_SERVICES=5`, capping the
+pool. Remove that block; the merged APK manifest should read
+`NUM_SANDBOXED_SERVICES=40`. See the
+[Memory & process model guide](https://cefrium.com/guides/memory-and-processes/).
 
 **White screen:** The browser needs ~2 seconds after `loadUrl` to
 connect WebContents to the rendering pipeline. This is normal.
