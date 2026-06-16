@@ -1,5 +1,5 @@
 diff --git content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
-index 86388143fe..8d822bd274 100644
+index 86388143fe3b3..f2d07ae6675da 100644
 --- content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
 +++ content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
 @@ -223,13 +223,17 @@ public class AccessibilityNodeInfoBuilder {
@@ -69,7 +69,7 @@ index 86388143fe..8d822bd274 100644
          }
  
          // We expose the nested structure of links, which results in the roles of all nested nodes
-@@ -717,18 +724,20 @@ public class AccessibilityNodeInfoBuilder {
+@@ -717,18 +724,25 @@ public class AccessibilityNodeInfoBuilder {
              int startOffset,
              int endVirtualViewId,
              int endOffset) {
@@ -79,6 +79,11 @@ index 86388143fe..8d822bd274 100644
 -                                mDelegate.getView(), startVirtualViewId, startOffset),
 -                        new SelectionPositionCompat(
 -                                mDelegate.getView(), endVirtualViewId, endOffset)));
++        // SelectionCompat/SelectionPositionCompat are Chromium local_modifications
++        // of androidx.core, absent from public androidx.core. Catch LinkageError
++        // (not just NoSuchMethodError): constructing them throws NoClassDefFoundError
++        // when the consumer resolves a stock androidx.core, which would otherwise
++        // crash any app with an accessibility service active.
 +        try {
 +            node.setSelection(
 +                    new SelectionCompat(
@@ -86,14 +91,14 @@ index 86388143fe..8d822bd274 100644
 +                                    mDelegate.getView(), startVirtualViewId, startOffset),
 +                            new SelectionPositionCompat(
 +                                    mDelegate.getView(), endVirtualViewId, endOffset)));
-+        } catch (NoSuchMethodError e) {}
++        } catch (LinkageError e) {}
      }
  
      @CalledByNative
      protected void clearAccessibilityNodeInfoExtendedSelectionAttrs(
              AccessibilityNodeInfoCompat node) {
 -        node.setSelection(null);
-+        try { node.setSelection(null); } catch (NoSuchMethodError e) {}
++        try { node.setSelection(null); } catch (LinkageError e) {}
      }
  
      @CalledByNative
