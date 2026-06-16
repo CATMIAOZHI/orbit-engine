@@ -48,6 +48,7 @@
 #include "cef/include/cef_response.h"
 #include "cef/include/cef_callback.h"
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 
 #include <android/log.h>
@@ -165,12 +166,17 @@ class SdkLifeSpanHandler : public CefLifeSpanHandler {
 
   void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
 
-  // FEATURE-023: forward browser-close to the JS bridge router for cleanup.
-  void OnBeforeClose(CefRefPtr<CefBrowser> browser) override {
-    if (message_router_) {
-      message_router_->OnBeforeClose(browser);
-    }
-  }
+  // FEATURE-023: forward browser-close to the JS bridge router, AND do the
+  // teardown of the surface / Java window / native data here -- the point at
+  // which the browser has actually finished closing (the WebContents is being
+  // destroyed). nativeClose() only INITIATES CloseBrowser(true); the surface
+  // browser's close then completes via the Android platform delegate's
+  // CloseHostWindow() -> WindowDestroyed() handshake (see
+  // browser_platform_delegate_native_android.cc). Doing the teardown in
+  // nativeClose() instead would tear down the Java window before the async
+  // close completed. Defined out-of-line below: it needs the full
+  // SdkBrowserData definition.
+  void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
 
   void SetMessageRouter(CefRefPtr<CefMessageRouterBrowserSide> router) {
     message_router_ = router;
@@ -1680,6 +1686,43 @@ void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   }
 }
 
+// Out-of-line: needs the full SdkBrowserData definition (member access on data_).
+void SdkLifeSpanHandler::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
+  extern std::atomic<int> g_closed_browser_count;
+  g_closed_browser_count.fetch_add(1, std::memory_order_relaxed);
+  if (message_router_) {
+    message_router_->OnBeforeClose(browser);
+  }
+  if (!data_) {
+    return;
+  }
+  // The browser has now actually closed -- safe to tear down. (Doing this in
+  // nativeClose, before the async close completed, orphaned the WebContents.)
+  data_->surface_bridge.reset();
+  {
+    base::AutoLock lock(BridgeDataLock());
+    LiveBridgeData().erase(reinterpret_cast<jlong>(data_));
+  }
+  // Tell Java to destroy its ContentViewRenderView + WindowAndroid now.
+  if (java_browser_) {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (env) {
+      jclass cls = env->GetObjectClass(java_browser_);
+      jmethodID mid = env->GetMethodID(cls, "onNativeBrowserClosed", "()V");
+      if (mid) {
+        env->CallVoidMethod(java_browser_, mid);
+      }
+      env->DeleteLocalRef(cls);
+    }
+  }
+  // Defer the delete: we are inside data_->life_span_handler's own method, so
+  // freeing data_ (which owns this handler) now could drop the last ref mid-call.
+  SdkBrowserData* d = data_;
+  data_ = nullptr;
+  CefPostTask(TID_UI, CefCreateClosureTask(base::BindOnce(
+                          [](SdkBrowserData* p) { delete p; }, d)));
+}
+
 // Out-of-line definition — needs full SdkBrowserData.
 void SdkLoadHandler::OnLoadEnd(CefRefPtr<CefBrowser> browser,
                                CefRefPtr<CefFrame> frame,
@@ -1849,18 +1892,28 @@ Java_com_cefrium_CefriumBrowser_nativeLoadUrl(
 // renderer; on shared-renderer devices it simply finds nothing to reap.
 static void ReapUnusedRenderersOnUI() {
   CEF_REQUIRE_UIT();
-  int reaped = 0;
+  int found = 0, reaped = 0;
   for (auto it = content::RenderProcessHost::AllHostsIterator(); !it.IsAtEnd();
        it.Advance()) {
     content::RenderProcessHost* host = it.GetCurrentValue();
     if (host && host->IsInitializedAndNotDead() && !host->IsSpare() &&
         host->GetRenderFrameHostCount() == 0) {
+      found++;
+      // Defensive only: the real teardown happens when the browser actually
+      // closes (CloseHostWindow -> WindowDestroyed -> DestroyBrowser destroys
+      // the WebContents and releases all its render processes, including
+      // cross-origin subframes). This just nudges any process Chromium still
+      // keeps as a warm reuse candidate after its frames are gone. Use the
+      // SAFE default FastShutdownIfPossible(): it is a no-op when the process
+      // still has keep-alive / pending-reuse refs, so it can never kill a
+      // process a live browser is about to reuse.
       if (host->FastShutdownIfPossible()) {
         reaped++;
       }
     }
   }
-  LOGI("ReapUnusedRenderers: shut down %d orphaned render process(es)", reaped);
+  LOGI("ReapUnusedRenderers: %d zero-frame render process(es), shut down %d", found,
+       reaped);
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -1888,6 +1941,59 @@ Java_com_cefrium_CefriumBrowser_nativeActiveRenderProcessCount(JNIEnv*, jclass) 
     }
   }
   return n;
+}
+
+// --- Diagnostic counters (rich API for the pool / renderer-lifetime debugging) ---
+// Cumulative count of CEF browsers whose OnBeforeClose has fired (i.e. that actually
+// finished closing). If this does NOT grow as a pool evicts browsers, CloseBrowser
+// is not completing -- the WebContents (and its renderers) leak.
+std::atomic<int> g_closed_browser_count{0};
+
+// Render processes (non-spare, initialized) that currently host ZERO frames -- i.e.
+// reuse zombies the reap targets. High while the pool runs = orphaned-but-not-killed.
+extern "C" JNIEXPORT jint JNICALL
+Java_com_cefrium_CefriumBrowser_nativeZeroFrameRenderProcessCount(JNIEnv*, jclass) {
+  if (!CEF_CURRENTLY_ON_UIT()) return -1;
+  jint n = 0;
+  for (auto it = content::RenderProcessHost::AllHostsIterator(); !it.IsAtEnd();
+       it.Advance()) {
+    content::RenderProcessHost* host = it.GetCurrentValue();
+    if (host && host->IsInitializedAndNotDead() && !host->IsSpare() &&
+        host->GetRenderFrameHostCount() == 0) {
+      n++;
+    }
+  }
+  return n;
+}
+
+// Total live RenderFrameHosts across all renderer processes -- the real "working
+// frame" count. If this grows ~+2/lesson and never drops, the evicted browsers'
+// frames (host page + cross-origin iframe) are NOT being destroyed (close() bug).
+extern "C" JNIEXPORT jint JNICALL
+Java_com_cefrium_CefriumBrowser_nativeTotalRenderFrameHostCount(JNIEnv*, jclass) {
+  if (!CEF_CURRENTLY_ON_UIT()) return -1;
+  jint n = 0;
+  for (auto it = content::RenderProcessHost::AllHostsIterator(); !it.IsAtEnd();
+       it.Advance()) {
+    content::RenderProcessHost* host = it.GetCurrentValue();
+    if (host && host->IsInitializedAndNotDead()) {
+      n += host->GetRenderFrameHostCount();
+    }
+  }
+  return n;
+}
+
+// Cumulative count of browsers that finished closing (OnBeforeClose fired).
+extern "C" JNIEXPORT jint JNICALL
+Java_com_cefrium_CefriumBrowser_nativeClosedBrowserCount(JNIEnv*, jclass) {
+  return g_closed_browser_count.load(std::memory_order_relaxed);
+}
+
+// Live (not-yet-closed) CefriumBrowser native instances.
+extern "C" JNIEXPORT jint JNICALL
+Java_com_cefrium_CefriumBrowser_nativeLiveBrowserCount(JNIEnv*, jclass) {
+  base::AutoLock lock(BridgeDataLock());
+  return static_cast<jint>(LiveBridgeData().size());
 }
 
 // Load an HTML/data string with an explicit base URL (origin + referrer),
@@ -2266,13 +2372,20 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeClose(
     JNIEnv* env, jobject thiz, jlong native_ptr) {
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
-  if (data) {
-    if (data->browser) {
-      data->browser->GetHost()->CloseBrowser(true);
-    }
-    data->surface_bridge.reset();
-    // FEATURE-023 step 4b: stop any in-flight async resolution from touching
-    // this data before we delete it.
+  if (!data) {
+    return;
+  }
+  if (data->browser) {
+    // Only INITIATE the close. The surface reset, LiveBridgeData erase, Java view
+    // destruction and `delete data` are all deferred to OnBeforeClose, which fires
+    // once the close actually completes (CloseHostWindow -> WindowDestroyed ->
+    // DestroyBrowser). Doing them here, before the async close completes, would
+    // tear down the Java window out from under the still-closing WebContents.
+    // See SdkLifeSpanHandler::OnBeforeClose and the Android platform delegate.
+    data->browser->GetHost()->CloseBrowser(true);
+  } else {
+    // Browser was never created (closed before OnAfterCreated): no close will fire,
+    // so clean up synchronously here.
     {
       base::AutoLock lock(BridgeDataLock());
       LiveBridgeData().erase(native_ptr);
