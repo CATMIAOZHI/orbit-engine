@@ -1297,20 +1297,69 @@ public class CefriumBrowser {
     }
 
     /**
+     * Renderer processes that currently host ZERO frames -- reuse "zombies" the
+     * pool's reap targets. A high value while a pool runs means orphaned renderers
+     * are lingering (reusable but not freed). Main thread only (-1 otherwise).
+     * Diagnostic.
+     */
+    public static int zeroFrameRenderProcessCount() {
+        return nativeZeroFrameRenderProcessCount();
+    }
+
+    /**
+     * Total live RenderFrameHosts across all renderer processes -- the real
+     * "working frame" count (host pages + iframes). If this grows as you open pages
+     * and never drops, the closed pages' frames are NOT being destroyed. Main
+     * thread only (-1 otherwise). Diagnostic.
+     */
+    public static int totalRenderFrameHostCount() {
+        return nativeTotalRenderFrameHostCount();
+    }
+
+    /**
+     * Cumulative number of browsers that have finished closing (their
+     * {@code OnBeforeClose} fired). If this does NOT grow as a pool evicts
+     * browsers, {@link #close()} is not completing -- the page leaks. Diagnostic.
+     */
+    public static int closedBrowserCount() {
+        return nativeClosedBrowserCount();
+    }
+
+    /** Live (not-yet-closed) browser instances. Diagnostic. */
+    public static int liveBrowserCount() {
+        return nativeLiveBrowserCount();
+    }
+
+    /**
      * Close this browser and release all native resources.
      * After calling this method, no other methods may be called on this instance.
      * For Surface mode, also removes the rendering views.
      */
     public void close() {
+        if (mClosed) return;
         mClosed = true;
         if (mMediaSession != null) {
             mMediaSession.destroy();
             mMediaSession = null;
         }
+        // Only INITIATE the close. The ContentViewRenderView + WindowAndroid are NOT
+        // destroyed here: tearing down the window before the async close completed
+        // orphaned the WebContents, so the browser never actually closed and its
+        // renderers (host page + cross-origin iframes) leaked. onNativeBrowserClosed()
+        // -- invoked from native OnBeforeClose -- destroys them once the close lands.
         if (mNativePtr != 0) {
             nativeClose(mNativePtr);
-            mNativePtr = 0;
         }
+    }
+
+    /**
+     * Invoked from native {@code OnBeforeClose} when the browser has actually
+     * finished closing -- now it is safe to tear down the Java rendering views.
+     * (Doing this synchronously in {@link #close()} aborted the async close.)
+     * Called by native via JNI (like onOpenPopup/onShouldBlockRequest) -- keep it.
+     */
+    private void onNativeBrowserClosed() {
+        mNativePtr = 0;
         if (mContentViewRenderView != null) {
             mContentViewRenderView.destroy();
             mContentViewRenderView = null;
@@ -1766,6 +1815,10 @@ public class CefriumBrowser {
             String value, boolean secure, boolean httpOnly, int sameSite);
     private static native void nativeReapUnusedRenderers();
     private static native int nativeActiveRenderProcessCount();
+    private static native int nativeZeroFrameRenderProcessCount();
+    private static native int nativeTotalRenderFrameHostCount();
+    private static native int nativeClosedBrowserCount();
+    private static native int nativeLiveBrowserCount();
     private static native void nativeGetCookies(long nativePtr, CefriumBrowser browser, String url, long requestId);
     private static native void nativeDeleteCookies(long nativePtr, String url, String name);
     private static native void nativeFlushCookies(long nativePtr);
