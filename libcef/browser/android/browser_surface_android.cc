@@ -44,11 +44,16 @@ void BrowserSurfaceAndroid::SurfaceChanged(
 
   LOG(INFO) << "BrowserSurfaceAndroid: surface set " << width << "x" << height;
 
-  // If WebContents is already attached, notify it of the new size.
+  // If WebContents is already attached, notify it of the new size and that it
+  // is visible again. A re-attach happens when a pooled-but-detached browser
+  // (e.g. returning to a warm CefriumBrowserPool lesson) gets a fresh surface;
+  // WasShown() restores its renderer's foreground importance (paired with the
+  // WasHidden() in SurfaceDestroyed()).
   if (web_contents_) {
     gfx::Size size(width, height);
     web_contents_->Resize(gfx::Rect(size));
     web_contents_->GetNativeView()->OnPhysicalBackingSizeChanged(size);
+    web_contents_->WasShown();
     compositor_->SetNeedsComposite();
   }
 }
@@ -56,6 +61,16 @@ void BrowserSurfaceAndroid::SurfaceChanged(
 void BrowserSurfaceAndroid::SurfaceDestroyed() {
   DCHECK(compositor_);
   compositor_->SetSurface(nullptr, false, nullptr);
+  // Mark the WebContents hidden so its renderer drops to a background binding
+  // importance. When a CefriumBrowserPool keeps several browsers alive but only
+  // one is attached, the detached ones must not all claim foreground priority:
+  // on process-per-browser devices that left Android unable to tell the active
+  // renderer from the idle ones, so under slot pressure it could kill a needed
+  // one. Paired with WasShown() on re-attach in SurfaceChanged(). Guarded:
+  // during a browser close the surface bridge is torn down before this runs.
+  if (web_contents_) {
+    web_contents_->WasHidden();
+  }
   LOG(INFO) << "BrowserSurfaceAndroid: surface destroyed";
 }
 
