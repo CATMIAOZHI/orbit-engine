@@ -6,6 +6,7 @@
 
 #include "cef/libcef/browser/browser_host_base.h"
 #include "cef/libcef/browser/native/menu_runner_android.h"
+#include "cef/libcef/browser/thread_util.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/common/input/web_mouse_wheel_event.h"
@@ -23,7 +24,23 @@ bool CefBrowserPlatformDelegateNativeAndroid::CreateHostWindow() {
 }
 
 void CefBrowserPlatformDelegateNativeAndroid::CloseHostWindow() {
-  // No-op for Android.
+  // Android has no native host window -- rendering goes through the Java
+  // ContentViewRenderView. On desktop CloseHostWindow() destroys the real OS
+  // window, and the platform window-destruction callback re-enters the host's
+  // WindowDestroyed(); that second pass is what takes the DestroyBrowser()
+  // branch in CloseContents() and ultimately fires OnBeforeClose(). A no-op
+  // here leaves a windowed (non-OSR) browser stuck: window_destroyed_ never
+  // becomes true, DestroyBrowser() is never reached, and the WebContents --
+  // along with every subframe RenderProcessHost (e.g. a cross-origin iframe) --
+  // leaks. Drive the handshake ourselves by calling WindowDestroyed(), posted
+  // to the UI thread so we do not re-enter CloseBrowser() within the current
+  // CloseContents() call (mirrors the async window_x11_->Close() ->
+  // WindowDestroyed() path on Linux). OSR/windowless browsers never reach here
+  // (CloseContents() short-circuits to DestroyBrowser() when IsWindowless()).
+  if (browser_) {
+    CEF_POST_TASK(CEF_UIT, base::BindOnce(&CefBrowserHostBase::WindowDestroyed,
+                                          browser_.get()));
+  }
 }
 
 CefWindowHandle
