@@ -6,12 +6,35 @@
 
 #include "base/logging.h"
 #include "content/browser/renderer_host/render_widget_host_view_android.h"
+#include "content/public/browser/android/child_process_importance.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/android/delegated_frame_host_android.h"
 #include "ui/android/view_android.h"
 #include "ui/android/window_android.h"
+
+namespace {
+
+// Give a surface browser's render processes an explicit Android binding
+// importance so they survive aggressive OEM process reapers. The default
+// (NORMAL) leaves a visible renderer with only a waived binding; some Android
+// builds (e.g. HyperOS) then kill it as an isolated process that is "not
+// needed" even while it is foreground (adj 0), taking down the app -- which is
+// exactly what Chrome/WebView avoid by marking their visible tab IMPORTANT.
+// IMPORTANT for the attached (visible) browser; MODERATE for a detached pooled
+// one, so the system reclaims idle pooled browsers FIRST and never the active.
+// Subframe importance matches (kSubframeImportance is enabled by default) so a
+// cross-origin iframe's separate process (e.g. a YouTube embed) is protected
+// too. No-op when the WebContents is gone.
+void SetSurfaceImportance(content::WebContents* web_contents,
+                          content::ChildProcessImportance importance) {
+  if (web_contents) {
+    web_contents->SetPrimaryPageImportance(importance, importance);
+  }
+}
+
+}  // namespace
 
 BrowserSurfaceAndroid::BrowserSurfaceAndroid(ui::WindowAndroid* window)
     : window_(window) {
@@ -54,6 +77,7 @@ void BrowserSurfaceAndroid::SurfaceChanged(
     web_contents_->Resize(gfx::Rect(size));
     web_contents_->GetNativeView()->OnPhysicalBackingSizeChanged(size);
     web_contents_->WasShown();
+    SetSurfaceImportance(web_contents_, content::ChildProcessImportance::IMPORTANT);
     compositor_->SetNeedsComposite();
   }
 }
@@ -70,6 +94,7 @@ void BrowserSurfaceAndroid::SurfaceDestroyed() {
   // during a browser close the surface bridge is torn down before this runs.
   if (web_contents_) {
     web_contents_->WasHidden();
+    SetSurfaceImportance(web_contents_, content::ChildProcessImportance::MODERATE);
   }
   LOG(INFO) << "BrowserSurfaceAndroid: surface destroyed";
 }
@@ -116,6 +141,7 @@ void BrowserSurfaceAndroid::AttachWebContents(
 
   // Tell the WebContents it is now visible.
   web_contents_->WasShown();
+  SetSurfaceImportance(web_contents_, content::ChildProcessImportance::IMPORTANT);
   compositor_->SetNeedsComposite();
 }
 
@@ -133,6 +159,7 @@ void BrowserSurfaceAndroid::TryAttachRWHVLayer() {
   // 1. Show RWHV FIRST — sets is_showing_ = true
   rwhv->Show();
   web_contents_->WasShown();
+  SetSurfaceImportance(web_contents_, content::ChildProcessImportance::IMPORTANT);
 
   // 2. Re-trigger OnAttachedToWindow on the RWHVA by removing and
   //    re-adding its view. This time is_showing_ is true, so
