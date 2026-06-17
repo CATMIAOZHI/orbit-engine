@@ -803,8 +803,28 @@ class SdkRequestHandler : public CefRequestHandler {
                                  TerminationStatus status,
                                  int error_code,
                                  const CefString& error_string) override {
+    LOGI("OnRenderProcessTerminated status=%d error_code=%d",
+         static_cast<int>(status), error_code);
     if (message_router_) {
       message_router_->OnRenderProcessTerminated(browser);
+    }
+    // Permanent public API (not benchmark-gated): a renderer can die without
+    // killing the app process and without a logcat FATAL -- flagships need this
+    // to show a reload UI, and the crash matrix counts renderer_crash_count from
+    // it. status: TS_ABNORMAL_TERMINATION=0, TS_PROCESS_WAS_KILLED=1,
+    // TS_PROCESS_CRASHED=2, TS_PROCESS_OOM=3 (cef_termination_status_t).
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) {
+        jclass cls = env->GetObjectClass(java_browser_);
+        jmethodID mid =
+            env->GetMethodID(cls, "onRenderProcessTerminated", "(II)V");
+        if (mid) {
+          env->CallVoidMethod(java_browser_, mid, static_cast<jint>(status),
+                              static_cast<jint>(error_code));
+        }
+        env->DeleteLocalRef(cls);
+      }
     }
   }
 
