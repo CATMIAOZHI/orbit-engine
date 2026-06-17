@@ -63,8 +63,7 @@ Phases: `preflight pin sync rebase apply report brand`.
   `android-port` onto it (core CEF patch conflicts are CEF's, resolved here).
 - **apply** - run `patcher.py` on the new tree.
 - **report** - per Android patch: `OK` (applied) / `PENDING` (applies clean) /
-  `CONFLICT` (regenerate by the patch methodology - see "Patch creation" in
-  `../CLAUDE.md` / the per-patch `.txt` under `upstream-patches/`).
+  `CONFLICT` (regenerate by the patch methodology - see `PATCHING-CEFRIUM.md`).
 - **brand** - `regenerate-icons.sh` (the atomic number auto-follows the new
   `CHROMIUM_VERSION`; no argument needed).
 
