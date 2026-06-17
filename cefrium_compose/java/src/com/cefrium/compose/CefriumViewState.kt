@@ -63,6 +63,15 @@ class CefriumViewState(val initialUrl: String) : RememberObserver {
      */
     var contextMenu: ContextMenuInfo? by mutableStateOf(null)
 
+    /**
+     * Set when a renderer process for this page dies (an OEM low-memory kill or a
+     * crash). When non-null the page is now blank/dead -- show a reload affordance
+     * and reload (e.g. via [CefriumNavigator.reload]). Cleared automatically when
+     * the next load starts, so the affordance dismisses itself on recovery.
+     */
+    var rendererTermination: RendererTermination? by mutableStateOf(null)
+        internal set
+
     internal var browser: CefriumBrowser? = null
         private set
 
@@ -82,6 +91,8 @@ class CefriumViewState(val initialUrl: String) : RememberObserver {
             }
 
             override fun onLoadingStateChanged(loading: Boolean, back: Boolean, forward: Boolean) {
+                // A new load clears any prior renderer-death affordance.
+                if (loading) rendererTermination = null
                 isLoading = loading
                 canGoBack = back
                 canGoForward = forward
@@ -107,6 +118,11 @@ class CefriumViewState(val initialUrl: String) : RememberObserver {
                 contextMenu = ContextMenuInfo(menuItems, url)
             }
         })
+        // Renderer-process termination is a separate SDK listener (not part of
+        // Callback): surface it as hoisted state so the UI can show a reload banner.
+        b.setOnRenderProcessTerminatedListener { status, errorCode ->
+            rendererTermination = RendererTermination(rendererStatusOf(status), errorCode)
+        }
         browser = b
         b.loadUrl(initialUrl)
         return b
@@ -162,3 +178,33 @@ data class DownloadInfo(
  * context-menu listener receives); [url] is the link/page URL under the cursor.
  */
 data class ContextMenuInfo(val menuItems: String, val url: String)
+
+/** Why a renderer process terminated. See [RendererTermination]. */
+enum class RendererStatus {
+    /** Abnormal exit, reason not otherwise classified. */
+    ABNORMAL,
+    /** Killed, e.g. by the OS / OEM low-memory killer. */
+    KILLED,
+    /** The renderer crashed. */
+    CRASHED,
+    /** The renderer ran out of memory. */
+    OOM,
+    /** A status this SDK version does not map (forward-compatibility). */
+    UNKNOWN,
+}
+
+/**
+ * A renderer-process termination for the page, delivered via
+ * [CefriumViewState.rendererTermination]. [errorCode] is the platform error code
+ * (0 if none).
+ */
+data class RendererTermination(val status: RendererStatus, val errorCode: Int)
+
+/** Maps the SDK's CefriumBrowser.TERMINATION_* int to [RendererStatus]. */
+private fun rendererStatusOf(status: Int): RendererStatus = when (status) {
+    CefriumBrowser.TERMINATION_ABNORMAL -> RendererStatus.ABNORMAL
+    CefriumBrowser.TERMINATION_KILLED -> RendererStatus.KILLED
+    CefriumBrowser.TERMINATION_CRASHED -> RendererStatus.CRASHED
+    CefriumBrowser.TERMINATION_OOM -> RendererStatus.OOM
+    else -> RendererStatus.UNKNOWN
+}
