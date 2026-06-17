@@ -15,6 +15,26 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [Unreleased]
+
+### Added
+- Renderer-termination callback. `CefriumBrowser.setOnRenderProcessTerminatedListener(
+  (status, errorCode) -> ...)` fires when a renderer process for the browser dies --
+  e.g. the OEM low-memory killer reclaims it -- so you can show a reload affordance
+  instead of a silent blank page. `status` is one of the `CefriumBrowser.TERMINATION_*`
+  constants (`ABNORMAL`/`KILLED`/`CRASHED`/`OOM`). Compose: observe the hoisted
+  `CefriumViewState.rendererTermination` (a `RendererTermination(status, errorCode)`
+  with a `RendererStatus` enum; cleared automatically on the next load), or pass
+  `onRenderProcessTerminated` to `CefriumWebView`. Validated on a Redmi/HyperOS device
+  (real OEM low-memory kill) and a rooted emulator.
+
+### Fixed
+- Renderer terminations reported by Android as `OOM_PROTECTED` / `EVICTED_FOR_MEMORY`
+  (the common OEM low-memory-kill path) now reach `OnRenderProcessTerminated` as
+  `TS_PROCESS_OOM`. The upstream handler mapped only desktop termination statuses and
+  silently dropped these, so the callback never fired for the most common Android
+  renderer death. (Upstreamable libcef fix.)
+
 ## [0.5.2] -- 2026-06-14
 
 Chromium 149.0.7827.102.
