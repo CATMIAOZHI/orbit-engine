@@ -149,6 +149,29 @@ if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   # configs the instrumented suite does not (compose, kiosk, push). A sample
   # crashing on a new engine must block the publish (the 0.4.0 flagship lesson).
   cef/cefrium_sdk/smoke-samples.sh
+
+  # Close-leak regression gate (testing/profiling plan, Phase 4/7). Build the
+  # benchmark harness against the fresh AAR and drive 30 pool-evicting navigations;
+  # then assert the engine's DETERMINISTIC counters (closedBrowserCount grew, live +
+  # frame counts bounded). This is the right signal for the 0.5.2 close-leak class
+  # (CloseHostWindow/WindowDestroyed) -- that bug was renderer/frame COUNT growth
+  # with PSS flat, so PSS-slope is too noisy to gate on (leak-slope.sh is advisory).
+  # Best-effort: skips with a WARN if the harness is absent. See cefrium-sample/
+  # benchmark-suite/ and cefrium.com/benchmarks/.
+  BS="$ROOT/cefrium-sample/benchmark-suite"
+  if [ -d "$BS/cefrium-bench" ]; then
+    mkdir -p "$BS/cefrium-bench/app/libs"
+    cp out/release/cefrium-sdk.aar "$BS/cefrium-bench/app/libs/cefrium-sdk.aar"
+    cp cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar "$BS/cefrium-bench/app/libs/cefrium-compose.aar"
+    ( cd "$BS/cefrium-bench" && ./gradlew :app:assembleDebug --no-daemon )
+    SER="$("$ADB" devices | awk '/device$/{print $1; exit}')"
+    "$ADB" -s "$SER" install -r "$BS/cefrium-bench/app/build/outputs/apk/debug/app-debug.apk"
+    "$BS/leak-check.sh" -s "$SER" -n 30 -r "$VERSION" \
+      || { echo "FAIL: close-leak gate -- evicted browsers not closing / counts unbounded. Blocking publish."; exit 1; }
+    echo "Close-leak gate green -- evictions complete and frame/browser counts bounded."
+  else
+    echo "WARN: benchmark-suite/cefrium-bench not found -- skipping close-leak gate."
+  fi
 fi
 
 if run publish; then hdr "publish to Maven (IMMUTABLE)"
