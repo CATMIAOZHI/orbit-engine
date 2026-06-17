@@ -45,6 +45,7 @@ public class CefriumBrowser {
     private OnUrlChangedListener mUrlListener;
     private OnTitleChangedListener mTitleListener;
     private OnLoadingStateChangedListener mLoadingListener;
+    private OnRenderProcessTerminatedListener mRenderProcessTerminatedListener;
     private OnRequestInterceptedListener mRequestListener;
     private OnFullscreenChangedListener mFullscreenListener;
 
@@ -263,6 +264,30 @@ public class CefriumBrowser {
                                    boolean canGoForward);
     }
 
+    /** Termination status: process exited abnormally. */
+    public static final int TERMINATION_ABNORMAL = 0;
+    /** Termination status: process was killed (e.g. by the OS low-memory killer). */
+    public static final int TERMINATION_KILLED = 1;
+    /** Termination status: process crashed. */
+    public static final int TERMINATION_CRASHED = 2;
+    /** Termination status: process ran out of memory. */
+    public static final int TERMINATION_OOM = 3;
+
+    /**
+     * Listener for renderer-process termination. Called by CEF's
+     * CefRequestHandler::OnRenderProcessTerminated. A renderer can die without
+     * killing the app process and without a logcat FATAL -- use this to show a
+     * reload UI (the page is now blank/dead) and to count renderer crashes.
+     */
+    public interface OnRenderProcessTerminatedListener {
+        /**
+         * @param status one of TERMINATION_ABNORMAL, TERMINATION_KILLED,
+         *               TERMINATION_CRASHED, TERMINATION_OOM
+         * @param errorCode the platform error code (0 if none)
+         */
+        void onRenderProcessTerminated(int status, int errorCode);
+    }
+
     /**
      * Set a listener for URL changes during navigation.
      */
@@ -358,6 +383,17 @@ public class CefriumBrowser {
         }
     }
 
+    /**
+     * Set a listener notified when a renderer process for this browser dies.
+     * The native CefRequestHandler is always installed, so no extra wiring is
+     * needed -- the callback fires whenever the renderer terminates.
+     */
+    public void setOnRenderProcessTerminatedListener(
+            OnRenderProcessTerminatedListener listener) {
+        mRenderProcessTerminatedListener = listener;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+
     // Called from native CefDisplayHandler::OnTitleChange.
     @SuppressWarnings("unused")
     private void onTitleChanged(String title) {
@@ -385,6 +421,14 @@ public class CefriumBrowser {
                                        boolean canGoForward) {
         if (mCallback != null) mCallback.onLoadingStateChanged(isLoading, canGoBack, canGoForward);
         if (mLoadingListener != null) mLoadingListener.onLoadingStateChanged(isLoading, canGoBack, canGoForward);
+    }
+
+    // Called from native CefRequestHandler::OnRenderProcessTerminated.
+    @SuppressWarnings("unused")
+    private void onRenderProcessTerminated(int status, int errorCode) {
+        if (mRenderProcessTerminatedListener != null) {
+            mRenderProcessTerminatedListener.onRenderProcessTerminated(status, errorCode);
+        }
     }
 
     /**
