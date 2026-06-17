@@ -32,6 +32,9 @@ import com.cefrium.CefriumBrowser
  * @param onLoadingStateChanged Called when loading state changes.
  * @param onFullscreenChanged Called when fullscreen mode changes.
  * @param onRequestIntercepted Called for every network request (for inspection).
+ * @param onRenderProcessTerminated Called when a renderer process for this page
+ *   dies (status, errorCode). The page is now blank -- show a reload affordance.
+ *   Status values are the CefriumBrowser.TERMINATION_* constants.
  * @param onBrowserReady Called with the CefriumBrowser instance for direct control.
  */
 @Composable
@@ -43,6 +46,7 @@ fun CefriumWebView(
     onLoadingStateChanged: ((Boolean, Boolean, Boolean) -> Unit)? = null,
     onFullscreenChanged: ((Boolean) -> Unit)? = null,
     onRequestIntercepted: ((String, String, Boolean) -> Unit)? = null,
+    onRenderProcessTerminated: ((status: Int, errorCode: Int) -> Unit)? = null,
     onBrowserReady: ((CefriumBrowser) -> Unit)? = null
 ) {
     val activity = LocalContext.current as Activity
@@ -67,6 +71,11 @@ fun CefriumWebView(
             onRequestIntercepted?.let { cb ->
                 b.setOnRequestInterceptedListener { u, m, blocked ->
                     cb(u, m, blocked)
+                }
+            }
+            onRenderProcessTerminated?.let { cb ->
+                b.setOnRenderProcessTerminatedListener { status, errorCode ->
+                    cb(status, errorCode)
                 }
             }
             onBrowserReady?.invoke(b)
