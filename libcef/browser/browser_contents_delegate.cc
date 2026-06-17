@@ -510,6 +510,17 @@ void CefBrowserContentsDelegate::PrimaryMainFrameRenderProcessGone(
     ts = TS_PROCESS_OOM;
   } else if (status == base::TERMINATION_STATUS_LAUNCH_FAILED) {
     ts = TS_LAUNCH_FAILED;
+#if BUILDFLAG(IS_ANDROID)
+  } else if (status == base::TERMINATION_STATUS_OOM_PROTECTED) {
+    // Android cannot observe the real exit reason (processes are forked from the
+    // Zygote); a kill while the renderer still held strong bindings is reported
+    // as OOM_PROTECTED and is, in practice, a low-memory kill. Without this the
+    // default branch below would early-return and OnRenderProcessTerminated would
+    // never fire for the most common Android failure (the OEM low-memory killer).
+    ts = TS_PROCESS_OOM;
+  } else if (status == base::TERMINATION_STATUS_EVICTED_FOR_MEMORY) {
+    ts = TS_PROCESS_OOM;
+#endif
 #if BUILDFLAG(IS_WIN)
   } else if (status == base::TERMINATION_STATUS_INTEGRITY_FAILURE) {
     ts = TS_INTEGRITY_FAILURE;
