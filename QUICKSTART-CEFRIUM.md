@@ -547,6 +547,8 @@ backgrounded (see `backgroundMediaPolicy`); no work required.
 - Dark mode: `browser.setDarkMode(true)`
 - Downloads: `browser.setOnDownloadListener(...)`
 - Context menu: `browser.setOnContextMenuListener(...)`
+- Renderer died (show a reload UI): `browser.setOnRenderProcessTerminatedListener(...)`
+  (Compose: observe `CefriumViewState.rendererTermination`)
 - Compose: `CefriumView` / `CefriumWebView` from `cefrium-compose`
 - See [cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) for complete examples
 - See [MIGRATION-CEFRIUM.md](MIGRATION-CEFRIUM.md) for WebView migration guide
