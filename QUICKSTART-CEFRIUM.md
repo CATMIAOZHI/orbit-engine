@@ -414,7 +414,7 @@ override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) 
     browser.onActivityResult(requestCode, resultCode, data)
 }
 
-// Compose API — forward to each visible CefriumViewState
+// Compose API -- forward to each visible CefriumViewState
 override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
     super.onActivityResult(requestCode, resultCode, data)
     state.onActivityResult(requestCode, resultCode, data)
