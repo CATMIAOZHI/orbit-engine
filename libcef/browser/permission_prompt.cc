@@ -241,8 +241,7 @@ cef_permission_request_types_t GetCefRequestType(
       return CEF_PERMISSION_TYPE_MULTIPLE_DOWNLOADS;
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
     case permissions::RequestType::kNfcDevice:
-      // No dedicated CEF permission type; surfaced as NONE.
-      return CEF_PERMISSION_TYPE_NONE;
+      return CEF_PERMISSION_TYPE_NFC;
 #endif
     case permissions::RequestType::kNotifications:
       return CEF_PERMISSION_TYPE_NOTIFICATIONS;
