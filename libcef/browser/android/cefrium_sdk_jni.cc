@@ -1683,7 +1683,8 @@ void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
     if (data_->is_surface_mode && data_->surface_bridge) {
       auto* browser_impl = static_cast<CefBrowserHostBase*>(
           browser->GetHost().get());
-      content::WebContents* web_contents = browser_impl->GetWebContents();
+      content::WebContents* web_contents =
+          browser_impl ? browser_impl->GetWebContents() : nullptr;
       if (web_contents) {
         data_->surface_bridge->AttachWebContents(web_contents);
         LOGI("Surface mode: WebContents attached to compositor");
@@ -2495,6 +2496,7 @@ Java_com_cefrium_CefriumBrowser_nativeGetWebContents(
 
   auto* browser_impl = static_cast<CefBrowserHostBase*>(
       data->browser->GetHost().get());
+  if (!browser_impl) return nullptr;
   content::WebContents* web_contents = browser_impl->GetWebContents();
   if (!web_contents) return nullptr;
 
