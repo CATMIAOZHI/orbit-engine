@@ -111,7 +111,10 @@ public class CefriumBrowser {
 
     private static final String TAG = "CefriumBrowser";
 
-    private boolean mClosed;
+    // volatile: read on the main looper in connectWebContentsInternal (delayed
+    // callback) while close() may set it from another thread; the write must be
+    // visible to short-circuit the stale-pointer use-after-free.
+    private volatile boolean mClosed;
 
     private boolean checkNative(String method) {
         if (mNativePtr == 0) {
@@ -1664,7 +1667,12 @@ public class CefriumBrowser {
     // Internal: connect WebContents to rendering pipeline.
     // Called after the browser has loaded its first page.
     void connectWebContentsInternal() {
-        if (mNativePtr == 0 || mActivity == null) return;
+        // This runs from a 2000ms postDelayed (see loadUrl). If the browser was
+        // closed in the meantime, mNativePtr still points at the native
+        // SdkBrowserData until the async OnBeforeClose lands -- dereferencing it
+        // here is a use-after-free. mClosed is set synchronously in close() on
+        // this same (main) looper, so it reliably short-circuits the stale callback.
+        if (mClosed || mNativePtr == 0 || mActivity == null) return;
         org.chromium.content_public.browser.WebContents wc = nativeGetWebContents(mNativePtr);
         if (wc == null) return;
         if (mWebContentsConnected) return;
