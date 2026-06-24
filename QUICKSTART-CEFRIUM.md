@@ -461,11 +461,25 @@ browser.captureBitmap(bitmap -> { /* use or save bitmap (may be null) */ });
 Compose equivalents live on `CefriumNavigator` (`setProxy`, `clearProxy`,
 `captureBitmap`, `setDeviceChooserHandler`).
 
-## Web NFC (0.5.0+)
+## Web NFC
 
-`new NDEFReader().scan()` / `.write()` read and write NDEF tags - no app code beyond
-declaring `android.permission.NFC` in your manifest (NFC must be enabled on the
-device). A unique differentiator: System WebView has no Web NFC.
+`new NDEFReader().scan()` / `.write()` read and write NDEF tags. A unique
+differentiator: System WebView has no Web NFC. Validated read + write round-trip on
+device. To enable it in your app:
+
+1. Declare both permissions in your manifest -- `android.permission.NFC` and
+   `android.permission.VIBRATE` (the engine buzzes on tag detection and the
+   read/write aborts without it). NFC must be enabled on the device.
+2. Grant the NFC web permission, either per-request in your
+   `setPermissionHandler` (`PERMISSION_NFC`) or by pre-authorizing the origin:
+
+```java
+browser.setContentSetting("https://your.site",
+        CefriumBrowser.PERMISSION_NFC, CefriumBrowser.SETTING_ALLOW);
+```
+
+See [`NfcTestActivity`](https://codeberg.org/cefrium/cefrium-sample) for a full
+read/write example.
 
 ## The rest of the web platform (0.5.0+)
 
