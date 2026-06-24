@@ -88,7 +88,7 @@ that gap.
 | WebOTP (navigator.credentials OTPCredential - SMS one-time-code autofill) | Done (0.5.0) |
 | Web Speech recognition (SpeechRecognition - voice to text) | Done (0.5.0) |
 | Screen capture (getDisplayMedia -> MediaProjection) | Done (0.5.0) |
-| Web NFC (NDEFReader read/write) | Done (0.5.0) |
+| Web NFC (NDEFReader read/write) | Done (validated on device) |
 | Generic Sensors (Accelerometer, Gyroscope, Orientation, Gravity, ...) | Done (0.5.0) |
 | MediaRecorder / ImageCapture / WebCodecs / MediaCapabilities | Done (0.5.0) |
 | Shape Detection - BarcodeDetector (QR / EAN / Code128 / ...) | Done (0.5.0) |

@@ -27,8 +27,18 @@ in the internal FEATURE-NNN.md working docs (not published).
   with a `RendererStatus` enum; cleared automatically on the next load), or pass
   `onRenderProcessTerminated` to `CefriumWebView`. Validated on a Redmi/HyperOS device
   (real OEM low-memory kill) and a rooted emulator.
+- `CefriumBrowser.PERMISSION_NFC` for Web NFC permission. Grant it in your
+  `setPermissionHandler`, or pre-authorize an origin with
+  `setContentSetting(url, PERMISSION_NFC, SETTING_ALLOW)`.
 
 ### Fixed
+- Web NFC (`NDEFReader` read/write) now works end-to-end -- previously the API was
+  present but every scan/write was denied or hung. Three engine fixes: (1) CEF mapped
+  the NFC permission request to `CEF_PERMISSION_TYPE_NONE` (ungrantable) -> added
+  `CEF_PERMISSION_TYPE_NFC`; (2) `NfcBlocklist` read a variations field-trial param
+  whose JNI is absent in CEF and threw, aborting every read/write -> guarded; (3) the
+  consumer also needs `android.permission.VIBRATE` (the engine buzzes on tag
+  detection). Validated read + write round-trip on a Redmi Note 13 Pro / HyperOS.
 - Renderer terminations reported by Android as `OOM_PROTECTED` / `EVICTED_FOR_MEMORY`
   (the common OEM low-memory-kill path) now reach `OnRenderProcessTerminated` as
   `TS_PROCESS_OOM`. The upstream handler mapped only desktop termination statuses and
