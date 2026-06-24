@@ -71,21 +71,69 @@ echo "Web update: $PREV -> $NEW (CEF $BRANCH, Chromium $CHROMIUM, $DATE)"
 apply "$QS" "s{(com\\.cefrium['\"]\\)? version ['\"])$PREV(['\"])}{\${1}$NEW\${2}}g; s{(com\\.cefrium:cefrium-(?:sdk|compose)[^:\"]*:)$PREV}{\${1}$NEW}g" \
   "$NEW" "quickstart version"
 
-# 2. Releases — insert the new release block (metadata row + full-width notes row)
-# right after the "add a release" comment. Skip if a row for this version already
-# exists (a same-version re-cut), so we don't insert a duplicate row.
-if [ -f "$REL" ] && grep -qF "tag/v$NEW\">$NEW</a>" "$REL"; then
-  echo "  releases new row: v$NEW already present (re-cut) — skipping insert"
+# 2-3. Releases page (native <details> accordion layout, redesigned 2026-06). Skip
+# the whole insert on a same-version re-cut. Otherwise: demote the current latest
+# entry (drop `open`, flip its Maven status to superseded), then insert the new
+# entry built from the CHANGELOG [NEW] ### sections (one <div class="cat"> per
+# section, one <li> per top-level bullet; backticks -> <code>, & < > escaped).
+# apply() can't carry the multi-line block, so this runs inline with backup + an
+# id="v$NEW" post-check, and restores on a missed anchor.
+if [ ! -f "$REL" ]; then
+  echo "  WARN: releases: $REL not found"
+elif grep -qF "id=\"v$NEW\"" "$REL"; then
+  echo "  releases: v$NEW entry already present (re-cut) — skipping insert"
 else
-  NEWROW="      <tr class=\"rel\">\n        <td class=\"ver\"><a href=\"https://codeberg.org/cefrium/cef-android/releases/tag/v$NEW\">$NEW</a></td>\n        <td class=\"mono\">$BRANCH</td>\n        <td class=\"mono\">$CHROMIUM</td>\n        <td class=\"date\">$DATE</td>\n        <td class=\"art\"><a href=\"https://codeberg.org/cefrium/-/packages/maven/com.cefrium:cefrium-sdk/$NEW\">com.cefrium:cefrium-sdk:$NEW</a></td>\n      </tr>\n      <tr class=\"notes\"><td colspan=\"5\">$NOTES</td></tr>"
-  apply "$REL" "s{(for the notes\\. -->\\n)}{\${1}$NEWROW\\n}" \
-    "tag/v$NEW" "releases new row"
-fi
+  CATS="$(awk -v ver="$NEW" '
+    function esc(s){ gsub(/&/,"\\&amp;",s); gsub(/</,"\\&lt;",s); gsub(/>/,"\\&gt;",s); return s }
+    function code(s,  out){ out=""
+      while(match(s,/`[^`]*`/)){ out=out substr(s,1,RSTART-1) "<code>" substr(s,RSTART+1,RLENGTH-2) "</code>"; s=substr(s,RSTART+RLENGTH) }
+      return out s }
+    function flush(){ if(btext!=""){ printf "            <li>%s</li>\n", code(esc(btext)); btext="" } }
+    function closecat(){ if(incat){ flush(); print "          </ul>"; print "        </div>"; incat=0 } }
+    $0 ~ "^## \\[" ver "\\]" {inblk=1; next}
+    inblk && /^## \[/ {exit}
+    !inblk {next}
+    /^### / {closecat(); lbl=$0; sub(/^### /,"",lbl); printf "        <div class=\"cat\">\n          <span class=\"lbl\">%s</span>\n          <ul>\n", lbl; incat=1; next}
+    /^- / {flush(); btext=$0; sub(/^- /,"",btext); next}
+    /^  - / {flush(); next}
+    /^[[:space:]]*$/ {flush(); next}
+    /^  +[^ ]/ { if(btext!=""){c=$0; sub(/^ +/,"",c); btext=btext" "c} next }
+    END {closecat()}
+  ' "$CHANGELOG")"
+  [ -n "$CATS" ] || CATS="        <div class=\"cat\"><span class=\"lbl\">Notes</span>
+          <ul><li>$NOTES</li></ul>
+        </div>"
 
-# 3. Mark the previous version superseded: turn its metadata-row artifact cell into
-# "superseded" AND append the supersede note to its full-width notes row (the <tr
-# class=\"notes\"> immediately below the metadata row). One dotall substitution.
-apply "$REL" "s{(<tr class=\"rel\">\\s*<td class=\"ver\"><a href=\"[^\"]*tag/v$PREV\">$PREV</a></td>.*?)<td class=\"art\">.*?</td>(\\s*</tr>\\s*<tr class=\"notes\"><td colspan=\"5\">)(.*?)(</td></tr>)}{\${1}<td class=\"art gone\">superseded</td>\${2}\${3} Superseded by $NEW; registry artifact pruned and not retained as a binary — the source tag is the reference.\${4}}s" \
-  "art gone" "releases supersede $PREV"
+  NEWBLOCK="    <details class=\"rel\" id=\"v$NEW\" open>
+      <summary>
+        <span class=\"v\">$NEW</span>
+        <span class=\"chip\">CEF $BRANCH</span>
+        <span class=\"chip\">Chromium $CHROMIUM</span>
+        <span class=\"chip\">$DATE</span>
+        <span class=\"status live\">Maven</span>
+      </summary>
+      <div class=\"body\">
+$CATS
+        <div class=\"relinks\">
+          <a href=\"https://codeberg.org/cefrium/cef-android/releases/tag/v$NEW\">Source tag v$NEW</a>
+          <span><code>com.cefrium:cefrium-sdk:$NEW</code></span>
+        </div>
+      </div>
+    </details>"
+
+  cp "$REL" "$REL.bak"
+  # Demote the previous latest entry: drop `open`, and flip its "Maven" status to
+  # "superseded" (the registry keeps latest-only). Both target v$PREV specifically.
+  perl -0777 -i -pe "s{(<details class=\"rel\" id=\"v\\Q$PREV\\E\")\\s+open>}{\${1}>}" "$REL"
+  perl -0777 -i -pe "s{(id=\"v\\Q$PREV\\E\".*?<span class=\"status) live\">Maven(</span>)}{\${1}\">superseded\${2}}s" "$REL"
+  # Insert the new entry right after the rel-list container opens (env var + /e so
+  # the multi-line block needs no escaping).
+  NEWBLOCK="$NEWBLOCK" perl -0777 -i -pe 's{(<div class="rel-list">\n)}{$1 . "\n" . $ENV{NEWBLOCK} . "\n"}e' "$REL"
+  if grep -qF "id=\"v$NEW\"" "$REL"; then
+    echo "  releases: inserted v$NEW entry (prev v$PREV -> superseded)"; rm -f "$REL.bak"
+  else
+    echo "  WARN: releases: insert anchor did not match — file restored, edit manually."; mv "$REL.bak" "$REL"
+  fi
+fi
 
 echo "Done. Review: git -C $WEB diff -- quickstart/index.html releases/index.html"
