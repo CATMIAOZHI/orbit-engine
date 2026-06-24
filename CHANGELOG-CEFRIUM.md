@@ -15,7 +15,9 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
-## [Unreleased]
+## [0.5.3] -- 2026-06-24
+
+Chromium 149.0.7827.102.
 
 ### Added
 - Renderer-termination callback. `CefriumBrowser.setOnRenderProcessTerminatedListener(
@@ -44,6 +46,12 @@ in the internal FEATURE-NNN.md working docs (not published).
   `TS_PROCESS_OOM`. The upstream handler mapped only desktop termination statuses and
   silently dropped these, so the callback never fired for the most common Android
   renderer death. (Upstreamable libcef fix.)
+- Surface-mode crash on close. Closing a Surface-mode browser shortly after a load
+  could crash (`SIGSEGV` in `nativeGetWebContents`): the deferred WebContents-connect
+  callback fired after the native browser was torn down and dereferenced a stale
+  pointer. The callback now short-circuits once the browser is closed, and the native
+  accessor guards a null host. (Surfaced by the per-browser process model on
+  process-per-browser OEMs.)
 
 ## [0.5.2] -- 2026-06-14
 
