@@ -3936,6 +3936,7 @@ typedef enum {
 #if CEF_API_ADDED(14700)
   CEF_PERMISSION_TYPE_SENSORS = 1 << 28,
 #endif
+  CEF_PERMISSION_TYPE_NFC = 1 << 29,
 } cef_permission_request_types_t;
 
 ///

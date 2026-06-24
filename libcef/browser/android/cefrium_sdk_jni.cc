@@ -2204,6 +2204,8 @@ static cef_content_setting_types_t SdkPermissionToContentType(jint permission) {
       return CEF_CONTENT_SETTING_TYPE_MEDIASTREAM_CAMERA;
     case (1 << 12):  // PERMISSION_MICROPHONE
       return CEF_CONTENT_SETTING_TYPE_MEDIASTREAM_MIC;
+    case (1 << 29):  // PERMISSION_NFC
+      return CEF_CONTENT_SETTING_TYPE_NFC;
     case (1 << 15):  // PERMISSION_NOTIFICATIONS
     default:
       return CEF_CONTENT_SETTING_TYPE_NOTIFICATIONS;
