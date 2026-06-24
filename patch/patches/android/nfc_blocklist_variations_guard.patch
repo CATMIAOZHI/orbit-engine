@@ -1,0 +1,26 @@
+diff --git services/device/nfc/android/java/src/org/chromium/device/nfc/NfcBlocklist.java services/device/nfc/android/java/src/org/chromium/device/nfc/NfcBlocklist.java
+index 165b21dc3ca92..8df5d76d78b01 100644
+--- services/device/nfc/android/java/src/org/chromium/device/nfc/NfcBlocklist.java
++++ services/device/nfc/android/java/src/org/chromium/device/nfc/NfcBlocklist.java
+@@ -71,9 +71,18 @@ public class NfcBlocklist {
+     }
+ 
+     private NfcBlocklist() {
+-        String serverProvidedValues =
+-                VariationsAssociatedData.getVariationParamValue(
+-                        TRIAL_NAME, HISTORICAL_BYTES_PARAM_NAME);
++        String serverProvidedValues = null;
++        try {
++            serverProvidedValues =
++                    VariationsAssociatedData.getVariationParamValue(
++                            TRIAL_NAME, HISTORICAL_BYTES_PARAM_NAME);
++        } catch (RuntimeException e) {
++            // CEF/Cefrium does not wire the variations field-trial JNI, so this
++            // native method is absent ("Native method not present"). Without this
++            // guard every NFC read/write aborts in NfcTagHandler.create(). An
++            // empty server-provided blocklist (all tags allowed) is the safe
++            // functional default.
++        }
+         populateWithServerProvidedValues(serverProvidedValues);
+     }
+ 
