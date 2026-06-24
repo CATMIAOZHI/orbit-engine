@@ -2204,6 +2204,11 @@ static cef_content_setting_types_t SdkPermissionToContentType(jint permission) {
       return CEF_CONTENT_SETTING_TYPE_MEDIASTREAM_CAMERA;
     case (1 << 12):  // PERMISSION_MICROPHONE
       return CEF_CONTENT_SETTING_TYPE_MEDIASTREAM_MIC;
+    // Use the enum, not a literal: this bit moved from 29 to 30 when CEF 8078
+    // took 29 for AMBIENT_LOGIN, and a literal here would have silently kept
+    // mapping the old bit. The neighbouring cases mirror the Java constants.
+    case CEF_PERMISSION_TYPE_NFC:  // PERMISSION_NFC
+      return CEF_CONTENT_SETTING_TYPE_NFC;
     case (1 << 15):  // PERMISSION_NOTIFICATIONS
     default:
       return CEF_CONTENT_SETTING_TYPE_NOTIFICATIONS;

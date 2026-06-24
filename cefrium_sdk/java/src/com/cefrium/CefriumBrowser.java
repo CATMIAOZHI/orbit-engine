@@ -770,6 +770,16 @@ public class CefriumBrowser {
     public static final int PERMISSION_NOTIFICATIONS = 1 << 15;
     /** Clipboard read (navigator.clipboard.readText). Writing needs no prompt. */
     public static final int PERMISSION_CLIPBOARD = 1 << 4;
+    /**
+     * Web NFC (NDEFReader scan/write). Also declare {@code android.permission.NFC}
+     * in your manifest and have NFC enabled on the device. Grant this in your
+     * {@link PermissionHandler} (or pre-authorize via {@link #setContentSetting}
+     * with {@link #SETTING_ALLOW}).
+     */
+    // Bit 30, matching CEF_PERMISSION_TYPE_NFC. It was 29 until CEF 8078 took
+    // that bit for AMBIENT_LOGIN; these two values must stay in lockstep or NFC
+    // permission requests are routed as something else.
+    public static final int PERMISSION_NFC = 1 << 30;
 
     /** Receives the app's grant/deny decision for a permission request. */
     public interface PermissionCallback {
@@ -861,7 +871,8 @@ public class CefriumBrowser {
      * @param requestingUrl the origin URL, e.g. {@code "https://example.com"}
      * @param permission one of the {@code PERMISSION_*} constants
      *     ({@link #PERMISSION_NOTIFICATIONS}, {@link #PERMISSION_GEOLOCATION},
-     *     {@link #PERMISSION_CAMERA}, {@link #PERMISSION_MICROPHONE})
+     *     {@link #PERMISSION_CAMERA}, {@link #PERMISSION_MICROPHONE},
+     *     {@link #PERMISSION_NFC})
      * @param value one of the {@code SETTING_*} constants
      *     ({@link #SETTING_ALLOW}, {@link #SETTING_BLOCK}, {@link #SETTING_ASK},
      *     {@link #SETTING_DEFAULT})

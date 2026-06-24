@@ -3966,6 +3966,10 @@ typedef enum {
 #if CEF_API_ADDED(15600)
   CEF_PERMISSION_TYPE_AMBIENT_LOGIN = 1 << 29,
 #endif
+  // Cefrium (Android Web NFC). Bit 30, NOT 29: upstream took 29 for
+  // AMBIENT_LOGIN in CEF 8078, and two permission types sharing a bit would
+  // make the permission plumbing confuse one for the other.
+  CEF_PERMISSION_TYPE_NFC = 1 << 30,
 } cef_permission_request_types_t;
 
 ///
