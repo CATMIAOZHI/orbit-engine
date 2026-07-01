@@ -66,11 +66,14 @@ public class CefriumMediaSession {
             }
         });
 
-        // MediaSession.fromWebContents() returns null when no native session
-        // exists yet (upstream MediaSessionImpl::GetIfExists contract). Do not
-        // construct the observer with a null session -- MediaSessionObserver's
-        // ctor calls session.addObserver() and would NPE. mObserver is null-guarded
-        // at every use; the session attaches once media actually becomes active.
+        // MediaSession.fromWebContents() returns a live session even before any
+        // media plays: the Android CEF build patches the JNI to use
+        // MediaSessionImpl::Get (create-or-return) instead of GetIfExists (which
+        // was null until playback started, so an observer attached here at page
+        // load never bound and the notification never appeared). See patch
+        // android/media_session_create_for_java_observer. The null-guard stays
+        // defensive -- MediaSessionObserver's ctor calls session.addObserver()
+        // and would NPE on null; mObserver is null-checked at every use.
         mObserver = mChromiumSession == null ? null : new MediaSessionObserver(mChromiumSession) {
             @Override
             public void mediaSessionStateChanged(boolean isControllable, boolean isSuspended) {
@@ -130,6 +133,15 @@ public class CefriumMediaSession {
         mCompat.setActive(false);
         if (sCurrent == this) sCurrent = null;
         CefriumMediaService.stop(mAppContext);
+    }
+
+    /**
+     * Host-initiated: dismiss the media notification. Used by
+     * {@link CefriumBrowser#stopMediaSession()} when a host wants the tray
+     * notification gone (e.g. after navigating away from a video screen).
+     */
+    void hideNotification() {
+        hide();
     }
 
     // ── MediaSessionCompat state ──
