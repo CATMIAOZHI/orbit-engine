@@ -1,0 +1,21 @@
+diff --git content/browser/media/session/media_session_android.cc content/browser/media/session/media_session_android.cc
+index 1817577..d800b11 100644
+--- content/browser/media/session/media_session_android.cc
++++ content/browser/media/session/media_session_android.cc
+@@ -56,8 +56,14 @@ JNI_MediaSessionImpl_GetMediaSessionFromWebContents(
+   if (!contents)
+     return ScopedJavaLocalRef<jobject>();
+ 
+-  MediaSessionImpl* session =
+-      static_cast<MediaSessionImpl*>(MediaSessionImpl::GetIfExists(contents));
++  // Cefrium: use Get() (create-or-return) instead of GetIfExists() so a Java
++  // caller (e.g. CefriumMediaSession) can attach its observer BEFORE any media
++  // plays. With GetIfExists() the session is null until playback starts, so an
++  // observer attached at page-load time never binds and the media notification
++  // never appears -- e.g. for a bare media document, or any page whose JS wires
++  // navigator.mediaSession after load. Creating an empty session is cheap and
++  // stays inert (INACTIVE, not controllable) until a player registers.
++  MediaSessionImpl* session = MediaSessionImpl::Get(contents);
+   return session ? MediaSessionAndroid::JavaObjectGetter::GetJavaObject(
+                        session->GetMediaSessionAndroid())
+                  : nullptr;
