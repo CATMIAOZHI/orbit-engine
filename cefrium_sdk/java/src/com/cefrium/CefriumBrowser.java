@@ -1306,6 +1306,23 @@ public class CefriumBrowser {
     }
 
     /**
+     * Stops the page's media session and dismisses its media notification. Unlike
+     * {@link #stopAllMedia()} (which pauses + mutes, leaving a paused notification),
+     * this clears the session -- for a host navigating away from a video screen that
+     * wants the tray notification gone. Operates at the WebContents level, so it also
+     * stops media in cross-origin iframes (e.g. a YouTube embed) that page JS cannot reach.
+     */
+    public void stopMediaSession() {
+        org.chromium.content_public.browser.WebContents wc = webContents();
+        if (wc != null) {
+            org.chromium.content_public.browser.MediaSession ms =
+                    org.chromium.content_public.browser.MediaSession.fromWebContents(wc);
+            if (ms != null) ms.stop();
+        }
+        if (mMediaSession != null) mMediaSession.hideNotification();
+    }
+
+    /**
      * Convenience for "host is backgrounding": hide the page, suspend media and
      * mute audio so inline audio/video actually stops (visibility HIDDEN alone
      * keeps background audio playing). Resumable via {@link #onResume()}. Call
