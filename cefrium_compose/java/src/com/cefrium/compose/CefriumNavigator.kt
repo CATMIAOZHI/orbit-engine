@@ -330,6 +330,15 @@ class CefriumNavigator {
     fun stopAllMedia() {
         state?.browser?.stopAllMedia()
     }
+
+    /**
+     * Stops the page's media session and dismisses its media notification (also stops
+     * media in cross-origin iframes, e.g. a YouTube embed). Use on navigate-away when
+     * [stopAllMedia] (pause + mute) isn't enough because you want the tray notification gone.
+     */
+    fun stopMediaSession() {
+        state?.browser?.stopMediaSession()
+    }
 }
 
 /** Remembers a [CefriumNavigator] across recompositions. */
