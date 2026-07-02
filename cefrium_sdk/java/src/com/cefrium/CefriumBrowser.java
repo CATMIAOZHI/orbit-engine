@@ -377,6 +377,31 @@ public class CefriumBrowser {
     private static final String STATE_URL = "com.cefrium.browser.url";
 
     /**
+     * Serializes this tab's full back/forward navigation stack (each entry's URL
+     * and blink PageState, plus the current index) for session restore. Returns
+     * {@code null} if there is nothing to save. Chrome-style tab restore: unlike
+     * {@link #saveState} (current URL only), the restored tab can navigate back.
+     * Restore with {@link #restoreNavigationState} on a FRESH browser, before its
+     * first navigation.
+     */
+    public byte[] serializeNavigationState() {
+        return checkNative("serializeNavigationState")
+                ? nativeSerializeNavigationState(mNativePtr) : null;
+    }
+
+    /**
+     * Restores a navigation stack captured by {@link #serializeNavigationState}.
+     * Must be called on a fresh browser (empty history) before its first
+     * navigation; no-op for null/empty input.
+     */
+    public void restoreNavigationState(byte[] state) {
+        if (state != null && state.length > 0
+                && checkNative("restoreNavigationState")) {
+            nativeRestoreNavigationState(mNativePtr, state);
+        }
+    }
+
+    /**
      * Set a listener for loading state changes.
      */
     public void setOnLoadingStateChangedListener(OnLoadingStateChangedListener listener) {
@@ -1885,6 +1910,8 @@ public class CefriumBrowser {
     private static native void nativeGoBack(long nativePtr);
     private static native void nativeGoForward(long nativePtr);
     private static native void nativeReload(long nativePtr);
+    private static native byte[] nativeSerializeNavigationState(long nativePtr);
+    private static native void nativeRestoreNavigationState(long nativePtr, byte[] state);
     private static native void nativeEvaluateJavaScript(long nativePtr, String script);
     private static native void nativeQueryResult(long nativePtr, long queryId,
             boolean success, String response, int errorCode, String errorMessage);
