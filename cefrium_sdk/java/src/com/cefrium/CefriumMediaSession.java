@@ -20,6 +20,7 @@ import androidx.core.app.NotificationCompat;
 import org.chromium.content_public.browser.MediaSession;
 import org.chromium.content_public.browser.MediaSessionObserver;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.services.media_session.MediaMetadata;
 
 /**
@@ -45,6 +46,11 @@ public class CefriumMediaSession {
     private final MediaSession mChromiumSession;
     private final MediaSessionCompat mCompat;
     private final MediaSessionObserver mObserver;
+    // Reliable "media is playing" signal (independent of the racy is_controllable).
+    // Drives the foreground service so background audio survives (Android kills an
+    // unprotected background process in ~1 min).
+    private final WebContentsObserver mWebContentsObserver;
+    private final java.util.Set<Integer> mPlayingIds = new java.util.HashSet<>();
 
     private String mTitle = "";
     private String mArtist = "";
@@ -84,7 +90,10 @@ public class CefriumMediaSession {
                     mCompat.setActive(true);
                     pushState();
                     CefriumMediaService.show(mAppContext, buildNotification());
-                } else {
+                } else if (mPlayingIds.isEmpty()) {
+                    // Only tear down when nothing is actually playing. is_controllable
+                    // flickers false for media documents mid-playback; the foreground
+                    // service must stay up (background audio) while media is audible.
                     hide();
                 }
             }
@@ -103,6 +112,35 @@ public class CefriumMediaSession {
 
             @Override
             public void mediaSessionDestroyed() {
+                if (mPlayingIds.isEmpty()) hide();
+            }
+        };
+
+        // Foreground-service lifecycle driven by ACTUAL playback (the tab-audio
+        // signal), which is reliable where is_controllable is not. Started while
+        // the app is foreground (media begins on-screen), so it keeps the process
+        // alive after the user backgrounds it -- background audio like Brave.
+        mWebContentsObserver = new WebContentsObserver(webContents) {
+            @Override
+            public void mediaStartedPlaying(int id, boolean hasAudio, boolean hasVideo) {
+                if (!hasAudio) return;  // muted/silent media needs no background protection
+                mPlayingIds.add(id);
+                sCurrent = CefriumMediaSession.this;
+                mCompat.setActive(true);
+                mPaused = false;
+                pushState();
+                CefriumMediaService.show(mAppContext, buildNotification());
+            }
+
+            @Override
+            public void mediaStoppedPlaying(int id) {
+                mPlayingIds.remove(id);
+                if (mPlayingIds.isEmpty() && !mControllable) hide();
+            }
+
+            @Override
+            public void webContentsDestroyed() {
+                mPlayingIds.clear();
                 hide();
             }
         };
@@ -125,6 +163,8 @@ public class CefriumMediaSession {
 
     void destroy() {
         if (mObserver != null) mObserver.stopObserving();
+        mWebContentsObserver.observe(null);
+        mPlayingIds.clear();
         hide();
         mCompat.release();
     }
