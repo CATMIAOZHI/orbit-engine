@@ -1676,6 +1676,10 @@ struct SdkBrowserData {
   CefRefPtr<SdkClient> client;
   std::string pending_url;
   std::unique_ptr<SdkPendingDataLoad> pending_data;
+  // Navigation stack to Restore() once the browser exists (session/tab restore):
+  // the browser is created at about:blank so the renderer spawns, then this is
+  // applied in OnAfterCreated before any real navigation.
+  std::vector<uint8_t> pending_nav_state;
   int blocked_count = 0;
   bool adblock_enabled = false;
 
@@ -1684,6 +1688,52 @@ struct SdkBrowserData {
   ui::WindowAndroid* window_android = nullptr;  // Owned by Java via prevent-GC ref.
   bool is_surface_mode = false;
 };
+
+// Rebuild a navigation stack captured by nativeSerializeNavigationState onto
+// |wc|'s controller (must be a fresh WebContents -- no committed navigation) and
+// load the selected entry, so back/forward works without re-fetching pages.
+void ApplyNavigationState(content::WebContents* wc,
+                          const std::vector<uint8_t>& bytes) {
+  if (!wc || bytes.empty()) {
+    return;
+  }
+  base::Pickle pickle = base::Pickle::WithData(bytes);
+  base::PickleIterator it(pickle);
+  int current = 0, count = 0;
+  if (!it.ReadInt(&current) || !it.ReadInt(&count) || count <= 0) {
+    return;
+  }
+  content::BrowserContext* browser_context = wc->GetBrowserContext();
+  std::unique_ptr<content::NavigationEntryRestoreContext> restore_context =
+      content::NavigationEntryRestoreContext::Create();
+  std::vector<std::unique_ptr<content::NavigationEntry>> entries;
+  entries.reserve(count);
+  for (int i = 0; i < count; ++i) {
+    std::string url_str, page_state_str;
+    std::u16string title;
+    if (!it.ReadString(&url_str) || !it.ReadString16(&title) ||
+        !it.ReadString(&page_state_str)) {
+      return;
+    }
+    std::unique_ptr<content::NavigationEntry> entry =
+        content::NavigationController::CreateNavigationEntry(
+            GURL(url_str), content::Referrer(), /*initiator_origin=*/std::nullopt,
+            /*initiator_base_url=*/std::nullopt, ui::PAGE_TRANSITION_RELOAD,
+            /*is_renderer_initiated=*/false, /*extra_headers=*/std::string(),
+            browser_context, /*blob_url_loader_factory=*/nullptr);
+    if (!page_state_str.empty()) {
+      entry->SetPageState(blink::PageState::CreateFromEncodedData(page_state_str),
+                          restore_context.get());
+    }
+    entry->SetTitle(title);
+    entries.push_back(std::move(entry));
+  }
+  if (current < 0 || current >= count) {
+    current = count - 1;
+  }
+  wc->GetController().Restore(current, content::RestoreType::kRestored, &entries);
+  wc->GetController().LoadIfNecessary();
+}
 
 void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
   LOGI("OnAfterCreated: browser ready (id=%d, surface_mode=%d)",
@@ -1715,6 +1765,17 @@ void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
             data_->pending_data->history_url);
       }
       data_->pending_data.reset();
+    }
+
+    // Apply a navigation stack that arrived before the browser existed (tab
+    // restore): the browser was created at about:blank so the controller is at
+    // its initial entry -- Restore replaces it and loads the selected page.
+    if (!data_->pending_nav_state.empty()) {
+      auto* host =
+          static_cast<CefBrowserHostBase*>(browser->GetHost().get());
+      ApplyNavigationState(host ? host->GetWebContents() : nullptr,
+                           data_->pending_nav_state);
+      data_->pending_nav_state.clear();
     }
   }
 }
@@ -2572,47 +2633,27 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeRestoreNavigationState(
     JNIEnv* env, jclass clazz, jlong native_ptr, jbyteArray blob) {
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
-  if (!data || !data->browser || !blob) return;
-  auto* host = static_cast<CefBrowserHostBase*>(data->browser->GetHost().get());
-  content::WebContents* wc = host ? host->GetWebContents() : nullptr;
-  if (!wc) return;
+  if (!data || !blob) return;
   const jsize len = env->GetArrayLength(blob);
   if (len <= 0) return;
   std::vector<uint8_t> bytes(static_cast<size_t>(len));
   env->GetByteArrayRegion(blob, 0, len, reinterpret_cast<jbyte*>(bytes.data()));
-  base::Pickle pickle = base::Pickle::WithData(bytes);
-  base::PickleIterator it(pickle);
-  int current = 0, count = 0;
-  if (!it.ReadInt(&current) || !it.ReadInt(&count) || count <= 0) return;
-  content::BrowserContext* browser_context = wc->GetBrowserContext();
-  std::unique_ptr<content::NavigationEntryRestoreContext> restore_context =
-      content::NavigationEntryRestoreContext::Create();
-  std::vector<std::unique_ptr<content::NavigationEntry>> entries;
-  entries.reserve(count);
-  for (int i = 0; i < count; ++i) {
-    std::string url_str, page_state_str;
-    std::u16string title;
-    if (!it.ReadString(&url_str) || !it.ReadString16(&title) ||
-        !it.ReadString(&page_state_str)) {
-      return;
-    }
-    std::unique_ptr<content::NavigationEntry> entry =
-        content::NavigationController::CreateNavigationEntry(
-            GURL(url_str), content::Referrer(),
-            /*initiator_origin=*/std::nullopt,
-            /*initiator_base_url=*/std::nullopt, ui::PAGE_TRANSITION_RELOAD,
-            /*is_renderer_initiated=*/false, /*extra_headers=*/std::string(),
-            browser_context, /*blob_url_loader_factory=*/nullptr);
-    if (!page_state_str.empty()) {
-      entry->SetPageState(blink::PageState::CreateFromEncodedData(page_state_str),
-                          restore_context.get());
-    }
-    entry->SetTitle(title);
-    entries.push_back(std::move(entry));
+  if (data->browser) {
+    // Browser already exists: apply now (caller guarantees a fresh controller).
+    auto* host = static_cast<CefBrowserHostBase*>(data->browser->GetHost().get());
+    ApplyNavigationState(host ? host->GetWebContents() : nullptr, bytes);
+    return;
   }
-  if (current < 0 || current >= count) current = count - 1;
-  wc->GetController().Restore(current, content::RestoreType::kRestored, &entries);
-  wc->GetController().LoadIfNecessary();
+  // Browser not created yet (restored tab): create it at about:blank to spawn
+  // the renderer, then Restore the stack in OnAfterCreated before any real nav.
+  data->pending_nav_state = std::move(bytes);
+  CefWindowInfo window_info;
+  window_info.SetAsWindowless(0);
+  CefBrowserSettings browser_settings;
+  browser_settings.background_color = CefColorSetARGB(255, 255, 255, 255);
+  CefBrowserHost::CreateBrowser(window_info, data->client,
+                                CefString("about:blank"), browser_settings,
+                                nullptr, nullptr);
 }
 
 extern "C" JNIEXPORT void JNICALL
