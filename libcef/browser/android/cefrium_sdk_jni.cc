@@ -53,15 +53,27 @@
 
 #include <android/log.h>
 #include "base/android/jni_android.h"
+#include "base/android/jni_array.h"
+#include "base/pickle.h"
 #include "cef/libcef/browser/android/adblock_filter.h"
 #include "cef/libcef/browser/android/browser_surface_android.h"
 #include "cef/libcef/browser/android/cef_share_service.h"
 #include "cef/libcef/browser/browser_host_base.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/document_service.h"
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/navigation_entry_restore_context.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/common/referrer.h"
+#include "content/public/browser/restore_type.h"
 #include "content/public/browser/web_contents.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "third_party/blink/public/common/page_state/page_state.h"
 #include "ui/android/window_android.h"
+#include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
+#include "url/origin.h"
 
 #define TAG "Cefrium"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
@@ -2523,6 +2535,84 @@ Java_com_cefrium_CefriumBrowser_nativeReload(
     JNIEnv* env, jclass clazz, jlong native_ptr) {
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
   if (data && data->browser) data->browser->Reload();
+}
+
+// Serialize the full back/forward navigation stack (URL + blink PageState +
+// current index per entry) for session restore -- Chrome-style tab restore, so
+// a restored tab can go back, not just show its current page. Null if empty.
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSerializeNavigationState(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return nullptr;
+  auto* host = static_cast<CefBrowserHostBase*>(data->browser->GetHost().get());
+  content::WebContents* wc = host ? host->GetWebContents() : nullptr;
+  if (!wc) return nullptr;
+  content::NavigationController& controller = wc->GetController();
+  const int count = controller.GetEntryCount();
+  if (count <= 0) return nullptr;
+  base::Pickle pickle;
+  pickle.WriteInt(controller.GetCurrentEntryIndex());
+  pickle.WriteInt(count);
+  for (int i = 0; i < count; ++i) {
+    content::NavigationEntry* entry = controller.GetEntryAtIndex(i);
+    pickle.WriteString(entry->GetURL().spec());
+    pickle.WriteString16(entry->GetTitleForDisplay());
+    pickle.WriteString(entry->GetPageState().ToEncodedData());
+  }
+  return base::android::ToJavaByteArray(
+             env, reinterpret_cast<const uint8_t*>(pickle.data()), pickle.size())
+      .Release();
+}
+
+// Restore a stack captured by nativeSerializeNavigationState onto a FRESH
+// browser (empty controller): rebuild the entries and Restore() so back/forward
+// works without re-fetching each page. Must run before the first navigation.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeRestoreNavigationState(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jbyteArray blob) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser || !blob) return;
+  auto* host = static_cast<CefBrowserHostBase*>(data->browser->GetHost().get());
+  content::WebContents* wc = host ? host->GetWebContents() : nullptr;
+  if (!wc) return;
+  const jsize len = env->GetArrayLength(blob);
+  if (len <= 0) return;
+  std::vector<uint8_t> bytes(static_cast<size_t>(len));
+  env->GetByteArrayRegion(blob, 0, len, reinterpret_cast<jbyte*>(bytes.data()));
+  base::Pickle pickle = base::Pickle::WithData(bytes);
+  base::PickleIterator it(pickle);
+  int current = 0, count = 0;
+  if (!it.ReadInt(&current) || !it.ReadInt(&count) || count <= 0) return;
+  content::BrowserContext* browser_context = wc->GetBrowserContext();
+  std::unique_ptr<content::NavigationEntryRestoreContext> restore_context =
+      content::NavigationEntryRestoreContext::Create();
+  std::vector<std::unique_ptr<content::NavigationEntry>> entries;
+  entries.reserve(count);
+  for (int i = 0; i < count; ++i) {
+    std::string url_str, page_state_str;
+    std::u16string title;
+    if (!it.ReadString(&url_str) || !it.ReadString16(&title) ||
+        !it.ReadString(&page_state_str)) {
+      return;
+    }
+    std::unique_ptr<content::NavigationEntry> entry =
+        content::NavigationController::CreateNavigationEntry(
+            GURL(url_str), content::Referrer(),
+            /*initiator_origin=*/std::nullopt,
+            /*initiator_base_url=*/std::nullopt, ui::PAGE_TRANSITION_RELOAD,
+            /*is_renderer_initiated=*/false, /*extra_headers=*/std::string(),
+            browser_context, /*blob_url_loader_factory=*/nullptr);
+    if (!page_state_str.empty()) {
+      entry->SetPageState(blink::PageState::CreateFromEncodedData(page_state_str),
+                          restore_context.get());
+    }
+    entry->SetTitle(title);
+    entries.push_back(std::move(entry));
+  }
+  if (current < 0 || current >= count) current = count - 1;
+  wc->GetController().Restore(current, content::RestoreType::kRestored, &entries);
+  wc->GetController().LoadIfNecessary();
 }
 
 extern "C" JNIEXPORT void JNICALL
