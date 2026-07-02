@@ -67,7 +67,16 @@ public class CefriumMediaService extends Service {
         }
         Notification n = session.buildNotification();
         if (n != null) {
-            startForeground(NOTIFICATION_ID, n);
+            try {
+                startForeground(NOTIFICATION_ID, n);
+            } catch (Exception e) {
+                // Android 12+ forbids starting a foreground service from the
+                // background (ForegroundServiceStartNotAllowedException). If the
+                // media-start callback fired while backgrounded, fail soft instead
+                // of crashing the host app.
+                stopSelf();
+                return START_NOT_STICKY;
+            }
         }
         return START_NOT_STICKY;
     }
