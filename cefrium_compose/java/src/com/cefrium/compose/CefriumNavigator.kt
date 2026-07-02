@@ -95,6 +95,14 @@ class CefriumNavigator {
     }
 
     /**
+     * Serializes this tab's back/forward navigation stack for session restore
+     * (see [CefriumBrowser.serializeNavigationState]); null if nothing to save.
+     * Restore by constructing a CefriumViewState with the bytes as navigationState.
+     */
+    fun serializeNavigationState(): ByteArray? =
+        state?.browser?.serializeNavigationState()
+
+    /**
      * Executes [script] in the main frame (fire-and-forget). The return value
      * is not delivered back; a result-returning bridge is planned for a later release.
      */
