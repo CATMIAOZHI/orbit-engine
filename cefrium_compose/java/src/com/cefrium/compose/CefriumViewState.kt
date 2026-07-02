@@ -23,7 +23,13 @@ import com.cefrium.CefriumBrowser
  *    tab, closed when the tab closes).
  */
 @Stable
-class CefriumViewState(val initialUrl: String) : RememberObserver {
+class CefriumViewState(
+    val initialUrl: String,
+    // Optional back/forward stack from a previous session (see
+    // CefriumBrowser.serializeNavigationState). When set, the browser restores
+    // this history instead of loading [initialUrl], so a restored tab can go back.
+    val navigationState: ByteArray? = null,
+) : RememberObserver {
 
     var lastLoadedUrl: String? by mutableStateOf(null)
         internal set
@@ -124,7 +130,12 @@ class CefriumViewState(val initialUrl: String) : RememberObserver {
             rendererTermination = RendererTermination(rendererStatusOf(status), errorCode)
         }
         browser = b
-        b.loadUrl(initialUrl)
+        if (navigationState != null) {
+            // Restore the saved back/forward stack (loads the current entry).
+            b.restoreNavigationState(navigationState)
+        } else {
+            b.loadUrl(initialUrl)
+        }
         return b
     }
 
