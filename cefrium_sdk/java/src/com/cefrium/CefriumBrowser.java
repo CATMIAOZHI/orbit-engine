@@ -59,6 +59,7 @@ public class CefriumBrowser {
     private CefriumMediaSession mMediaSession;
     private boolean mMediaSessionEnabled;
     private boolean mWebContentsConnected;
+    private boolean mPullToRefresh;
 
     // Private marker constructor for factory methods — does NOT create native.
     private CefriumBrowser(boolean marker) {
@@ -174,6 +175,31 @@ public class CefriumBrowser {
      */
     public void goForward() {
         if (checkNative("goForward")) nativeGoForward(mNativePtr);
+    }
+
+    /**
+     * Enable pull-to-refresh: an overscroll-down gesture at the top of the page
+     * reloads it (Chrome-style). Off by default. Call this BEFORE the page loads
+     * (the handler is bound once, when the WebContents connects); it must not be
+     * toggled on a live WebContents.
+     */
+    public void setPullToRefreshEnabled(boolean enabled) {
+        mPullToRefresh = enabled;
+    }
+
+    private void applyPullToRefresh(org.chromium.content_public.browser.WebContents wc) {
+        wc.setOverscrollRefreshHandler(new org.chromium.ui.OverscrollRefreshHandler() {
+            @Override
+            public boolean start(int type, int initiatingEdge) {
+                return type == org.chromium.ui.OverscrollAction.PULL_TO_REFRESH;
+            }
+            @Override public void pull(float xDelta, float yDelta) {}
+            @Override public void release(boolean allowRefresh) {
+                if (allowRefresh) reload();
+            }
+            @Override public void reset() {}
+            @Override public void setEnabled(boolean enabled) {}
+        });
     }
 
     /**
@@ -1716,6 +1742,12 @@ public class CefriumBrowser {
         if (wc == null) return;
         if (mWebContentsConnected) return;
         mWebContentsConnected = true;
+
+        // Pull-to-refresh: set the overscroll handler EXACTLY ONCE here. Re-setting
+        // it on a live WebContents leaves the native OverscrollControllerAndroid
+        // holding a freed handler pointer -> getRef() assert crash. So
+        // setPullToRefreshEnabled only flips the flag; the handler is bound here.
+        if (mPullToRefresh) applyPullToRefresh(wc);
 
         org.chromium.components.embedder_support.view.ContentView cv =
                 org.chromium.components.embedder_support.view.ContentView
