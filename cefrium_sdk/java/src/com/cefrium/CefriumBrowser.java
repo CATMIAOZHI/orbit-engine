@@ -60,6 +60,9 @@ public class CefriumBrowser {
     private boolean mMediaSessionEnabled;
     private boolean mWebContentsConnected;
     private boolean mPullToRefresh;
+    // A restored tab defers its load until the surface + overscroll handler are
+    // connected (connectWebContentsInternal), then triggers it once.
+    private boolean mPendingRestoreLoad;
 
     // Private marker constructor for factory methods — does NOT create native.
     private CefriumBrowser(boolean marker) {
@@ -424,6 +427,15 @@ public class CefriumBrowser {
         if (state != null && state.length > 0
                 && checkNative("restoreNavigationState")) {
             nativeRestoreNavigationState(mNativePtr, state);
+            // Restored tabs don't call loadUrl, so schedule the surface connect
+            // here (same as loadUrl). connectWebContentsInternal triggers the
+            // deferred restore load once the view + overscroll handler are set up
+            // -- loading earlier crashes the overscroll controller on the RFH swap.
+            mPendingRestoreLoad = true;
+            if (mSurfaceContainer != null && !mWebContentsConnected) {
+                new android.os.Handler(android.os.Looper.getMainLooper())
+                        .postDelayed(this::connectWebContentsInternal, 2000);
+            }
         }
     }
 
@@ -1825,6 +1837,13 @@ public class CefriumBrowser {
         } catch (Throwable e) {
             // Autofill not available — non-critical.
         }
+
+        // A restored tab deferred its load until now (surface connected +
+        // overscroll handler set). Trigger it once.
+        if (mPendingRestoreLoad) {
+            mPendingRestoreLoad = false;
+            nativeLoadRestoredIfNecessary(mNativePtr);
+        }
     }
 
     /**
@@ -1947,6 +1966,7 @@ public class CefriumBrowser {
     private static native void nativeReload(long nativePtr);
     private static native byte[] nativeSerializeNavigationState(long nativePtr);
     private static native void nativeRestoreNavigationState(long nativePtr, byte[] state);
+    private static native void nativeLoadRestoredIfNecessary(long nativePtr);
     private static native void nativeEvaluateJavaScript(long nativePtr, String script);
     private static native void nativeQueryResult(long nativePtr, long queryId,
             boolean success, String response, int errorCode, String errorMessage);
