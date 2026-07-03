@@ -15,6 +15,25 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.5.9] -- 2026-07-03
+
+Chromium 149.0.7827.102.
+
+### Fixed
+- **FedCM crash on federated sign-in pages.** The Gradle plugin now generates the R
+  class for `org.chromium.chrome.browser.ui.android.webid`; without it, a page that
+  invoked the FedCM account chooser (`AccountSelectionBridge.getBrandIconIdealSize`)
+  threw `NoClassDefFoundError webid/R$dimen` and crashed the browser process. Only
+  reproduced on CERTIFIED devices (where FedCM runs). Validated on Redmi/HyperOS.
+
+### Added
+- **Incognito (private) browsing.** `CefriumBrowser.createWithSurface(activity,
+  incognito)` + `isIncognito()`; Compose `CefriumViewState(incognito = true)` /
+  `rememberCefriumViewState(url, incognito)`. Incognito browsers share one
+  off-the-record request context (isolated from normal tabs, in-memory) that is
+  cleared when the last incognito browser closes. Validated on device: cookie
+  isolation normal<->incognito and clear-on-close.
+
 ## [0.5.8] -- 2026-07-03
 
 Chromium 149.0.7827.102.
