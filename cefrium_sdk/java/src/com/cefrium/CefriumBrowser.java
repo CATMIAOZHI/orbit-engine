@@ -60,6 +60,8 @@ public class CefriumBrowser {
     private boolean mMediaSessionEnabled;
     private boolean mWebContentsConnected;
     private boolean mPullToRefresh;
+    // FEATURE-057: true if this is a private (incognito) browser.
+    private boolean mIncognito;
     // A restored tab defers its load until the surface + overscroll handler are
     // connected (connectWebContentsInternal), then triggers it once.
     private boolean mPendingRestoreLoad;
@@ -1640,6 +1642,21 @@ public class CefriumBrowser {
      * @return A new CefriumBrowser instance with Surface rendering.
      */
     public static CefriumBrowser createWithSurface(android.app.Activity activity) {
+        return createWithSurface(activity, false);
+    }
+
+    /**
+     * Like {@link #createWithSurface(android.app.Activity)} but for a private
+     * (incognito) tab. Incognito browsers share one off-the-record session that
+     * is isolated from normal tabs; their cookies, history and cache live only
+     * in memory and are cleared when the last incognito browser is closed.
+     *
+     * @param activity  The Activity to render in.
+     * @param incognito true for a private / off-the-record browser.
+     * @return A new CefriumBrowser instance with Surface rendering.
+     */
+    public static CefriumBrowser createWithSurface(android.app.Activity activity,
+                                                   boolean incognito) {
         // Lazy init: no Application boilerplate or explicit initialize() needed.
         // CefriumInitProvider ran the per-process setup at app launch; initialize()
         // is idempotent and self-sufficient.
@@ -1677,15 +1694,21 @@ public class CefriumBrowser {
 
         // Create native browser (non-windowless mode).
         float density = activity.getResources().getDisplayMetrics().density;
+        browser.mIncognito = incognito;
         browser.mNativePtr = nativeCreateWithSurface(
                 browser.mWindowAndroid, null,
                 activity.getResources().getDisplayMetrics().widthPixels,
                 activity.getResources().getDisplayMetrics().heightPixels,
-                density);
+                density, incognito);
 
         browser.mActivity = activity;
 
         return browser;
+    }
+
+    /** @return true if this is a private (incognito) browser. */
+    public boolean isIncognito() {
+        return mIncognito;
     }
 
     /**
@@ -1945,7 +1968,8 @@ public class CefriumBrowser {
     private static native long nativeCreate(int width, int height, float scale);
     private static native long nativeCreateWithSurface(
             org.chromium.ui.base.WindowAndroid windowAndroid,
-            android.view.Surface surface, int width, int height, float scale);
+            android.view.Surface surface, int width, int height, float scale,
+            boolean incognito);
     private static native void nativeSetRenderHandler(long nativePtr, CefriumBrowser browser);
     private static native void nativeLoadUrl(long nativePtr, String url);
     private static native void nativeLoadDataWithBaseUrl(long nativePtr, String baseUrl,
