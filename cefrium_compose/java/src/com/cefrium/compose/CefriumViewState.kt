@@ -29,6 +29,10 @@ class CefriumViewState(
     // CefriumBrowser.serializeNavigationState). When set, the browser restores
     // this history instead of loading [initialUrl], so a restored tab can go back.
     val navigationState: ByteArray? = null,
+    // FEATURE-057: private tab. Incognito browsers share one off-the-record
+    // session isolated from normal tabs; cookies/history/cache are in-memory and
+    // cleared when the last incognito browser closes.
+    val incognito: Boolean = false,
 ) : RememberObserver {
 
     var lastLoadedUrl: String? by mutableStateOf(null)
@@ -86,7 +90,7 @@ class CefriumViewState(
     /** Returns the existing browser or creates one (loading [initialUrl] once). */
     internal fun getOrCreateBrowser(activity: Activity): CefriumBrowser {
         browser?.let { return it }
-        val b = CefriumBrowser.createWithSurface(activity)
+        val b = CefriumBrowser.createWithSurface(activity, incognito)
         b.setCallback(object : CefriumBrowser.Callback() {
             override fun onUrlChanged(url: String) {
                 lastLoadedUrl = url
@@ -171,8 +175,11 @@ class CefriumViewState(
  * [CefriumViewState.close].
  */
 @Composable
-fun rememberCefriumViewState(url: String): CefriumViewState =
-    remember(url) { CefriumViewState(url) }
+fun rememberCefriumViewState(
+    url: String,
+    incognito: Boolean = false,
+): CefriumViewState =
+    remember(url, incognito) { CefriumViewState(url, incognito = incognito) }
 
 /** A download progress update, delivered via [CefriumViewState.lastDownload]. */
 data class DownloadInfo(
