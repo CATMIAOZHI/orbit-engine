@@ -15,6 +15,22 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.5.8] -- 2026-07-03
+
+Chromium 149.0.7827.102.
+
+### Fixed
+- Tab/session restore now loads the page instead of showing a blank tab (or crashing on
+  some devices). `CefriumViewState(navigationState = ...)` restore deferred its load to the
+  wrong moment: `Restore()` ran while the initial about:blank navigation was still pending
+  (so nothing loaded -> blank), and forcing the load in `OnAfterCreated` navigated before the
+  on-screen surface + overscroll handler existed, crashing the overscroll controller on the
+  RenderFrameHost swap. Now `restoreNavigationState` rebuilds the stack without loading and
+  schedules the surface connect (which restored tabs previously never did -- only `loadUrl`
+  did); the load is triggered once, from `connectWebContentsInternal`, after the surface and
+  handler are set up. Validated on a Redmi/W90 (Android 16, arm64) and rooted API-33/36
+  emulators, single- and multi-tab.
+
 ## [0.5.7] -- 2026-07-03
 
 Chromium 149.0.7827.102.
