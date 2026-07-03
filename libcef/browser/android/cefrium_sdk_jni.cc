@@ -98,6 +98,39 @@ std::set<jlong>& LiveBridgeData() {
   return *data;
 }
 
+// FEATURE-057: incognito (off-the-record) request context, SHARED by all
+// incognito browsers so they see one common session, ISOLATED from the global
+// (persistent) context used by normal tabs. Created with an empty cache_path ->
+// fully in-memory (no cookies/history/cache on disk). Dropped when the last
+// incognito browser closes, so the session is cleared and the next incognito
+// tab starts fresh (clear-on-close, like Chrome/Firefox). Touched only on the
+// CEF UI thread (browser create in nativeCreateWithSurface, release in
+// OnBeforeClose), so no extra lock is needed.
+CefRefPtr<CefRequestContext>& IncognitoContext() {
+  static base::NoDestructor<CefRefPtr<CefRequestContext>> ctx;
+  return *ctx;
+}
+int& IncognitoBrowserCount() {
+  static int count = 0;
+  return count;
+}
+// Get-or-create the shared incognito context and register one more user.
+CefRefPtr<CefRequestContext> AcquireIncognitoContext() {
+  if (!IncognitoContext()) {
+    CefRequestContextSettings settings;
+    // Empty cache_path -> isolated, in-memory "incognito" context.
+    IncognitoContext() = CefRequestContext::CreateContext(settings, nullptr);
+  }
+  ++IncognitoBrowserCount();
+  return IncognitoContext();
+}
+// Drop one user; when none remain, release the context to clear the session.
+void ReleaseIncognitoContext() {
+  if (IncognitoBrowserCount() > 0 && --IncognitoBrowserCount() == 0) {
+    IncognitoContext() = nullptr;
+  }
+}
+
 }  // namespace
 
 // Per-browser render handler that forwards OnPaint to Java.
@@ -1687,6 +1720,8 @@ struct SdkBrowserData {
   std::unique_ptr<BrowserSurfaceAndroid> surface_bridge;
   ui::WindowAndroid* window_android = nullptr;  // Owned by Java via prevent-GC ref.
   bool is_surface_mode = false;
+  // FEATURE-057: created with the shared off-the-record context (private tab).
+  bool is_incognito = false;
 };
 
 // Rebuild a navigation stack captured by nativeSerializeNavigationState onto
@@ -1799,6 +1834,11 @@ void SdkLifeSpanHandler::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   }
   if (!data_) {
     return;
+  }
+  // FEATURE-057: last incognito tab closing drops the shared OTR context, which
+  // clears its in-memory cookies/history/cache (clear-on-close).
+  if (data_->is_incognito) {
+    ReleaseIncognitoContext();
   }
   // The browser has now actually closed -- safe to tear down. (Doing this in
   // nativeClose, before the async close completed, orphaned the WebContents.)
@@ -2508,9 +2548,11 @@ Java_com_cefrium_CefriumBrowser_nativeClose(
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
     JNIEnv* env, jclass clazz, jobject java_window_android,
-    jobject java_surface, jint width, jint height, jfloat scale) {
+    jobject java_surface, jint width, jint height, jfloat scale,
+    jboolean incognito) {
   auto* data = new SdkBrowserData();
   data->is_surface_mode = true;
+  data->is_incognito = (incognito == JNI_TRUE);
 
   // Create life span handler to capture the browser reference.
   data->life_span_handler = new SdkLifeSpanHandler();
@@ -2538,8 +2580,15 @@ Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
   CefBrowserSettings browser_settings;
   browser_settings.background_color = CefColorSetARGB(255, 255, 255, 255);
 
+  // Incognito tabs share one off-the-record context (isolated + in-memory);
+  // normal tabs pass null -> the global persistent context.
+  CefRefPtr<CefRequestContext> request_context;
+  if (data->is_incognito) {
+    request_context = AcquireIncognitoContext();
+    LOGI("nativeCreateWithSurface: incognito (off-the-record context)");
+  }
   CefBrowserHost::CreateBrowser(window_info, data->client, CefString(""),
-                                browser_settings, nullptr, nullptr);
+                                browser_settings, nullptr, request_context);
 
   {
     base::AutoLock lock(BridgeDataLock());
