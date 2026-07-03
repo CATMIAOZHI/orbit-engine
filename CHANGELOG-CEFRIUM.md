@@ -15,6 +15,56 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.5.7] -- 2026-07-03
+
+Chromium 149.0.7827.102.
+
+### Added
+- Native pull-to-refresh. `CefriumBrowser.setPullToRefreshEnabled(true)` (Compose:
+  `CefriumNavigator.setPullToRefreshEnabled`) makes an overscroll-down at the top of a
+  page reload it. Call it before the page loads; the SDK binds the overscroll handler
+  exactly once, when the WebContents connects -- re-setting it on a live WebContents
+  crashes (stale native `OverscrollControllerAndroid` pointer). Validated on device.
+
+## [0.5.6] -- 2026-07-02
+
+Chromium 149.0.7827.102.
+
+### Added
+- Tab back/forward history restore across process death. `CefriumBrowser.serializeNavigationState()`
+  captures a tab's full back/forward stack (per-entry URL + `PageState` + current index) as a
+  `byte[]`; construct a Compose `CefriumViewState(navigationState = bytes)` to rebuild the stack
+  on relaunch instead of just reloading the last URL. The native side serializes via
+  `NavigationController` and restores by creating the browser at `about:blank`, then calling
+  `Restore()` in `OnAfterCreated`. Validated on device (A->B->C, kill, relaunch -> back walks
+  C->B->A; no `Restore` DCHECK).
+
+## [0.5.5] -- 2026-07-02
+
+Chromium 149.0.7827.102.
+
+### Fixed
+- Reliable background audio. The media foreground service is now driven by actual WebContents
+  playback state rather than the media session's `is_controllable` bit, so audio/video keeps
+  playing when the app is backgrounded or the screen is off (Brave-style). `startForeground` is
+  guarded against the Android 12+ "cannot start a foreground service from the background"
+  exception.
+
+## [0.5.4] -- 2026-07-02
+
+Chromium 149.0.7827.102.
+
+### Added
+- `CefriumBrowser.stopMediaSession()` (Compose: `CefriumNavigator.stopMediaSession()`) clears the
+  media session and dismisses its notification; it reaches cross-origin iframes too.
+
+### Fixed
+- Media notification now appears for media documents (a bare `.mp3`/`.mp4` URL) and for pages that
+  wire `navigator.mediaSession` after load. The `MediaSessionImpl` Java accessor used
+  `GetIfExists()`, so a Java observer attached at page-load time bound to a null session and the
+  notification never showed; it now uses `Get()` (create-or-return) so the observer binds before
+  playback starts. (Upstreamable Chromium fix.)
+
 ## [0.5.3] -- 2026-06-24
 
 Chromium 149.0.7827.102.
