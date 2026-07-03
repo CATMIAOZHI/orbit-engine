@@ -1731,8 +1731,18 @@ void ApplyNavigationState(content::WebContents* wc,
   if (current < 0 || current >= count) {
     current = count - 1;
   }
-  wc->GetController().Restore(current, content::RestoreType::kRestored, &entries);
-  wc->GetController().LoadIfNecessary();
+  // Cancel any pending initial navigation so Restore() runs on an empty
+  // controller (it requires no committed/pending entry). Do NOT load here: the
+  // restored page is loaded later, from connectWebContentsInternal via
+  // nativeLoadRestoredIfNecessary(), once the on-screen surface and the
+  // pull-to-refresh overscroll handler are set up. Loading before that setup
+  // navigates while the OverscrollControllerAndroid has no handler, and the
+  // RenderFrameHost swap on commit crashes on the render-per-browser process
+  // model (RWHVA::HideInternal -> OverscrollControllerAndroid::Disable).
+  content::NavigationController& controller = wc->GetController();
+  wc->Stop();
+  controller.DiscardNonCommittedEntries();
+  controller.Restore(current, content::RestoreType::kRestored, &entries);
 }
 
 void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
@@ -2644,16 +2654,27 @@ Java_com_cefrium_CefriumBrowser_nativeRestoreNavigationState(
     ApplyNavigationState(host ? host->GetWebContents() : nullptr, bytes);
     return;
   }
-  // Browser not created yet (restored tab): create it at about:blank to spawn
-  // the renderer, then Restore the stack in OnAfterCreated before any real nav.
+  // Browser not created yet: the surface browser (createWithSurface) is still
+  // being created asynchronously. Just stash the stack -- its OnAfterCreated
+  // applies it. Do NOT create a second (windowless) browser here.
   data->pending_nav_state = std::move(bytes);
-  CefWindowInfo window_info;
-  window_info.SetAsWindowless(0);
-  CefBrowserSettings browser_settings;
-  browser_settings.background_color = CefColorSetARGB(255, 255, 255, 255);
-  CefBrowserHost::CreateBrowser(window_info, data->client,
-                                CefString("about:blank"), browser_settings,
-                                nullptr, nullptr);
+}
+
+// Trigger the deferred load of a restored navigation stack. Called by the SDK
+// from connectWebContentsInternal after the on-screen surface and the
+// pull-to-refresh overscroll handler are set up. No-op if nothing needs loading.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeLoadRestoredIfNecessary(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) {
+    return;
+  }
+  auto* host = static_cast<CefBrowserHostBase*>(data->browser->GetHost().get());
+  content::WebContents* wc = host ? host->GetWebContents() : nullptr;
+  if (wc) {
+    wc->GetController().LoadIfNecessary();
+  }
 }
 
 extern "C" JNIEXPORT void JNICALL
