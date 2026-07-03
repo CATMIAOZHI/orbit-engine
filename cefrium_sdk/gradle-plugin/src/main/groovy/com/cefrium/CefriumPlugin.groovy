@@ -36,6 +36,12 @@ class CefriumPlugin implements Plugin<Project> {
         // ContactsPickerDialog read contacts_picker R.color/R.layout/R.string.
         'org.chromium.components.browser_ui.contacts_picker',
         'org.chromium.components.embedder_support.delegate',
+        // FedCM / federated sign-in (navigator.credentials): AccountSelectionBridge
+        // .getBrandIconIdealSize() reads webid R.dimen when a page invokes the
+        // account-chooser UI (common on sites with "Sign in with ..." widgets,
+        // incl. many ad/identity-heavy pages). Missing -> NoClassDefFoundError
+        // webid/R$dimen crashes the browser process on such pages.
+        'org.chromium.chrome.browser.ui.android.webid',
         'org.chromium.components.infobars',
         'org.chromium.components.input',
         'org.chromium.components.permissions',
