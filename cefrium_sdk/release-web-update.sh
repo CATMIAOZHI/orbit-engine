@@ -104,12 +104,25 @@ else
           <ul><li>$NOTES</li></ul>
         </div>"
 
+  # Security chip: CVE IDs fixed in this release's engine, auto-extracted from the
+  # CHANGELOG [NEW] section (same source of truth as the notes). Emerald "Fixes
+  # CVE-..." chip in the summary; empty when the release fixes no CVE.
+  CVES=$(awk -v v="$NEW" '$0 ~ "^## \\[" v "\\]"{f=1;next} f&&/^## \[/{exit} f' "$CHANGELOG" 2>/dev/null \
+          | grep -oE 'CVE-[0-9]{4}-[0-9]+' | sort -u)
+  CVE_CHIP=""
+  if [ -n "$CVES" ]; then
+    cve_first=$(printf '%s\n' "$CVES" | head -1); cve_n=$(printf '%s\n' "$CVES" | grep -c .)
+    cve_label="Fixes $cve_first"; [ "$cve_n" -gt 1 ] && cve_label="Fixes $cve_first +$((cve_n-1))"
+    CVE_CHIP=$'\n        '"<span class=\"chip cve\" title=\"CVE(s) fixed in this release's Chromium engine: $(printf '%s' "$CVES" | tr '\n' ' ')\">$cve_label</span>"
+    echo "  cve chip: $cve_label ($cve_n CVE(s))"
+  fi
+
   NEWBLOCK="    <details class=\"rel\" id=\"v$NEW\" open>
       <summary>
         <span class=\"v\">$NEW</span>
         <span class=\"chip\">CEF $BRANCH</span>
         <span class=\"chip\">Chromium $CHROMIUM</span>
-        <span class=\"chip\">$DATE</span>
+        <span class=\"chip\">$DATE</span>$CVE_CHIP
         <span class=\"status live\">Maven</span>
       </summary>
       <div class=\"body\">
