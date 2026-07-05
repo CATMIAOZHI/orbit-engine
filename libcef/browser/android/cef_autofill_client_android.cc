@@ -44,7 +44,7 @@ CefAutofillClientAndroid::CefAutofillClientAndroid(
 }
 
 CefAutofillClientAndroid::~CefAutofillClientAndroid() {
-  HideAutofillSuggestions(autofill::SuggestionHidingReason::kTabGone);
+  HideSuggestions(autofill::SuggestionHidingReason::kTabGone, std::nullopt);
 }
 
 base::WeakPtr<autofill::AutofillClient> CefAutofillClientAndroid::GetWeakPtr() {
@@ -202,8 +202,9 @@ CefAutofillClientAndroid::ShowAutofillSuggestions(
 void CefAutofillClientAndroid::UpdateAutofillDataListValues(
     base::span<const autofill::SelectOption> datalist) {}
 
-void CefAutofillClientAndroid::HideAutofillSuggestions(
-    autofill::SuggestionHidingReason reason) {}
+void CefAutofillClientAndroid::HideSuggestions(
+    autofill::SuggestionHidingReason reason,
+    std::optional<autofill::FillingProduct> product) {}
 
 bool CefAutofillClientAndroid::IsAutofillEnabled() const {
   NOTREACHED();
