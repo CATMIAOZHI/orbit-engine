@@ -15,6 +15,20 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.6.0] -- 2026-07-05
+
+Chromium 150.0.7871.46 (CEF branch 7871).
+
+### Changed
+- **Engine updated to Chromium 150.0.7871.46** (from 149.0.7827.102), tracking
+  Debian's security upload for CVE parity (includes the CVE-2026-13789 V8 fix and the
+  rest of the 150 security roll-up). The Android port was rebased onto CEF branch 7871
+  and adapted to the Chromium 150 API: permission-prompt embedder seam regenerated,
+  Android autofill client `HideAutofillSuggestions` -> `HideSuggestions`,
+  `RenderWidgetHostView::Show()` -> `ShowWithVisibility()`, non-final R via
+  `app_as_shared_lib`, and the payments Java `service_impl_java` dep. No SDK API
+  changes for consumers -- a drop-in engine/security refresh.
+
 ## [0.5.9] -- 2026-07-03
 
 Chromium 149.0.7827.102.
