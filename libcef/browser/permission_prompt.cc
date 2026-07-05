@@ -150,7 +150,19 @@ class CefPermissionPrompt : public permissions::PermissionPrompt {
   // We don't expose AcceptThisTime() because it's a special case for
   // Geolocation (see DCHECK in PrefProvider::SetWebsiteSetting).
   void NotifyDelegate(cef_permission_request_result_t result) {
-    const PromptOptions prompt_options(std::monostate{});
+    // Chromium 150: a precise GEOLOCATION permission decision must carry
+    // GeolocationPromptOptions -- GeolocationPermissionResolver CHECKs it, and a
+    // bare std::monostate traps (SIGTRAP) on any geolocation grant (the standard
+    // GEOLOCATION descriptor is always treated as precise). Grant precise
+    // accuracy for a geolocation request (matching the embedder's full "allow");
+    // other permission types keep std::monostate.
+    PromptOptions prompt_options{std::monostate{}};
+    for (const auto& request : delegate_->Requests()) {
+      if (request->request_type() == permissions::RequestType::kGeolocation) {
+        prompt_options = GeolocationPromptOptions{GeolocationAccuracy::kPrecise};
+        break;
+      }
+    }
     switch (result) {
       case CEF_PERMISSION_RESULT_ACCEPT:
         delegate_->Accept(prompt_options);
