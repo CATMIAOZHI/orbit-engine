@@ -87,7 +87,6 @@ COMMON_ARGS='
   enable_jni_multiplexing = false
   use_hashed_jni_names = false
   chrome_pgo_phase = 0
-  android_non_final_r_java = true
   v8_use_external_startup_data = false
 '
 
