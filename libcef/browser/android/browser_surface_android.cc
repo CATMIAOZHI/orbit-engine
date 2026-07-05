@@ -6,10 +6,12 @@
 
 #include "base/logging.h"
 #include "content/browser/renderer_host/render_widget_host_view_android.h"
+#include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/public/browser/android/child_process_importance.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/page_visibility_state.h"
 #include "ui/android/delegated_frame_host_android.h"
 #include "ui/android/view_android.h"
 #include "ui/android/window_android.h"
@@ -156,8 +158,11 @@ void BrowserSurfaceAndroid::TryAttachRWHVLayer() {
 
   gfx::Size size = compositor_->GetWindowBounds();
 
-  // 1. Show RWHV FIRST — sets is_showing_ = true
-  rwhv->Show();
+  // 1. Show RWHV FIRST — sets is_showing_ = true. Chromium 150 removed the
+  //    public RenderWidgetHostView::Show(); go through the base class'
+  //    ShowWithVisibility() (what the old Show() forwarded to).
+  static_cast<content::RenderWidgetHostViewBase*>(rwhv)->ShowWithVisibility(
+      content::PageVisibilityState::kVisible);
   web_contents_->WasShown();
   SetSurfaceImportance(web_contents_, content::ChildProcessImportance::IMPORTANT);
 
