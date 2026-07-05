@@ -166,7 +166,7 @@ Cefrium is built from three deliberately-tracked source inputs:
 - **Chromium** - upstream Google source,
   `https://chromium.googlesource.com/chromium/src.git`, via depot_tools/gclient.
   Pinned (in `.gclient`) to the **exact tag Debian packages**
-  (`apt-cache policy chromium`; currently `149.0.7827.102`) for **CVE parity** - we
+  (`apt-cache policy chromium`; currently `150.0.7871.46`) for **CVE parity** - we
   inherit the security fixes in that upstream release. The bytes are **vanilla
   upstream**, not Debian's patched source: we use Chromium's bundled deps + the
   Android NDK toolchain, *not* Debian's system libraries. (The sibling
@@ -175,7 +175,7 @@ Cefrium is built from three deliberately-tracked source inputs:
   patches via Multiple Upstream Tarballs, system `gn`/`ninja`, no depot_tools.)
 - **CEF** - `cef/`, the `android-port` branch forked from upstream CEF's branch
   matching Chromium's build number (the 3rd version component: Chromium 148 ->
-  branch 7778, 149 -> 7827; see `cef/CHROMIUM_BUILD_COMPATIBILITY.txt`). Hosted at
+  branch 7778, 149 -> 7827, 150 -> 7871; see `cef/CHROMIUM_BUILD_COMPATIBILITY.txt`). Hosted at
   [codeberg.org/cefrium/cef-android](https://codeberg.org/cefrium/cef-android).
 - **Patches** - applied to the Chromium tree by `cef/cefrium_sdk/apply-patches.py`
   (a patcher.py wrapper that activates the android condition): CEF's own
@@ -190,7 +190,7 @@ Engine-version tracking and how to upgrade it (e.g. 148 -> 149) are in
 ## Building from source
 
 Prerequisites: a Chromium source tree at the pinned tag (see **Sources** above --
-currently `149.0.7827.102`), ~400 GB disk, 64 GB RAM.
+currently `150.0.7871.46`), ~400 GB disk, 64 GB RAM.
 
 > **Modifying the Chromium tree?** All port changes to Chromium files are stored
 > as patches under `cef/patch/patches/` and re-applied on every build -- the tree
@@ -447,7 +447,7 @@ See `cefrium_instrumentation_test/README.md` for details.
 
 ## Relationship to upstream CEF
 
-Fork of CEF branch 7827, tracking Chromium 149.0.7827.102.
+Fork of CEF branch 7871, tracking Chromium 150.0.7871.46.
 Branch `android-port` contains all Android changes.
 
 ### Contributing upstream
@@ -457,7 +457,7 @@ All Android changes are isolated and reviewable:
 - **CEF changes** (`libcef/browser/android/`, `cefrium_sdk/`): on the
   `android-port` branch. Generate patches with:
   ```bash
-  git format-patch origin/7827..android-port -- \
+  git format-patch origin/7871..android-port -- \
     ':!README.md' ':!assets/screenshots'
   ```
 - **Chromium patches** (`patch/patches/android/`): 21 Android-specific patches
@@ -515,7 +515,7 @@ are auditable in `patch/patches/android/`.
   Use R8/ProGuard, ABI splits, and AAB format to optimize delivery.
   See [APK size optimization](#apk-size-optimization).
 - **Security updates:** Cefrium tracks Debian Chromium releases for
-  CVE patches. Currently pinned to 149.0.7827.102.
+  CVE patches. Currently pinned to 150.0.7871.46.
 - **Not a WebView replacement:** Cefrium bundles its own Chromium.
   It does not reuse the system WebView. This is by design - it's what
   gives you version control and full API access.
