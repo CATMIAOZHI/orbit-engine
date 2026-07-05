@@ -72,8 +72,9 @@ class CefAutofillClientAndroid : public autofill::ContentAutofillClient {
       base::WeakPtr<autofill::AutofillSuggestionDelegate> delegate) override;
   void UpdateAutofillDataListValues(
       base::span<const autofill::SelectOption> datalist) override;
-  void HideAutofillSuggestions(
-      autofill::SuggestionHidingReason reason) override;
+  void HideSuggestions(
+      autofill::SuggestionHidingReason reason,
+      std::optional<autofill::FillingProduct> product) override;
   bool IsAutofillEnabled() const override;
   bool IsAutofillProfileEnabled() const override;
   bool IsWalletPublicPassStorageEnabled() const override;
