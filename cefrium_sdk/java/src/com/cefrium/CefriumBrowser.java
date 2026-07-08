@@ -1344,6 +1344,17 @@ public class CefriumBrowser {
     }
 
     /**
+     * Whether this browser currently has audible media playing -- at least one
+     * audio media session that is not paused. Backed by the media-session
+     * playback observer ({@link #setMediaSessionEnabled}). Lets a multi-tab host
+     * avoid discarding/closing a tab that is actively playing sound (background
+     * music or video). Returns {@code false} when media session is disabled.
+     */
+    public boolean isPlayingAudio() {
+        return mMediaSession != null && mMediaSession.isPlayingAudio();
+    }
+
+    /**
      * Sets the page's visibility (compositor + Page Visibility API
      * {@code document.hidden}). HIDDEN saves GPU/battery and fires
      * {@code visibilitychange}, but does NOT by itself stop audio.
