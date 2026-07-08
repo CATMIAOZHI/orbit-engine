@@ -146,6 +146,14 @@ public class CefriumMediaSession {
         };
     }
 
+    /**
+     * True while at least one audio media session is actively playing (not
+     * paused). Lets the host avoid discarding a tab that is making sound.
+     */
+    boolean isPlayingAudio() {
+        return !mPlayingIds.isEmpty() && !mPaused;
+    }
+
     // ── Transport (notification / lock screen → page) ──
 
     void onTransportPlay() {
