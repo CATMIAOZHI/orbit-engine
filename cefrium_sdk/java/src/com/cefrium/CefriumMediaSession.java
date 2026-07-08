@@ -147,11 +147,15 @@ public class CefriumMediaSession {
     }
 
     /**
-     * True while at least one audio media session is actively playing (not
-     * paused). Lets the host avoid discarding a tab that is making sound.
+     * True while at least one audio media element is actively playing. Uses ONLY
+     * the mediaStartedPlaying/mediaStoppedPlaying(hasAudio) signal -- the same
+     * reliable "actual playback" signal that drives the foreground service. Does
+     * NOT gate on mPaused (is_suspended), which flickers false/true mid-playback
+     * for media documents (see mediaSessionStateChanged above) and would spuriously
+     * report "not playing" for an audible background tab, letting it be discarded.
      */
     boolean isPlayingAudio() {
-        return !mPlayingIds.isEmpty() && !mPaused;
+        return !mPlayingIds.isEmpty();
     }
 
     // ── Transport (notification / lock screen → page) ──
