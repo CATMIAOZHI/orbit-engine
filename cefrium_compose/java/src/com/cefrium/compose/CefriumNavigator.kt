@@ -297,6 +297,12 @@ class CefriumNavigator {
         state?.browser?.setMediaSessionEnabled(enabled)
     }
 
+    /**
+     * Whether this tab currently has audible media playing (not paused). Use it
+     * to avoid discarding/closing a tab that is actively playing sound.
+     */
+    fun isPlayingAudio(): Boolean = state?.browser?.isPlayingAudio() ?: false
+
     // ── Media / page lifecycle ──
     //
     // CefriumView wires onHostPause()/onHostResume() to the host lifecycle by
