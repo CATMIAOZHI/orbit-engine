@@ -15,6 +15,20 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.6.1] -- 2026-07-08
+
+Chromium 150.0.7871.46 (CEF branch 7871). Java-only additive change; no engine rebuild.
+
+### Added
+- **`CefriumBrowser.isPlayingAudio()`** and Compose **`CefriumNavigator.isPlayingAudio()`** --
+  whether the browser currently has audible media playing (at least one audio media session
+  that is not paused). Backed by the existing media-session playback observer
+  (`CefriumMediaSession`). Lets a multi-tab host avoid discarding/closing a tab that is
+  actively playing sound, so background music/video is never cut by memory-pressure tab
+  discarding. `WebContents` exposes no Java `isCurrentlyAudible()`, so the media-session
+  observer is the reachable signal (and is exactly the set of tabs that warrant protection,
+  since background audio depends on the media-session foreground service anyway).
+
 ## [0.6.0] -- 2026-07-05
 
 Chromium 150.0.7871.46 (CEF branch 7871).
