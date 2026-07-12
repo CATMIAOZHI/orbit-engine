@@ -15,6 +15,30 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.6.2] -- 2026-07-12
+
+Chromium 150.0.7871.114 (CEF branch 7871). Security patch bump; no SDK API change.
+
+### Changed
+- **Engine updated to Chromium 150.0.7871.114** (from 150.0.7871.46), a same-branch
+  security patch bump tracking Debian's 150.0.7871.114-1~deb13u1 upload for CVE parity.
+  The 150.0.7871.114 stable roll-up fixes 27 vulnerabilities, including two CRITICAL
+  use-after-free flaws -- CVE-2026-15112 (Ozone) and CVE-2026-15129 (Views) -- plus
+  high-severity memory-safety fixes across V8, ANGLE, WebRTC, Codecs, Autofill, Payments,
+  Input, DOM and Forms. All 142 CEF + Android-port patches re-apply cleanly on the new
+  tree (same CEF branch 7871 -- no rebase or patch regeneration needed).
+  CVEs: CVE-2026-15107, CVE-2026-15108, CVE-2026-15109, CVE-2026-15110, CVE-2026-15111,
+  CVE-2026-15112, CVE-2026-15113, CVE-2026-15114, CVE-2026-15115, CVE-2026-15116,
+  CVE-2026-15117, CVE-2026-15118, CVE-2026-15119, CVE-2026-15120, CVE-2026-15121,
+  CVE-2026-15122, CVE-2026-15123, CVE-2026-15124, CVE-2026-15125, CVE-2026-15126,
+  CVE-2026-15127, CVE-2026-15128, CVE-2026-15129, CVE-2026-15130, CVE-2026-15131,
+  CVE-2026-15132, CVE-2026-15133.
+
+### Fixed
+- **`isPlayingAudio()` now uses only the actual-playback signal**, not the `is_suspended`
+  flag (which flickers mid-playback for media documents and made the getter spuriously
+  read false for an audible tab). Now `!mPlayingIds.isEmpty()`.
+
 ## [0.6.1] -- 2026-07-08
 
 Chromium 150.0.7871.46 (CEF branch 7871). Java-only additive change; no engine rebuild.
