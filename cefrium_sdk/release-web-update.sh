@@ -88,7 +88,10 @@ else
     function code(s,  out){ out=""
       while(match(s,/`[^`]*`/)){ out=out substr(s,1,RSTART-1) "<code>" substr(s,RSTART+1,RLENGTH-2) "</code>"; s=substr(s,RSTART+RLENGTH) }
       return out s }
-    function flush(){ if(btext!=""){ printf "            <li>%s</li>\n", code(esc(btext)); btext="" } }
+    function strong(s,  out){ out=""
+      while(match(s,/\*\*[^*]+\*\*/)){ out=out substr(s,1,RSTART-1) "<strong>" substr(s,RSTART+2,RLENGTH-4) "</strong>"; s=substr(s,RSTART+RLENGTH) }
+      return out s }
+    function flush(){ if(btext!=""){ printf "            <li>%s</li>\n", code(strong(esc(btext))); btext="" } }
     function closecat(){ if(incat){ flush(); print "          </ul>"; print "        </div>"; incat=0 } }
     $0 ~ "^## \\[" ver "\\]" {inblk=1; next}
     inblk && /^## \[/ {exit}
