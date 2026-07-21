@@ -15,6 +15,19 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.6.3] -- 2026-07-21
+
+Chromium 150.0.7871.114 (CEF branch 7871). SDK bugfix; no engine change.
+
+### Fixed
+- **Media notification / lock-screen progress bar now advances.** `CefriumMediaSession`
+  now observes Chromium's `mediaSessionPositionChanged` and pushes the media duration
+  (`METADATA_KEY_DURATION`) plus the playback position + speed into the
+  `MediaSessionCompat` `PlaybackState`, so Android renders and ticks the seekbar.
+  Previously only the play/pause button worked -- the position was
+  `PLAYBACK_POSITION_UNKNOWN` and no duration was set, so the bar had no range and never
+  moved. Validated on device: seekbar advances at the correct scale for a playing video.
+
 ## [0.6.2] -- 2026-07-12
 
 Chromium 150.0.7871.114 (CEF branch 7871). Security patch bump; no SDK API change.
