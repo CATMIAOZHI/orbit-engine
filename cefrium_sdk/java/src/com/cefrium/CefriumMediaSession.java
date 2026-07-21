@@ -22,6 +22,7 @@ import org.chromium.content_public.browser.MediaSessionObserver;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.services.media_session.MediaMetadata;
+import org.chromium.services.media_session.MediaPosition;
 
 /**
  * Bridges the page's {@code navigator.mediaSession} (Chromium MediaSession) to an
@@ -56,6 +57,13 @@ public class CefriumMediaSession {
     private String mArtist = "";
     private boolean mControllable;
     private boolean mPaused = true;
+    // Latest playback position from Chromium (mediaSessionPositionChanged) -- drives the
+    // notification / lock-screen progress bar. mPositionUpdateTime is SystemClock.
+    // elapsedRealtime()-based (0 = no position reported yet); mDurationMs 0 = unknown.
+    private long mDurationMs = 0;
+    private long mPositionMs = 0;
+    private float mPlaybackRate = 1.0f;
+    private long mPositionUpdateTime = 0;
 
     CefriumMediaSession(Context context, WebContents webContents) {
         mAppContext = context.getApplicationContext();
@@ -108,6 +116,24 @@ public class CefriumMediaSession {
                 if (mControllable) {
                     CefriumMediaService.show(mAppContext, buildNotification());
                 }
+            }
+
+            @Override
+            public void mediaSessionPositionChanged(MediaPosition position) {
+                if (position != null) {
+                    mDurationMs = position.getDuration();
+                    mPositionMs = position.getPosition();
+                    mPlaybackRate = position.getPlaybackRate();
+                    mPositionUpdateTime = position.getLastUpdatedTime();
+                } else {
+                    mDurationMs = 0;
+                    mPositionUpdateTime = 0;
+                }
+                // Push duration (metadata) + position/speed (playback state). The
+                // MediaStyle notification + lock screen extrapolate the progress bar
+                // from these, so no notification re-post is needed for it to tick.
+                pushMetadata();
+                pushState();
             }
 
             @Override
@@ -199,10 +225,14 @@ public class CefriumMediaSession {
     // ── MediaSessionCompat state ──
 
     private void pushMetadata() {
-        mCompat.setMetadata(new MediaMetadataCompat.Builder()
+        MediaMetadataCompat.Builder b = new MediaMetadataCompat.Builder()
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, mTitle)
-                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, mArtist)
-                .build());
+                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, mArtist);
+        // Duration gives the progress bar its range; without it there is no bar.
+        if (mDurationMs > 0) {
+            b.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, mDurationMs);
+        }
+        mCompat.setMetadata(b.build());
     }
 
     private void pushState() {
@@ -212,10 +242,18 @@ public class CefriumMediaSession {
                 | PlaybackStateCompat.ACTION_SEEK_TO;
         int state = mPaused ? PlaybackStateCompat.STATE_PAUSED
                             : PlaybackStateCompat.STATE_PLAYING;
-        mCompat.setPlaybackState(new PlaybackStateCompat.Builder()
-                .setActions(actions)
-                .setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 1.0f)
-                .build());
+        // Speed 0 while paused freezes the bar at the reported position; while playing
+        // Android extrapolates it forward from (position, speed, updateTime).
+        float speed = mPaused ? 0f : (mPlaybackRate > 0f ? mPlaybackRate : 1.0f);
+        PlaybackStateCompat.Builder b =
+                new PlaybackStateCompat.Builder().setActions(actions);
+        if (mPositionUpdateTime > 0) {
+            // updateTime is SystemClock.elapsedRealtime()-based, matching setState's arg.
+            b.setState(state, mPositionMs, speed, mPositionUpdateTime);
+        } else {
+            b.setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, speed);
+        }
+        mCompat.setPlaybackState(b.build());
     }
 
     // ── Notification ──
