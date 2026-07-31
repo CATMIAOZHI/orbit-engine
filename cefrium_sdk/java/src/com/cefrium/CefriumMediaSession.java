@@ -46,6 +46,8 @@ public class CefriumMediaSession {
     private final Context mAppContext;
     private final MediaSession mChromiumSession;
     private final MediaSessionCompat mCompat;
+    // Tap target for the media control -> opens THIS app (not another active session).
+    private final PendingIntent mContentIntent;
     private final MediaSessionObserver mObserver;
     // Reliable "media is playing" signal (independent of the racy is_controllable).
     // Drives the foreground service so background audio survives (Android kills an
@@ -79,6 +81,24 @@ public class CefriumMediaSession {
                 if (mChromiumSession != null) mChromiumSession.seekTo(pos);
             }
         });
+
+        // Tapping the media control (notification body / lock-screen player) must open
+        // THIS app. Without a session activity + content intent, Android has no target
+        // for our session and routes the tap to another active session's owner (e.g.
+        // Spotify) -- so the control shows our tab but opens the wrong app. Use the
+        // app's own launcher intent, SINGLE_TOP so it resumes rather than relaunches.
+        PendingIntent contentIntent = null;
+        Intent launch = mAppContext.getPackageManager()
+                .getLaunchIntentForPackage(mAppContext.getPackageName());
+        if (launch != null) {
+            launch.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            int f = PendingIntent.FLAG_UPDATE_CURRENT
+                    | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                            ? PendingIntent.FLAG_IMMUTABLE : 0);
+            contentIntent = PendingIntent.getActivity(mAppContext, 0, launch, f);
+        }
+        mContentIntent = contentIntent;
+        if (mContentIntent != null) mCompat.setSessionActivity(mContentIntent);
 
         // MediaSession.fromWebContents() returns a live session even before any
         // media plays: the Android CEF build patches the JNI to use
@@ -268,6 +288,7 @@ public class CefriumMediaSession {
                         .setContentTitle(mTitle.isEmpty() ? "Media" : mTitle)
                         .setContentText(mArtist)
                         .setOngoing(!mPaused)
+                        .setContentIntent(mContentIntent)
                         .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                         .addAction(mPaused ? android.R.drawable.ic_media_play
                                            : android.R.drawable.ic_media_pause,
