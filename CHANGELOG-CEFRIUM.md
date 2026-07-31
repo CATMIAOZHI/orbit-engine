@@ -15,6 +15,19 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.6.4] -- 2026-07-31
+
+Chromium 150.0.7871.114 (CEF branch 7871). SDK bugfix; no engine change.
+
+### Fixed
+- **Tapping the media notification / lock-screen control now opens this app** (the tab
+  playing the media) instead of another app. `CefriumMediaSession` now sets a
+  `contentIntent` on the notification and `setSessionActivity` on the
+  `MediaSessionCompat` -- the host app's own launcher intent (SINGLE_TOP so it resumes).
+  Without them the session had no tap target, so when another media session was active
+  (e.g. Spotify), Android routed the control's tap to that other app even though the
+  notification showed the Cefrium tab.
+
 ## [0.6.3] -- 2026-07-21
 
 Chromium 150.0.7871.114 (CEF branch 7871). SDK bugfix; no engine change.
