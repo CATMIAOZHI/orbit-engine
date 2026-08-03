@@ -42,7 +42,7 @@ index 949b255d2ac9f..9dcf6a1029486 100644
            ShouldCurrentRequestUsePermissionElementSecondaryUI(delegate)) {
      if (auto embedded_prompt =
 diff --git components/permissions/permission_prompt.h components/permissions/permission_prompt.h
-index dd12910826600..ed41ec483c53a 100644
+index 88bda23a85fc6..e80c77ebdbcd8 100644
 --- components/permissions/permission_prompt.h
 +++ components/permissions/permission_prompt.h
 @@ -11,6 +11,7 @@
@@ -52,7 +52,7 @@ index dd12910826600..ed41ec483c53a 100644
 +#include "build/build_config.h"
  #include "components/permissions/features.h"
  #include "components/permissions/permission_request_data.h"
- #include "components/permissions/permission_uma_util.h"
+ #include "components/permissions/permission_uma_constants.h"
 @@ -158,6 +159,20 @@ class PermissionPrompt {
        content::WebContents* web_contents,
        Delegate* delegate);
