@@ -3300,6 +3300,9 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_M3xnlzVW
   public static native void org_chromium_chrome_browser_media_MediaCaptureDevicesDispatcherAndroid_notifyStopped(
       Object webContents);
+  // Hashed name: Java_J_N_M943$zqv
+  public static native void org_chromium_chrome_browser_media_MediaCaptureDevicesDispatcherAndroid_notifyTabCapturingStopped(
+      Object webContents);
   // Hashed name: Java_J_N_MctsSTtd
   public static native void org_chromium_chrome_browser_media_MediaCapturePickerManagerBridge_onCancel(
       long nativeMediaCapturePickerManagerBridge);
