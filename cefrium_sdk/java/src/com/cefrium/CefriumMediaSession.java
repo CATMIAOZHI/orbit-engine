@@ -46,8 +46,10 @@ public class CefriumMediaSession {
     private final Context mAppContext;
     private final MediaSession mChromiumSession;
     private final MediaSessionCompat mCompat;
-    // Tap target for the media control -> opens THIS app (not another active session).
-    private final PendingIntent mContentIntent;
+    // Tap target for the media control. Defaults to opening THIS app (launcher); a host
+    // can override it per-browser via setActivity() to open the exact tab that plays.
+    private PendingIntent mContentIntent;
+    private final PendingIntent mDefaultContentIntent;
     private final MediaSessionObserver mObserver;
     // Reliable "media is playing" signal (independent of the racy is_controllable).
     // Drives the foreground service so background audio survives (Android kills an
@@ -97,6 +99,7 @@ public class CefriumMediaSession {
                             ? PendingIntent.FLAG_IMMUTABLE : 0);
             contentIntent = PendingIntent.getActivity(mAppContext, 0, launch, f);
         }
+        mDefaultContentIntent = contentIntent;
         mContentIntent = contentIntent;
         if (mContentIntent != null) mCompat.setSessionActivity(mContentIntent);
 
@@ -202,6 +205,20 @@ public class CefriumMediaSession {
      */
     boolean isPlayingAudio() {
         return !mPlayingIds.isEmpty();
+    }
+
+    /**
+     * Override the media control's tap target (MediaSessionCompat session activity +
+     * notification content intent). Pass null to revert to the app launcher. Lets the
+     * host open the exact tab that is playing instead of the app's current screen.
+     */
+    void setActivity(PendingIntent pi) {
+        mContentIntent = (pi != null) ? pi : mDefaultContentIntent;
+        mCompat.setSessionActivity(mContentIntent);
+        // Refresh the live notification so its tap target updates immediately.
+        if (!mPlayingIds.isEmpty() || mControllable) {
+            CefriumMediaService.show(mAppContext, buildNotification());
+        }
     }
 
     // ── Transport (notification / lock screen → page) ──

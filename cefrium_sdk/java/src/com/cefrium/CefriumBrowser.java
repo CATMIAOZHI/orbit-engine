@@ -58,6 +58,7 @@ public class CefriumBrowser {
     private CefriumSurfaceContainer mSurfaceContainer;
     private CefriumMediaSession mMediaSession;
     private boolean mMediaSessionEnabled;
+    private android.app.PendingIntent mMediaSessionActivity;
     private boolean mWebContentsConnected;
     private boolean mPullToRefresh;
     // FEATURE-057: true if this is a private (incognito) browser.
@@ -1766,6 +1767,17 @@ public class CefriumBrowser {
         }
     }
 
+    /**
+     * Sets the PendingIntent fired when the user taps this browser's media control
+     * (notification / lock-screen player). Lets a multi-tab host route the tap to the
+     * exact tab that is playing. Pass {@code null} to revert to the app launcher.
+     * Safe to call before or after the media session is created.
+     */
+    public void setMediaSessionActivity(android.app.PendingIntent activity) {
+        mMediaSessionActivity = activity;
+        if (mMediaSession != null) mMediaSession.setActivity(activity);
+    }
+
     private void maybeCreateMediaSession() {
         if (!mMediaSessionEnabled || mMediaSession != null
                 || mNativePtr == 0 || mActivity == null) {
@@ -1775,6 +1787,7 @@ public class CefriumBrowser {
                 nativeGetWebContents(mNativePtr);
         if (wc != null) {
             mMediaSession = new CefriumMediaSession(mActivity, wc);
+            mMediaSession.setActivity(mMediaSessionActivity);
         }
     }
 

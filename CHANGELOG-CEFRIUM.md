@@ -15,6 +15,21 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.6.5] -- 2026-08-03
+
+Chromium 150.0.7871.114 (CEF branch 7871). SDK feature; no engine change.
+
+### Added
+- **`CefriumBrowser.setMediaSessionActivity(PendingIntent)`** (and the Compose
+  `CefriumNavigator.setMediaSessionActivity`) lets a multi-tab host make the media
+  notification / lock-screen control open the SPECIFIC tab that is playing, not just the
+  app. Each browser's `MediaSessionCompat` now carries a settable session activity
+  (`setSessionActivity` + the notification `contentIntent`), overriding the default
+  launcher intent added in 0.6.4. A host gives each tab a `PendingIntent` that re-targets
+  that tab (e.g. an extra carrying the tab id); the tap then routes to it. Passing `null`
+  restores the default launcher intent. Validated on device: tapping a background tab's
+  media control brings the app forward and switches to that exact tab.
+
 ## [0.6.4] -- 2026-07-31
 
 Chromium 150.0.7871.114 (CEF branch 7871). SDK bugfix; no engine change.
