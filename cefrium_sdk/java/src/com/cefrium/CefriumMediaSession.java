@@ -224,11 +224,11 @@ public class CefriumMediaSession {
     // ── Transport (notification / lock screen → page) ──
 
     void onTransportPlay() {
-        if (mChromiumSession != null) mChromiumSession.resume();
+        if (mChromiumSession != null) mChromiumSession.resume(org.chromium.media_session.mojom.MediaSession.SuspendType.UI);
     }
 
     void onTransportPause() {
-        if (mChromiumSession != null) mChromiumSession.suspend();
+        if (mChromiumSession != null) mChromiumSession.suspend(org.chromium.media_session.mojom.MediaSession.SuspendType.UI);
     }
 
     void onTransportStop() {
