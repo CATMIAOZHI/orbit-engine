@@ -15,6 +15,21 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.7.0] -- 2026-08-03
+
+Chromium **151.0.7922.71** (CEF branch **7922**). Engine bump for CVE parity with
+Debian's chromium 151.0.7922.71-1~deb13u1.
+
+### Changed
+- **Engine: Chromium 150.0.7871.114 -> 151.0.7922.71** (CEF 7871 -> 7922). Tracks the
+  Debian Chromium security release. `Cefrium.CHROMIUM_VERSION` now reports 151.0.7922.71.
+  The 150->151 cross-branch bump rebased the Android port onto CEF 7922; the API surface
+  is unchanged for SDK consumers. Internal adaptations: `OverscrollRefreshHandler.release`
+  now takes an `@OverscrollActivationStatus int`; `MediaSession.suspend()/resume()` take a
+  `SuspendType`; three Android Chromium patches regenerated for 151 (permission-prompt
+  embedder seam, accessibility LinkageError guards, password-manager loadDataWithBaseURL
+  no-kill -- the last adapted to 151's new `may_kill_renderer` gate).
+
 ## [0.6.5] -- 2026-08-03
 
 Chromium 150.0.7871.114 (CEF branch 7871). SDK feature; no engine change.
