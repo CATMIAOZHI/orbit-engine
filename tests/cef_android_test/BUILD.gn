@@ -80,7 +80,7 @@ android_apk("cefrium_test_apk") {
   proguard_configs = [ "proguard.flags" ]
 
   # Minimize Chrome UI resources.
-  strip_resource_names = true
-  short_resource_paths = true
+  # Chromium 151 no longer consumes strip_resource_names/short_resource_paths on
+  # android_apk (GN "unused variable"); dropped -- they only trimmed the test APK.
   aapt_locale_allowlist = [ "en" ]  # Strip all non-English locales
 }
