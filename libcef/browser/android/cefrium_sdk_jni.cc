@@ -290,16 +290,44 @@ class SdkLifeSpanHandler : public CefLifeSpanHandler {
 class SdkLoadHandler : public CefLoadHandler {
  public:
   void SetBrowserData(struct SdkBrowserData* data) { data_ = data; }
+  void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
+    if (java_browser) java_browser_ = env->NewGlobalRef(java_browser);
+  }
 
   // Defined out-of-line after SdkBrowserData is fully declared.
   void OnLoadEnd(CefRefPtr<CefBrowser> browser,
                  CefRefPtr<CefFrame> frame,
                  int httpStatusCode) override;
 
+  void OnLoadingStateChange(CefRefPtr<CefBrowser> browser,
+                            bool isLoading,
+                            bool canGoBack,
+                            bool canGoForward) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onLoadingStateChanged",
+                                        "(ZZZ)V");
+    if (method) {
+      env->CallVoidMethod(java_browser_, method,
+                          isLoading, canGoBack, canGoForward);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  ~SdkLoadHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+
   IMPLEMENT_REFCOUNTING(SdkLoadHandler);
 
  private:
   struct SdkBrowserData* data_ = nullptr;
+  jobject java_browser_ = nullptr;
 };
 
 // Display handler — notifies Java of URL/title changes via JNI callback.
