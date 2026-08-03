@@ -200,8 +200,13 @@ public class CefriumBrowser {
                 return type == org.chromium.ui.OverscrollAction.PULL_TO_REFRESH;
             }
             @Override public void pull(float xDelta, float yDelta) {}
-            @Override public void release(boolean allowRefresh) {
-                if (allowRefresh) reload();
+            @Override public void release(int status) {
+                // Chromium 151: release(boolean allowRefresh) -> release(int status),
+                // an @OverscrollActivationStatus. Refresh on ALLOW/FORCE activation.
+                if (status == org.chromium.ui.OverscrollActivationStatus.ALLOW_ACTIVATION
+                        || status == org.chromium.ui.OverscrollActivationStatus.FORCE_ACTIVATION) {
+                    reload();
+                }
             }
             @Override public void reset() {}
             @Override public void setEnabled(boolean enabled) {}
@@ -1311,7 +1316,7 @@ public class CefriumBrowser {
         if (wc != null) {
             org.chromium.content_public.browser.MediaSession ms =
                     org.chromium.content_public.browser.MediaSession.fromWebContents(wc);
-            if (ms != null) ms.suspend();
+            if (ms != null) ms.suspend(org.chromium.media_session.mojom.MediaSession.SuspendType.UI);
         }
     }
 
@@ -1321,7 +1326,7 @@ public class CefriumBrowser {
         if (wc != null) {
             org.chromium.content_public.browser.MediaSession ms =
                     org.chromium.content_public.browser.MediaSession.fromWebContents(wc);
-            if (ms != null) ms.resume();
+            if (ms != null) ms.resume(org.chromium.media_session.mojom.MediaSession.SuspendType.UI);
         }
     }
 
