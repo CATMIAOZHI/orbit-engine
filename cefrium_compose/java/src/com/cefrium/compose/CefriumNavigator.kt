@@ -298,6 +298,14 @@ class CefriumNavigator {
     }
 
     /**
+     * Sets the PendingIntent fired when the user taps this tab's media control -- use it
+     * to open the exact tab that is playing. Null reverts to the host app launcher.
+     */
+    fun setMediaSessionActivity(activity: android.app.PendingIntent?) {
+        state?.browser?.setMediaSessionActivity(activity)
+    }
+
+    /**
      * Whether this tab currently has audible media playing (not paused). Use it
      * to avoid discarding/closing a tab that is actively playing sound.
      */
