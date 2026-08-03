@@ -46,4 +46,31 @@
     <string name="action_edit">Edit</string>
     <string name="close_button_description">Close</string>
     <string name="error_cannot_open_pdf">Cannot open PDF</string>
+    <!-- Chromium 151 moved these Material/AppCompat/Chrome strings out of the AAR's
+         base values/ (they now ship only in locale-qualified values-XX, which
+         AAPT does not use as the default). The vendored Material timepicker/
+         datepicker + AppCompat searchview layouts reference them, so a Maven
+         consumer fails resource linking without them. Backfill the base values
+         (FEATURE-038 Option A). CEF never displays these dialogs. -->
+    <string name="abc_action_bar_up_description">Navigate up</string>
+    <string name="abc_searchview_description_clear">Clear query</string>
+    <string name="abc_searchview_description_search">Search query</string>
+    <string name="abc_searchview_description_submit">Submit query</string>
+    <string name="abc_searchview_description_voice">Voice search</string>
+    <string name="autofill_save_in_account_prompt_address_source_notice"></string>
+    <string name="signin_promo_title"></string>
+    <string name="material_clock_toggle_content_description">Select AM or PM</string>
+    <string name="material_timepicker_am">AM</string>
+    <string name="material_timepicker_pm">PM</string>
+    <string name="material_timepicker_select_time">Select time</string>
+    <string name="mtrl_picker_a11y_next_month">Change to next month</string>
+    <string name="mtrl_picker_a11y_prev_month">Change to previous month</string>
+    <string name="mtrl_picker_cancel">Cancel</string>
+    <string name="mtrl_picker_confirm">OK</string>
+    <string name="mtrl_picker_save">Save</string>
+    <string name="mtrl_picker_text_input_date_hint">Date</string>
+    <string name="mtrl_picker_text_input_date_range_end_hint">End date</string>
+    <string name="mtrl_picker_text_input_date_range_start_hint">Start date</string>
+    <string name="mtrl_timepicker_cancel">Cancel</string>
+    <string name="mtrl_timepicker_confirm">OK</string>
 </resources>
