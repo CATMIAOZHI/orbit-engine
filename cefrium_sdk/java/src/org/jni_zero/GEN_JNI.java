@@ -24,6 +24,7 @@ public class GEN_JNI {
       Object socManufacturer,
       Object supportedAbis,
       int sdkInt,
+      int sdkIntFull,
       boolean isDebugAndroid,
       Object securityPatch);
   // Hashed name: Java_J_N_MOh5qbSu
@@ -615,8 +616,6 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_MYC4Z0Ea
   public static native void org_chromium_chrome_browser_autofill_AutofillExpirationDateFixFlowBridge_promptDismissed(
       long nativeCardExpirationDateFixFlowViewAndroid);
-  // Hashed name: Java_J_N_M5VpD80A
-  public static native Object org_chromium_chrome_browser_autofill_AutofillFallbackSurfaceLauncher_getPlusAddressManagementUrl();
   // Hashed name: Java_J_N_MFIf8XAR
   public static native Object org_chromium_chrome_browser_autofill_AutofillImageFetcherFactory_getForProfile(
       Object profile);
@@ -908,8 +907,8 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_MBPJpe2$
   public static native boolean org_chromium_chrome_browser_autofill_autofill_1ai_EntityDataManager_getIsAutofillAiDisabledByEnterprisePolicy(
       long nativeEntityDataManagerAndroid);
-  // Hashed name: Java_J_N_MiZeLu_m
-  public static native Object org_chromium_chrome_browser_autofill_autofill_1ai_EntityDataManager_getPersonalContextSettingsUrl();
+  // Hashed name: Java_J_N_Mty8071m
+  public static native Object org_chromium_chrome_browser_autofill_autofill_1ai_EntityDataManager_getPersonalContextManageConnectedAppsUrl();
   // Hashed name: Java_J_N_MM$nBZvj
   public static native Object org_chromium_chrome_browser_autofill_autofill_1ai_EntityDataManager_getSortedEntityTypesForListDisplay(
       long nativeEntityDataManagerAndroid);
@@ -927,9 +926,12 @@ public class GEN_JNI {
   public static native boolean org_chromium_chrome_browser_autofill_autofill_1ai_EntityDataManager_isEligibleToAutofillAiForType(
       long nativeEntityDataManagerAndroid,
       int entityType);
-  // Hashed name: Java_J_N_MT2Dga62
-  public static native boolean org_chromium_chrome_browser_autofill_autofill_1ai_EntityDataManager_isPersonalContextSettingVisible(
-      Object profile);
+  // Hashed name: Java_J_N_Mf2QVczM
+  public static native boolean org_chromium_chrome_browser_autofill_autofill_1ai_EntityDataManager_isPersonalContextEnabled(
+      long nativeEntityDataManagerAndroid);
+  // Hashed name: Java_J_N_MJzjUkh2
+  public static native boolean org_chromium_chrome_browser_autofill_autofill_1ai_EntityDataManager_isPersonalContextPreferenceVisible(
+      long nativeEntityDataManagerAndroid);
   // Hashed name: Java_J_N_MYlSJ_5a
   public static native boolean org_chromium_chrome_browser_autofill_autofill_1ai_EntityDataManager_isWalletPublicPassStorageEnabled(
       long nativeEntityDataManagerAndroid);
@@ -941,6 +943,10 @@ public class GEN_JNI {
   public static native boolean org_chromium_chrome_browser_autofill_autofill_1ai_EntityDataManager_setAutofillAiOptInStatus(
       long nativeEntityDataManagerAndroid,
       int optInStatus);
+  // Hashed name: Java_J_N_Md8C6X7s
+  public static native void org_chromium_chrome_browser_autofill_autofill_1ai_EntityDataManager_setPersonalContextEnabled(
+      long nativeEntityDataManagerAndroid,
+      boolean enabled);
   // Hashed name: Java_J_N_MMQgn8YB
   public static native void org_chromium_chrome_browser_autofill_iban_AutofillSaveIbanBottomSheetBridge_onUiAccepted(
       long nativeAutofillSaveIbanBottomSheetBridge,
@@ -1891,7 +1897,8 @@ public class GEN_JNI {
       float folioFootLength,
       boolean isPinned,
       float pinnedIconOffsetX,
-      boolean isUnderlined,
+      float underlineOpacity,
+      float underlineShimmerOffset,
       int underlineStartColor,
       int underlineEndColor,
       int underlineWidthThreshold);
@@ -1927,6 +1934,7 @@ public class GEN_JNI {
       boolean isKeyboardFocused,
       int keyboardFocusRingResourceId,
       int keyboardFocusRingColor,
+      float keyboardFocusRingOffset,
       int textTextureId,
       float buttonStartPadding,
       float buttonTextPadding,
@@ -1949,6 +1957,7 @@ public class GEN_JNI {
       boolean isKeyboardFocused,
       int keyboardFocusRingResourceId,
       int keyboardFocusRingColor,
+      float keyboardFocusRingOffset,
       int textTextureId,
       float buttonStartPadding,
       float buttonTextPadding,
@@ -1997,6 +2006,21 @@ public class GEN_JNI {
   public static native void org_chromium_chrome_browser_compositor_scene_1layer_TabStripSceneLayer_updateOffsetTag(
       long nativeTabStripSceneLayer,
       Object offsetTag);
+  // Hashed name: Java_J_N_MezRWG3i
+  public static native void org_chromium_chrome_browser_compositor_scene_1layer_TabStripSceneLayer_updateTabSearchButton(
+      long nativeTabStripSceneLayer,
+      int resourceId,
+      int backgroundResourceId,
+      float x,
+      float y,
+      boolean visible,
+      boolean isHovered,
+      int tint,
+      int backgroundTint,
+      float buttonAlpha,
+      boolean isKeyboardFocused,
+      int keyboardFocusRingResourceId,
+      int keyboardFocusRingColor);
   // Hashed name: Java_J_N_MsUf3Yf5
   public static native void org_chromium_chrome_browser_compositor_scene_1layer_TabStripSceneLayer_updateTabStripFade(
       long nativeTabStripSceneLayer,
@@ -2017,7 +2041,11 @@ public class GEN_JNI {
       float scrimOpacity,
       float leftPaddingPx,
       float rightPaddingPx,
-      float topPaddingPx);
+      float topPaddingPx,
+      float dividerY,
+      boolean shouldShowDivider,
+      int dividerResourceId,
+      int dividerTint);
   // Hashed name: Java_J_N_MRop2ASy
   public static native long org_chromium_chrome_browser_compositor_scene_1layer_ToolbarSwipeSceneLayer_init(
       Object self);
@@ -2127,6 +2155,9 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_MW71eMYS
   public static native boolean org_chromium_chrome_browser_contextual_1tasks_ContextualTasksBridge_isContextualTasksUrl(
       Object url);
+  // Hashed name: Java_J_N_MWcha3Tl
+  public static native boolean org_chromium_chrome_browser_contextual_1tasks_ContextualTasksBridge_isPanelOpen(
+      Object webContents);
   // Hashed name: Java_J_N_MUyVVmfm
   public static native void org_chromium_chrome_browser_contextual_1tasks_ContextualTasksBridge_onVoiceTranscribed(
       long nativeContextualTasksBridge,
@@ -2415,10 +2446,6 @@ public class GEN_JNI {
       long nativeDownloadManagerService,
       Object downloadGuid,
       Object profileKey);
-  // Hashed name: Java_J_N_MQ35Y$D$
-  public static native void org_chromium_chrome_browser_download_DownloadManagerService_checkForExternallyRemovedDownloads(
-      long nativeDownloadManagerService,
-      Object profileKey);
   // Hashed name: Java_J_N_MKJzUTj3_ForTesting
   public static native void org_chromium_chrome_browser_download_DownloadManagerService_createInterruptedDownloadForTest(
       long nativeDownloadManagerService,
@@ -2567,10 +2594,6 @@ public class GEN_JNI {
       Object url,
       Object renderFrameHost,
       Object callback);
-  // Hashed name: Java_J_N_M2UZBg4a
-  public static native void org_chromium_chrome_browser_enterprise_util_EnterpriseInfo_updateNativeOwnedState(
-      boolean hasDeviceOwnerApp,
-      boolean hasProfileOwnerApp);
   // Hashed name: Java_J_N_M23cUtRt
   public static native Object org_chromium_chrome_browser_enterprise_util_ManagedBrowserUtils_getTitle(
       Object profile);
@@ -3040,6 +3063,10 @@ public class GEN_JNI {
       boolean preventClose,
       Object profile,
       int source);
+  // Hashed name: Java_J_N_MHRSONbw
+  public static native void org_chromium_chrome_browser_glic_GlicNudgeDelegateBridge_onNudgeActivity(
+      Object window,
+      int event);
   // Hashed name: Java_J_N_MOK4T_oC
   public static native void org_chromium_chrome_browser_grouped_1affiliations_AcknowledgeGroupedCredentialSheetBridge_onDismissed(
       long nativeAcknowledgeGroupedCredentialSheetBridge,
@@ -3125,15 +3152,6 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_MRzPUMq7
   public static native boolean org_chromium_chrome_browser_incognito_IncognitoUtils_getIncognitoModeManaged(
       Object profile);
-  // Hashed name: Java_J_N_MUX1cETi
-  public static native void org_chromium_chrome_browser_infobar_InfoBarContainer_destroy(
-      long nativeInfoBarContainerAndroid);
-  // Hashed name: Java_J_N_MQNiH$D1
-  public static native long org_chromium_chrome_browser_infobar_InfoBarContainer_init(Object tab);
-  // Hashed name: Java_J_N_Mb3PR8J$
-  public static native void org_chromium_chrome_browser_infobar_InfoBarContainer_setWebContents(
-      long nativeInfoBarContainerAndroid,
-      Object webContents);
   // Hashed name: Java_J_N_M5AyMpTt
   public static native void org_chromium_chrome_browser_init_InitializeFeatureList_initializeFeatureList();
   // Hashed name: Java_J_N_Mg8PCuPV
@@ -3144,6 +3162,10 @@ public class GEN_JNI {
   public static native void org_chromium_chrome_browser_keyboard_1accessory_AutofillKeyboardAccessoryViewBridge_onDeletionDialogClosed(
       long nativeAutofillKeyboardAccessoryViewImpl,
       boolean confirmed);
+  // Hashed name: Java_J_N_MNwYQKjk
+  public static native void org_chromium_chrome_browser_keyboard_1accessory_AutofillKeyboardAccessoryViewBridge_openSettingsForEntityType(
+      long nativeAutofillKeyboardAccessoryViewImpl,
+      int entityType);
   // Hashed name: Java_J_N_MjgUnUA$
   public static native void org_chromium_chrome_browser_keyboard_1accessory_AutofillKeyboardAccessoryViewBridge_suggestionSelected(
       long nativeAutofillKeyboardAccessoryViewImpl,
@@ -3172,6 +3194,10 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_MmIaCnPe
   public static native void org_chromium_chrome_browser_keyboard_1accessory_ManualFillingComponentBridge_onOptionSelected(
       long nativeManualFillingViewAndroid,
+      int accessoryAction);
+  // Hashed name: Java_J_N_MY9iPTYK
+  public static native void org_chromium_chrome_browser_keyboard_1accessory_ManualFillingComponentBridge_onOptionSelectedForWebContents(
+      Object webContents,
       int accessoryAction);
   // Hashed name: Java_J_N_MweyxoKL
   public static native void org_chromium_chrome_browser_keyboard_1accessory_ManualFillingComponentBridge_onPasskeySelected(
@@ -3279,6 +3305,10 @@ public class GEN_JNI {
       Object webContents);
   // Hashed name: Java_J_N_Mjhr_m_K
   public static native void org_chromium_chrome_browser_media_DocumentPictureInPictureActivity_onBackToTab();
+  // Hashed name: Java_J_N_Me8dqcI1
+  public static native boolean org_chromium_chrome_browser_media_DocumentPictureInPictureActivity_registerJavaActivity(
+      Object activity,
+      Object webContents);
   // Hashed name: Java_J_N_MybJWOXK
   public static native boolean org_chromium_chrome_browser_media_MediaCaptureDevicesDispatcherAndroid_isCapturingAudio(
       Object webContents);
@@ -3405,6 +3435,9 @@ public class GEN_JNI {
   public static native void org_chromium_chrome_browser_merchant_1viewer_MerchantTrustSignalsEventStorage_deleteAll(
       long nativeMerchantSignalDB,
       Object onComplete);
+  // Hashed name: Java_J_N_MtrW2gC3
+  public static native void org_chromium_chrome_browser_merchant_1viewer_MerchantTrustSignalsEventStorage_destroy(
+      long nativeMerchantSignalDB);
   // Hashed name: Java_J_N_MEbfTMCO
   public static native void org_chromium_chrome_browser_merchant_1viewer_MerchantTrustSignalsEventStorage_init(
       Object self,
@@ -4115,7 +4148,6 @@ public class GEN_JNI {
       int pageClassification,
       int toolMode,
       boolean preventInlineAutocomplete,
-      boolean preferKeyword,
       boolean inKeywordMode,
       boolean allowExactKeywordMatch,
       boolean wantAsynchronousMatches);
@@ -4191,10 +4223,6 @@ public class GEN_JNI {
       int clientId,
       Object pageUrl,
       Object callback);
-  // Hashed name: Java_J_N_MU0i3E0l
-  public static native boolean org_chromium_chrome_browser_page_1image_1service_ImageServiceBridge_hasConsentToFetchImages(
-      long nativeImageServiceBridge,
-      boolean isAccountData);
   // Hashed name: Java_J_N_MXm8cp6b
   public static native long org_chromium_chrome_browser_page_1image_1service_ImageServiceBridge_init(
       Object profile);
@@ -4459,18 +4487,24 @@ public class GEN_JNI {
   public static native void org_chromium_chrome_browser_permissions_PermissionUpdateRequester_onPermissionResult(
       long nativePermissionUpdateRequester,
       boolean allPermissionsGranted);
-  // Hashed name: Java_J_N_MFVHoeEV
-  public static native void org_chromium_chrome_browser_personal_1context_first_1run_PersonalContextFirstRunBottomSheetBridge_onInfoAcknowledged(
-      long nativePersonalContextFirstRunBottomSheetBridge);
-  // Hashed name: Java_J_N_MwkRu30a
-  public static native void org_chromium_chrome_browser_personal_1context_first_1run_PersonalContextFirstRunBottomSheetBridge_onInfoDismissed(
-      long nativePersonalContextFirstRunBottomSheetBridge);
   // Hashed name: Java_J_N_MuJSVwuX
   public static native void org_chromium_chrome_browser_personal_1context_first_1run_PersonalContextFirstRunBottomSheetBridge_onLearnMoreClicked(
       long nativePersonalContextFirstRunBottomSheetBridge);
   // Hashed name: Java_J_N_MPV0AEPN
   public static native void org_chromium_chrome_browser_personal_1context_first_1run_PersonalContextFirstRunBottomSheetBridge_onManageSettingsClicked(
       long nativePersonalContextFirstRunBottomSheetBridge);
+  // Hashed name: Java_J_N_MOBVf0sX
+  public static native void org_chromium_chrome_browser_personal_1context_first_1run_PersonalContextFirstRunBottomSheetBridge_onNoticeAcknowledged(
+      long nativePersonalContextFirstRunBottomSheetBridge);
+  // Hashed name: Java_J_N_Micm2lZC
+  public static native void org_chromium_chrome_browser_personal_1context_first_1run_PersonalContextFirstRunBottomSheetBridge_onNoticeDismissed(
+      long nativePersonalContextFirstRunBottomSheetBridge);
+  // Hashed name: Java_J_N_MQp7LUt_
+  public static native void org_chromium_chrome_browser_personal_1context_first_1run_PersonalContextFirstRunService_noticeAcknowledged(
+      Object profile);
+  // Hashed name: Java_J_N_MwZQpvDk
+  public static native boolean org_chromium_chrome_browser_personal_1context_first_1run_PersonalContextFirstRunService_shouldShowNotice(
+      Object profile);
   // Hashed name: Java_J_N_MX4bLIGx
   public static native int org_chromium_chrome_browser_policy_PolicyAuditor_getCertificateFailure(
       Object webContents);
@@ -4663,9 +4697,6 @@ public class GEN_JNI {
   public static native void org_chromium_chrome_browser_profiles_Profile_wipe(long ptr);
   // Hashed name: Java_J_N_MxX9WirW
   public static native Object org_chromium_chrome_browser_profiles_ProfileKey_getOriginalKey(
-      long nativeProfileKeyAndroid);
-  // Hashed name: Java_J_N_M1kMd8V5
-  public static native long org_chromium_chrome_browser_profiles_ProfileKey_getSimpleFactoryKeyPointer(
       long nativeProfileKeyAndroid);
   // Hashed name: Java_J_N_MdejbNQu
   public static native boolean org_chromium_chrome_browser_profiles_ProfileKey_isOffTheRecord(
@@ -5035,10 +5066,20 @@ public class GEN_JNI {
   public static native Object org_chromium_chrome_browser_share_send_1tab_1to_1self_SendTabToSelfAndroidBridge_getEntryPointDisplayReason(
       Object profile,
       Object url);
+  // Hashed name: Java_J_N_Meiq1dA0
+  public static native void org_chromium_chrome_browser_share_send_1tab_1to_1self_SendTabToSelfAndroidBridge_markEntryActivated(
+      Object profile,
+      Object guid,
+      int entryPoint);
   // Hashed name: Java_J_N_MKNL7FtR
   public static native void org_chromium_chrome_browser_share_send_1tab_1to_1self_SendTabToSelfAndroidBridge_markEntryOpened(
       Object profile,
       Object guid);
+  // Hashed name: Java_J_N_Mmj7NYo3
+  public static native void org_chromium_chrome_browser_share_send_1tab_1to_1self_SendTabToSelfAndroidBridge_recordTargetDeviceCount(
+      int entryPoint,
+      int displayReason,
+      int deviceCount);
   // Hashed name: Java_J_N_MPxv0S$Q
   public static native void org_chromium_chrome_browser_share_send_1tab_1to_1self_SendTabToSelfAndroidBridge_sendTabToDevice(
       Object profile,
@@ -5046,11 +5087,15 @@ public class GEN_JNI {
       Object targetDeviceSyncCacheGuid,
       Object url,
       Object title,
-      Object commitConfirmation);
+      Object commitConfirmation,
+      int entryPoint);
   // Hashed name: Java_J_N_M3qa0MUY
   public static native void org_chromium_chrome_browser_share_send_1tab_1to_1self_SendTabToSelfMetricsRecorder_attachScrollObserver(
       Object webContents,
       boolean hasScrollPosition);
+  // Hashed name: Java_J_N_MU8hZhbT
+  public static native void org_chromium_chrome_browser_share_send_1tab_1to_1self_SendTabToSelfMetricsRecorder_recordEntryPointInvoked(
+      int entryPoint);
   // Hashed name: Java_J_N_M6M6f5dB
   public static native void org_chromium_chrome_browser_share_send_1tab_1to_1self_SendTabToSelfMetricsRecorder_recordHasScrollPositionOnOpened(
       boolean hasScrollPosition);
@@ -5604,14 +5649,10 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_MQUj64vX
   public static native Object org_chromium_chrome_browser_tab_WebContentsState_getContentsStateAsByteBuffer(
       Object webcontents);
-  // Hashed name: Java_J_N_M2I_hdGI
-  public static native Object org_chromium_chrome_browser_tab_WebContentsState_getDisplayTitleFromByteBuffer(
-      Object state,
-      int savedStateVersion);
-  // Hashed name: Java_J_N_MKv$MHLF
-  public static native Object org_chromium_chrome_browser_tab_WebContentsState_getVirtualUrlFromByteBuffer(
-      Object state,
-      int savedStateVersion);
+  // Hashed name: Java_J_N_M$DtHAxo
+  public static native Object org_chromium_chrome_browser_tab_WebContentsState_getMetadata(
+      Object buffer,
+      int version);
   // Hashed name: Java_J_N_MVPXNU3l
   public static native Object org_chromium_chrome_browser_tab_WebContentsState_restoreContentsFromByteBuffer(
       Object profile,
@@ -5653,6 +5694,11 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_MZR9rbgs
   public static native void org_chromium_chrome_browser_tab_state_PersistedTabData_onTabClose(
       Object tab);
+  // Hashed name: Java_J_N_MEzscbv3
+  public static native void org_chromium_chrome_browser_tab_state_SendTabToSelfTabCardLabelData_markEntryActivated(
+      Object profile,
+      Object guid,
+      int entryPoint);
   // Hashed name: Java_J_N_MeHKJ1cw
   public static native void org_chromium_chrome_browser_tab_tab_1restore_HistoricalTabSaverImpl_createHistoricalBulkClosure(
       Object model,
@@ -5820,10 +5866,6 @@ public class GEN_JNI {
       long nativeTabCollectionTabModelImpl,
       Object tab,
       Object tabGroupId);
-  // Hashed name: Java_J_N_M7UIhfBE
-  public static native int org_chromium_chrome_browser_tabmodel_TabCollectionTabModelImpl_getIndexOfTabRecursive(
-      long nativeTabCollectionTabModelImpl,
-      Object tab);
   // Hashed name: Java_J_N_MW$oN$YL
   public static native int org_chromium_chrome_browser_tabmodel_TabCollectionTabModelImpl_getIndividualTabAndGroupCount(
       long nativeTabCollectionTabModelImpl);
@@ -5834,17 +5876,10 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_MNU0GPmC
   public static native Object org_chromium_chrome_browser_tabmodel_TabCollectionTabModelImpl_getRepresentativeTabList(
       long nativeTabCollectionTabModelImpl);
-  // Hashed name: Java_J_N_Mrsoi$eP
-  public static native Object org_chromium_chrome_browser_tabmodel_TabCollectionTabModelImpl_getTabAtIndexRecursive(
-      long nativeTabCollectionTabModelImpl,
-      int index);
   // Hashed name: Java_J_N_MC1d0zJW
   public static native int org_chromium_chrome_browser_tabmodel_TabCollectionTabModelImpl_getTabCountForGroup(
       long nativeTabCollectionTabModelImpl,
       Object tabGroupId);
-  // Hashed name: Java_J_N_MsyMBrcO
-  public static native int org_chromium_chrome_browser_tabmodel_TabCollectionTabModelImpl_getTabCountRecursive(
-      long nativeTabCollectionTabModelImpl);
   // Hashed name: Java_J_N_MemGZI2C
   public static native boolean org_chromium_chrome_browser_tabmodel_TabCollectionTabModelImpl_getTabGroupCollapsed(
       long nativeTabCollectionTabModelImpl,
@@ -5964,7 +5999,8 @@ public class GEN_JNI {
   public static native void org_chromium_chrome_browser_tabmodel_TabModelObserverJniBridge_didAddTab(
       long nativeTabModelObserverJniBridge,
       Object tab,
-      int type);
+      int type,
+      int index);
   // Hashed name: Java_J_N_MMKEWgan
   public static native void org_chromium_chrome_browser_tabmodel_TabModelObserverJniBridge_didMoveTab(
       long nativeTabModelObserverJniBridge,
@@ -5999,7 +6035,8 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_M$1wEPKQ
   public static native void org_chromium_chrome_browser_tabmodel_TabModelObserverJniBridge_onTabCloseUndone(
       long nativeTabModelObserverJniBridge,
-      Object tab);
+      Object tab,
+      Object indices);
   // Hashed name: Java_J_N_MruH_F3c
   public static native void org_chromium_chrome_browser_tabmodel_TabModelObserverJniBridge_onTabGroupCreated(
       long nativeTabModelObserverJniBridge,
@@ -6027,7 +6064,8 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_MkEswtJX
   public static native void org_chromium_chrome_browser_tabmodel_TabModelObserverJniBridge_tabClosureUndone(
       long nativeTabModelObserverJniBridge,
-      Object tab);
+      Object tab,
+      int index);
   // Hashed name: Java_J_N_M9V3veZz
   public static native void org_chromium_chrome_browser_tabmodel_TabModelObserverJniBridge_tabRemoved(
       long nativeTabModelObserverJniBridge,
@@ -6187,26 +6225,26 @@ public class GEN_JNI {
       boolean visible,
       boolean anonymize,
       Object offsetTag);
-  // Hashed name: Java_J_N_MW5teN_W
-  public static native void org_chromium_chrome_browser_touch_1to_1fill_TouchToFillBridge_onCredentialSelected(
-      long nativeTouchToFillViewImpl,
+  // Hashed name: Java_J_N_MHJhmJMY
+  public static native void org_chromium_chrome_browser_touch_1to_1fill_TouchToFillPasswordManagerBridge_onCredentialSelected(
+      long nativeTouchToFillPasswordManagerViewImpl,
       Object credential);
-  // Hashed name: Java_J_N_MO$_q9pf
-  public static native void org_chromium_chrome_browser_touch_1to_1fill_TouchToFillBridge_onDismiss(
-      long nativeTouchToFillViewImpl);
-  // Hashed name: Java_J_N_MQErotYB
-  public static native void org_chromium_chrome_browser_touch_1to_1fill_TouchToFillBridge_onHybridSignInSelected(
-      long nativeTouchToFillViewImpl);
-  // Hashed name: Java_J_N_MZxrSSig
-  public static native void org_chromium_chrome_browser_touch_1to_1fill_TouchToFillBridge_onManagePasswordsSelected(
-      long nativeTouchToFillViewImpl,
+  // Hashed name: Java_J_N_MkJbFU9k
+  public static native void org_chromium_chrome_browser_touch_1to_1fill_TouchToFillPasswordManagerBridge_onDismiss(
+      long nativeTouchToFillPasswordManagerViewImpl);
+  // Hashed name: Java_J_N_MLpJeEL7
+  public static native void org_chromium_chrome_browser_touch_1to_1fill_TouchToFillPasswordManagerBridge_onHybridSignInSelected(
+      long nativeTouchToFillPasswordManagerViewImpl);
+  // Hashed name: Java_J_N_MXNECmtX
+  public static native void org_chromium_chrome_browser_touch_1to_1fill_TouchToFillPasswordManagerBridge_onManagePasswordsSelected(
+      long nativeTouchToFillPasswordManagerViewImpl,
       boolean passkeysShown);
-  // Hashed name: Java_J_N_MSei6NuH
-  public static native void org_chromium_chrome_browser_touch_1to_1fill_TouchToFillBridge_onShowCredManSelected(
-      long nativeTouchToFillViewImpl);
-  // Hashed name: Java_J_N_M98beDi1
-  public static native void org_chromium_chrome_browser_touch_1to_1fill_TouchToFillBridge_onWebAuthnCredentialSelected(
-      long nativeTouchToFillViewImpl,
+  // Hashed name: Java_J_N_MoM0jFYC
+  public static native void org_chromium_chrome_browser_touch_1to_1fill_TouchToFillPasswordManagerBridge_onShowCredManSelected(
+      long nativeTouchToFillPasswordManagerViewImpl);
+  // Hashed name: Java_J_N_Mh$rueiJ
+  public static native void org_chromium_chrome_browser_touch_1to_1fill_TouchToFillPasswordManagerBridge_onWebAuthnCredentialSelected(
+      long nativeTouchToFillPasswordManagerViewImpl,
       Object credential);
   // Hashed name: Java_J_N_MBFSRhKY
   public static native void org_chromium_chrome_browser_touch_1to_1fill_no_1passkeys_NoPasskeysBottomSheetBridge_onClickUseAnotherDevice(
@@ -6364,6 +6402,10 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_MT6IsmNl
   public static native void org_chromium_chrome_browser_ui_ExclusiveAccessContext_onExclusiveAccessUserInput(
       long nativeExclusiveAccessContextAndroid);
+  // Hashed name: Java_J_N_MOhIdHLD
+  public static native boolean org_chromium_chrome_browser_ui_ExclusiveAccessManager_canEnterFullscreenModeForTab(
+      long nativeExclusiveAccessManagerAndroid,
+      Object renderFrameHost);
   // Hashed name: Java_J_N_MgfGVXdi
   public static native void org_chromium_chrome_browser_ui_ExclusiveAccessManager_cancelKeyboardLockRequest(
       long nativeExclusiveAccessManagerAndroid,
@@ -6463,9 +6505,24 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_MR9mVCQq
   public static native void org_chromium_chrome_browser_ui_android_webid_AccountSelectionBridge_onMoreDetails(
       long nativeAccountSelectionViewAndroid);
+  // Hashed name: Java_J_N_MQSNNO5W
+  public static native boolean org_chromium_chrome_browser_ui_autofill_AtMemoryBottomSheetBridge_isSearching(
+      long nativeAtMemoryBottomSheetBridge);
   // Hashed name: Java_J_N_MpxA1gPs
   public static native void org_chromium_chrome_browser_ui_autofill_AtMemoryBottomSheetBridge_onDismissed(
       long nativeAtMemoryBottomSheetBridge);
+  // Hashed name: Java_J_N_M3vnBC7a
+  public static native void org_chromium_chrome_browser_ui_autofill_AtMemoryBottomSheetBridge_onQuerySubmitted(
+      long nativeAtMemoryBottomSheetBridge,
+      Object query);
+  // Hashed name: Java_J_N_MnISbMsj
+  public static native void org_chromium_chrome_browser_ui_autofill_AtMemoryBottomSheetBridge_onQueryTextChanged(
+      long nativeAtMemoryBottomSheetBridge,
+      Object query);
+  // Hashed name: Java_J_N_Mg7T$pvp
+  public static native void org_chromium_chrome_browser_ui_autofill_AtMemoryBottomSheetBridge_onSuggestionSelected(
+      long nativeAtMemoryBottomSheetBridge,
+      int position);
   // Hashed name: Java_J_N_MJ3HnZb0
   public static native void org_chromium_chrome_browser_ui_autofill_AuthenticatorSelectionDialogBridge_onDismissed(
       long nativeAuthenticatorSelectionDialogViewAndroid);
@@ -6601,24 +6658,6 @@ public class GEN_JNI {
   public static native boolean org_chromium_chrome_browser_ui_lens_LensOverlayCoordinator_showUI(
       long nativeLensOverlayControllerAndroid,
       int invocationSource);
-  // Hashed name: Java_J_N_Mpy_Meaj
-  public static native void org_chromium_chrome_browser_ui_messages_infobar_SimpleConfirmInfoBarBuilder_create(
-      Object webContents,
-      int infobarTypeIdentifier,
-      Object drawable,
-      Object message,
-      Object primaryText,
-      Object secondaryText,
-      Object linkText,
-      boolean autoExpire,
-      Object listener);
-  // Hashed name: Java_J_N_MOjKzLR5
-  public static native void org_chromium_chrome_browser_ui_plus_1addresses_AllPlusAddressesBottomSheetBridge_onDismissed(
-      long nativeAllPlusAddressesBottomSheetView);
-  // Hashed name: Java_J_N_MhuQclnC
-  public static native void org_chromium_chrome_browser_ui_plus_1addresses_AllPlusAddressesBottomSheetBridge_onPlusAddressSelected(
-      long nativeAllPlusAddressesBottomSheetView,
-      Object plusAddress);
   // Hashed name: Java_J_N_M7GICieI
   public static native long org_chromium_chrome_browser_ui_side_1panel_SidePanelCoordinatorAndroidImpl_create(
       Object caller,
@@ -6626,16 +6665,24 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_MmL$9etN
   public static native void org_chromium_chrome_browser_ui_side_1panel_SidePanelCoordinatorAndroidImpl_destroy(
       long nativeSidePanelCoordinatorAndroid);
-  // Hashed name: Java_J_N_MWu0Tc9K
-  public static native void org_chromium_chrome_browser_ui_side_1panel_SidePanelCoordinatorAndroidImpl_notifyCloseAnimationFinished(
+  // Hashed name: Java_J_N_Meh4jNuS
+  public static native boolean org_chromium_chrome_browser_ui_side_1panel_SidePanelCoordinatorAndroidImpl_hasContentToShow(
       long nativeSidePanelCoordinatorAndroid);
-  // Hashed name: Java_J_N_MXTjFZvz
-  public static native void org_chromium_chrome_browser_ui_side_1panel_SidePanelCoordinatorAndroidImpl_notifyOpenAnimationFinished(
+  // Hashed name: Java_J_N_MK8PWssP
+  public static native void org_chromium_chrome_browser_ui_side_1panel_SidePanelCoordinatorAndroidImpl_init(
       long nativeSidePanelCoordinatorAndroid);
-  // Hashed name: Java_J_N_MBneFZHC
-  public static native void org_chromium_chrome_browser_ui_side_1panel_SidePanelCoordinatorAndroidImpl_onWindowResized(
-      long nativeSidePanelCoordinatorAndroid,
-      boolean canShowSidePanel);
+  // Hashed name: Java_J_N_M5ZBCsrH
+  public static native void org_chromium_chrome_browser_ui_side_1panel_SidePanelCoordinatorAndroidImpl_onContentPopulated(
+      long nativeSidePanelCoordinatorAndroid);
+  // Hashed name: Java_J_N_MPPy0t8j
+  public static native void org_chromium_chrome_browser_ui_side_1panel_SidePanelCoordinatorAndroidImpl_onContentRemoved(
+      long nativeSidePanelCoordinatorAndroid);
+  // Hashed name: Java_J_N_MvS_92o8
+  public static native void org_chromium_chrome_browser_ui_side_1panel_SidePanelCoordinatorAndroidImpl_onWillAutoClose(
+      long nativeSidePanelCoordinatorAndroid);
+  // Hashed name: Java_J_N_MMmpOaI0
+  public static native void org_chromium_chrome_browser_ui_side_1panel_SidePanelCoordinatorAndroidImpl_onWillAutoRestore(
+      long nativeSidePanelCoordinatorAndroid);
   // Hashed name: Java_J_N_MYPX8QCW
   public static native long org_chromium_chrome_browser_ui_side_1panel_WindowScopedSidePanelRegistryBridgeImpl_create(
       Object caller,
@@ -7753,6 +7800,10 @@ public class GEN_JNI {
   public static native void org_chromium_components_facilitated_1payments_FacilitatedPaymentsApiClientBridge_onGetClientToken(
       long nativeFacilitatedPaymentsApiClientAndroid,
       Object clientToken);
+  // Hashed name: Java_J_N_MHEXaQJK
+  public static native void org_chromium_components_facilitated_1payments_FacilitatedPaymentsApiClientBridge_onInvokeInstrumentManagerResult(
+      long nativeFacilitatedPaymentsApiClientAndroid,
+      Object result);
   // Hashed name: Java_J_N_M0Xnlioq
   public static native void org_chromium_components_facilitated_1payments_FacilitatedPaymentsApiClientBridge_onIsAvailable(
       long nativeFacilitatedPaymentsApiClientAndroid,
@@ -7963,19 +8014,6 @@ public class GEN_JNI {
   public static native void org_chromium_components_image_1fetcher_ImageFetcherBridge_reportTotalFetchTimeFromNative(
       Object clientName,
       long startTimeMillis);
-  // Hashed name: Java_J_N_MIZvQmze
-  public static native int org_chromium_components_infobars_InfoBar_getInfoBarIdentifier(
-      long nativeInfoBarAndroid);
-  // Hashed name: Java_J_N_MQGsrOhB
-  public static native void org_chromium_components_infobars_InfoBar_onButtonClicked(
-      long nativeInfoBarAndroid,
-      int action);
-  // Hashed name: Java_J_N_MKozrBH2
-  public static native void org_chromium_components_infobars_InfoBar_onCloseButtonClicked(
-      long nativeInfoBarAndroid);
-  // Hashed name: Java_J_N_M2s4r3u7
-  public static native void org_chromium_components_infobars_InfoBar_onLinkClicked(
-      long nativeInfoBarAndroid);
   // Hashed name: Java_J_N_MbtMeuNg
   public static native long org_chromium_components_input_InputFeatureMap_getNativeMap();
   // Hashed name: Java_J_N_MsNyAbPg
@@ -8586,8 +8624,9 @@ public class GEN_JNI {
   public static native boolean org_chromium_components_payments_PaymentValidator_validatePaymentValidationErrorsAndroid(
       Object buffer);
   // Hashed name: Java_J_N_Ml$6$ceP
-  public static native boolean org_chromium_components_payments_PaymentValidator_validateSecurePaymentConfirmationRequestAndroid(
-      Object buffer);
+  public static native int org_chromium_components_payments_PaymentValidator_validateSecurePaymentConfirmationRequestAndroid(
+      Object buffer,
+      Object initiatorOrigin);
   // Hashed name: Java_J_N_MnWerMBV
   public static native Object org_chromium_components_payments_SslValidityChecker_getInvalidSslCertificateErrorMessage(
       Object webContents);
@@ -8724,6 +8763,10 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_M81oD3lB
   public static native void org_chromium_components_policy_CombinedPolicyProvider_flushPolicies(
       long nativeAndroidCombinedPolicyProvider);
+  // Hashed name: Java_J_N_MEUVqvMy
+  public static native void org_chromium_components_policy_EnterpriseInfo_updateNativeOwnedState(
+      boolean hasDeviceOwnerApp,
+      boolean hasProfileOwnerApp);
   // Hashed name: Java_J_N_MNcVehwq
   public static native void org_chromium_components_policy_PolicyConverter_setPolicyBoolean(
       long nativePolicyConverter,
@@ -8744,6 +8787,8 @@ public class GEN_JNI {
       long nativePolicyConverter,
       Object policyKey,
       Object value);
+  // Hashed name: Java_J_N_M_YiTsCy
+  public static native long org_chromium_components_policy_PolicyFeatureMap_getNativeMap();
   // Hashed name: Java_J_N_MiO$KcSn
   public static native boolean org_chromium_components_policy_PolicyMap_equals(
       long nativePolicyMap,
@@ -8981,6 +9026,9 @@ public class GEN_JNI {
       Object keyword);
   // Hashed name: Java_J_N_My9DvjKS
   public static native Object org_chromium_components_search_1engines_TemplateUrlService_getImageUrlAndPostContent(
+      long nativeTemplateUrlServiceAndroid);
+  // Hashed name: Java_J_N_Mks1WW4O
+  public static native Object org_chromium_components_search_1engines_TemplateUrlService_getPrepopulatedAndRecentlyVisitedTemplateURLs(
       long nativeTemplateUrlServiceAndroid);
   // Hashed name: Java_J_N_MJpD6RKI
   public static native int org_chromium_components_search_1engines_TemplateUrlService_getSearchEngineTypeFromTemplateUrl(
@@ -9973,6 +10021,8 @@ public class GEN_JNI {
   public static native void org_chromium_components_webxr_CardboardUtils_nativeUseCardboardV1DeviceParamsForTesting();
   // Hashed name: Java_J_N_MRHxbN5q
   public static native boolean org_chromium_components_webxr_WebXrAndroidFeatureMap_isHandTrackingEnabled();
+  // Hashed name: Java_J_N_MTF63NJQ
+  public static native boolean org_chromium_components_webxr_WebXrAndroidFeatureMap_isOpenXrAndroidSystemKeyboardEnabled();
   // Hashed name: Java_J_N_M5QCEBhP
   public static native boolean org_chromium_components_webxr_WebXrAndroidFeatureMap_isOpenXrEnabled();
   // Hashed name: Java_J_N_Me7bBZYA
@@ -10200,7 +10250,8 @@ public class GEN_JNI {
       long nativeMediaSessionAndroid);
   // Hashed name: Java_J_N_MlezJYnz
   public static native void org_chromium_content_browser_MediaSessionImpl_resume(
-      long nativeMediaSessionAndroid);
+      long nativeMediaSessionAndroid,
+      int suspendType);
   // Hashed name: Java_J_N_My_T5ZML
   public static native void org_chromium_content_browser_MediaSessionImpl_seek(
       long nativeMediaSessionAndroid,
@@ -10214,7 +10265,8 @@ public class GEN_JNI {
       long nativeMediaSessionAndroid);
   // Hashed name: Java_J_N_M5LC9gX$
   public static native void org_chromium_content_browser_MediaSessionImpl_suspend(
-      long nativeMediaSessionAndroid);
+      long nativeMediaSessionAndroid,
+      int suspendType);
   // Hashed name: Java_J_N_MQWja$xA
   public static native void org_chromium_content_browser_RenderWidgetHostViewImpl_dismissTextHandles(
       long nativeRenderWidgetHostViewAndroid);
@@ -10230,6 +10282,10 @@ public class GEN_JNI {
   // Hashed name: Java_J_N_Myd8R_Wn
   public static native void org_chromium_content_browser_RenderWidgetHostViewImpl_onViewportInsetBottomChanged(
       long nativeRenderWidgetHostViewAndroid);
+  // Hashed name: Java_J_N_MKKV9hw9
+  public static native void org_chromium_content_browser_RenderWidgetHostViewImpl_setIsGestureNavigationMode(
+      long nativeRenderWidgetHostViewAndroid,
+      boolean isGestureNavigationMode);
   // Hashed name: Java_J_N_McU85DFE
   public static native void org_chromium_content_browser_RenderWidgetHostViewImpl_showContextMenuAtTouchHandle(
       long nativeRenderWidgetHostViewAndroid,
@@ -10372,9 +10428,6 @@ public class GEN_JNI {
   public static native Object org_chromium_content_browser_accessibility_WebContentsAccessibilityImpl_getAbsolutePositionForNode(
       long nativeWebContentsAccessibilityAndroid,
       int id);
-  // Hashed name: Java_J_N_M409tvdv
-  public static native long org_chromium_content_browser_accessibility_WebContentsAccessibilityImpl_getAccessibilityTreeSizeForExperiment(
-      long nativeWebContentsAccessibilityAndroid);
   // Hashed name: Java_J_N_MVBiMGvZ
   public static native Object org_chromium_content_browser_accessibility_WebContentsAccessibilityImpl_getCharacterBoundingBoxes(
       long nativeWebContentsAccessibilityAndroid,
@@ -10557,8 +10610,10 @@ public class GEN_JNI {
       int id,
       int startNodeId,
       int startNodeOffset,
+      int startOffsetType,
       int endNodeId,
-      int endNodeOffset);
+      int endNodeOffset,
+      int endOffsetType);
   // Hashed name: Java_J_N_MjtR1x1L_ForTesting
   public static native void org_chromium_content_browser_accessibility_WebContentsAccessibilityImpl_setMaxContentChangedEventsToFireForTesting(
       long nativeWebContentsAccessibilityAndroid,
@@ -10925,6 +10980,9 @@ public class GEN_JNI {
       long spanPtr,
       int start,
       int end);
+  // Hashed name: Java_J_N_MyXs5U_4
+  public static native void org_chromium_content_browser_input_ImeAdapterImpl_cancelPreviewGesture(
+      long nativeImeAdapterAndroid);
   // Hashed name: Java_J_N_Mm4_bo6O
   public static native void org_chromium_content_browser_input_ImeAdapterImpl_clearAllAutocorrectUnderlineSpans(
       long nativeImeAdapterAndroid);
@@ -12053,8 +12111,6 @@ public class GEN_JNI {
   public static native void org_chromium_net_X509Util_notifyClientCertStoreChanged();
   // Hashed name: Java_J_N_M6C2IQIc
   public static native void org_chromium_net_X509Util_notifyTrustStoreChanged();
-  // Hashed name: Java_J_N_MBhUtRQR
-  public static native boolean org_chromium_net_X509Util_useLockFreeVerification();
   // Hashed name: Java_J_N_MbchJc6_
   public static native void org_chromium_on_1device_1model_AiCoreModelDownloaderWrapper_onAvailable(
       long modelDownloaderAndroid,
