@@ -14,9 +14,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Regression guard for cef-android issue #1: a WebSocket to a local/private address
@@ -49,45 +47,30 @@ public class CefriumWebSocketTest {
         final LocalWebSocketServer ws = new LocalWebSocketServer();
         final String wsUrl = ws.url();
 
-        final CountDownLatch done = new CountDownLatch(1);
-        final AtomicReference<String> result = new AtomicReference<>(null);
-
-        // The page opens the WS, sends one frame, and reports the outcome through the
-        // JS bridge: 'ws:ok' on a successful echo, 'ws:err:*' otherwise.
+        // The page just opens the WS and sends a frame. We assert on the SERVER side
+        // (same process) that the frame arrived -- this proves the handshake completed
+        // and data flowed, without depending on any JS->app bridge. Repeated sends
+        // ride out W90 renderer-startup latency; only the first arrival matters.
         final String html =
                 "<!doctype html><meta charset=utf-8><title>ws-guard</title><script>"
                 + "var ws=new WebSocket('" + wsUrl + "');"
-                + "ws.onopen=function(){ws.send('ping');};"
-                + "ws.onmessage=function(e){window.cefriumQuery({request:'ws:ok:'+e.data});};"
-                + "ws.onerror=function(){window.cefriumQuery({request:'ws:err:error'});};"
-                + "ws.onclose=function(e){window.cefriumQuery({request:'ws:err:close:'+e.code});};"
+                + "ws.onopen=function(){ws.send('ping');"
+                + "  var i=setInterval(function(){try{ws.send('ping')}catch(e){clearInterval(i)}},500);};"
                 + "</script>";
 
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
-            browser.setQueryHandler((queryId, request, origin, callback) -> {
-                if (request != null && request.startsWith("ws:")) {
-                    result.set(request);
-                    callback.success("ack");
-                    done.countDown();
-                    return true;
-                }
-                return false;
-            });
             browser.loadHtmlWithBaseUrl(html, PUBLIC_BASE);
         });
 
-        // On the LNA-block regression the handshake never completes and neither
-        // onmessage nor onclose fires -> the latch times out and the test fails.
-        boolean arrived = done.await(20, TimeUnit.SECONDS);
+        // On the LNA-block regression the handshake never completes, so the server
+        // never receives a frame -> awaitMessage times out and the test fails.
+        boolean connected = ws.awaitMessage(20, TimeUnit.SECONDS);
         ws.close();
 
         Assert.assertTrue(
-                "WebSocket to a local address did not connect+echo within 20s "
-                        + "(LNA regression -- the handshake stalled). result=" + result.get(),
-                arrived);
-        Assert.assertTrue(
-                "WebSocket did not echo successfully; got: " + result.get(),
-                result.get() != null && result.get().startsWith("ws:ok:"));
+                "WebSocket to a local address did not connect within 20s "
+                        + "(LNA regression -- the handshake stalled).",
+                connected);
     }
 }

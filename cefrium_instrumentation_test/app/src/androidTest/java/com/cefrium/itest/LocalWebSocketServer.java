@@ -8,6 +8,8 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tiny in-process loopback WebSocket echo server (RFC 6455) for hermetic
@@ -29,6 +31,11 @@ public final class LocalWebSocketServer implements AutoCloseable {
     private final ServerSocket server;
     private final int port;
     private volatile boolean running = true;
+    // Fires when the server has completed a WS handshake and received the first
+    // client frame -- i.e. the WebSocket actually connected and data flowed. This
+    // is the LNA guard's signal (server-side, so it does not depend on any JS
+    // bridge): if LNA blocks the handshake this never fires.
+    private final CountDownLatch messageReceived = new CountDownLatch(1);
 
     public LocalWebSocketServer() throws Exception {
         server = new ServerSocket(0, 0, InetAddress.getByName("127.0.0.1"));
@@ -116,6 +123,9 @@ public final class LocalWebSocketServer implements AutoCloseable {
                     out.flush();
                     break;
                 }
+                // The handshake completed and a client frame arrived: the WS is
+                // established and data is flowing. Signal the guard.
+                messageReceived.countDown();
                 // Echo back a server (unmasked) text frame with the same payload.
                 writeTextFrame(out, payload);
             }
@@ -152,6 +162,15 @@ public final class LocalWebSocketServer implements AutoCloseable {
     /** ws:// URL of the echo endpoint, e.g. ws://127.0.0.1:45123/ */
     public String url() {
         return "ws://127.0.0.1:" + port + "/";
+    }
+
+    /**
+     * Blocks until a client WebSocket has connected and sent a frame, or the
+     * timeout elapses. Returns true if a frame was received (the handshake
+     * completed -- LNA did not block it).
+     */
+    public boolean awaitMessage(long timeout, TimeUnit unit) throws InterruptedException {
+        return messageReceived.await(timeout, unit);
     }
 
     @Override
