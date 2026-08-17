@@ -36,6 +36,7 @@
 #include "content/public/common/content_switches.h"
 #include "net/base/features.h"
 #include "sandbox/policy/switches.h"
+#include "services/network/public/cpp/features.h"
 #include "third_party/blink/public/common/switches.h"
 #include "ui/base/ui_base_paths.h"
 #include "ui/base/ui_base_switches.h"
@@ -362,6 +363,20 @@ std::optional<int> ChromeMainDelegateCef::BasicStartupComplete() {
                             disable_features);
     // -- "Search with Google Lens" support.
     DisableFeatureByDefault(lens::features::kLensOverlay, disable_features);
+    // -- Local Network Access (LNA) checks. Chromium 151 enables LNA checks --
+    //    including for WebSockets/WebTransport -- by default. When an LNA request
+    //    is detected the network service calls
+    //    URLLoaderNetworkServiceObserver::OnLocalNetworkAccessPermissionRequired
+    //    and gates the connection on the permission decision. CEF has no LNA
+    //    prompt UI wired, so an LNA-triggering WebSocket (a page connecting to a
+    //    local/private address) stalls waiting for a decision that never
+    //    resolves -- reported as extreme WebSocket latency after the 150->151
+    //    bump (cef-android issue #1). Android WebView disables the same feature
+    //    for the same reason (aw_field_trials.cc: "Local Network Access
+    //    restrictions should not be enforced in WebView"). CEF embedders that
+    //    want LNA enforcement can gate it via CefPermissionHandler instead.
+    DisableFeatureByDefault(network::features::kLocalNetworkAccessChecks,
+                            disable_features);
 #if BUILDFLAG(IS_ANDROID)
     // -- Permissions HaTS survey: on Android HatsServiceAndroid needs a
     //    SurveyClientFactory that CEF does not initialize, so triggering a
