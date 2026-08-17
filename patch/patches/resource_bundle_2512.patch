@@ -1,10 +1,10 @@
 diff --git ui/base/resource/resource_bundle.cc ui/base/resource/resource_bundle.cc
-index 73e2f1e74967f6f71062363adb7d48e17c21cfe6..02d171bc4f25e7d5b6067acd6c5f3c7218fd0c57 100644
+index 652348b2bbdbd..0ac11820ae9db 100644
 --- ui/base/resource/resource_bundle.cc
 +++ ui/base/resource/resource_bundle.cc
-@@ -1014,6 +1014,12 @@ ResourceBundle::ResourceBundle(Delegate* delegate)
-     : delegate_(delegate),
+@@ -1018,6 +1018,12 @@ ResourceBundle::ResourceBundle(Delegate* delegate)
        locale_resources_data_lock_(new base::Lock),
+       resource_handles_lock_(new base::Lock),
        max_scale_factor_(k100Percent) {
 +  // With CEF's multi-threaded mode the ResourceBundle may be created on the
 +  // main thread and then accessed on the UI thread. Allow the SequenceChecker
@@ -15,7 +15,7 @@ index 73e2f1e74967f6f71062363adb7d48e17c21cfe6..02d171bc4f25e7d5b6067acd6c5f3c72
    mangle_localized_strings_ = base::CommandLine::ForCurrentProcess()->HasSwitch(
        switches::kMangleLocalizedStrings);
  }
-@@ -1023,6 +1029,11 @@ ResourceBundle::~ResourceBundle() {
+@@ -1027,6 +1033,11 @@ ResourceBundle::~ResourceBundle() {
    UnloadLocaleResources();
  }
  
@@ -27,8 +27,32 @@ index 73e2f1e74967f6f71062363adb7d48e17c21cfe6..02d171bc4f25e7d5b6067acd6c5f3c72
  // static
  void ResourceBundle::InitSharedInstance(Delegate* delegate) {
    DCHECK(g_shared_instance_ == nullptr) << "ResourceBundle initialized twice";
+@@ -1293,6 +1304,15 @@ std::u16string ResourceBundle::GetLocalizedStringImpl(int resource_id) const {
+     // Fall back on the main data pack (shouldn't be any strings here except
+     // in unittests).
+     data = GetRawDataResource(resource_id);
++#if BUILDFLAG(IS_ANDROID)
++    // On Android, embedded CEF may not bundle every Chromium string resource.
++    // Return empty string instead of crashing — missing UI text is preferable
++    // to killing the renderer process.
++    if (!data.has_value() || data->empty()) {
++      LOG(WARNING) << "Unable to find resource: " << resource_id;
++      return std::u16string();
++    }
++#else
+     CHECK(!data->empty())
+         << "Unable to find resource: " << resource_id
+         << ". If this happens in a browser test running on Windows, it may "
+@@ -1300,6 +1320,7 @@ std::u16string ResourceBundle::GetLocalizedStringImpl(int resource_id) const {
+            " resource, causing the resource to be stripped out because the "
+            "resource is not used by chrome.dll. See "
+            "https://crbug.com/1181150.";
++#endif
+   }
+ 
+   // Strings should not be loaded from a data pack that contains binary data.
 diff --git ui/base/resource/resource_bundle.h ui/base/resource/resource_bundle.h
-index cb3cb9ae8c0c01d59ac4035e5a9603eab65c1ed1..fc0b4c11d588ddf66695e2552f425fa9999de387 100644
+index c742164e29ab9..bf9848fcffa77 100644
 --- ui/base/resource/resource_bundle.h
 +++ ui/base/resource/resource_bundle.h
 @@ -263,6 +263,11 @@ class COMPONENT_EXPORT(UI_BASE) ResourceBundle {
