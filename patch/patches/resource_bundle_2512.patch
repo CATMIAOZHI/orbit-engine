@@ -27,11 +27,35 @@ index d1ee6814618c7cdcdb7fda0faa57a94a75dd7c98..e047d2c3bc63b8503eb448f0c2e194d7
  // static
  void ResourceBundle::InitSharedInstance(Delegate* delegate) {
    DCHECK(g_shared_instance_ == nullptr) << "ResourceBundle initialized twice";
+@@ -1293,6 +1304,15 @@ std::u16string ResourceBundle::GetLocalizedStringImpl(int resource_id) const {
+     // Fall back on the main data pack (shouldn't be any strings here except
+     // in unittests).
+     data = GetRawDataResource(resource_id);
++#if BUILDFLAG(IS_ANDROID)
++    // On Android, embedded CEF may not bundle every Chromium string resource.
++    // Return empty string instead of crashing — missing UI text is preferable
++    // to killing the renderer process.
++    if (!data.has_value() || data->empty()) {
++      LOG(WARNING) << "Unable to find resource: " << resource_id;
++      return std::u16string();
++    }
++#else
+     CHECK(!data->empty())
+         << "Unable to find resource: " << resource_id
+         << ". If this happens in a browser test running on Windows, it may "
+@@ -1300,6 +1320,7 @@ std::u16string ResourceBundle::GetLocalizedStringImpl(int resource_id) const {
+            " resource, causing the resource to be stripped out because the "
+            "resource is not used by chrome.dll. See "
+            "https://crbug.com/1181150.";
++#endif
+   }
+ 
+   // Strings should not be loaded from a data pack that contains binary data.
 diff --git ui/base/resource/resource_bundle.h ui/base/resource/resource_bundle.h
 index 5b0e6cea9c6206526c11af155a26c8c2477690c4..63da981b5350d6b36afd84cd4c85e1cb6eb7efd3 100644
 --- ui/base/resource/resource_bundle.h
 +++ ui/base/resource/resource_bundle.h
-@@ -266,6 +266,11 @@ class COMPONENT_EXPORT(UI_BASE) ResourceBundle {
+@@ -263,6 +263,11 @@ class COMPONENT_EXPORT(UI_BASE) ResourceBundle {
    ResourceBundle(const ResourceBundle&) = delete;
    ResourceBundle& operator=(const ResourceBundle&) = delete;
  
