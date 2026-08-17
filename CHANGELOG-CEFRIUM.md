@@ -15,6 +15,30 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.7.1] -- 2026-08-17
+
+Chromium **151.0.7922.137** (CEF branch **7922**). WebSocket regression fix + a
+same-branch security patch bump for CVE parity with Debian's chromium
+151.0.7922.137-1~deb13u1.
+
+### Fixed
+- **WebSockets to a local/private address no longer stall** (cef-android issue #1).
+  Chromium 151 enables Local Network Access (LNA) checks -- including for WebSockets --
+  by default. An LNA-triggering WebSocket (a page connecting to localhost / a LAN
+  address) gates the connection on a permission decision via
+  `OnLocalNetworkAccessPermissionRequired`; Cefrium has no LNA prompt UI wired, so the
+  handshake stalled indefinitely (reported as extreme WebSocket latency after the
+  0.6.x -> 0.7.0 engine bump). Cefrium now disables the LNA feature, matching Android
+  WebView which disables the same feature for the same reason. Validated on device:
+  before, the WS handshake never completed; after, it connects immediately and
+  round-trips 50 messages in ~100 ms. Embedders that want LNA enforcement can gate it
+  via `CefPermissionHandler`.
+
+### Changed
+- **Engine: Chromium 151.0.7922.71 -> 151.0.7922.137** (same CEF branch 7922). A
+  same-branch Chromium security roll-up; tracks the Debian Chromium release for CVE
+  parity. `Cefrium.CHROMIUM_VERSION` now reports 151.0.7922.137. No API changes.
+
 ## [0.7.0] -- 2026-08-03
 
 Chromium **151.0.7922.71** (CEF branch **7922**). Engine bump for CVE parity with
