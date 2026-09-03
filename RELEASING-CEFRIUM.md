@@ -112,6 +112,73 @@ same maintainer, 2000+ builds) has a mature update methodology
 - **CVE parity:** track the Debian Chromium version (find it with
   `apt-cache policy chromium`); that's the tag to pin.
 
+### Cross-branch rebase mechanics (learned doing 149->150->151->152)
+
+A new BUILD number (scenario 2/3) means rebasing the ~370-commit `android-port`
+onto the new CEF branch. What the terse "rebase" phase actually takes:
+
+- **Rebase base = `origin/<oldbranch>`, NOT the script's 7778 merge-base.** Replay
+  ONLY our commits:
+  `git branch -f android-port-<new> android-port && git checkout android-port-<new>`
+  then `git rebase --onto origin/<new> $(git merge-base origin/<old> android-port) android-port-<new>`.
+- **Resolution strategy (drive it, don't hand-resolve 370 commits).** Per conflicted
+  file: docs (`*.md`/README/LICENSE...) -> `--theirs`; **pure-port file** (does NOT
+  exist in `origin/<new>` -- our SDK/JNI/tooling; test with
+  `git cat-file -e origin/<new>:<file>`) -> `--theirs` (our commit is the forward
+  state; upstream never touched it); **shared file** (exists in `origin/<new>`) ->
+  auto-resolve only when ONE conflict side is empty (keep the non-empty side), else
+  STOP and merge by hand (BUILD.gn, patch.cfg, chrome/content/base source). Skip
+  commits that go empty. `git clean -fdxq` before each step (untracked build residue
+  blocks the next checkout).
+- **VERIFY the rebase, always.** `git diff android-port android-port-<new> --
+  cefrium_sdk/ cefrium_compose/ libcef/browser/android/` MUST be ~empty (only
+  `GEN_JNI.java`). Any other diff is a mis-resolution -> restore that file from
+  `android-port` and commit a fixup. (This caught a dropped
+  `SdkLoadHandler::OnLoadingStateChange` in the 150->151 bump.)
+- **GIT-CLEAN GOTCHA:** the `rebase` phase runs `git clean -fdq` in `cef/`, which
+  DELETES untracked files. **Commit any new source (e.g. a new instrumented test)
+  BEFORE a sync/bump**, or it is gone.
+- After a clean rebase: fast-forward `android-port` to it, re-pin
+  `Cefrium.CHROMIUM_VERSION` (the pin is discarded before the rebase), then
+  `engine-bump.sh <tag> <branch> --from apply`.
+
+### Per-engine API breaks + gotchas (fix at build/gate time)
+
+- **Chromium API breaks** are found by compiling; fix them, they're usually few.
+  150->151 was 1 GN (`android_apk` dropped `strip_resource_names`/
+  `short_resource_paths`) + 5 Java (`OverscrollRefreshHandler.release(boolean)` ->
+  `release(int @OverscrollActivationStatus)`; `MediaSession.suspend()/resume()` ->
+  `suspend/resume(SuspendType)`). Zero C++ breaks. Same-branch (.71->.137) was 0
+  breaks; only `resource_bundle_2512` needed a fuzz/offset regen
+  (`patch -p0 --fuzz=3` then `git diff --no-prefix > patch`, normalize).
+- **New security features flipped ON by default with no CEF UI.** Each engine can
+  enable a feature CEF has no host UI to satisfy, which then hangs/breaks. 151 turned
+  on Local Network Access checks for WebSockets by default -> a page connecting to a
+  local/private-address WebSocket stalled waiting for an LNA permission decision
+  (cef-android issue #1). Fix pattern: `DisableFeatureByDefault(<feature>,
+  disable_features)` in `libcef/common/chrome/chrome_main_delegate_cef.cc`, matching
+  what Android WebView disables (`android_webview/browser/aw_field_trials.cc`). Add a
+  hermetic instrumented regression guard so the gate catches a re-break.
+- **AAR resource drift.** 151 moved Material/AppCompat strings out of the AAR's base
+  `values/` into locale-only `values-XX`; a Maven consumer then fails
+  `processDebugResources` ("resource string/... not found"). Backfill the missing
+  base strings into `cefrium_sdk/res/values/compat_strings.xml`. Compute the exact
+  set: `@string/` refs in the built AAR's `res/layout*/` MINUS strings defined in its
+  base `res/values/`. The `sanity` gate (push-demo build) catches this pre-publish.
+- **GEN_JNI drift gate** blocks the cut whenever native-method count changed: run
+  `cef/cefrium_sdk/regen-gen-jni.sh out/<dir>` and rebuild the AAR, then commit the
+  regenerated `GEN_JNI.java`.
+- **GPG-sign gotcha:** commits are `commit.gpgsign=true` (hardware signing key). When the PIN
+  cache is cold `git commit` HANGS. Prime it with `your key-priming script`, or commit
+  `--no-gpg-sign` and re-sign later:
+  `git rebase --exec 'git commit --amend --no-edit -S' <last-signed>` +
+  `git push --force-with-lease`.
+- **web `brand`/version:** the `brand` phase bumps the logo atomic number (auto-follows
+  `CHROMIUM_VERSION`). Also update the site's CURRENT-engine references (landing
+  "currently ..." line, the comparison-table "Engine" row) -- but LEAVE historical
+  `/releases` cards and benchmark "measured on X" data (changing those falsifies
+  history / measured numbers).
+
 ## 0. Environment
 
 ```bash
