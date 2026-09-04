@@ -60,6 +60,12 @@ bool CefAutofillClientAndroid::IsOffTheRecord() const {
   return mutable_this->GetWebContents().GetBrowserContext()->IsOffTheRecord();
 }
 
+bool CefAutofillClientAndroid::UsesPlatformAutofill() const {
+  // CEF uses Chrome's built-in autofill UI/logic, not Android's platform
+  // autofill (which would be AndroidAutofillClient). Mirrors ChromeAutofillClient.
+  return false;
+}
+
 scoped_refptr<network::SharedURLLoaderFactory>
 CefAutofillClientAndroid::GetURLLoaderFactory() {
   return GetWebContents()
