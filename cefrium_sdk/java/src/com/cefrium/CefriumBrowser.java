@@ -48,6 +48,28 @@ public class CefriumBrowser {
     private OnRenderProcessTerminatedListener mRenderProcessTerminatedListener;
     private OnRequestInterceptedListener mRequestListener;
     private OnFullscreenChangedListener mFullscreenListener;
+    // When false, a small script is injected on each load-finish to neutralize
+    // page/pinch zoom for arbitrary content. See setPinchToZoomEnabled(boolean).
+    private boolean mPinchToZoomEnabled = true;
+
+    // Forces a non-user-scalable viewport and blocks the multi-touch pinch
+    // gesture. Re-applied on every load-finish so it survives navigation. Blink
+    // re-evaluates the viewport when the meta's content attribute changes, so
+    // setting it post-load re-clamps the page scale; the capturing touchmove
+    // listener blocks the pinch gesture itself regardless of the page's viewport.
+    private static final String PINCH_ZOOM_DISABLE_JS =
+            "(function(){"
+            + "var m=document.querySelector('meta[name=\"viewport\"]');"
+            + "if(!m){m=document.createElement('meta');m.setAttribute('name','viewport');"
+            + "(document.head||document.documentElement).appendChild(m);}"
+            + "m.setAttribute('content','width=device-width, initial-scale=1, "
+            + "minimum-scale=1, maximum-scale=1, user-scalable=no');"
+            + "if(!window.__cefriumNoPinch){window.__cefriumNoPinch=true;"
+            + "document.addEventListener('touchmove',function(e){"
+            + "if(e.touches&&e.touches.length>1)e.preventDefault();},{passive:false,capture:true});"
+            + "document.addEventListener('gesturestart',function(e){e.preventDefault();},"
+            + "{passive:false,capture:true});}"
+            + "})();";
 
     // Surface rendering internals — not exposed in public API.
     private android.app.Activity mActivity;
@@ -495,6 +517,9 @@ public class CefriumBrowser {
                                        boolean canGoForward) {
         if (mCallback != null) mCallback.onLoadingStateChanged(isLoading, canGoBack, canGoForward);
         if (mLoadingListener != null) mLoadingListener.onLoadingStateChanged(isLoading, canGoBack, canGoForward);
+        if (!isLoading && !mPinchToZoomEnabled) {
+            evaluateJavaScript(PINCH_ZOOM_DISABLE_JS);
+        }
     }
 
     // Called from native CefRequestHandler::OnRenderProcessTerminated.
@@ -702,6 +727,37 @@ public class CefriumBrowser {
     /** Sets the zoom level (0 = 100%; factor = 1.2^level). */
     public void setZoomLevel(double zoomLevel) {
         if (mNativePtr != 0) nativeSetZoomLevel(mNativePtr, zoomLevel);
+    }
+
+    /**
+     * Enables or disables pinch-to-zoom (and page zoom) for arbitrary page
+     * content. Enabled by default, matching a normal browser.
+     *
+     * <p>When disabled, a small script is injected on every load-finish that
+     * forces a non-user-scalable viewport
+     * ({@code user-scalable=no, maximum-scale=1}) and blocks the multi-touch
+     * pinch gesture. This is applied on top of whatever viewport the page
+     * declares, so it works for pages you do not control. If you DO control the
+     * HTML, declaring that viewport meta yourself is equivalent and takes effect
+     * from first paint.
+     *
+     * <p>Because the neutralizer runs at load-finish (not document-start), a
+     * page could in principle be pinched during the brief pre-load window; for a
+     * hard guarantee from first paint, ship the viewport meta in the page.
+     *
+     * @param enabled true to allow zoom (default), false to disable it.
+     */
+    public void setPinchToZoomEnabled(boolean enabled) {
+        mPinchToZoomEnabled = enabled;
+        // Apply immediately if a document is already loaded.
+        if (!enabled && mNativePtr != 0) {
+            evaluateJavaScript(PINCH_ZOOM_DISABLE_JS);
+        }
+    }
+
+    /** @return whether pinch/page zoom is currently enabled (default true). */
+    public boolean isPinchToZoomEnabled() {
+        return mPinchToZoomEnabled;
     }
 
     // ─────────────── Navigation extras ───────────────

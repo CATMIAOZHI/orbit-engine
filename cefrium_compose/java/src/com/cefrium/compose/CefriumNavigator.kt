@@ -184,6 +184,16 @@ class CefriumNavigator {
         state?.browser?.setZoomLevel(zoomLevel)
     }
 
+    /**
+     * Enables or disables pinch-to-zoom (and page zoom) for arbitrary page
+     * content. Enabled by default. When disabled, a script injected on every
+     * load-finish forces a non-user-scalable viewport and blocks the multi-touch
+     * pinch gesture. See [com.cefrium.CefriumBrowser.setPinchToZoomEnabled].
+     */
+    fun setPinchToZoomEnabled(enabled: Boolean) {
+        state?.browser?.setPinchToZoomEnabled(enabled)
+    }
+
     // ── Request interceptor ──
 
     /** Sets a programmatic request interceptor (block decisions; null clears). */
