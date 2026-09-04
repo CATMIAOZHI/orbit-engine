@@ -7,19 +7,26 @@
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/path_service.h"
+#include "build/build_config.h"
 #include "cef/include/test/cef_test_helpers.h"
 #include "cef/libcef/browser/browser_host_base.h"
+#if !BUILDFLAG(IS_ANDROID)
 #include "cef/libcef/browser/chrome/chrome_browser_host_impl.h"
+#endif
 #include "cef/libcef/browser/thread_util.h"
 #include "cef/libcef/common/api_version_util.h"
 #include "chrome/browser/password_manager/factories/profile_password_store_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#endif
 #include "components/password_manager/core/browser/password_store/password_store_interface.h"
 #include "components/password_manager/core/browser/password_store/smart_bubble_stats_store.h"
 #include "net/base/features.h"
 #include "services/network/public/cpp/features.h"
+#if !BUILDFLAG(IS_ANDROID)
 #include "ui/views/widget/widget.h"
+#endif
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -50,6 +57,11 @@ int CefGetChromeBrowserOwnedWidgetCountForTests(CefRefPtr<CefBrowser> browser) {
   CEF_API_REQUIRE_ADDED(CEF_EXPERIMENTAL);
   CEF_REQUIRE_UIT_RETURN(-1);
 
+#if BUILDFLAG(IS_ANDROID)
+  // BrowserView and the Views widget tree are desktop-only; Chrome-style
+  // browsers with owned widgets do not exist on Android.
+  return -1;
+#else
   auto browser_base = CefBrowserHostBase::FromBrowser(browser);
   if (!browser_base || browser_base->IsAlloyStyle()) {
     return -1;
@@ -76,6 +88,7 @@ int CefGetChromeBrowserOwnedWidgetCountForTests(CefRefPtr<CefBrowser> browser) {
         }
       });
   return count;
+#endif
 }
 
 void CefClearChromeBrowserPasswordDismissalStatsForTests(
@@ -93,6 +106,11 @@ void CefClearChromeBrowserPasswordDismissalStatsForTests(
       },
       callback);
 
+#if BUILDFLAG(IS_ANDROID)
+  // ChromeBrowserHostImpl and the desktop password bubble stats store are
+  // desktop-only; there are no dismissal stats to clear on Android.
+  std::move(complete).Run();
+#else
   auto browser_base = CefBrowserHostBase::FromBrowser(browser);
   if (!browser_base || browser_base->IsAlloyStyle()) {
     std::move(complete).Run();
@@ -118,4 +136,5 @@ void CefClearChromeBrowserPasswordDismissalStatsForTests(
           },
           expected_origin),
       base::Time(), base::Time::Max(), std::move(complete));
+#endif
 }
