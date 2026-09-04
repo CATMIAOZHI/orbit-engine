@@ -151,6 +151,22 @@ onto the new CEF branch. What the terse "rebase" phase actually takes:
   `suspend/resume(SuspendType)`). Zero C++ breaks. Same-branch (.71->.137) was 0
   breaks; only `resource_bundle_2512` needed a fuzz/offset regen
   (`patch -p0 --fuzz=3` then `git diff --no-prefix > patch`, normalize).
+  151->152 was 3 C++ breaks, all upstream-correct guards/adaptations:
+  (a) `ui::Layer::SetShowSurface` color arg `SkColor` -> `SkColor4f` (wrap our OSR
+  Android call in `SkColor4f::FromColor(...)`; same SkColor->SkColor4f migration hit
+  `SetColor` in the rebased OSR conflict); (b) `autofill::AutofillClient` added pure
+  virtual `UsesPlatformAutofill() const` -> override in `CefAutofillClientAndroid`
+  returning `false` (CEF uses Chrome's built-in autofill, like ChromeAutofillClient,
+  not Android's platform autofill = `true`); (c) upstream added test helpers using
+  desktop-only `ChromeBrowserHostImpl`/`BrowserView`/Views to `test_helpers_impl.cc`
+  -- guard the desktop-only includes + both function bodies with
+  `#if !BUILDFLAG(IS_ANDROID)` and Android stubs (`browser.h`/`tab_strip_model.h`
+  have been `#error`-desktop-only since 151; `chrome_browser_host_impl.cc` is already
+  `sources -=`'d out of the Android build, so only new INCLUDERS of its header break).
+  Also drop patches upstream merged into Chromium: 152 absorbed `tools_metrics_27f8690`
+  (Chromium's own `tools/metrics/BUILD.gn` gained the non-git-checkout guard) -> its
+  patcher run reported "patch file does not exist"; remove the orphaned `patch.cfg`
+  entry (the .patch file was already dropped by the rebase following upstream).
 - **New security features flipped ON by default with no CEF UI.** Each engine can
   enable a feature CEF has no host UI to satisfy, which then hangs/breaks. 151 turned
   on Local Network Access checks for WebSockets by default -> a page connecting to a
@@ -173,6 +189,16 @@ onto the new CEF branch. What the terse "rebase" phase actually takes:
   `--no-gpg-sign` and re-sign later:
   `git rebase --exec 'git commit --amend --no-edit -S' <last-signed>` +
   `git push --force-with-lease`.
+- **CRITICAL -- gpgsign SILENTLY CORRUPTS the cross-branch rebase.** With a cold PIN,
+  every `git rebase --continue` fails at "gpg failed to sign ... signing failed:
+  Timeout" -> the pick does NOT advance and leaves NO conflict, so the auto-driver's
+  "not-advanced + no unmerged = empty commit -> `git rebase --skip`" heuristic DROPS
+  the real commit and its files (whole Android commits vanished; `origin/<new>..HEAD`
+  stayed empty while 5+ picks "done"). Symptom: pure-port dirs go MISSING mid-rebase.
+  Fix: before starting the rebase, `git -C cef config --local commit.gpgsign false`
+  (repo-local override, global stays true), run the whole rebase+driver unsigned, then
+  re-sign the range and unset the local flag. Abort + restart if you only notice after
+  files disappear. This is separate from the plain "commit hangs" gotcha above.
 - **web `brand`/version:** the `brand` phase bumps the logo atomic number (auto-follows
   `CHROMIUM_VERSION`). Also update the site's CURRENT-engine references (landing
   "currently ..." line, the comparison-table "Engine" row) -- but LEAVE historical
