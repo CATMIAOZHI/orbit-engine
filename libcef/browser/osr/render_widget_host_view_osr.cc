@@ -1261,8 +1261,9 @@ void CefRenderWidgetHostViewOSR::SynchronizeVisualProperties(
     if (root_layer_) {
       viz::SurfaceId surface_id(GetFrameSinkId(), GetCurrentLocalSurfaceId());
       root_layer_->SetShowSurface(
-          surface_id, GetViewBounds().size(), GetBackgroundColor()
-              ? *GetBackgroundColor() : SK_ColorBLACK,
+          surface_id, GetViewBounds().size(),
+          SkColor4f::FromColor(GetBackgroundColor() ? *GetBackgroundColor()
+                                                    : SK_ColorBLACK),
           deadline_policy, false /* stretch_content_to_fill_bounds */);
     }
 #endif
