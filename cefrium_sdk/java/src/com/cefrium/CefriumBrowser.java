@@ -57,18 +57,41 @@ public class CefriumBrowser {
     // re-evaluates the viewport when the meta's content attribute changes, so
     // setting it post-load re-clamps the page scale; the capturing touchmove
     // listener blocks the pinch gesture itself regardless of the page's viewport.
+    // The handlers are stored on window and the original viewport is saved so
+    // PINCH_ZOOM_ENABLE_JS can fully revert without a page reload.
     private static final String PINCH_ZOOM_DISABLE_JS =
             "(function(){"
             + "var m=document.querySelector('meta[name=\"viewport\"]');"
             + "if(!m){m=document.createElement('meta');m.setAttribute('name','viewport');"
             + "(document.head||document.documentElement).appendChild(m);}"
+            + "if(window.__cefriumVp===undefined){"
+            + "window.__cefriumVp=m.getAttribute('content')||'';}"
             + "m.setAttribute('content','width=device-width, initial-scale=1, "
             + "minimum-scale=1, maximum-scale=1, user-scalable=no');"
-            + "if(!window.__cefriumNoPinch){window.__cefriumNoPinch=true;"
-            + "document.addEventListener('touchmove',function(e){"
-            + "if(e.touches&&e.touches.length>1)e.preventDefault();},{passive:false,capture:true});"
-            + "document.addEventListener('gesturestart',function(e){e.preventDefault();},"
+            + "if(!window.__cefriumNoPinchTM){"
+            + "window.__cefriumNoPinchTM=function(e){"
+            + "if(e.touches&&e.touches.length>1)e.preventDefault();};"
+            + "window.__cefriumNoPinchGS=function(e){e.preventDefault();};"
+            + "document.addEventListener('touchmove',window.__cefriumNoPinchTM,"
+            + "{passive:false,capture:true});"
+            + "document.addEventListener('gesturestart',window.__cefriumNoPinchGS,"
             + "{passive:false,capture:true});}"
+            + "})();";
+
+    // Reverts PINCH_ZOOM_DISABLE_JS in-place (no reload): restores the original
+    // viewport meta and removes the gesture-blocking listeners.
+    private static final String PINCH_ZOOM_ENABLE_JS =
+            "(function(){"
+            + "var m=document.querySelector('meta[name=\"viewport\"]');"
+            + "if(m){m.setAttribute('content',"
+            + "(window.__cefriumVp!==undefined&&window.__cefriumVp)?"
+            + "window.__cefriumVp:'width=device-width, initial-scale=1');}"
+            + "if(window.__cefriumNoPinchTM){"
+            + "document.removeEventListener('touchmove',window.__cefriumNoPinchTM,"
+            + "{capture:true});"
+            + "document.removeEventListener('gesturestart',window.__cefriumNoPinchGS,"
+            + "{capture:true});"
+            + "window.__cefriumNoPinchTM=null;window.__cefriumNoPinchGS=null;}"
             + "})();";
 
     // Surface rendering internals — not exposed in public API.
@@ -749,9 +772,10 @@ public class CefriumBrowser {
      */
     public void setPinchToZoomEnabled(boolean enabled) {
         mPinchToZoomEnabled = enabled;
-        // Apply immediately if a document is already loaded.
-        if (!enabled && mNativePtr != 0) {
-            evaluateJavaScript(PINCH_ZOOM_DISABLE_JS);
+        // Apply immediately to the loaded document (no reload). Disabling injects
+        // the neutralizer; enabling reverts it in-place.
+        if (mNativePtr != 0) {
+            evaluateJavaScript(enabled ? PINCH_ZOOM_ENABLE_JS : PINCH_ZOOM_DISABLE_JS);
         }
     }
 
