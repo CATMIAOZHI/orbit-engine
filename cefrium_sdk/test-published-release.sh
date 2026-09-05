@@ -77,8 +77,9 @@ EOF
 
 cat > "$WORK/build.gradle.kts" <<'EOF'
 plugins {
-    id("com.android.application") version "8.7.3" apply false
-    id("org.jetbrains.kotlin.android") version "1.9.24" apply false
+    // AGP 9 provides built-in Kotlin (drop org.jetbrains.kotlin.android). Needed
+    // to dex the SDK's Java-25 (class-69) bytecode.
+    id("com.android.application") version "9.4.0" apply false
 }
 EOF
 
@@ -88,12 +89,11 @@ EOF
 cat > "$WORK/app/build.gradle.kts" <<EOF
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("com.cefrium") version "$VERSION"
 }
 android {
     namespace = "com.example.cefriumtest"
-    compileSdk = 35
+    compileSdk = 37
     defaultConfig {
         applicationId = "com.example.cefriumtest"
         minSdk = 29
@@ -108,7 +108,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
 }
 // The SDK bundles Chromium's Guava ListenableFuture; androidx pulls the
 // com.google.guava:listenablefuture placeholder -> duplicate class. Standard fix.
