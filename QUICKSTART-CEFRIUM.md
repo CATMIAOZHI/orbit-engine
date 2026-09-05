@@ -8,6 +8,14 @@ From zero to rendering a web page in 5 minutes.
 > The dependency AAR is multi-ABI (~240 MB); publish an **Android App Bundle**
 > (or use ABI splits) so each user downloads only their architecture (~150 MB).
 
+> **Build tooling (0.8.0+).** The SDK ships Chromium 152's Java-25 bytecode, so
+> your app must build with **AGP 9.4+**, **Gradle 9.7.1+**, **JDK 25**, and
+> **compileSdk 37**. On AGP 9 use built-in Kotlin (do not apply
+> `org.jetbrains.kotlin.android`; for Compose apply
+> `org.jetbrains.kotlin.plugin.compose`), and enable legacy native-lib packaging
+> (`packaging { jniLibs { useLegacyPackaging = true } }`) since Chromium reads
+> its `.so` files from disk. (0.7.x and earlier used AGP 8.6+/Gradle 8.9/JDK 21.)
+
 ## 1. Create an Android project
 
 In Android Studio: File -> New -> New Project -> Empty Activity.
@@ -43,7 +51,7 @@ plugins {
 }
 
 android {
-    compileSdk 35
+    compileSdk 37
     defaultConfig {
         minSdk 29
         targetSdk 34
@@ -51,6 +59,13 @@ android {
     // Chromium assets must be uncompressed
     androidResources {
         noCompress 'dat', 'pak', 'bin'
+    }
+    // Chromium reads its native libraries from disk (AGP 9 requires this in the
+    // build script rather than android:extractNativeLibs in the manifest).
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 }
 
@@ -595,4 +610,6 @@ pool. Remove that block; the merged APK manifest should read
 **White screen:** The browser needs ~2 seconds after `loadUrl` to
 connect WebContents to the rendering pipeline. This is normal.
 
-**JDK error:** Use JDK 21 (Android Studio JBR). JDK 22+ breaks Gradle 8.9.
+**JDK error:** For 0.8.0+ use **JDK 25** (Gradle 9.7.1 / AGP 9.4). A `cannot
+access CefriumBrowser` compile error means javac is older than 25 and cannot read
+the SDK's Java-25 bytecode. (0.7.x and earlier used JDK 21 / Gradle 8.9.)
