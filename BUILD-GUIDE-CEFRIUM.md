@@ -107,7 +107,7 @@ python3 cef/cefrium_sdk/slim_aar.py \
 ## 5. Build sample apps
 
 ```bash
-export JAVA_HOME=/path/to/android-studio/jbr  # JDK 21 REQUIRED
+export JAVA_HOME=/path/to/jdk-25  # JDK 25 REQUIRED for 0.8.0+ (Gradle 9.7.1/AGP 9.4); JDK 21 for 0.7.x
 export ANDROID_HOME=/path/to/android-sdk
 
 # The browser lives in its own repo (cefrium/cefrium-browser). It defaults to
@@ -296,8 +296,10 @@ first.
 
 ## Troubleshooting
 
-**JDK version error:** Gradle 8.9 requires JDK 21. JDK 22+ causes
-"Unsupported class file major version". Use Android Studio's bundled JBR.
+**JDK version error:** 0.8.0+ requires JDK 25 (Gradle 9.7.1 / AGP 9.4); a
+`cannot access CefriumBrowser` / "Unsupported class file major version 69" error
+means the JDK is older than 25 and cannot read the SDK's Java-25 bytecode. (0.7.x
+and earlier used JDK 21 / Gradle 8.9 with Android Studio's bundled JBR.)
 
 **GN version:** Use `depot_tools/gn` (v2354+), NOT system `/usr/bin/gn`.
 
