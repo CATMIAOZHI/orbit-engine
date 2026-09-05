@@ -59,12 +59,28 @@ for s in $SAMPLES; do
   "$ADB" install -r "$apk" >/dev/null 2>&1
   for p in POST_NOTIFICATIONS CAMERA RECORD_AUDIO ACCESS_FINE_LOCATION; do "$ADB" shell pm grant "$pkg" android.permission.$p >/dev/null 2>&1; done
   "$ADB" shell am force-stop "$pkg" >/dev/null 2>&1; "$ADB" logcat -c >/dev/null 2>&1
+  # Release cached memory from the PREVIOUS heavy sample so this one starts with
+  # headroom. The W90 (3.86 GB) reaps sandboxed Chromium processes slowly, so
+  # without this a later sample can SIGSEGV under memory pressure -- a device
+  # artifact, not a code regression (the samples run clean in isolation).
+  "$ADB" shell am kill-all >/dev/null 2>&1
+  sleep 5
+  # Count MAIN-process (not :sandboxed / :privileged) crash deaths BEFORE launch.
+  # exit-info is cumulative, so we compare before/after to catch only THIS run's
+  # crash. reason 4/5/6 = CRASH / APP CRASH(NATIVE) / ANR. Grepping logcat for
+  # SIGSEGV/tombstone alone false-positives on Chromium's benign crashpad +
+  # sandboxed-renderer reaping (confirmed: cefrium-browser flagged with no real
+  # main-process crash in exit-info).
+  before="$("$ADB" shell dumpsys activity exit-info "$pkg" 2>/dev/null | grep -cE "process=$pkg reason=(4|5|6) ")"
   "$ADB" shell am start -n "$pkg/$act" >/dev/null 2>&1
   sleep 12
-  crash="$("$ADB" logcat -d 2>/dev/null | grep -icE 'FATAL EXCEPTION|NoSuchMethodError|tombstone|SIGSEGV')"
+  after="$("$ADB" shell dumpsys activity exit-info "$pkg" 2>/dev/null | grep -cE "process=$pkg reason=(4|5|6) ")"
+  # Also catch a Java FATAL surfacing in logcat (cleared per-sample above).
+  fatal="$("$ADB" logcat -d 2>/dev/null | grep -icE 'FATAL EXCEPTION|NoSuchMethodError')"
   "$ADB" shell am force-stop "$pkg" >/dev/null 2>&1
-  if [ "$crash" -gt 0 ]; then
-    echo "  $s ($pkg): CRASH -- $("$ADB" logcat -d 2>/dev/null | grep -E 'FATAL|NoSuchMethod' | head -1 | tr -s ' ' | cut -c1-100)"
+  if [ "${after:-0}" -gt "${before:-0}" ] || [ "${fatal:-0}" -gt 0 ]; then
+    sig="$("$ADB" logcat -d 2>/dev/null | grep -E 'FATAL|NoSuchMethod' | head -1 | tr -s ' ' | cut -c1-90)"
+    echo "  $s ($pkg): CRASH -- ${sig:-main-process reason=4/5/6 (native/ANR) in exit-info}"
     fails=$((fails+1))
   else
     echo "  $s ($pkg): OK"
