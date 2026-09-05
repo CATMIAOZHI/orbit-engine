@@ -3,14 +3,18 @@
 // the SDK repo (cef-android), not in the samples repo. The samples only consume
 // the published AAR.
 plugins {
-    id 'com.android.library' version '8.7.3'
-    id 'org.jetbrains.kotlin.android' version '1.9.24'
-    id 'org.jetbrains.dokka' version '1.9.20'
+    // AGP 9 provides built-in Kotlin, so the org.jetbrains.kotlin.android plugin
+    // is removed (AGP 9 rejects it). Only the Compose compiler plugin is applied.
+    id 'com.android.library' version '9.4.0'
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.4.10'
+    // Dokka (API docs) is decoupled from the AAR build: Dokka 1.9.x is
+    // incompatible with Gradle 9 and Dokka 2.x has a different DSL. Docs are
+    // regenerated separately (see RELEASING/README). Re-add under Dokka 2.x later.
 }
 
 android {
     namespace 'com.cefrium.compose'
-    compileSdk 35
+    compileSdk 37
 
     defaultConfig {
         minSdk 29
@@ -24,21 +28,16 @@ android {
         targetCompatibility JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = '11'
-    }
-
     buildFeatures {
         compose true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion '1.5.14'
-    }
-
     sourceSets {
-        // Canonical source lives in java/src (not the Gradle default).
+        // Canonical source lives in java/src (not the Gradle default). AGP's
+        // built-in Kotlin needs the Kotlin source root set explicitly too, else
+        // the .kt files are skipped and the AAR ships an empty classes.jar.
         main.java.srcDirs = ['java/src']
+        main.kotlin.srcDirs = ['java/src']
     }
 }
 
@@ -49,7 +48,7 @@ dependencies {
     compileOnly files('libs/cefrium-sdk.aar')
 
     // Compose
-    implementation platform('androidx.compose:compose-bom:2024.06.00')
+    implementation platform('androidx.compose:compose-bom:2026.08.00')
     implementation 'androidx.compose.ui:ui'
     implementation 'androidx.compose.runtime:runtime'
     // Host lifecycle (LifecycleOwner/LifecycleEventObserver) for CefriumView's
@@ -60,26 +59,5 @@ dependencies {
     configurations.all {
         exclude group: 'com.google.guava', module: 'listenablefuture'
         exclude group: 'org.jspecify'
-    }
-}
-
-// API docs for the Compose wrapper (Kotlin). Output dir resolution, in order:
-//   1. -PdokkaOut=/abs/path        (one-off override)
-//   2. dokkaOut=... in local.properties (gitignored, per-machine — set this to
-//      the web tree and `./gradlew dokkaHtml` republishes there automatically)
-//   3. build/dokka/html            (portable default; nothing personal committed)
-def dokkaLocalProps = new Properties()
-def dokkaLpf = file('local.properties')
-if (dokkaLpf.exists()) { dokkaLpf.withInputStream { dokkaLocalProps.load(it) } }
-tasks.named('dokkaHtml') {
-    moduleName.set('cefrium-compose')
-    outputDirectory.set(file(project.findProperty('dokkaOut')
-            ?: dokkaLocalProps.getProperty('dokkaOut')
-            ?: "$buildDir/dokka/html"))
-    dokkaSourceSets.named('main') {
-        sourceRoots.from(file('java/src'))
-        jdkVersion.set(11)
-        reportUndocumented.set(false)
-        noAndroidSdkLink.set(false)
     }
 }
