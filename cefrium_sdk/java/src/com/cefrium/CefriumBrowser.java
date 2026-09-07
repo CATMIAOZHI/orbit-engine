@@ -1980,7 +1980,13 @@ public class CefriumBrowser {
 
     /**
      * Get the Chromium WebContents object for this browser.
-     * Package-private — internal use only, not part of the public API.
+     * Package-private -- internal use only, not part of the public API.
+     *
+     * NOTE: an external adopter (TE2, termux-extensions-2) reaches this and
+     * connectWebContentsInternal() via a same-package accessor to install a
+     * custom text-selection ActionMode. There is no supported public API for
+     * that yet. If you change either signature, add a CHANGELOG-CEFRIUM.md note
+     * -- external code depends on the current shape with no deprecation window.
      */
     org.chromium.content_public.browser.WebContents getWebContents() {
         if (mNativePtr == 0) return null;
