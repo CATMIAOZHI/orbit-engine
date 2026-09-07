@@ -613,3 +613,39 @@ connect WebContents to the rendering pipeline. This is normal.
 **JDK error:** For 0.8.0+ use **JDK 25** (Gradle 9.7.1 / AGP 9.4). A `cannot
 access CefriumBrowser` compile error means javac is older than 25 and cannot read
 the SDK's Java-25 bytecode. (0.7.x and earlier used JDK 21 / Gradle 8.9.)
+
+**Adding Cefrium to one module of an existing multi-module app:** AGP 9.4+ is a
+whole-*build* requirement, not a per-module one -- Gradle resolves one version per
+plugin id for the entire invocation. If your app already has another Android
+module on an older AGP (a primary WebView/GeckoView module you don't want to
+touch yet, say), that module declaring `id 'com.android.application'` without an
+explicit version inherits whatever the Cefrium module pinned, and pinning a
+different version per module fails fast and unambiguously:
+`Error resolving plugin [id: 'com.android.application', version: '9.4.0'] > ...
+already on the classpath with a different version (X.Y.Z)`. There is no partial
+workaround. Give the Cefrium module its **own standalone Gradle build** (own
+wrapper pinned to 9.7.1+, own `settings.gradle.kts`) instead of a subproject of
+your existing multi-module build; it can still share source via relative
+`sourceSets` paths into your other module's tree. (First external adopter to hit
+this: a host app with an isolated Cefrium module alongside an older primary
+module on AGP 8.x.)
+
+**Shared/reused Kotlin sources going "unresolved" with AGP 9's built-in Kotlin:**
+If your module pulls in Kotlin sources from elsewhere via
+`sourceSets["main"].java.srcDir("../other-module/src/main/java")` (a common
+pattern for a small Cefrium-only module reusing a larger app's shared code), that
+alone is **not enough** under AGP 9's built-in Kotlin. The classic
+`org.jetbrains.kotlin.android` plugin used to feed Android's `java.srcDirs` to
+the Kotlin compiler too; AGP 9's built-in Kotlin support does not do this
+automatically. Symptom: dozens of "Unresolved reference" errors for symbols that
+are clearly defined *somewhere*, with zero errors reported in the files that
+actually define them (because those files were silently never compiled). Fix:
+add the same path via `kotlin.srcDir(...)` as well, e.g.:
+```kotlin
+sourceSets {
+    getByName("main") {
+        java.srcDir("../app/src/main/java")
+        kotlin.srcDir("../app/src/main/java")   // required too, or those files are dropped
+    }
+}
+```
