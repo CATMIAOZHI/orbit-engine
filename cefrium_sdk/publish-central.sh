@@ -167,7 +167,7 @@ write_pom() {
   <developers>
     <developer>
       <id>vejeta</id>
-      <name>Juan Manuel Mendez Rey</name>
+      <name>Juan Manuel Méndez Rey</name>
       <url>https://cefrium.com</url>
     </developer>
   </developers>
