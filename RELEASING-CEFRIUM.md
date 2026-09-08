@@ -32,6 +32,17 @@ flagship APK -> `release-codeberg.sh` (tag + GPG-signed SHA256SUMS + assets) ->
 version; `CEFRIUM_YES=1` bypasses them for CI. After it finishes, commit/push the
 web + cef repos and regenerate Javadoc/Dokka if the API changed.
 
+**Reference apps are a release gate, not an afterthought.** The two reference
+apps (`cefrium-browser/` View API + `compose-browser/` Compose API) are the
+canonical, living migration example an external adopter reads to learn the
+current toolchain -- they were what the first external adopter (TE2) used to
+derive the AGP 9 setup. Before publishing a release (especially across an engine
+or toolchain bump), both MUST build and run on the new toolchain against the
+about-to-be-published SDK; the `flagship` phase builds+runs the flagship on
+device, but confirm `compose-browser` builds too so neither reference app ships
+stale. A reference app that does not build on the release's own toolchain is a
+release blocker.
+
 The manual sequence below is the reference for what each phase does (and for
 running a phase by hand when needed).
 
