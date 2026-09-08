@@ -7,9 +7,9 @@ plugins {
     // is removed (AGP 9 rejects it). Only the Compose compiler plugin is applied.
     id 'com.android.library' version '9.4.0'
     id 'org.jetbrains.kotlin.plugin.compose' version '2.4.10'
-    // Dokka (API docs) is decoupled from the AAR build: Dokka 1.9.x is
-    // incompatible with Gradle 9 and Dokka 2.x has a different DSL. Docs are
-    // regenerated separately (see RELEASING/README). Re-add under Dokka 2.x later.
+    // Dokka (Compose API docs) stays decoupled: Dokka 1.9 breaks on Gradle 9 and
+    // Dokka 2.x needs a non-trivial single-module/built-in-Kotlin DSL migration.
+    // FOLLOW-UP: re-add under Dokka 2.x and regenerate cefrium.com/docs/compose.
 }
 
 android {
