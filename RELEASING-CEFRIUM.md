@@ -32,6 +32,22 @@ flagship APK -> `release-codeberg.sh` (tag + GPG-signed SHA256SUMS + assets) ->
 version; `CEFRIUM_YES=1` bypasses them for CI. After it finishes, commit/push the
 web + cef repos and regenerate Javadoc/Dokka if the API changed.
 
+**Maven Central (migration target -- removes the pruning entirely).** We prune on
+Codeberg only because it is a quota-limited donated host; that pruning is what
+404'd our first external adopter's pinned version. `publish-maven.sh` publishes to
+Codeberg; `publish-central.sh` publishes the same coordinates to Maven Central via
+the Sonatype Central Portal, which has no quota on us and NEVER deletes a version
+(so no prune, no 404) and needs no `maven { url }` line in the consumer
+(`mavenCentral()` already resolves it). It ships one signed bundle per coordinate
+(each SDK variant, compose, plugin + marker), defaults to USER_MANAGED (validates
+but does not release until you press Publish), and supports `--dry-run` (assemble +
+validate locally, no network) and `--publish` (release). One-time setup before the
+first Central publish is in the script header: verify the `com.cefrium` namespace
+via a cefrium.com DNS TXT record, put a Portal user token in `~/.publish-token`,
+and send the signing key's public half to keys.openpgp.org. Once Central is the
+primary host, drop the prune gate and change QUICKSTART's "Version availability"
+note to "all versions permanent".
+
 **Reference apps are a release gate, not an afterthought.** The two reference
 apps (`cefrium-browser/` View API + `compose-browser/` Compose API) are the
 canonical, living migration example an external adopter reads to learn the
