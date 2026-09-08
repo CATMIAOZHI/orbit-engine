@@ -273,8 +273,8 @@ public final class Cefrium {
         return sInitialized;
     }
 
-    /** Cefrium SDK version. */
-    public static final String VERSION = "0.5.1";
+    /** Cefrium SDK version. Kept in lockstep with the release by cut-release.sh. */
+    public static final String VERSION = "0.8.0";
 
     /** Bundled Chromium engine version (pinned to the build). */
     public static final String CHROMIUM_VERSION = "152.0.7977.75";
