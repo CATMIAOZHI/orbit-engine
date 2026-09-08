@@ -62,6 +62,17 @@ gate() { # human confirmation for an irreversible step
 cd "$SRC"
 
 if run patches; then hdr "patches + touch"
+  # Keep the SDK version constant in lockstep with the release so the built AAR
+  # reports the right Cefrium.getVersion(). Idempotent; runs every cut so the
+  # constant can never drift stale again (it lagged at 0.5.1 across many releases,
+  # while only CHROMIUM_VERSION was being bumped). Touched below with the other
+  # sources so ninja recompiles it into the AAR.
+  CEFJAVA="cef/cefrium_sdk/java/src/com/cefrium/Cefrium.java"
+  perl -0777 -i -pe "s{(public static final String VERSION = \")[^\"]*(\")}{\${1}$VERSION\${2}}" "$CEFJAVA"
+  grep -q "String VERSION = \"$VERSION\";" "$CEFJAVA" \
+    && echo ">>> Cefrium.VERSION -> $VERSION" \
+    || { echo "ERROR: could not set Cefrium.VERSION in $CEFJAVA"; exit 1; }
+  touch "$CEFJAVA"
   # Gate: every stored patch must be -p0 / no-prefix (patcher applies with -p0).
   # A git-default a/b-prefixed patch fails on a clean apply -- invisible on an
   # incremental tree. Fail before applying. See cef/PATCHING-CEFRIUM.md.
