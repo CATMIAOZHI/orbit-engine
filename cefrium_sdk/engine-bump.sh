@@ -151,9 +151,9 @@ if run report; then hdr "patch conflict report"
   echo "  Per Android patch (the port's own; core CEF patches come from the rebased branch):"
   for p in cef/patch/patches/android/*.patch; do
     name="$(basename "$p" .patch)"
-    if git apply --reverse --check "$p" 2>/dev/null; then
+    if git apply -p0 --reverse --check "$p" 2>/dev/null; then
       echo "    OK       $name (applied)"; clean=$((clean+1))
-    elif git apply --check "$p" 2>/dev/null; then
+    elif git apply -p0 --check "$p" 2>/dev/null; then
       echo "    PENDING  $name (applies clean, not yet applied)"
     else
       echo "    CONFLICT $name  -> regenerate (project methodology):"
