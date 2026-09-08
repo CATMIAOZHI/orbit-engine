@@ -16,6 +16,21 @@ From zero to rendering a web page in 5 minutes.
 > (`packaging { jniLibs { useLegacyPackaging = true } }`) since Chromium reads
 > its `.so` files from disk. (0.7.x and earlier used AGP 8.6+/Gradle 8.9/JDK 21.)
 
+> **Existing multi-module app?** Gradle resolves a single AGP version for the
+> whole build, so you cannot keep an older module on AGP 8.x and add Cefrium as
+> a sibling subproject on AGP 9.4. Give the Cefrium module its **own standalone
+> Gradle build** (its own wrapper on 9.7.1+ and `settings.gradle`); it can still
+> share sources with your other modules via relative `sourceSets` paths. See
+> "Adding Cefrium to one module of an existing multi-module app" in
+> Troubleshooting for the exact error and the `kotlin.srcDir` gotcha.
+
+> **Version availability.** Only the **latest** SDK version is guaranteed to be
+> hosted. If a Gradle build fails with `Plugin [id: 'com.cefrium', version: 'X']
+> was not found` or an unresolved `com.cefrium:cefrium-sdk:X`, that pinned
+> version was superseded and pruned -- bump to the current version. The full
+> version history is always listed on the Codeberg Releases page and in
+> `CHANGELOG-CEFRIUM.md`, even for versions no longer in the Maven registry.
+
 ## 1. Create an Android project
 
 In Android Studio: File -> New -> New Project -> Empty Activity.
@@ -47,7 +62,7 @@ dependencyResolutionManagement {
 ```groovy
 plugins {
     id 'com.android.application'
-    id 'com.cefrium' version '0.7.1'
+    id 'com.cefrium' version '0.8.0'
 }
 
 android {
@@ -70,7 +85,7 @@ android {
 }
 
 dependencies {
-    implementation 'com.cefrium:cefrium-sdk:0.7.1'  // multi-ABI; App Bundle/ABI splits ship one ABI per device
+    implementation 'com.cefrium:cefrium-sdk:0.8.0'  // multi-ABI; App Bundle/ABI splits ship one ABI per device
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.mediarouter:mediarouter:1.7.0'
     implementation 'androidx.core:core:1.16.0'
