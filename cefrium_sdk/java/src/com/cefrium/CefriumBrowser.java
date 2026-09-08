@@ -1875,6 +1875,9 @@ public class CefriumBrowser {
 
     // Internal: connect WebContents to rendering pipeline.
     // Called after the browser has loaded its first page.
+    // See getWebContents(): external adopters reach this via same-package access;
+    // changing the signature needs a CHANGELOG-CEFRIUM.md note.
+    @androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)
     void connectWebContentsInternal() {
         // This runs from a 2000ms postDelayed (see loadUrl). If the browser was
         // closed in the meantime, mNativePtr still points at the native
@@ -1985,6 +1988,7 @@ public class CefriumBrowser {
      * that yet. If you change either signature, add a CHANGELOG-CEFRIUM.md note
      * -- external code depends on the current shape with no deprecation window.
      */
+    @androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)
     org.chromium.content_public.browser.WebContents getWebContents() {
         if (mNativePtr == 0) return null;
         return nativeGetWebContents(mNativePtr);

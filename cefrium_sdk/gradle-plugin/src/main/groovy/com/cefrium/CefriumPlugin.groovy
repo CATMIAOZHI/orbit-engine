@@ -75,6 +75,38 @@ class CefriumPlugin implements Plugin<Project> {
             }
         }
 
+        // Configure-time lint for a silent AGP 9 pitfall: registering a shared
+        // source root via sourceSets.main.java.srcDir(...) does NOT feed those
+        // files to AGP 9's built-in Kotlin compiler -- kotlin.srcDir(...) must be
+        // added too, or the .kt files are dropped and the consumer sees a cascade
+        // of "unresolved reference" errors in unrelated files (20-minute hunt for
+        // the first external adopter). Warn so the failure is legible.
+        project.afterEvaluate {
+            try {
+                def mainSet = project.android.sourceSets.findByName('main')
+                def kotlinSet = (mainSet != null && mainSet.hasProperty('kotlin')) ? mainSet.kotlin : null
+                if (kotlinSet == null) return  // java-only project: nothing to check
+                def kotlinDirs = kotlinSet.srcDirs
+                mainSet.java.srcDirs.each { dir ->
+                    def d = (dir instanceof File) ? dir : new File(dir.toString())
+                    if (kotlinDirs.contains(d) || !d.isDirectory()) return
+                    boolean hasKt = false
+                    d.traverse(type: groovy.io.FileType.FILES) { f ->
+                        if (f.name.endsWith('.kt')) { hasKt = true; return groovy.io.FileVisitResult.TERMINATE }
+                    }
+                    if (hasKt) {
+                        project.logger.warn(
+                            "Cefrium: java.srcDir '${d}' contains Kotlin sources but is not a " +
+                            "kotlin.srcDir. Under AGP 9 built-in Kotlin those .kt files are NOT " +
+                            "compiled (symptom: 'unresolved reference' errors in unrelated files). " +
+                            "Add to this sourceSet: kotlin.srcDir('${d}')")
+                    }
+                }
+            } catch (Throwable ignore) {
+                // Best-effort lint only; never fail the consumer build over it.
+            }
+        }
+
         // AGP 8+/9 variant API. Accessed dynamically (Groovy) so no AGP-API
         // compile dependency is needed for the plugin.
         def androidComponents = project.extensions.getByName('androidComponents')
