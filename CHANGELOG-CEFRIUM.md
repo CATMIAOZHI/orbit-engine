@@ -15,6 +15,58 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.8.1] -- 2026-09-09
+
+Chromium **152.0.7977.82** (CEF branch **7977**). Same-branch security patch bump
+for CVE parity with Debian's chromium 152.0.7977.82, plus distribution on Maven
+Central.
+
+### Added
+- **Now published to Maven Central** (`com.cefrium:*`), alongside the existing
+  Codeberg Maven registry. `mavenCentral()` -- already present in every Android
+  build -- resolves the SDK, the Compose wrapper, and the `com.cefrium` Gradle
+  plugin with no extra repository line, and every version stays available
+  permanently (Central never deletes a release). The Codeberg registry remains as
+  a mirror (latest version only). See QUICKSTART-CEFRIUM.md.
+
+### Changed
+- **Engine: Chromium 152.0.7977.75 -> 152.0.7977.82** (same CEF branch 7977). A
+  same-branch Chromium security roll-up tracking the Debian Chromium release for
+  CVE parity. `Cefrium.CHROMIUM_VERSION` now reports 152.0.7977.82. No API changes.
+- **Internal accessors marked `@RestrictTo`.** `CefriumBrowser`'s package-private
+  `getWebContents()` / `connectWebContentsInternal()` now carry
+  `@RestrictTo(LIBRARY)`, so code reaching them from outside the library (e.g. a
+  same-package accessor in a consumer module) gets a lint warning at compile time.
+  These were never part of the public API; no functional change.
+
+## [0.8.0] -- 2026-09-05
+
+Chromium **152.0.7977.75** (CEF branch **7977**). Cross-branch engine bump
+(151 -> 152) for CVE parity with Debian, a new pinch-to-zoom control, and a raised
+consumer build-toolchain floor.
+
+### Added
+- **Pinch-to-zoom control: `setPinchToZoomEnabled(boolean)` / `isPinchToZoomEnabled()`**
+  on `CefriumBrowser`, and `setPinchToZoomEnabled(boolean)` on the Compose
+  `CefriumNavigator`. Lets an app disable (or re-enable) page/pinch zoom for
+  arbitrary content -- requested by an SDK user who needed a fixed-scale view.
+  Validated on device.
+
+### Changed
+- **Engine: Chromium 151.0.7922.137 -> 152.0.7977.75** (CEF 7922 -> 7977). A
+  cross-branch bump tracking the Debian Chromium security release; the port was
+  rebased onto CEF 7977. `Cefrium.CHROMIUM_VERSION` now reports 152.0.7977.75.
+- **BREAKING -- consumer build toolchain.** The SDK now ships Chromium 152's
+  **Java-25 (class-file major 69) bytecode**, so a consumer app must build with
+  **AGP 9.4+**, **Gradle 9.7.1+**, **JDK 25**, and **compileSdk 37**. On AGP 9 use
+  built-in Kotlin (drop `org.jetbrains.kotlin.android`; for Compose apply
+  `org.jetbrains.kotlin.plugin.compose`), enable
+  `packaging { jniLibs { useLegacyPackaging = true } }`, and do not exclude
+  `org.jspecify`. This floor is imposed by Chromium 152 (it compiles its Java with
+  `--release 25`) and is not optional. QUICKSTART-CEFRIUM.md Troubleshooting has the
+  exact migration and the multi-module-app caveat (Gradle resolves one AGP version
+  per build). (0.7.x used AGP 8.6+/Gradle 8.9/JDK 21.)
+
 ## [0.7.1] -- 2026-08-17
 
 Chromium **151.0.7922.137** (CEF branch **7922**). WebSocket regression fix + a
