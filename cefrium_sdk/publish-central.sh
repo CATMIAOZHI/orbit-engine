@@ -127,13 +127,17 @@ sign_and_sum() {
   sha1sum "$f" | cut -d' ' -f1 > "$f.sha1"
 }
 
-# place <artifact> <version> <src-file> <ext-or-classifier.ext>
-# Copies src-file into the layout as <artifact>-<version>.<suffix>, then signs+sums.
+# place <artifact> <version> <src-file> <ext> [classifier]
+# Copies src-file into the Maven layout as <artifact>-<version>[-<classifier>].<ext>,
+# then signs+sums. Classifiers use the DASH form (-sources.jar / -javadoc.jar) that
+# Maven Central requires -- a dot form (.sources.jar) is not recognized as the
+# classifier and fails validation ("Sources/Javadocs not found in entries").
 place() {
-  local artifact="$1" ver="$2" src="$3" suffix="$4"
+  local artifact="$1" ver="$2" src="$3" ext="$4" classifier="${5:-}"
   local dir="$REPO/$GROUP_PATH/$artifact/$ver"
   mkdir -p "$dir"
-  local dest="$dir/$artifact-$ver.$suffix"
+  local name="$artifact-$ver"; [ -n "$classifier" ] && name="$name-$classifier"
+  local dest="$dir/$name.$ext"
   cp "$src" "$dest"
   sign_and_sum "$dest"
 }
@@ -192,7 +196,7 @@ make_sources_jar() {
     printf 'See https://cefrium.com for sources.\n' > "$WORK/README-sources.txt"
     ( cd "$WORK" && zip -q "$out" README-sources.txt && rm -f README-sources.txt )
   fi
-  place "$artifact" "$VERSION" "$out" "sources.jar"
+  place "$artifact" "$VERSION" "$out" "jar" "sources"
 }
 
 # make_javadoc_jar <artifact> <docs-dir-or-empty>
@@ -210,7 +214,7 @@ make_javadoc_jar() {
       > "$WORK/index.html"
     ( cd "$WORK" && zip -q "$out" index.html && rm -f index.html )
   fi
-  place "$artifact" "$VERSION" "$out" "javadoc.jar"
+  place "$artifact" "$VERSION" "$out" "jar" "javadoc"
 }
 
 # ---------------------------------------------------------------------------
