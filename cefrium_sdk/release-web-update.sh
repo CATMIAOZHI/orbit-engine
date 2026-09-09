@@ -68,7 +68,7 @@ apply() { # file, perl-expr, must-contain-after, label
 echo "Web update: $PREV -> $NEW (CEF $BRANCH, Chromium $CHROMIUM, $DATE)"
 
 # 1. Quickstart — bump the cefrium plugin + dependency coordinates.
-apply "$QS" "s{(com\\.cefrium['\"]\\)? version ['\"])$PREV(['\"])}{\${1}$NEW\${2}}g; s{(com\\.cefrium:cefrium-(?:sdk|compose)[^:\"]*:)$PREV}{\${1}$NEW}g" \
+apply "$QS" "s{(com\\.cefrium['\"]\\)? version ['\"])[0-9]+\\.[0-9]+\\.[0-9]+(['\"])}{\${1}$NEW\${2}}g; s{(com\\.cefrium:cefrium-(?:sdk|compose)[^:\"]*:)[0-9]+\\.[0-9]+\\.[0-9]+}{\${1}$NEW}g" \
   "$NEW" "quickstart version"
 
 # 2-3. Releases page (native <details> accordion layout, redesigned 2026-06). Skip
