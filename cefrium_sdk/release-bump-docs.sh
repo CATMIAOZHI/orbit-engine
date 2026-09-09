@@ -22,14 +22,14 @@ for f in "$CEF/QUICKSTART-CEFRIUM.md" "$CEF/README.md"; do
   [ -f "$f" ] || { echo "  skip (missing): ${f#"$CEF"/}"; continue; }
   perl -0777 -pi -e "
     # Gradle coordinate: com.cefrium:cefrium-{sdk,compose,gradle-plugin}:<ver>
-    s{(com\\.cefrium:cefrium-(?:sdk|compose|gradle-plugin):)\\Q$PREV\\E}{\${1}$NEW}g;
+    s{(com\\.cefrium:cefrium-(?:sdk|compose|gradle-plugin):)[0-9]+\\.[0-9]+\\.[0-9]+}{\${1}$NEW}g;
     # Plugin block, both DSLs: id 'com.cefrium' version '<ver>' (Groovy) and
     # id(\"com.cefrium\") version \"<ver>\" (Kotlin, with parens).
-    s{(id\\s*\\(?\\s*['\"]com\\.cefrium['\"]\\s*\\)?\\s+version\\s+['\"])\\Q$PREV\\E}{\${1}$NEW}g;
+    s{(id\\s*\\(?\\s*['\"]com\\.cefrium['\"]\\s*\\)?\\s+version\\s+['\"])[0-9]+\\.[0-9]+\\.[0-9]+}{\${1}$NEW}g;
     # Registry download URL path: /com/cefrium/cefrium-{sdk,compose}/<ver>/
-    s{(/com/cefrium/cefrium-(?:sdk|compose)/)\\Q$PREV\\E/}{\${1}$NEW/}g;
+    s{(/com/cefrium/cefrium-(?:sdk|compose)/)[0-9]+\\.[0-9]+\\.[0-9]+/}{\${1}$NEW/}g;
     # Download file name: cefrium-{sdk,compose}-<ver>.aar
-    s{(cefrium-(?:sdk|compose)-)\\Q$PREV\\E(\\.aar)}{\${1}$NEW\${2}}g;
+    s{(cefrium-(?:sdk|compose)-)[0-9]+\\.[0-9]+\\.[0-9]+(\\.aar)}{\${1}$NEW\${2}}g;
   " "$f"
   echo "  bumped cefrium refs $PREV -> $NEW in ${f#"$CEF"/}"
 done
