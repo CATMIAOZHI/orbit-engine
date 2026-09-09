@@ -24,12 +24,16 @@ From zero to rendering a web page in 5 minutes.
 > "Adding Cefrium to one module of an existing multi-module app" in
 > Troubleshooting for the exact error and the `kotlin.srcDir` gotcha.
 
-> **Version availability.** Only the **latest** SDK version is guaranteed to be
-> hosted. If a Gradle build fails with `Plugin [id: 'com.cefrium', version: 'X']
-> was not found` or an unresolved `com.cefrium:cefrium-sdk:X`, that pinned
-> version was superseded and pruned -- bump to the current version. The full
-> version history is always listed on the Codeberg Releases page and in
-> `CHANGELOG-CEFRIUM.md`, even for versions no longer in the Maven registry.
+> **Where it's hosted (two sources).** Cefrium is published to **Maven Central**
+> (recommended -- `mavenCentral()` already in every build resolves it with no extra
+> repository line, and every version stays available permanently) and mirrored on
+> the **Codeberg Maven registry** (the `maven { url ... }` line in the settings
+> below; latest version only). Either works. If you use Central you can drop the
+> Codeberg `maven { url }` lines entirely. If a build fails with `Plugin [id:
+> 'com.cefrium', version: 'X'] was not found` against the Codeberg mirror, that
+> pinned version was pruned -- either bump to the current version or switch to
+> Maven Central, which keeps it. Full version history: the Codeberg Releases page
+> and `CHANGELOG-CEFRIUM.md`.
 
 ## 1. Create an Android project
 
@@ -62,7 +66,7 @@ dependencyResolutionManagement {
 ```groovy
 plugins {
     id 'com.android.application'
-    id 'com.cefrium' version '0.8.0'
+    id 'com.cefrium' version '0.8.1'
 }
 
 android {
@@ -85,7 +89,7 @@ android {
 }
 
 dependencies {
-    implementation 'com.cefrium:cefrium-sdk:0.8.0'  // multi-ABI; App Bundle/ABI splits ship one ABI per device
+    implementation 'com.cefrium:cefrium-sdk:0.8.1'  // multi-ABI; App Bundle/ABI splits ship one ABI per device
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.mediarouter:mediarouter:1.7.0'
     implementation 'androidx.core:core:1.16.0'
