@@ -111,7 +111,7 @@ else
   # CHANGELOG [NEW] section (same source of truth as the notes). Emerald "Fixes
   # CVE-..." chip in the summary; empty when the release fixes no CVE.
   CVES=$(awk -v v="$NEW" '$0 ~ "^## \\[" v "\\]"{f=1;next} f&&/^## \[/{exit} f' "$CHANGELOG" 2>/dev/null \
-          | grep -oE 'CVE-[0-9]{4}-[0-9]+' | sort -u)
+          | { grep -oE 'CVE-[0-9]{4}-[0-9]+' || true; } | sort -u)
   CVE_CHIP=""
   if [ -n "$CVES" ]; then
     cve_first=$(printf '%s\n' "$CVES" | head -1); cve_n=$(printf '%s\n' "$CVES" | grep -c .)
