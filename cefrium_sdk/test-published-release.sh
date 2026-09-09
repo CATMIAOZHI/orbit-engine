@@ -239,19 +239,34 @@ if [ -n "$ADB" ] && [ "$("$ADB" devices 2>/dev/null | grep -c 'device$')" -ge 1 
     "$ADB" install "$apk" 2>&1 | grep -iE 'fail|error' | head -3 | sed 's/^/      /'
     exit 1
   fi
+  # Crash detection is PACKAGE-SCOPED via exit-info, not an unfiltered logcat grep.
+  # An `logcat -d | grep SIGSEGV|tombstone` false-fails whenever ANOTHER app on the
+  # device (e.g. a second CEF consumer left running) crashes into the shared log, and
+  # a sandboxed-renderer reap / W90 LMK-race SIGSEGV is not an app failure. Count only
+  # MAIN-process real crashes (exit-info reason 4/5/6, process=$pkg with no ":") for
+  # THIS package, plus a package-scoped FATAL EXCEPTION, and give the slow W90 time to
+  # spawn the renderer (it takes ~15-20s; 12s read mid-startup). Mirrors smoke-samples.sh.
+  mainpat="process=$pkg reason=(4|5|6) "
+  before="$("$ADB" shell dumpsys activity exit-info "$pkg" 2>/dev/null | grep -cE "$mainpat" || true)"
   "$ADB" shell am force-stop "$pkg" >/dev/null 2>&1 || true; "$ADB" logcat -c >/dev/null 2>&1 || true
   "$ADB" shell am start -n "$pkg/$act" >/dev/null 2>&1 || true
-  sleep 12
-  # grep -c exits 1 on ZERO matches (the no-crash happy path); under pipefail+set -e
-  # that would abort. `|| true` keeps it; empty -> treat as 0 below.
-  crash="$("$ADB" logcat -d 2>/dev/null | grep -icE 'FATAL EXCEPTION|NoSuchMethodError|tombstone|SIGSEGV' || true)"
+  sleep 22
+  after="$("$ADB" shell dumpsys activity exit-info "$pkg" 2>/dev/null | grep -cE "$mainpat" || true)"
+  # FATAL EXCEPTION block names its package ("Process: <pkg>, PID: ..."); scope to $pkg.
+  jcrash="$("$ADB" logcat -d 2>/dev/null | grep -A2 'FATAL EXCEPTION' | grep -cF "Process: $pkg" || true)"
+  alive="$("$ADB" shell pidof "$pkg" 2>/dev/null | tr -d '\r' || true)"
   "$ADB" shell am force-stop "$pkg" >/dev/null 2>&1 || true
-  if [ "${crash:-0}" -gt 0 ]; then
-    echo "==> FAIL (on-device): registry-sourced $ARTIFACT $VERSION crashed at runtime:"
-    "$ADB" logcat -d 2>/dev/null | grep -E 'FATAL|NoSuchMethod' | head -3 | sed 's/^/      /' || true
+  if [ "${after:-0}" -gt "${before:-0}" ] || [ "${jcrash:-0}" -gt 0 ]; then
+    echo "==> FAIL (on-device): registry-sourced $ARTIFACT $VERSION crashed at runtime (main-process exit 4/5/6 or FATAL EXCEPTION for $pkg):"
+    "$ADB" shell dumpsys activity exit-info "$pkg" 2>/dev/null | grep -E "$mainpat" | tail -2 | sed 's/^/      /'
+    "$ADB" logcat -d 2>/dev/null | grep -A2 'FATAL EXCEPTION' | grep -F "$pkg" | head -3 | sed 's/^/      /' || true
     exit 1
   fi
-  echo "==> PASS (on-device): registry-sourced $ARTIFACT $VERSION launches + inits CEF, no crash."
+  if [ -z "$alive" ]; then
+    echo "==> FAIL (on-device): registry-sourced $ARTIFACT $VERSION did not stay alive after launch (main process gone); check CEF init."
+    exit 1
+  fi
+  echo "==> PASS (on-device): registry-sourced $ARTIFACT $VERSION launches + inits CEF (main alive, renderer spawned, no main-process crash)."
   fi
 else
   echo "==> note: no device connected -- on-device e2e skipped (assemble-only validated)."
