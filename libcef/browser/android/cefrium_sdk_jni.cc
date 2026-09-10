@@ -2527,6 +2527,52 @@ Java_com_cefrium_CefriumBrowser_nativeSendTouchEvent(
   }
 }
 
+// Mouse event forwarding: programmatic SendMouse* injection (position/hover,
+// click, right-click, wheel). Coordinates are view-relative (upper-left origin),
+// like touch. |modifiers| are cef_event_flags_t bits (shift/ctrl/alt, and any
+// held mouse buttons for drags). |button|: 0=MBT_LEFT, 1=MBT_MIDDLE, 2=MBT_RIGHT.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSendMouseMoveEvent(
+    JNIEnv* env, jclass clazz, jlong native_ptr,
+    jint x, jint y, jint modifiers, jboolean mouse_leave) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return;
+  CefMouseEvent event;
+  event.x = x;
+  event.y = y;
+  event.modifiers = static_cast<uint32_t>(modifiers);
+  data->browser->GetHost()->SendMouseMoveEvent(event, mouse_leave);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSendMouseClickEvent(
+    JNIEnv* env, jclass clazz, jlong native_ptr,
+    jint x, jint y, jint modifiers, jint button, jboolean mouse_up,
+    jint click_count) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return;
+  CefMouseEvent event;
+  event.x = x;
+  event.y = y;
+  event.modifiers = static_cast<uint32_t>(modifiers);
+  data->browser->GetHost()->SendMouseClickEvent(
+      event, static_cast<cef_mouse_button_type_t>(button), mouse_up,
+      click_count);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSendMouseWheelEvent(
+    JNIEnv* env, jclass clazz, jlong native_ptr,
+    jint x, jint y, jint modifiers, jint delta_x, jint delta_y) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return;
+  CefMouseEvent event;
+  event.x = x;
+  event.y = y;
+  event.modifiers = static_cast<uint32_t>(modifiers);
+  data->browser->GetHost()->SendMouseWheelEvent(event, delta_x, delta_y);
+}
+
 // Ad-blocking: enable/disable and get blocked count.
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeSetAdBlockEnabled(

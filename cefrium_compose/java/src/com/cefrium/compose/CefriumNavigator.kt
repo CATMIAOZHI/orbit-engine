@@ -194,6 +194,68 @@ class CefriumNavigator {
         state?.browser?.setPinchToZoomEnabled(enabled)
     }
 
+    // ----- Mouse events -------------------------------------------------------
+    // Programmatic mouse injection (position/hover, click, right-click, wheel).
+    // Coordinates are browser-viewport pixels. See com.cefrium.CefriumBrowser.
+
+    /** Move the mouse pointer to (x, y). Drives mousemove / :hover. */
+    fun sendMouseMove(x: Int, y: Int, modifiers: Int = 0) {
+        state?.browser?.sendMouseMove(x, y, modifiers)
+    }
+
+    /** Signal the pointer leaving the view at (x, y) (clears :hover). */
+    fun sendMouseLeave(x: Int, y: Int) {
+        state?.browser?.sendMouseLeave(x, y)
+    }
+
+    /** Click at (x, y) with [button] (down + up). Defaults to a single left click. */
+    fun sendMouseClick(
+        x: Int, y: Int, button: Int = MOUSE_BUTTON_LEFT, clickCount: Int = 1, modifiers: Int = 0
+    ) {
+        state?.browser?.sendMouseClick(x, y, button, clickCount, modifiers)
+    }
+
+    /** Left click at (x, y). */
+    fun sendLeftClick(x: Int, y: Int) {
+        state?.browser?.sendLeftClick(x, y)
+    }
+
+    /** Right click at (x, y) -- also opens the context menu. */
+    fun sendRightClick(x: Int, y: Int) {
+        state?.browser?.sendRightClick(x, y)
+    }
+
+    /** Double left click at (x, y). */
+    fun sendDoubleClick(x: Int, y: Int) {
+        state?.browser?.sendDoubleClick(x, y)
+    }
+
+    /** Press a mouse button at (x, y) without releasing (pair with [sendMouseUp] for drags). */
+    fun sendMouseDown(x: Int, y: Int, button: Int = MOUSE_BUTTON_LEFT, modifiers: Int = 0) {
+        state?.browser?.sendMouseDown(x, y, button, modifiers)
+    }
+
+    /** Release a mouse button at (x, y). */
+    fun sendMouseUp(x: Int, y: Int, button: Int = MOUSE_BUTTON_LEFT, modifiers: Int = 0) {
+        state?.browser?.sendMouseUp(x, y, button, modifiers)
+    }
+
+    /** Scroll the mouse wheel at (x, y). deltaX/deltaY in pixels (~120 per notch). */
+    fun sendMouseWheel(x: Int, y: Int, deltaX: Int, deltaY: Int, modifiers: Int = 0) {
+        state?.browser?.sendMouseWheel(x, y, deltaX, deltaY, modifiers)
+    }
+
+    companion object {
+        // Mirror com.cefrium.CefriumBrowser mouse constants for Compose callers
+        // (stable CEF values: MBT_LEFT/MIDDLE/RIGHT and shift/ctrl/alt flags).
+        const val MOUSE_BUTTON_LEFT = 0
+        const val MOUSE_BUTTON_MIDDLE = 1
+        const val MOUSE_BUTTON_RIGHT = 2
+        const val MOUSE_MODIFIER_SHIFT = 1 shl 1
+        const val MOUSE_MODIFIER_CTRL = 1 shl 2
+        const val MOUSE_MODIFIER_ALT = 1 shl 3
+    }
+
     // ── Request interceptor ──
 
     /** Sets a programmatic request interceptor (block decisions; null clears). */

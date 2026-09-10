@@ -1710,6 +1710,122 @@ public class CefriumBrowser {
         }
     }
 
+    // ----- Mouse events -------------------------------------------------------
+    // Programmatic mouse injection: position the pointer at coordinates, click,
+    // right-click, plus the rest of the desktop CefBrowserHost mouse surface
+    // (hover/leave, press/release, wheel, buttons, modifiers, multi-click).
+    // Exposed the same way as sendTouchEvent above. Coordinates are browser-
+    // viewport pixels (upper-left origin). Useful for automation/testing, a
+    // connected pointer, and hover (which touch cannot express). Call on the UI
+    // thread, after the page has started loading.
+
+    /** Mouse button for the click APIs (matches CEF's MBT_LEFT/MIDDLE/RIGHT). */
+    public static final int MOUSE_BUTTON_LEFT = 0;
+    public static final int MOUSE_BUTTON_MIDDLE = 1;
+    public static final int MOUSE_BUTTON_RIGHT = 2;
+
+    /** Modifier bit flags for mouse events; OR them together (0 = none). */
+    public static final int MOUSE_MODIFIER_SHIFT = 1 << 1;
+    public static final int MOUSE_MODIFIER_CTRL = 1 << 2;
+    public static final int MOUSE_MODIFIER_ALT = 1 << 3;
+
+    /**
+     * Move the mouse pointer to (x, y). Drives {@code mousemove} and {@code :hover}
+     * -- state that touch input cannot express.
+     *
+     * @param x X coordinate in browser-viewport pixels.
+     * @param y Y coordinate in browser-viewport pixels.
+     */
+    public void sendMouseMove(int x, int y) {
+        sendMouseMove(x, y, 0);
+    }
+
+    /** Move the pointer to (x, y) with modifier keys held (see MOUSE_MODIFIER_*). */
+    public void sendMouseMove(int x, int y, int modifiers) {
+        if (mNativePtr != 0) {
+            nativeSendMouseMoveEvent(mNativePtr, x, y, modifiers, false);
+        }
+    }
+
+    /** Signal the pointer leaving the view at (x, y) (clears {@code :hover}). */
+    public void sendMouseLeave(int x, int y) {
+        if (mNativePtr != 0) {
+            nativeSendMouseMoveEvent(mNativePtr, x, y, 0, true);
+        }
+    }
+
+    /**
+     * Click at (x, y) with the given button (down + up).
+     *
+     * @param button one of MOUSE_BUTTON_LEFT / MOUSE_BUTTON_MIDDLE / MOUSE_BUTTON_RIGHT.
+     */
+    public void sendMouseClick(int x, int y, int button) {
+        sendMouseClick(x, y, button, 1, 0);
+    }
+
+    /**
+     * Click at (x, y) with a button, click count, and modifiers (down + up).
+     *
+     * @param clickCount 1 = single, 2 = double, 3 = triple.
+     * @param modifiers OR of MOUSE_MODIFIER_* (0 = none).
+     */
+    public void sendMouseClick(int x, int y, int button, int clickCount, int modifiers) {
+        if (mNativePtr == 0) return;
+        nativeSendMouseClickEvent(mNativePtr, x, y, modifiers, button, false, clickCount);
+        nativeSendMouseClickEvent(mNativePtr, x, y, modifiers, button, true, clickCount);
+    }
+
+    /** Left click at (x, y). */
+    public void sendLeftClick(int x, int y) {
+        sendMouseClick(x, y, MOUSE_BUTTON_LEFT, 1, 0);
+    }
+
+    /**
+     * Right click at (x, y). Also opens the context menu, routed through
+     * {@code CefContextMenuHandler} (see setOnContextMenuListener).
+     */
+    public void sendRightClick(int x, int y) {
+        sendMouseClick(x, y, MOUSE_BUTTON_RIGHT, 1, 0);
+    }
+
+    /** Double left click at (x, y). */
+    public void sendDoubleClick(int x, int y) {
+        sendMouseClick(x, y, MOUSE_BUTTON_LEFT, 2, 0);
+    }
+
+    /**
+     * Press a mouse button at (x, y) without releasing it. Pair with
+     * {@link #sendMouseUp} (with intervening {@link #sendMouseMove} calls) to
+     * synthesize a drag.
+     */
+    public void sendMouseDown(int x, int y, int button, int modifiers) {
+        if (mNativePtr != 0) {
+            nativeSendMouseClickEvent(mNativePtr, x, y, modifiers, button, false, 1);
+        }
+    }
+
+    /** Release a mouse button at (x, y). */
+    public void sendMouseUp(int x, int y, int button, int modifiers) {
+        if (mNativePtr != 0) {
+            nativeSendMouseClickEvent(mNativePtr, x, y, modifiers, button, true, 1);
+        }
+    }
+
+    /**
+     * Scroll the mouse wheel at (x, y). {@code deltaX}/{@code deltaY} are the
+     * scroll deltas in pixels (a typical wheel notch is ~120).
+     */
+    public void sendMouseWheel(int x, int y, int deltaX, int deltaY) {
+        sendMouseWheel(x, y, deltaX, deltaY, 0);
+    }
+
+    /** Scroll the mouse wheel at (x, y) with modifier keys held. */
+    public void sendMouseWheel(int x, int y, int deltaX, int deltaY, int modifiers) {
+        if (mNativePtr != 0) {
+            nativeSendMouseWheelEvent(mNativePtr, x, y, modifiers, deltaX, deltaY);
+        }
+    }
+
     /**
      * Get the number of blocked ad/tracking requests since the browser was created.
      * Cefrium includes a built-in network-level ad blocker using EasyList rules.
@@ -2098,6 +2214,9 @@ public class CefriumBrowser {
             String data, String mimeType, String encoding, String historyUrl);
     private static native void nativeInvalidate(long nativePtr);
     private static native void nativeSendTouchEvent(long nativePtr, int action, float x, float y, int pointerId);
+    private static native void nativeSendMouseMoveEvent(long nativePtr, int x, int y, int modifiers, boolean mouseLeave);
+    private static native void nativeSendMouseClickEvent(long nativePtr, int x, int y, int modifiers, int button, boolean mouseUp, int clickCount);
+    private static native void nativeSendMouseWheelEvent(long nativePtr, int x, int y, int modifiers, int deltaX, int deltaY);
     private static native void nativeSetAdBlockEnabled(long nativePtr, boolean enabled);
     private static native int nativeGetBlockedCount(long nativePtr);
     private static native void nativeUpdateSurface(
