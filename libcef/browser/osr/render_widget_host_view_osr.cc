@@ -26,6 +26,7 @@
 #include "cef/libcef/browser/thread_util.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "components/input/cursor_manager.h"
+#include "components/input/input_router.h"
 #include "components/input/render_widget_host_input_event_router.h"
 #include "components/input/switches.h"
 #include "components/viz/common/features.h"
@@ -1566,6 +1567,17 @@ void CefRenderWidgetHostViewOSR::SendTouchEvent(const CefTouchEvent& event) {
 }
 
 bool CefRenderWidgetHostViewOSR::ShouldRouteEvents() const {
+  // On Android the OSR view has no DelegatedFrameHost (see the IS_ANDROID branch
+  // in the constructor), so its surface is never registered in the
+  // InputEventRouter's hit-test map. RouteMouseEvent/RouteTouchEvent then find no
+  // target and SILENTLY DROP every injected/forwarded pointer event. Dispatch
+  // directly to this view's renderer instead (ProcessMouseEvent /
+  // ForwardTouchEvent). Correct for a single windowless OSR view; cross-process
+  // OOPIF targeting on Android OSR would need the surface hit-test wired -- a
+  // larger, separate change.
+#if BUILDFLAG(IS_ANDROID)
+  return false;
+#else
   if (!render_widget_host_->delegate()) {
     return false;
   }
@@ -1579,6 +1591,7 @@ bool CefRenderWidgetHostViewOSR::ShouldRouteEvents() const {
   }
 
   return !!render_widget_host_->delegate()->GetInputEventRouter();
+#endif
 }
 
 void CefRenderWidgetHostViewOSR::SetFocus(bool focus) {
@@ -1710,6 +1723,38 @@ uint64_t CefRenderWidgetHostViewOSR::GetNSViewId() const {
 }
 #endif  // BUILDFLAG(IS_MAC)
 
+#if BUILDFLAG(IS_ANDROID)
+void CefRenderWidgetHostViewOSR::ReleaseAndroidPaintHoldingInput() {
+  // Chromium holds back input events while paint-holding shows the user a
+  // snapshot of the previous page (feature kDropInputEventsWhilePaintHolding,
+  // enabled by default). RenderInputRouter::FilterInputEvent drops every event
+  // as kNoConsumerExists until the input router is made active. The router is
+  // normally activated from RenderWidgetHostImpl::
+  // OnRenderFrameMetadataChangedAfterActivation, which fires when the browser
+  // compositor's Display activates the renderer's CompositorFrame.
+  //
+  // On desktop OSR that path works because the view owns a DelegatedFrameHost
+  // (see the !IS_ANDROID branch in the constructor). On Android the OSR view has
+  // no DelegatedFrameHost and no browser-side Display, so that signal never
+  // arrives and the input router stays inactive forever -- every injected mouse
+  // or touch event is silently dropped before reaching the renderer.
+  //
+  // Delivering a frame to the embedder (OnPaint / OnAcceleratedPaint) is the
+  // equivalent "content is being presented" signal on Android, so release the
+  // hold here. Idempotent and re-armed correctly across navigations: a new
+  // navigation re-holds input via InitializePaintHolding(true), and the next
+  // frame we deliver releases it again.
+  if (!render_widget_host_) {
+    return;
+  }
+  if (auto* router = render_widget_host_->input_router()) {
+    if (!router->IsActive()) {
+      router->MakeActive();
+    }
+  }
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 void CefRenderWidgetHostViewOSR::OnPaint(const gfx::Rect& damage_rect,
                                          const gfx::Size& pixel_size,
                                          const void* pixels) {
@@ -1737,6 +1782,10 @@ void CefRenderWidgetHostViewOSR::OnPaint(const gfx::Rect& damage_rect,
 
   handler->OnPaint(browser_impl_.get(), IsPopupWidget() ? PET_POPUP : PET_VIEW,
                    rcList, pixels, pixel_size.width(), pixel_size.height());
+
+#if BUILDFLAG(IS_ANDROID)
+  ReleaseAndroidPaintHoldingInput();
+#endif
 
   // Release the resize hold when we reach the desired size.
   if (hold_resize_) {
@@ -1774,6 +1823,10 @@ void CefRenderWidgetHostViewOSR::OnAcceleratedPaint(
   handler->OnAcceleratedPaint(browser_impl_.get(),
                               IsPopupWidget() ? PET_POPUP : PET_VIEW, rcList,
                               info);
+
+#if BUILDFLAG(IS_ANDROID)
+  ReleaseAndroidPaintHoldingInput();
+#endif
 
   // Release the resize hold when we reach the desired size.
   if (hold_resize_) {

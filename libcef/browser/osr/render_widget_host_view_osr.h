@@ -366,6 +366,12 @@ class CefRenderWidgetHostViewOSR
 
   void InvalidateInternal(const gfx::Rect& bounds_in_pixels);
 
+#if BUILDFLAG(IS_ANDROID)
+  // Release the paint-holding input hold once the OSR view has delivered a
+  // frame. See the implementation for why this is needed on Android only.
+  void ReleaseAndroidPaintHoldingInput();
+#endif
+
   void RequestImeCompositionUpdate(bool start_monitoring);
 
   viz::FrameSinkId AllocateFrameSinkId();
