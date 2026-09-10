@@ -32,10 +32,18 @@ bool OnCursorChange(CefRefPtr<CefBrowser> browser,
     custom_cursor_info.size.height = ui_cursor.custom_bitmap().height();
   }
 
+  // A native cursor handle is only available for platforms with a windowing
+  // toolkit (aura/mac). Windowless (OSR) rendering -- and Android, which has no
+  // native cursor handle at all -- returns null here. The handler still gets the
+  // cursor_type and custom_cursor_info, which is the meaningful information in
+  // that case. Passing a null handle avoids dereferencing a null scoped handle.
+  cef_cursor_handle_t cursor_handle = cef_cursor_handle_t();
   auto scoped_cursor_handle(ScopedCursorHandle::Create(browser, ui_cursor));
-  return handler->OnCursorChange(browser,
-                                 scoped_cursor_handle->GetCursorHandle(),
-                                 cursor_type, custom_cursor_info);
+  if (scoped_cursor_handle) {
+    cursor_handle = scoped_cursor_handle->GetCursorHandle();
+  }
+  return handler->OnCursorChange(browser, cursor_handle, cursor_type,
+                                 custom_cursor_info);
 }
 
 }  // namespace cursor_util
