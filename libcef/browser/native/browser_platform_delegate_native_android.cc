@@ -8,6 +8,7 @@
 #include "cef/libcef/browser/native/menu_runner_android.h"
 #include "cef/libcef/browser/thread_util.h"
 #include "components/input/native_web_keyboard_event.h"
+#include "components/input/input_router.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
@@ -83,7 +84,22 @@ CefBrowserPlatformDelegateNativeAndroid::GetRenderWidgetHost() const {
   if (!view) {
     return nullptr;
   }
-  return content::RenderWidgetHostImpl::From(view->GetRenderWidgetHost());
+  content::RenderWidgetHostImpl* rwh =
+      content::RenderWidgetHostImpl::From(view->GetRenderWidgetHost());
+  if (rwh) {
+    // Chromium holds back input while paint-holding shows a snapshot of the
+    // previous page (kDropInputEventsWhilePaintHolding), releasing it only when
+    // the browser compositor presents the first frame. A programmatically
+    // injected mouse event targets the current content by intent, and an
+    // embedder may inject before (or without) a presented frame, so release the
+    // hold here -- otherwise the event is dropped as kNoConsumerExists.
+    if (auto* router = rwh->input_router()) {
+      if (!router->IsActive()) {
+        router->MakeActive();
+      }
+    }
+  }
+  return rwh;
 }
 
 void CefBrowserPlatformDelegateNativeAndroid::SendMouseClickEvent(
