@@ -8,6 +8,9 @@
 #include "cef/libcef/browser/native/menu_runner_android.h"
 #include "cef/libcef/browser/thread_util.h"
 #include "components/input/native_web_keyboard_event.h"
+#include "content/browser/renderer_host/render_widget_host_impl.h"
+#include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/common/input/web_mouse_wheel_event.h"
 #include "ui/events/base_event_utils.h"
@@ -68,6 +71,57 @@ void CefBrowserPlatformDelegateNativeAndroid::SetFocus(bool setFocus) {
 
 void CefBrowserPlatformDelegateNativeAndroid::SizeTo(int width, int height) {
   // No-op for Android — window sizing is managed by the Android framework.
+}
+
+content::RenderWidgetHostImpl*
+CefBrowserPlatformDelegateNativeAndroid::GetRenderWidgetHost() const {
+  if (!web_contents_) {
+    return nullptr;
+  }
+  content::RenderWidgetHostView* view =
+      web_contents_->GetRenderWidgetHostView();
+  if (!view) {
+    return nullptr;
+  }
+  return content::RenderWidgetHostImpl::From(view->GetRenderWidgetHost());
+}
+
+void CefBrowserPlatformDelegateNativeAndroid::SendMouseClickEvent(
+    const CefMouseEvent& event,
+    CefBrowserHost::MouseButtonType type,
+    bool mouseUp,
+    int clickCount) {
+  content::RenderWidgetHostImpl* rwh = GetRenderWidgetHost();
+  if (!rwh) {
+    return;
+  }
+  blink::WebMouseEvent web_event =
+      TranslateWebClickEvent(event, type, mouseUp, clickCount);
+  rwh->ForwardMouseEvent(web_event);
+}
+
+void CefBrowserPlatformDelegateNativeAndroid::SendMouseMoveEvent(
+    const CefMouseEvent& event,
+    bool mouseLeave) {
+  content::RenderWidgetHostImpl* rwh = GetRenderWidgetHost();
+  if (!rwh) {
+    return;
+  }
+  blink::WebMouseEvent web_event = TranslateWebMoveEvent(event, mouseLeave);
+  rwh->ForwardMouseEvent(web_event);
+}
+
+void CefBrowserPlatformDelegateNativeAndroid::SendMouseWheelEvent(
+    const CefMouseEvent& event,
+    int deltaX,
+    int deltaY) {
+  content::RenderWidgetHostImpl* rwh = GetRenderWidgetHost();
+  if (!rwh) {
+    return;
+  }
+  blink::WebMouseWheelEvent web_event =
+      TranslateWebWheelEvent(event, deltaX, deltaY);
+  rwh->ForwardWheelEvent(web_event);
 }
 
 gfx::Point CefBrowserPlatformDelegateNativeAndroid::GetScreenPoint(

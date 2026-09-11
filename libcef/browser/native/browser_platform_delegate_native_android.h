@@ -7,6 +7,10 @@
 
 #include "cef/libcef/browser/native/browser_platform_delegate_native.h"
 
+namespace content {
+class RenderWidgetHostImpl;
+}
+
 // Native browser platform delegate for Android.
 // Android primarily uses OSR mode. This delegate provides the platform-specific
 // event translation layer without Aura/Views dependencies. The Aura layer
@@ -25,6 +29,14 @@ class CefBrowserPlatformDelegateNativeAndroid
   views::Widget* GetWindowWidget() const override;
   void SetFocus(bool setFocus) override;
   void SizeTo(int width, int height) override;
+  void SendMouseClickEvent(const CefMouseEvent& event,
+                           CefBrowserHost::MouseButtonType type,
+                           bool mouseUp,
+                           int clickCount) override;
+  void SendMouseMoveEvent(const CefMouseEvent& event, bool mouseLeave) override;
+  void SendMouseWheelEvent(const CefMouseEvent& event,
+                           int deltaX,
+                           int deltaY) override;
   gfx::Point GetScreenPoint(const gfx::Point& view,
                             bool want_dip_coords) const override;
   void ViewText(const std::string& text) override;
@@ -54,6 +66,14 @@ class CefBrowserPlatformDelegateNativeAndroid
   // Set common fields on a blink::WebMouseEvent from a CefMouseEvent.
   void TranslateWebMouseEvent(blink::WebMouseEvent& result,
                               const CefMouseEvent& mouse_event) const;
+
+  // The RenderWidgetHostImpl for this browser's active view, or null. In
+  // windowed (Surface/ContentViewRenderView) mode the view is a
+  // RenderWidgetHostViewAndroid; forwarding synthetic mouse events through the
+  // host routes them into the same input pipeline as real touch, which is why
+  // this works without the OSR view (the mouse API's OSR path does not apply to
+  // windowed browsers).
+  content::RenderWidgetHostImpl* GetRenderWidgetHost() const;
 };
 
 #endif  // CEF_LIBCEF_BROWSER_NATIVE_BROWSER_PLATFORM_DELEGATE_NATIVE_ANDROID_H_
