@@ -245,6 +245,27 @@ class CefriumNavigator {
         state?.browser?.sendMouseWheel(x, y, deltaX, deltaY, modifiers)
     }
 
+    // ----- Touch automation ---------------------------------------------------
+    // Single-finger touch injection. Coordinates are browser-viewport pixels.
+    // A tap synthesizes a click; down/move/up drive drags and scroll/fling.
+
+    /** Press a finger down at (x, y). */
+    fun sendTouchDown(x: Float, y: Float) { state?.browser?.sendTouchDown(x, y) }
+
+    /** Move the pressed finger to (x, y). */
+    fun sendTouchMove(x: Float, y: Float) { state?.browser?.sendTouchMove(x, y) }
+
+    /** Lift the finger at (x, y). */
+    fun sendTouchUp(x: Float, y: Float) { state?.browser?.sendTouchUp(x, y) }
+
+    /** Tap at (x, y) -- synthesizes a click on the element there. */
+    fun sendTap(x: Float, y: Float) { state?.browser?.sendTap(x, y) }
+
+    /** Swipe from (x1,y1) to (x2,y2) over [steps] moves (scroll/fling). */
+    fun sendSwipe(x1: Float, y1: Float, x2: Float, y2: Float, steps: Int = 10) {
+        state?.browser?.sendSwipe(x1, y1, x2, y2, steps)
+    }
+
     companion object {
         // Mirror com.cefrium.CefriumBrowser mouse constants for Compose callers
         // (stable CEF values: MBT_LEFT/MIDDLE/RIGHT and shift/ctrl/alt flags).
