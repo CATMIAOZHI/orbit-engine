@@ -1,0 +1,24 @@
+diff --git base/synchronization/lock_metrics_recorder.cc base/synchronization/lock_metrics_recorder.cc
+index fcf5bea..3785b08 100644
+--- base/synchronization/lock_metrics_recorder.cc
++++ base/synchronization/lock_metrics_recorder.cc
+@@ -130,6 +130,19 @@ void LockMetricsRecorder::ReportLockHistogram(
+ 
+ bool LockMetricsRecorder::ShouldRecordLockAcquisitionTime() const {
+   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
++  // Re-entrancy guard. subsampler_.ShouldSample() lazily seeds its
++  // InsecureRandomGenerator on first use via base::RandUint64() -> BoringSSL
++  // RAND_bytes -> malloc. Under PartitionAlloc-Everywhere that allocation can
++  // take a contended SpinningMutex, whose ScopedLockAcquisitionTimer calls back
++  // into this method before the seed completes -> unbounded recursion -> stack
++  // overflow (observed intermittently during process startup on Android). On
++  // re-entry, skip sampling so the nested allocation records no metric and the
++  // seed can complete.
++  static thread_local bool recording_in_progress = false;
++  if (recording_in_progress) {
++    return false;
++  }
++  const base::AutoReset<bool> guard(&recording_in_progress, true);
+   return !iterating_in_progress_ && subsampler_.ShouldSample(kSamplingRatio);
+ }
+ 
