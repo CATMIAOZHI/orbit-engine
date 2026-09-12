@@ -308,16 +308,16 @@ dependencyResolutionManagement {
 // app/build.gradle
 plugins {
     id 'com.android.application'
-    id 'com.cefrium' version '0.8.3'  // Generates R.java for Chromium packages
+    id 'com.cefrium' version '0.8.4'  // Generates R.java for Chromium packages
 }
 
 dependencies {
     // Cefrium SDK from Codeberg Packages - single multi-ABI artifact
     // (arm64-v8a + x86_64); your APK/App Bundle ships only the device's ABI.
-    implementation 'com.cefrium:cefrium-sdk:0.8.3'
+    implementation 'com.cefrium:cefrium-sdk:0.8.4'
 
     // Optional: Jetpack Compose wrapper
-    implementation 'com.cefrium:cefrium-compose:0.8.3'
+    implementation 'com.cefrium:cefrium-compose:0.8.4'
 
     // Required runtime dependencies
     implementation 'androidx.appcompat:appcompat:1.7.0'
@@ -335,10 +335,10 @@ Alternatively, download the AAR directly from
 [Codeberg Packages](https://codeberg.org/cefrium/-/packages):
 
 **SDK (multi-ABI: arm64-v8a + x86_64, H.264/AAC + VP8/VP9/Opus):**
-- [cefrium-sdk-0.8.3.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk/0.8.3/cefrium-sdk-0.8.3.aar) (~240 MB; the consumer's APK/App Bundle ships only the device's ABI, ~150 MB)
+- [cefrium-sdk-0.8.4.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk/0.8.4/cefrium-sdk-0.8.4.aar) (~240 MB; the consumer's APK/App Bundle ships only the device's ABI, ~150 MB)
 
 **Jetpack Compose wrapper (all architectures):**
-- [cefrium-compose-0.8.3.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-compose/0.8.3/cefrium-compose-0.8.3.aar) (28 KB)
+- [cefrium-compose-0.8.4.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-compose/0.8.4/cefrium-compose-0.8.4.aar) (28 KB)
 
 Place in `app/libs/` and use `implementation files('libs/cefrium-sdk.aar')`.
 
