@@ -101,6 +101,9 @@ public class CefriumBrowser {
     private org.chromium.components.embedder_support.view.ContentViewRenderView mContentViewRenderView;
     private org.chromium.components.autofill.AutofillProvider mAutofillProvider;
     private CefriumSurfaceContainer mSurfaceContainer;
+    // Down-time of the current synthetic touch stream (for MotionEvent gesture
+    // recognition in windowed mode); set on sendTouchDown.
+    private long mTouchDownTime;
     private CefriumMediaSession mMediaSession;
     private boolean mMediaSessionEnabled;
     private android.app.PendingIntent mMediaSessionActivity;
@@ -1704,6 +1707,74 @@ public class CefriumBrowser {
     public void sendTouchEvent(int action, float x, float y, int pointerId) {
         if (mNativePtr != 0) {
             nativeSendTouchEvent(mNativePtr, action, x, y, pointerId);
+        }
+    }
+
+    // ----- Touch automation ---------------------------------------------------
+    // Programmatic single-finger touch injection: tap, plus low-level down/move/up
+    // for drags and swipes -- mirroring the mouse API. Coordinates are browser-
+    // viewport pixels (upper-left origin). These drive the full gesture pipeline:
+    // a tap becomes a click, a down-move-up becomes a scroll/fling. In windowed
+    // (createWithSurface) mode the events go through the content view's
+    // EventForwarder (same path as a real finger); in windowless (OSR) mode they
+    // go through the CEF OSR touch path. Call on the UI thread, after the page has
+    // started loading.
+
+    /** Press a finger down at (x, y). Pair with {@link #sendTouchUp} (with
+     * {@link #sendTouchMove} in between) for drags/swipes, or use {@link #sendTap}. */
+    public void sendTouchDown(float x, float y) { injectTouch(0, x, y); }
+
+    /** Move the pressed finger to (x, y). */
+    public void sendTouchMove(float x, float y) { injectTouch(2, x, y); }
+
+    /** Lift the finger at (x, y). */
+    public void sendTouchUp(float x, float y) { injectTouch(1, x, y); }
+
+    /** Tap at (x, y): a finger down immediately followed by up. Synthesizes a
+     * click on the element at that point (the touch-automation equivalent of
+     * {@link #sendLeftClick}). */
+    public void sendTap(float x, float y) {
+        sendTouchDown(x, y);
+        sendTouchUp(x, y);
+    }
+
+    /**
+     * Swipe from (x1, y1) to (x2, y2) as a down + {@code steps} moves + up --
+     * drives scrolling/flinging. {@code steps} controls smoothness (>= 1).
+     */
+    public void sendSwipe(float x1, float y1, float x2, float y2, int steps) {
+        if (steps < 1) steps = 1;
+        sendTouchDown(x1, y1);
+        for (int i = 1; i <= steps; i++) {
+            float t = (float) i / steps;
+            sendTouchMove(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t);
+        }
+        sendTouchUp(x2, y2);
+    }
+
+    // action: 0=down, 1=up, 2=move. Windowed -> synthetic MotionEvent through the
+    // content EventForwarder (full gesture pipeline); OSR -> native CEF touch path.
+    private void injectTouch(int action, float x, float y) {
+        if (mSurfaceContainer != null) {
+            org.chromium.content_public.browser.WebContents wc = webContents();
+            if (wc == null) return;
+            org.chromium.ui.base.EventForwarder ef = wc.getEventForwarder();
+            if (ef == null) return;
+            long now = android.os.SystemClock.uptimeMillis();
+            if (action == 0) mTouchDownTime = now;
+            int androidAction = (action == 0) ? android.view.MotionEvent.ACTION_DOWN
+                    : (action == 1) ? android.view.MotionEvent.ACTION_UP
+                    : android.view.MotionEvent.ACTION_MOVE;
+            android.view.MotionEvent ev = android.view.MotionEvent.obtain(
+                    mTouchDownTime, now, androidAction, x, y, 0);
+            ev.setSource(android.view.InputDevice.SOURCE_TOUCHSCREEN);
+            try {
+                ef.onTouchEvent(ev);
+            } finally {
+                ev.recycle();
+            }
+        } else if (mNativePtr != 0) {
+            nativeSendTouchEvent(mNativePtr, action, x, y, 0);
         }
     }
 
