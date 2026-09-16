@@ -500,6 +500,19 @@ void ChromeContentBrowserClientCef::OverrideWebPreferences(
           browser->ax_viewport_collapse().value();
     }
 
+    // Runtime override for the web content's prefers-color-scheme. On Android the
+    // chrome ThemeService is not wired up (SetChromeColorScheme is a no-op), so
+    // this is the mechanism that makes CefriumBrowser.setDarkMode affect the
+    // page's prefers-color-scheme media query.
+    if (browser->preferred_color_scheme_dark().has_value()) {
+      prefs->preferred_color_scheme =
+          browser->preferred_color_scheme_dark().value()
+              ? blink::mojom::PreferredColorScheme::kDark
+              : blink::mojom::PreferredColorScheme::kLight;
+      prefs->preferred_root_scrollbar_color_scheme =
+          prefs->preferred_color_scheme;
+    }
+
     // Set the background color for the WebView.
     base_background_color = browser->GetBackgroundColor();
   } else {

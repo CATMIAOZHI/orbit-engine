@@ -3161,10 +3161,13 @@ Java_com_cefrium_CefriumBrowser_nativeSetDarkMode(
     JNIEnv* env, jclass clazz, jlong native_ptr, jboolean dark) {
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
   if (data && data->browser) {
-    auto context = data->browser->GetHost()->GetRequestContext();
-    if (context) {
-      context->SetChromeColorScheme(
-          dark ? CEF_COLOR_VARIANT_DARK : CEF_COLOR_VARIANT_LIGHT, 0);
+    // SetChromeColorScheme (ThemeService) is a no-op on Android; drive the web
+    // content's prefers-color-scheme directly via a per-browser WebPreferences
+    // override instead.
+    auto* browser_impl =
+        static_cast<CefBrowserHostBase*>(data->browser->GetHost().get());
+    if (browser_impl) {
+      browser_impl->SetPreferredColorSchemeDark(dark == JNI_TRUE);
     }
   }
 }
