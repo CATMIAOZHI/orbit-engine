@@ -405,6 +405,14 @@ class CefBrowserHostBase : public CefBrowserHost,
     return ax_viewport_collapse_;
   }
 
+  // Runtime override for the web content's prefers-color-scheme media feature.
+  // nullopt = follow the platform default. Applied in
+  // ChromeContentBrowserClientCef::OverrideWebPreferences.
+  std::optional<bool> preferred_color_scheme_dark() const {
+    return preferred_color_scheme_dark_;
+  }
+  void SetPreferredColorSchemeDark(std::optional<bool> dark);
+
   // Returns true if windowless rendering is enabled.
   virtual bool IsWindowless() const = 0;
 
@@ -541,6 +549,9 @@ class CefBrowserHostBase : public CefBrowserHost,
 
   // Runtime override for CDP accessibility tree viewport collapse.
   std::optional<bool> ax_viewport_collapse_;
+
+  // Runtime override for the web content's prefers-color-scheme.
+  std::optional<bool> preferred_color_scheme_dark_;
 
  private:
   IMPLEMENT_REFCOUNTING(CefBrowserHostBase);
