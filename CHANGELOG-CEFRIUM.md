@@ -15,6 +15,60 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.8.5] -- 2026-09-12
+
+Chromium **152.0.7977.82** (CEF branch **7977**). Stability: fixes an intermittent
+native crash during process startup.
+
+### Fixed
+- **Intermittent (~50%) startup crash on some devices.** A re-entrant recursion in
+  the PartitionAlloc lock-metrics subsampler (its first-use RNG seed allocates
+  under a contended lock, whose acquisition timer re-enters the sampler before the
+  seed completes) could overflow the stack and crash the process at startup. Guards
+  the sampler against re-entrancy. No API changes.
+
+## [0.8.4] -- 2026-09-12
+
+Chromium **152.0.7977.82** (CEF branch **7977**). Adds a touch-automation API.
+
+### Added
+- **Touch automation API.** `CefriumBrowser` (and the Compose `CefriumNavigator`)
+  gain `sendTap`, `sendTouchDown` / `sendTouchMove` / `sendTouchUp`, and `sendSwipe`
+  (coordinates are browser-viewport pixels). In the SurfaceView browser these drive
+  the full gesture pipeline -- a tap synthesizes a click, a swipe scrolls/flings; in
+  windowless (OSR) mode they use the CEF touch path. Useful for automation and
+  testing. See the `InputAutomationActivity` sample and cefrium.com/docs.
+
+## [0.8.3] -- 2026-09-11
+
+Chromium **152.0.7977.82** (CEF branch **7977**). Makes the mouse API work in the
+SurfaceView browser (the flagship browser's rendering mode).
+
+### Fixed
+- **Mouse API now works in windowed / SurfaceView (ContentViewRenderView) mode.**
+  In 0.8.2 the mouse API only reached the renderer in windowless (OSR) mode; on a
+  `createWithSurface` browser the events were silently dropped. They are now
+  forwarded through the Android render widget host, so `sendMouseMove` /
+  `sendLeftClick` / `sendRightClick` / etc. work in both rendering modes.
+
+## [0.8.2] -- 2026-09-11
+
+Chromium **152.0.7977.82** (CEF branch **7977**). Adds a mouse-event API.
+
+### Added
+- **Mouse event API.** `CefriumBrowser` (and the Compose `CefriumNavigator`) gain
+  `sendMouseMove` / `sendMouseLeave` / `sendMouseClick` / `sendLeftClick` /
+  `sendRightClick` / `sendDoubleClick` / `sendMouseDown` / `sendMouseUp` /
+  `sendMouseWheel`, with button and modifier parameters, mirroring the desktop CEF
+  mouse surface. Coordinates are browser-viewport pixels. Validated on device.
+
+### Fixed
+- **Android OSR input delivery.** Injected pointer events were dropped before
+  reaching the renderer on the Android off-screen (windowless) path because it has
+  no DelegatedFrameHost: pointer events are now dispatched directly, the
+  paint-holding input hold is released on frame delivery, and the native cursor
+  handle is null-guarded (it was crashing once input started flowing).
+
 ## [0.8.1] -- 2026-09-09
 
 Chromium **152.0.7977.82** (CEF branch **7977**). Same-branch security patch bump
