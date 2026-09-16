@@ -39,10 +39,17 @@ elif [ -f "$CHANGELOG" ]; then
     /^  +[^ ]/ { if(!skip && btext!=""){c=$0; sub(/^ +/,"",c); btext=btext" "c} next }
     END {flush()}
   ' "$CHANGELOG" | sed 's/`//g; s/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/\.\. /. /g; s/\.;/;/g')"
-  [ -n "$NOTES" ] || NOTES="New release."
-  echo "  notes: derived from CHANGELOG-CEFRIUM.md [$NEW] ($(printf %s "$NOTES" | wc -c) chars)"
+  if [ -n "$NOTES" ]; then
+    echo "  notes: derived from CHANGELOG-CEFRIUM.md [$NEW] ($(printf %s "$NOTES" | wc -c) chars)"
+  else
+    NOTES="New release."
+    echo "  !! WARN: CHANGELOG-CEFRIUM.md has NO '## [$NEW]' section -- the /releases"
+    echo "  !! entry will read 'New release.' with no description. Add the [$NEW]"
+    echo "  !! section to CHANGELOG-CEFRIUM.md (or pass notes as arg 4) and re-run."
+  fi
 else
   NOTES="New release."
+  echo "  !! WARN: CHANGELOG-CEFRIUM.md not found -- /releases note falls back to 'New release.'"
 fi
 
 # CEF branch + Chromium version from the SDK source of truth.
