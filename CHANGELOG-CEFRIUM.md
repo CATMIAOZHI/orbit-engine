@@ -15,6 +15,18 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.8.6] -- 2026-09-16
+
+Chromium **152.0.7977.82** (CEF branch **7977**). Fixes dark mode on Android.
+
+### Fixed
+- **`setDarkMode()` now affects the page's `prefers-color-scheme`.** On Android the
+  chrome ThemeService is not wired up, so `setDarkMode` was silently a no-op; the
+  browser now drives the web content's preferred color scheme directly.
+  `window.matchMedia('(prefers-color-scheme: dark)')` reflects it and CSS dark media
+  queries take effect, in both windowless (OSR) and SurfaceView browsers. (Codeberg
+  issue #4.)
+
 ## [0.8.5] -- 2026-09-12
 
 Chromium **152.0.7977.82** (CEF branch **7977**). Stability: fixes an intermittent
