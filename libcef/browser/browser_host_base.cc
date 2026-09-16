@@ -1011,6 +1011,20 @@ void CefBrowserHostBase::SetAxViewportCollapse(bool enabled) {
   }
 }
 
+void CefBrowserHostBase::SetPreferredColorSchemeDark(std::optional<bool> dark) {
+  if (!CEF_CURRENTLY_ON_UIT()) {
+    CEF_POST_TASK(CEF_UIT,
+                  base::BindOnce(&CefBrowserHostBase::SetPreferredColorSchemeDark,
+                                 this, dark));
+    return;
+  }
+
+  preferred_color_scheme_dark_ = dark;
+  if (auto* web_contents = GetWebContents()) {
+    web_contents->OnWebPreferencesChanged();
+  }
+}
+
 void CefBrowserHostBase::ReplaceMisspelling(const CefString& word) {
   if (!CEF_CURRENTLY_ON_UIT()) {
     CEF_POST_TASK(
