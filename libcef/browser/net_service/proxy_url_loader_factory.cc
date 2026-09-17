@@ -1572,8 +1572,18 @@ void ProxyURLLoaderFactory::CreateLoaderAndStart(
   InterceptedRequest* req = new InterceptedRequest(
       this, request_id, options, request, traffic_annotation,
       std::move(receiver), std::move(client), std::move(target_factory_clone));
-  requests_.insert(std::make_pair(request_id, base::WrapUnique(req)));
-  req->Restart();
+  // |requests_| is keyed by |request_id|. If a request with the same id is
+  // already tracked (e.g. a top-level navigation that becomes a download is
+  // re-issued with request_id 0), std::map::insert does NOT overwrite: the
+  // temporary WrapUnique(req) is destroyed here, deleting |req|. Calling
+  // req->Restart() after that is a use-after-free. Only start the request when
+  // the insert actually took ownership; drop the duplicate otherwise.
+  auto insert_result =
+      requests_.insert(std::make_pair(request_id, base::WrapUnique(req)));
+  if (!insert_result.second) {
+    return;
+  }
+  insert_result.first->second->Restart();
 }
 
 void ProxyURLLoaderFactory::Clone(

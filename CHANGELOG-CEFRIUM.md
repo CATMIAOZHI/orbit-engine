@@ -15,6 +15,22 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.8.7] -- 2026-09-17
+
+Chromium **152.0.7977.82** (CEF branch **7977**). Fixes a browser crash when
+opening file-download links.
+
+### Fixed
+- **No longer crashes when a page opens a file-download link.** A top-level
+  navigation that turns into a download re-issues its request with the same
+  `request_id`, which collided with the still-tracked navigation request in the
+  request-interception layer. The colliding entry was freed and then used
+  (use-after-free), crashing the browser process (`SIGSEGV` in
+  `InterceptedRequest::Restart`). The interceptor now drops the duplicate instead
+  of restarting a freed request; the download proceeds normally. Custom URL
+  schemes that hit the same path are covered by the same fix. (Codeberg browser
+  issues: file-download crash and URL-scheme crash.)
+
 ## [0.8.6] -- 2026-09-16
 
 Chromium **152.0.7977.82** (CEF branch **7977**). Fixes dark mode on Android.
