@@ -26,6 +26,28 @@
     <uses-permission android:name="android.permission.CREDENTIAL_MANAGER_SET_ORIGIN" />
     <uses-permission android:name="android.permission.CREDENTIAL_MANAGER_QUERY_CANDIDATE_CREDENTIALS" />
 
+    <!-- FEATURE-059: external URL scheme hand-off. Android 11+ package visibility
+         hides other apps unless declared here; without this the browser cannot see
+         the apps that handle external schemes (tel:, mailto:, geo:, sms: and app
+         deep-links), so queryIntentActivities returns empty and the hand-off finds
+         "no app" and silently does nothing. Declared by the SDK so consumers
+         inherit VIEW/DIAL/SENDTO/SEND handler visibility via manifest merging. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+        </intent>
+    </queries>
+
     <application>
         <!-- Zero-config init. The framework instantiates this provider at app
              launch (browser process, before any Activity); its onCreate runs the
