@@ -52,6 +52,13 @@ class CefriumPlugin implements Plugin<Project> {
         // ContactsPickerDialog read contacts_picker R.color/R.layout/R.string.
         'org.chromium.components.browser_ui.contacts_picker',
         'org.chromium.components.embedder_support.delegate',
+        // FEATURE-059: external URL scheme hand-off. When an unknown/app scheme
+        // (baiduboxapp://, weixin://, ...) is handed off but no app handles it,
+        // InterceptNavigationDelegateImpl.logBlockedNavigationToDevToolsConsole()
+        // reads external_intents R.string (blocked_navigation_warning /
+        // unreachable_navigation_warning). Missing -> NoClassDefFoundError
+        // external_intents/R$string crashes the browser process.
+        'org.chromium.components.external_intents',
         // FedCM / federated sign-in (navigator.credentials): AccountSelectionBridge
         // .getBrandIconIdealSize() reads webid R.dimen when a page invokes the
         // account-chooser UI (common on sites with "Sign in with ..." widgets,

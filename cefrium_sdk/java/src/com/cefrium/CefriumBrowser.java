@@ -108,6 +108,10 @@ public class CefriumBrowser {
     private boolean mMediaSessionEnabled;
     private android.app.PendingIntent mMediaSessionActivity;
     private boolean mWebContentsConnected;
+    // FEATURE-059: external URL scheme hand-off. Holds the per-browser
+    // InterceptNavigationDelegate (installed on the WebContents in
+    // connectWebContentsInternal) that routes unknown/app schemes to Android.
+    private org.chromium.components.external_intents.InterceptNavigationDelegateImpl mNavDelegate;
     private boolean mPullToRefresh;
     // FEATURE-057: true if this is a private (incognito) browser.
     private boolean mIncognito;
@@ -2119,6 +2123,18 @@ public class CefriumBrowser {
         wc.setDelegates("", delegate, cv, mWindowAndroid,
                 org.chromium.content_public.browser.WebContents
                         .createDefaultInternalsHolder());
+
+        // FEATURE-059: install Chromium's external_intents InterceptNavigationDelegate
+        // so unknown/app URL schemes (baiduboxapp://, weixin://, intent://, ...) are
+        // handed off to Android via an Intent instead of loaded as web pages. The
+        // NavigationThrottle is added by the inherited chrome base once a delegate is
+        // associated with the WebContents; the ctor self-associates via native JNI.
+        if (mNavDelegate == null) {
+            mNavDelegate = new org.chromium.components.external_intents
+                    .InterceptNavigationDelegateImpl(
+                    new CefInterceptNavigationDelegateClient(
+                            this, wc, mWindowAndroid, mIncognito));
+        }
 
         mSurfaceContainer.addView(cv,
                 new android.widget.FrameLayout.LayoutParams(

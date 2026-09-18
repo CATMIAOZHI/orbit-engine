@@ -15,6 +15,24 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.8.8] -- 2026-09-18
+
+Chromium **152.0.7977.82** (CEF branch **7977**). External URL scheme hand-off.
+
+### Added
+- **External / app URL schemes are handed off to Android.** When a page links to
+  a non-web scheme -- an app deep link (`baiduboxapp://`, `weixin://`, `intent://`,
+  `market://`) or a well-known external protocol (`tel:`, `mailto:`, `geo:`,
+  `sms:`) -- the browser now fires an Android `Intent` to open the target app
+  instead of showing "This site can't be reached". Parsing and security hardening
+  (intent:// sanitization, `S.browser_fallback_url`, user-gesture / redirect
+  rules) come from Chromium's own `components/external_intents`, installed as a
+  navigation throttle on the browser's WebContents. `http`/`https` still load in
+  the browser; an unknown scheme with no installed app fails gracefully (no crash,
+  no error page). The SDK declares the `<queries>` needed for Android 11+ package
+  visibility so consumers need no manifest changes. (Codeberg browser issue: URL
+  scheme #6.)
+
 ## [0.8.7] -- 2026-09-17
 
 Chromium **152.0.7977.82** (CEF branch **7977**). Fixes a browser crash when
