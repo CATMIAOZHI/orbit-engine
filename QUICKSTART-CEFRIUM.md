@@ -34,6 +34,14 @@ From zero to rendering a web page in 5 minutes.
 > pinned version was pruned -- either bump to the current version or switch to
 > Maven Central, which keeps it. Full version history: the Codeberg Releases page
 > and `CHANGELOG-CEFRIUM.md`.
+>
+> **Pinning a fixed version in production? Depend on it via Maven Central.** Central
+> is immutable and retains every version forever, so a pinned coordinate
+> (`com.cefrium:cefrium-sdk:X.Y.Z` resolved through `mavenCentral()`) never
+> disappears. The Codeberg mirror keeps only the latest version to stay within its
+> donated-storage limits, so pinning an older version there will break at the next
+> release. Track-latest builds can use either source; pinned/reproducible builds
+> should use Central.
 
 ## 1. Create an Android project
 
