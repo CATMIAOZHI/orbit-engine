@@ -15,6 +15,20 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.8.9] -- 2026-09-18
+
+Chromium **152.0.7977.82** (CEF branch **7977**). Off-screen rendering crash fix.
+
+### Fixed
+- **No longer crashes in off-screen (OSR) mode during single-page-app navigation.**
+  On a same-document navigation (e.g. an SPA route change on a sign-in page), the
+  browser process could crash (`SIGSEGV`, null deref) inside Chromium's
+  back/forward navigation-transition screenshot code, which dereferenced the
+  view's native Android view without checking it -- and an off-screen view has
+  none (`GetNativeView()` is null in OSR). The interceptor now fails safely when
+  there is no native view, matching the function's existing guards. (Codeberg
+  browser issue: OSR SIGSEGV on `accounts.google.com`.)
+
 ## [0.8.8] -- 2026-09-18
 
 Chromium **152.0.7977.82** (CEF branch **7977**). External URL scheme hand-off.
