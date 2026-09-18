@@ -1,0 +1,22 @@
+diff --git content/browser/renderer_host/navigation_transitions/navigation_transition_utils.cc content/browser/renderer_host/navigation_transitions/navigation_transition_utils.cc
+index dbcde4a..b454e89 100644
+--- content/browser/renderer_host/navigation_transitions/navigation_transition_utils.cc
++++ content/browser/renderer_host/navigation_transitions/navigation_transition_utils.cc
+@@ -729,8 +729,15 @@ void NavigationTransitionUtils::SetSameDocumentNavigationEntryScreenshotToken(
+   RenderFrameHostImpl* current_rfh =
+       navigation_request.frame_tree_node()->current_frame_host();
+   RenderWidgetHostView* rwhv = current_rfh->GetView();
+-  if (auto* window_android = rwhv->GetNativeView()->GetWindowAndroid();
+-      !window_android || !window_android->GetCompositor()) {
++  // A RenderWidgetHostView without a native Android view (e.g. off-screen
++  // rendering, where GetNativeView() is null) has no WindowAndroid. Fail safely
++  // instead of dereferencing the null NativeView, matching this function's
++  // existing "can't always trust the renderer" philosophy.
++  gfx::NativeView rwhv_native_view =
++      rwhv ? rwhv->GetNativeView() : gfx::NativeView();
++  auto* window_android =
++      rwhv_native_view ? rwhv_native_view->GetWindowAndroid() : nullptr;
++  if (!window_android || !window_android->GetCompositor()) {
+     last_committed_entry->navigation_transition_data()
+         .set_cache_hit_or_miss_reason(
+             CacheHitOrMissReason::kNoRootWindowOrCompositor);
