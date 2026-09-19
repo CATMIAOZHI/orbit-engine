@@ -83,6 +83,18 @@ class CefriumViewState(
      */
     var onDownloadEvent: ((DownloadEntry) -> Unit)? = null
 
+    /**
+     * Optional hook to decide asynchronously whether and where to save a download
+     * (e.g. an Android SAF "save as" picker). When set, it is called BEFORE the
+     * download starts; you MUST eventually call `allow(path)` (path null = the
+     * suggested location) or `cancel()` -- the download waits for one of them.
+     * When null (default), downloads auto-start to the suggested path, like a
+     * normal browser.
+     */
+    var onBeforeDownload:
+        ((DownloadEntry, allow: (String?) -> Unit, cancel: () -> Unit) -> Unit)? =
+        null
+
     /** Cancel an in-progress download by its [DownloadEntry.id]. */
     fun cancelDownload(id: Int) { browser?.cancelDownload(id) }
 
@@ -178,8 +190,19 @@ class CefriumViewState(
                 item: CefriumBrowser.DownloadItem,
                 callback: CefriumBrowser.BeforeDownloadCallback,
             ) {
+                val entry = downloadEntryOf(item, DownloadState.STARTED)
+                val hook = onBeforeDownload
+                if (hook != null) {
+                    // Host decides where/whether to save (e.g. a SAF "save as"
+                    // picker). The download waits until allow()/cancel(). Only
+                    // track it once it actually starts (allow).
+                    hook(entry,
+                        { path -> callback.allow(path); upsertDownload(entry) },
+                        { callback.cancel() })
+                    return
+                }
                 callback.allow(null)
-                upsertDownload(downloadEntryOf(item, DownloadState.STARTED))
+                upsertDownload(entry)
             }
 
             override fun onDownloadUpdated(item: CefriumBrowser.DownloadItem) {
