@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "build/build_config.h"
 #include "content/public/common/url_constants.h"
 #include "extensions/common/constants.h"
 #include "url/url_constants.h"
@@ -29,6 +30,13 @@ bool IsInternalHandledScheme(std::string_view scheme) {
       url::kJavaScriptScheme,
       url::kWsScheme,
       url::kWssScheme,
+#if BUILDFLAG(IS_ANDROID)
+      // content:// (Android content-provider URIs, e.g. FileProvider) is handled
+      // by Chromium's ContentURLLoaderFactory. Mark it internal-handled so CEF's
+      // net_service proxy forwards it to that factory instead of treating it as
+      // an external/unsupported scheme (which fails with ERR_UNKNOWN_URL_SCHEME).
+      url::kContentScheme,
+#endif
   };
 
   for (auto& i : schemes) {
