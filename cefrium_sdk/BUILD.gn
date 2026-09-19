@@ -29,6 +29,7 @@ android_library("cefrium_java") {
   testonly = true
   sources = [
     "java/src/com/cefrium/Cefrium.java",
+    "java/src/com/cefrium/CefAndroidProtocolHandler.java",
     "java/src/com/cefrium/CefContactsPickerDelegate.java",
     "java/src/com/cefrium/CefExternalNavigationDelegate.java",
     "java/src/com/cefrium/CefInterceptNavigationDelegateClient.java",

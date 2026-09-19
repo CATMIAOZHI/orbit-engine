@@ -15,6 +15,7 @@
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "build/build_config.h"
 #include "cef/libcef/browser/context.h"
 #include "cef/libcef/browser/origin_whitelist_impl.h"
 #include "cef/libcef/browser/thread_util.h"
@@ -22,6 +23,11 @@
 #include "cef/libcef/common/net/scheme_registration.h"
 #include "cef/libcef/common/net_service/net_service_util.h"
 #include "components/safe_browsing/core/common/safebrowsing_constants.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "cef/libcef/browser/net_service/android_asset_response_delegate.h"
+#include "components/embedder_support/android/util/android_stream_reader_url_loader.h"
+#include "components/embedder_support/android/util/input_stream.h"
+#endif
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -891,6 +897,26 @@ void InterceptedRequest::InterceptResponseReceived(
 }
 
 void InterceptedRequest::ContinueAfterIntercept() {
+#if BUILDFLAG(IS_ANDROID)
+  // APK asset/resource URLs (file:///android_asset/, file:///android_res/) are
+  // served from the host app via AndroidStreamReaderURLLoader instead of the
+  // normal file: loader, which the sandboxed renderer cannot use for these
+  // (FEATURE-061).
+  if (!target_loader_ && cef::IsAndroidSpecialFileUrl(request_.url)) {
+    // Self-owned: AndroidStreamReaderURLLoader deletes itself (CleanUp ->
+    // `delete this`) when the load completes or its client pipe breaks (e.g.
+    // this request is torn down). Do NOT store it in a unique_ptr -- that
+    // double-frees. Matches android_webview's usage.
+    auto* loader = new embedder_support::AndroidStreamReaderURLLoader(
+        request_, proxied_client_receiver_.BindNewPipeAndPassRemote(),
+        traffic_annotation_,
+        std::make_unique<cef::CefAndroidAssetResponseDelegate>(request_.url),
+        /*security_options=*/std::nullopt);
+    loader->Start(/*input_stream=*/nullptr);
+    return;
+  }
+#endif
+
   if (!target_loader_ && target_factory_) {
     // Even if this request does not use the header client, future redirects
     // might, so we need to set the option on the loader.
