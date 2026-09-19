@@ -15,6 +15,67 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.9.0] -- UNRELEASED
+
+Chromium **152.0.7977.82** (CEF branch **7977**). Controllable downloads,
+content:// URLs, and APK asset loading.
+
+### Added
+- **Open `content://` URLs (Android content-provider URIs) in a tab.** A
+  FileProvider URI -- e.g. a downloaded file, or a file shared into the app --
+  now loads and renders (text/HTML/PDF/image). Previously
+  `net::ERR_UNKNOWN_URL_SCHEME`. (Also enables opening a download inside the
+  browser.)
+- **Load APK-bundled web content: `file:///android_asset/...` and
+  `file:///android_res/...`.** Ship an offline web app (HTML/CSS/JS) inside your
+  APK and load it directly, matching Android WebView. Served from the host app's
+  AssetManager/Resources; top-level navigation and subresources both work.
+- **Compose: `CefriumViewState` download support.** A `downloads` list (per-id,
+  live), an `onDownloadEvent` hook (for notifications), an `onBeforeDownload`
+  hook (choose where to save, e.g. a SAF picker), and
+  `cancelDownload`/`pauseDownload`/`resumeDownload(id)`.
+- `CefriumBrowser.cancelDownload/pauseDownload/resumeDownload(id)` -- control a
+  download by id (e.g. from a notification action) without holding the item.
+- **Controllable download API (`CefriumDownloadHandler`).** The previous
+  `OnDownloadListener` could only observe a download after it had already
+  started -- an accidental tap on a download link could not be stopped except
+  by killing the app. The new handler mirrors CEF's `CefDownloadHandler`:
+  - `setDownloadHandler(CefriumDownloadHandler)` -- register a handler.
+  - `onBeforeDownload(DownloadItem, BeforeDownloadCallback)` -- a download is
+    about to start; decide **asynchronously** whether to allow it. Call
+    `callback.allow(path)` (pass `null` for the suggested path) to download, or
+    `callback.cancel()` to block it. Nothing is written until you respond, so
+    you may show a confirmation dialog first.
+  - `onDownloadUpdated(DownloadItem)` -- progress updates; `DownloadItem`
+    exposes `cancel()` / `pause()` / `resume()` plus rich getters
+    (id, url, suggested name, mime, full path, total/received bytes, percent,
+    current speed, complete/canceled/paused, interrupt reason).
+  The legacy `setOnDownloadListener` still works (detect-only) and, when no
+  `CefriumDownloadHandler` is registered, downloads auto-start as before, so
+  this is fully backward compatible.
+
+### Fixed
+- **Minified (R8) consumer builds no longer crash at startup with
+  `AbstractMethodError: Consumer.accept(Object)`.** R8 stripped `accept(Object)`
+  from Chromium's `WindowLayoutInfoListener` lambda (implements
+  `androidx.window.extensions.core...Consumer`). The SDK now ships a consumer
+  keep rule for the SAM method and declares `androidx.window.extensions.core:core`
+  as a `provided` (compile-only) POM dependency so the consumer's R8 can resolve
+  the interface -- no consumer workaround needed. Validated with a minified
+  release build.
+- **Multiple downloads from one page no longer silently blocked (this is what made
+  `data:` / `blob:` downloads appear "unavailable").** Chromium's
+  `DownloadRequestLimiter` allows the first automatic download from a page and
+  then, with no permission-prompt UI attached (CEF attaches none), silently
+  blocked every later one -- and blocked ALL but the first download from an
+  opaque-origin page (`data:`/`blob:` pages, or content shown via `loadHtml` /
+  `loadDataWithBaseURL`). The limiter now defers to the embedder's
+  `CanDownload` when there is no prompt UI, so every download reaches the
+  download handler and the app decides. Root cause was NOT a `data:`/`blob:`
+  scheme filter (none exists in Chromium's download path); single downloads of
+  those schemes already worked. Validated on device: 3 sequential `data:`
+  downloads now all complete (previously only the first did).
+
 ## [0.8.9] -- 2026-09-18
 
 Chromium **152.0.7977.82** (CEF branch **7977**). Off-screen rendering crash fix.
