@@ -1160,6 +1160,10 @@ source_set("libcef_static") {
       "libcef/browser/android/browser_surface_android.cc",
       "libcef/browser/android/browser_surface_android.h",
       "libcef/browser/android/cef_share_service.h",
+      # FEATURE-061: serve APK assets/resources (file:///android_asset/,
+      # file:///android_res/) from the host app.
+      "libcef/browser/net_service/android_asset_response_delegate.cc",
+      "libcef/browser/net_service/android_asset_response_delegate.h",
       "libcef/browser/chrome/chrome_web_contents_view_delegate_android.cc",
       "libcef/browser/chrome/chrome_web_contents_view_delegate_android.h",
       "libcef/browser/native/browser_platform_delegate_native_android.cc",
@@ -1176,6 +1180,10 @@ source_set("libcef_static") {
       # ContentViewRenderView — standard Chromium component for Android
       # Surface rendering. Handles compositor, layer tree, DFH wiring.
       "//components/embedder_support/android:view",
+
+      # FEATURE-061: AndroidStreamReaderURLLoader + InputStream, to serve APK
+      # asset/resource URLs from the app's AssetManager.
+      "//components/embedder_support/android:util",
 
       # Android Autofill — provides AndroidAutofillManager,
       # AndroidAutofillProvider, and JNI bridge to Android's autofill framework.
