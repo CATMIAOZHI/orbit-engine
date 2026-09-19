@@ -2286,6 +2286,169 @@ public class CefriumBrowser {
         if (mCallback != null) mCallback.onDownloadUpdated(name, path, percent, complete, canceled);
     }
 
+    // ---- FEATURE-060: controllable download API (mirrors CefDownloadHandler) ----
+
+    /**
+     * Richer download handler that can allow/deny a download before it starts
+     * and cancel/pause/resume one in progress. Prefer this over
+     * {@link OnDownloadListener} (which is detect-only and kept for
+     * compatibility). Mirrors CEF's {@code CefDownloadHandler}.
+     *
+     * <p>Callbacks arrive on the browser's UI thread.</p>
+     */
+    public interface CefriumDownloadHandler {
+        /**
+         * A download is about to start. Decide asynchronously whether to allow
+         * it -- call {@code callback.allow(path)} to download (pass {@code null}
+         * to use the suggested path) or {@code callback.cancel()} to block it
+         * (e.g. after an accidental click). The download does not begin until
+         * one of the two is called; you may show a dialog first.
+         */
+        void onBeforeDownload(DownloadItem item, BeforeDownloadCallback callback);
+
+        /**
+         * Progress update for an in-flight download. Use {@link DownloadItem}'s
+         * {@code cancel()} / {@code pause()} / {@code resume()} to control it.
+         */
+        void onDownloadUpdated(DownloadItem item);
+    }
+
+    /** Async decision for {@link CefriumDownloadHandler#onBeforeDownload}. */
+    public interface BeforeDownloadCallback {
+        /** Start the download. {@code targetPath} null -> the suggested path. */
+        void allow(String targetPath);
+        /** Block the download (nothing is written). */
+        void cancel();
+    }
+
+    /**
+     * Snapshot of a download plus in-progress controls. Mirrors the getters of
+     * CEF's {@code CefDownloadItem}. The control methods are no-ops once the
+     * download has completed or been canceled.
+     */
+    public static final class DownloadItem {
+        private final CefriumBrowser mBrowser;
+        private final int mId;
+        private final String mUrl, mSuggestedName, mMimeType, mFullPath;
+        private final long mTotalBytes, mReceivedBytes, mCurrentSpeed;
+        private final int mPercent, mInterruptReason;
+        private final boolean mComplete, mCanceled, mPaused;
+
+        DownloadItem(CefriumBrowser browser, int id, String url,
+                     String suggestedName, String mimeType, String fullPath,
+                     long totalBytes, long receivedBytes, long currentSpeed,
+                     int percent, int interruptReason, boolean complete,
+                     boolean canceled, boolean paused) {
+            mBrowser = browser; mId = id; mUrl = url;
+            mSuggestedName = suggestedName; mMimeType = mimeType;
+            mFullPath = fullPath; mTotalBytes = totalBytes;
+            mReceivedBytes = receivedBytes; mCurrentSpeed = currentSpeed;
+            mPercent = percent; mInterruptReason = interruptReason;
+            mComplete = complete; mCanceled = canceled; mPaused = paused;
+        }
+
+        /** Unique id of this download (stable for its lifetime). */
+        public int getId() { return mId; }
+        public String getUrl() { return mUrl; }
+        public String getSuggestedName() { return mSuggestedName; }
+        public String getMimeType() { return mMimeType; }
+        /** Target path on disk (may be empty before the download starts). */
+        public String getFullPath() { return mFullPath; }
+        public long getTotalBytes() { return mTotalBytes; }
+        public long getReceivedBytes() { return mReceivedBytes; }
+        /** Current speed in bytes/second. */
+        public long getCurrentSpeed() { return mCurrentSpeed; }
+        public int getPercentComplete() { return mPercent; }
+        public boolean isComplete() { return mComplete; }
+        public boolean isCanceled() { return mCanceled; }
+        public boolean isPaused() { return mPaused; }
+        /** CEF {@code cef_download_interrupt_reason_t} (0 = none). */
+        public int getInterruptReason() { return mInterruptReason; }
+
+        /** Cancel this download. */
+        public void cancel() { mBrowser.controlDownload(mId, 0); }
+        /** Pause this download. */
+        public void pause() { mBrowser.controlDownload(mId, 1); }
+        /** Resume a paused download. */
+        public void resume() { mBrowser.controlDownload(mId, 2); }
+    }
+
+    private CefriumDownloadHandler mDownloadHandler;
+
+    /**
+     * Set the controllable download handler (allow/deny + cancel/pause/resume).
+     * Pass {@code null} to remove it (downloads then auto-start, as with the
+     * legacy {@link OnDownloadListener}).
+     */
+    public void setDownloadHandler(CefriumDownloadHandler handler) {
+        mDownloadHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+
+    void controlDownload(int id, int action) {
+        if (mNativePtr != 0) nativeDownloadControl(mNativePtr, id, action);
+    }
+
+    /**
+     * Cancel an in-progress download by its {@link DownloadItem#getId() id}.
+     * Safe to call from any thread; a no-op if the download is already finished.
+     * Useful to wire a "Cancel" action on a download notification without holding
+     * the {@link DownloadItem}.
+     */
+    public void cancelDownload(int id) { controlDownload(id, 0); }
+
+    /** Pause an in-progress download by its id. See {@link #cancelDownload}. */
+    public void pauseDownload(int id) { controlDownload(id, 1); }
+
+    /** Resume a paused download by its id. See {@link #cancelDownload}. */
+    public void resumeDownload(int id) { controlDownload(id, 2); }
+
+    // Called from native SdkDownloadHandler::OnBeforeDownload (UI thread).
+    @SuppressWarnings("unused")
+    private void onBeforeDownload(int id, String url, String suggestedName,
+                                  String mimeType, long totalBytes,
+                                  String defaultPath) {
+        if (mDownloadHandler != null) {
+            DownloadItem item = new DownloadItem(this, id, url, suggestedName,
+                    mimeType, defaultPath, totalBytes, 0, 0, 0, 0, false, false,
+                    false);
+            mDownloadHandler.onBeforeDownload(item, new BeforeDownloadCallback() {
+                @Override public void allow(String targetPath) {
+                    if (mNativePtr != 0) {
+                        nativeRespondBeforeDownload(mNativePtr, id, true,
+                                targetPath != null ? targetPath : defaultPath);
+                    }
+                }
+                @Override public void cancel() {
+                    if (mNativePtr != 0) {
+                        nativeRespondBeforeDownload(mNativePtr, id, false, null);
+                    }
+                }
+            });
+        } else {
+            // Legacy listener (or none): auto-start to the suggested path.
+            if (mNativePtr != 0) {
+                nativeRespondBeforeDownload(mNativePtr, id, true, defaultPath);
+            }
+        }
+    }
+
+    // Called from native SdkDownloadHandler::OnDownloadUpdated (UI thread).
+    @SuppressWarnings("unused")
+    private void onDownloadUpdatedRich(int id, String url, String suggestedName,
+                                       String mimeType, String fullPath,
+                                       long totalBytes, long receivedBytes,
+                                       int percent, long currentSpeed,
+                                       boolean complete, boolean canceled,
+                                       boolean paused, int interruptReason) {
+        if (mDownloadHandler != null) {
+            mDownloadHandler.onDownloadUpdated(new DownloadItem(this, id, url,
+                    suggestedName, mimeType, fullPath, totalBytes, receivedBytes,
+                    currentSpeed, percent, interruptReason, complete, canceled,
+                    paused));
+        }
+    }
+
     // Native methods.
     private static native long nativeCreate(int width, int height, float scale);
     private static native long nativeCreateWithSurface(
@@ -2343,6 +2506,8 @@ public class CefriumBrowser {
     private static native void nativeDeviceChooserCancel(long nativePtr, long id);
     private static native void nativeRespondSslError(long nativePtr, long id, boolean proceed);
     private static native void nativeRespondHttpAuth(long nativePtr, long id, String username, String password);
+    private static native void nativeRespondBeforeDownload(long nativePtr, int downloadId, boolean allow, String path);
+    private static native void nativeDownloadControl(long nativePtr, int downloadId, int action);
     private static native boolean nativeCanGoBack(long nativePtr);
     private static native void nativeSetDisplayCallback(long nativePtr, CefriumBrowser browser);
     private static native void nativeClose(long nativePtr);
