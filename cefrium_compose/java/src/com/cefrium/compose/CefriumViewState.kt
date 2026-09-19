@@ -5,9 +5,11 @@ import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.cefrium.CefriumBrowser
 
 /**
@@ -65,6 +67,41 @@ class CefriumViewState(
     /** The most recent download update (null until the first download). */
     var lastDownload: DownloadInfo? by mutableStateOf(null)
         internal set
+
+    /**
+     * All downloads seen for this page, newest first, one [DownloadEntry] per
+     * download (updated in place as it progresses). Backed by Compose state, so a
+     * download list UI recomposes automatically. Cleared with [clearDownloads].
+     */
+    val downloads: SnapshotStateList<DownloadEntry> = mutableStateListOf()
+
+    /**
+     * Optional per-download-event hook. Fired on the UI thread each time a
+     * download starts or updates (before [downloads] is a stable snapshot), so a
+     * host can post/refresh a system notification. The same [DownloadEntry] is
+     * also reflected in [downloads]. Set to null to stop receiving events.
+     */
+    var onDownloadEvent: ((DownloadEntry) -> Unit)? = null
+
+    /** Cancel an in-progress download by its [DownloadEntry.id]. */
+    fun cancelDownload(id: Int) { browser?.cancelDownload(id) }
+
+    /** Pause an in-progress download by its [DownloadEntry.id]. */
+    fun pauseDownload(id: Int) { browser?.pauseDownload(id) }
+
+    /** Resume a paused download by its [DownloadEntry.id]. */
+    fun resumeDownload(id: Int) { browser?.resumeDownload(id) }
+
+    /** Remove finished (complete or canceled) downloads from [downloads]. */
+    fun clearDownloads() {
+        downloads.removeAll { it.state == DownloadState.COMPLETE || it.state == DownloadState.CANCELED }
+    }
+
+    private fun upsertDownload(entry: DownloadEntry) {
+        val i = downloads.indexOfFirst { it.id == entry.id }
+        if (i >= 0) downloads[i] = entry else downloads.add(0, entry)
+        onDownloadEvent?.invoke(entry)
+    }
 
     /**
      * A pending context-menu request from the page, or null. When non-null, show
@@ -133,6 +170,34 @@ class CefriumViewState(
         b.setOnRenderProcessTerminatedListener { status, errorCode ->
             rendererTermination = RendererTermination(rendererStatusOf(status), errorCode)
         }
+        // Rich download handling (SDK 0.8.10): auto-allow like a normal browser and
+        // track each download (id/progress/status) in [downloads] + fire
+        // [onDownloadEvent] so the host can show notifications.
+        b.setDownloadHandler(object : CefriumBrowser.CefriumDownloadHandler {
+            override fun onBeforeDownload(
+                item: CefriumBrowser.DownloadItem,
+                callback: CefriumBrowser.BeforeDownloadCallback,
+            ) {
+                callback.allow(null)
+                upsertDownload(downloadEntryOf(item, DownloadState.STARTED))
+            }
+
+            override fun onDownloadUpdated(item: CefriumBrowser.DownloadItem) {
+                val state = when {
+                    item.isCanceled -> DownloadState.CANCELED
+                    item.isComplete -> DownloadState.COMPLETE
+                    item.isPaused -> DownloadState.PAUSED
+                    else -> DownloadState.IN_PROGRESS
+                }
+                val entry = downloadEntryOf(item, state)
+                upsertDownload(entry)
+                // Back-compat: keep lastDownload for consumers on the old field.
+                lastDownload = DownloadInfo(
+                    entry.name, entry.path, entry.percent,
+                    item.isComplete, item.isCanceled,
+                )
+            }
+        })
         browser = b
         if (navigationState != null) {
             // Restore the saved back/forward stack (loads the current entry).
@@ -189,6 +254,59 @@ data class DownloadInfo(
     val complete: Boolean,
     val canceled: Boolean,
 )
+
+/** Lifecycle state of a [DownloadEntry]. */
+enum class DownloadState {
+    /** Download accepted, not yet writing bytes. */
+    STARTED,
+    /** Actively downloading. */
+    IN_PROGRESS,
+    /** Finished successfully; the file is at [DownloadEntry.path]. */
+    COMPLETE,
+    /** Canceled or failed. */
+    CANCELED,
+    /** Paused. */
+    PAUSED,
+}
+
+/**
+ * A tracked download, delivered via [CefriumViewState.downloads] and
+ * [CefriumViewState.onDownloadEvent]. Identified by [id] (stable for the
+ * download's lifetime); the same id is updated in place as it progresses.
+ */
+data class DownloadEntry(
+    val id: Int,
+    val url: String,
+    val name: String,
+    val path: String,
+    val mimeType: String,
+    val receivedBytes: Long,
+    val totalBytes: Long,
+    val percent: Int,
+    val bytesPerSecond: Long,
+    val state: DownloadState,
+)
+
+private fun downloadEntryOf(
+    item: CefriumBrowser.DownloadItem,
+    state: DownloadState,
+): DownloadEntry {
+    val path = item.fullPath ?: ""
+    val suggested = item.suggestedName?.takeIf { it.isNotBlank() }
+    val name = suggested ?: path.substringAfterLast('/').ifBlank { "download" }
+    return DownloadEntry(
+        id = item.id,
+        url = item.url ?: "",
+        name = name,
+        path = path,
+        mimeType = item.mimeType ?: "",
+        receivedBytes = item.receivedBytes,
+        totalBytes = item.totalBytes,
+        percent = item.percentComplete,
+        bytesPerSecond = item.currentSpeed,
+        state = state,
+    )
+}
 
 /**
  * A pending context-menu request, delivered via [CefriumViewState.contextMenu].

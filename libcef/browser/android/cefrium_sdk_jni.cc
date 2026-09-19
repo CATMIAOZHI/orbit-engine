@@ -409,39 +409,96 @@ class SdkDownloadHandler : public CefDownloadHandler {
     if (java_browser) java_browser_ = env->NewGlobalRef(java_browser);
   }
 
+  // FEATURE-060: allow/deny hook, synchronous. Also a diagnostic for the
+  // schemes that never reach OnBeforeDownload (blob:/data:).
+  bool CanDownload(CefRefPtr<CefBrowser> browser,
+                   const CefString& url,
+                   const CefString& request_method) override {
+    LOGI("CanDownload: %s (%s)", url.ToString().c_str(),
+         request_method.ToString().c_str());
+    return true;
+  }
+
+  // FEATURE-060: async allow/deny. The pending callback is held by download id
+  // until Java responds via nativeRespondBeforeDownload (allow(path) / cancel()).
+  // Both OnBeforeDownload and OnDownloadUpdated run on the UI thread; the native
+  // respond methods post to the UI thread too, so the maps are UIT-only (no lock).
   bool OnBeforeDownload(CefRefPtr<CefBrowser> browser,
                         CefRefPtr<CefDownloadItem> download_item,
                         const CefString& suggested_name,
                         CefRefPtr<CefBeforeDownloadCallback> callback) override {
-    std::string path = download_dir_ + "/" + suggested_name.ToString();
+    uint32_t id = download_item->GetId();
+    std::string default_path = download_dir_ + "/" + suggested_name.ToString();
     LOGI("Download: %s -> %s", download_item->GetURL().ToString().c_str(),
-         path.c_str());
-    callback->Continue(path, false);
-    NotifyJava(suggested_name.ToString(), path,
-               download_item->GetPercentComplete(), false, false);
-    return true;
+         default_path.c_str());
+    // Backward compatibility: with no Java handler registered at all, keep the
+    // old auto-download behavior (never leave the download waiting for a
+    // response that will never arrive).
+    if (!java_browser_) {
+      callback->Continue(default_path, false);
+      return true;
+    }
+    pending_before_[id] = callback;
+    NotifyBeforeDownload(id, download_item->GetURL().ToString(),
+                         suggested_name.ToString(),
+                         download_item->GetMimeType().ToString(),
+                         download_item->GetTotalBytes(), default_path);
+    return true;  // decision is delivered asynchronously
   }
 
   void OnDownloadUpdated(CefRefPtr<CefBrowser> browser,
                          CefRefPtr<CefDownloadItem> download_item,
                          CefRefPtr<CefDownloadItemCallback> callback) override {
+    uint32_t id = download_item->GetId();
+    item_callbacks_[id] = callback;
+
     std::string filename = download_item->GetFullPath().ToString();
-    // Extract just the filename from the path.
     size_t pos = filename.rfind('/');
     std::string name = (pos != std::string::npos) ?
         filename.substr(pos + 1) : filename;
-
-    if (download_item->IsComplete()) {
-      LOGI("Download complete: %s (%" PRId64 " bytes)",
-           filename.c_str(),
+    const bool complete = download_item->IsComplete();
+    const bool canceled = download_item->IsCanceled();
+    if (complete) {
+      LOGI("Download complete: %s (%" PRId64 " bytes)", filename.c_str(),
            static_cast<int64_t>(download_item->GetReceivedBytes()));
-      NotifyJava(name, filename, 100, true, false);
-    } else if (download_item->IsCanceled()) {
+    } else if (canceled) {
       LOGI("Download canceled");
-      NotifyJava(name, filename, 0, false, true);
-    } else {
-      NotifyJava(name, filename,
-                 download_item->GetPercentComplete(), false, false);
+    }
+
+    // Rich callback (new API) + legacy callback (setOnDownloadListener compat).
+    NotifyDownloadUpdated(id, download_item, name, filename);
+    NotifyJavaLegacy(name, filename, download_item->GetPercentComplete(),
+                     complete, canceled);
+
+    if (complete || canceled) {
+      pending_before_.erase(id);
+      item_callbacks_.erase(id);
+    }
+  }
+
+  // Called from nativeRespondBeforeDownload (posted to the UI thread).
+  void RespondBeforeDownload(uint32_t id, bool allow, const std::string& path) {
+    auto it = pending_before_.find(id);
+    if (it == pending_before_.end()) return;
+    CefRefPtr<CefBeforeDownloadCallback> cb = it->second;
+    pending_before_.erase(it);
+    // Continuing starts the download; NOT continuing (dropping the callback)
+    // cancels it -- so denial needs no explicit call.
+    if (allow) cb->Continue(path, false);
+  }
+
+  // Called from nativeDownloadControl (posted to the UI thread). 0=cancel,
+  // 1=pause, 2=resume.
+  void ControlDownload(uint32_t id, int action) {
+    auto it = item_callbacks_.find(id);
+    if (it == item_callbacks_.end()) return;
+    CefRefPtr<CefDownloadItemCallback> cb = it->second;
+    if (action == 0) {
+      cb->Cancel();
+    } else if (action == 1) {
+      cb->Pause();
+    } else if (action == 2) {
+      cb->Resume();
     }
   }
 
@@ -455,8 +512,57 @@ class SdkDownloadHandler : public CefDownloadHandler {
   IMPLEMENT_REFCOUNTING(SdkDownloadHandler);
 
  private:
-  void NotifyJava(const std::string& name, const std::string& path,
-                  int percent, bool complete, bool canceled) {
+  void NotifyBeforeDownload(uint32_t id, const std::string& url,
+                            const std::string& name, const std::string& mime,
+                            int64_t total, const std::string& default_path) {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onBeforeDownload",
+        "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;)V");
+    if (method) {
+      jstring j_url = env->NewStringUTF(url.c_str());
+      jstring j_name = env->NewStringUTF(name.c_str());
+      jstring j_mime = env->NewStringUTF(mime.c_str());
+      jstring j_path = env->NewStringUTF(default_path.c_str());
+      env->CallVoidMethod(java_browser_, method, static_cast<jint>(id),
+                          j_url, j_name, j_mime, static_cast<jlong>(total), j_path);
+      env->DeleteLocalRef(j_url);
+      env->DeleteLocalRef(j_name);
+      env->DeleteLocalRef(j_mime);
+      env->DeleteLocalRef(j_path);
+    }
+  }
+
+  void NotifyDownloadUpdated(uint32_t id, CefRefPtr<CefDownloadItem> item,
+                             const std::string& name, const std::string& path) {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onDownloadUpdatedRich",
+        "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
+        "JJIJZZZI)V");
+    if (!method) return;
+    jstring j_url = env->NewStringUTF(item->GetURL().ToString().c_str());
+    jstring j_name = env->NewStringUTF(name.c_str());
+    jstring j_mime = env->NewStringUTF(item->GetMimeType().ToString().c_str());
+    jstring j_path = env->NewStringUTF(path.c_str());
+    env->CallVoidMethod(java_browser_, method, static_cast<jint>(id),
+        j_url, j_name, j_mime, j_path,
+        static_cast<jlong>(item->GetTotalBytes()),
+        static_cast<jlong>(item->GetReceivedBytes()),
+        item->GetPercentComplete(),
+        static_cast<jlong>(item->GetCurrentSpeed()),
+        item->IsComplete(), item->IsCanceled(), item->IsPaused(),
+        static_cast<jint>(item->GetInterruptReason()));
+    env->DeleteLocalRef(j_url);
+    env->DeleteLocalRef(j_name);
+    env->DeleteLocalRef(j_mime);
+    env->DeleteLocalRef(j_path);
+  }
+
+  void NotifyJavaLegacy(const std::string& name, const std::string& path,
+                        int percent, bool complete, bool canceled) {
     if (!java_browser_) return;
     JNIEnv* env = base::android::AttachCurrentThread();
     jclass cls = env->GetObjectClass(java_browser_);
@@ -472,6 +578,8 @@ class SdkDownloadHandler : public CefDownloadHandler {
     }
   }
 
+  std::map<uint32_t, CefRefPtr<CefBeforeDownloadCallback>> pending_before_;
+  std::map<uint32_t, CefRefPtr<CefDownloadItemCallback>> item_callbacks_;
   std::string download_dir_;
   jobject java_browser_ = nullptr;
 };
@@ -2310,6 +2418,53 @@ Java_com_cefrium_CefriumBrowser_nativeRespondPermission(
   if (data && data->client) {
     data->client->permission_handler()->Respond(
         static_cast<uint64_t>(prompt_id), grant == JNI_TRUE);
+  }
+}
+
+// FEATURE-060: Java delivers the app's allow/deny decision for a pending
+// download here (from CefriumDownloadHandler.onBeforeDownload). Posted to the UI
+// thread so the consumer may respond from any thread.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeRespondBeforeDownload(
+    JNIEnv* env, jclass, jlong native_ptr, jint download_id, jboolean allow,
+    jstring path) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->client) return;
+  CefRefPtr<SdkDownloadHandler> handler = data->client->download_handler();
+  std::string p;
+  if (path) {
+    const char* s = env->GetStringUTFChars(path, nullptr);
+    if (s) {
+      p = s;
+      env->ReleaseStringUTFChars(path, s);
+    }
+  }
+  uint32_t id = static_cast<uint32_t>(download_id);
+  bool a = allow == JNI_TRUE;
+  if (CefCurrentlyOn(TID_UI)) {
+    handler->RespondBeforeDownload(id, a, p);
+  } else {
+    CEF_POST_TASK(TID_UI,
+                  base::BindOnce(&SdkDownloadHandler::RespondBeforeDownload,
+                                 handler, id, a, p));
+  }
+}
+
+// FEATURE-060: cancel/pause/resume an in-progress download (0=cancel, 1=pause,
+// 2=resume), from DownloadItem.cancel()/pause()/resume().
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeDownloadControl(
+    JNIEnv* env, jclass, jlong native_ptr, jint download_id, jint action) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->client) return;
+  CefRefPtr<SdkDownloadHandler> handler = data->client->download_handler();
+  uint32_t id = static_cast<uint32_t>(download_id);
+  int act = static_cast<int>(action);
+  if (CefCurrentlyOn(TID_UI)) {
+    handler->ControlDownload(id, act);
+  } else {
+    CEF_POST_TASK(TID_UI, base::BindOnce(&SdkDownloadHandler::ControlDownload,
+                                         handler, id, act));
   }
 }
 
