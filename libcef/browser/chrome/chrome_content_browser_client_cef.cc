@@ -39,6 +39,7 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/chrome_switches.h"
 #include "components/performance_manager/embedder/performance_manager_registry.h"
+#include "content/public/browser/child_process_security_policy.h"
 #include "content/public/browser/client_certificate_delegate.h"
 #include "content/public/browser/navigation_throttle.h"
 #include "content/public/browser/render_process_host.h"
@@ -51,6 +52,7 @@
 #include "net/ssl/ssl_private_key.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "third_party/blink/public/mojom/loader/resource_load_info.mojom-shared.h"
+#include "url/url_constants.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "cef/libcef/browser/chrome/chrome_web_contents_view_delegate_android.h"
@@ -343,6 +345,20 @@ void ChromeContentBrowserClientCef::AppendExtraCommandLineSwitches(
 void ChromeContentBrowserClientCef::RenderProcessWillLaunch(
     content::RenderProcessHost* host) {
   ChromeContentBrowserClient::RenderProcessWillLaunch(host);
+
+#if BUILDFLAG(IS_ANDROID)
+  // Grant the content:// scheme to the renderer so browser-initiated navigations
+  // to Android content-provider URIs (e.g. a FileProvider URI for a downloaded
+  // file) load AND render. content:// is already a registered local scheme
+  // (inherited from ChromeContentClient) and IsHandledURL returns true for it on
+  // Android; the per-process grant is the one piece Chrome does not do. Use
+  // GrantCommitScheme (not GrantRequestScheme): the request-only grant lets the
+  // browser fetch the URL but the renderer then fails ChildProcessSecurityPolicy
+  // CanCommitURL, so the committed navigation errors with ERR_UNKNOWN_URL_SCHEME.
+  // GrantCommitScheme sets kCommitAndRequest, covering both.
+  content::ChildProcessSecurityPolicy::GetInstance()->GrantCommitScheme(
+      host->GetDeprecatedID(), url::kContentScheme);
+#endif
 
   // If the renderer process crashes then the host may already have
   // CefBrowserInfoManager as an observer. Try to remove it first before adding
