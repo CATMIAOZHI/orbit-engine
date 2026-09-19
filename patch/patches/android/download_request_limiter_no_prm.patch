@@ -1,0 +1,32 @@
+diff --git chrome/browser/download/download_request_limiter.cc chrome/browser/download/download_request_limiter.cc
+index eb1ace9..6ee7ea8 100644
+--- chrome/browser/download/download_request_limiter.cc
++++ chrome/browser/download/download_request_limiter.cc
+@@ -603,6 +603,19 @@ void DownloadRequestLimiter::CanDownloadImpl(
+     Callback callback) {
+   DCHECK(originating_contents);
+ 
++#if BUILDFLAG(IS_ANDROID)
++  // CEF has no download-permission prompt UI wired to the PermissionRequestManager
++  // on Android, so this limiter -- which routes the 2nd+ automatic download from a
++  // page (and ALL but the first download from an opaque-origin page, e.g. data:/
++  // blob: or content shown via loadHtml/loadDataWithBaseURL) through a user prompt
++  // -- would silently block those downloads. The embedder's
++  // WebContentsDelegate::CanDownload (CefDownloadHandler::CanDownload, already
++  // consulted in the public CanDownload() above) and OnBeforeDownload are the
++  // download authority for an embedded browser, so defer to them and allow here.
++  std::move(callback).Run(true);
++  if (!on_can_download_decided_callback_.is_null())
++    on_can_download_decided_callback_.Run(true);
++#else
+   // Always allow download resulted from a cross-origin redirect from a previous
+   // download attempt, and there's no need to update any state.
+   if (from_download_cross_origin_redirect) {
+@@ -725,6 +738,7 @@ void DownloadRequestLimiter::CanDownloadImpl(
+ 
+   if (!on_can_download_decided_callback_.is_null())
+     on_can_download_decided_callback_.Run(ret);
++#endif  // BUILDFLAG(IS_ANDROID)
+ }
+ 
+ void DownloadRequestLimiter::Remove(TabDownloadState* state,
