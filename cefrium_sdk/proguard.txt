@@ -15,3 +15,13 @@
 
 # Keep Chromium classes called from native via JNI.
 -keep class org.chromium.** { *; }
+
+# Chromium's WindowLayoutInfoListener has a lambda implementing
+# androidx.window.extensions.core.util.function.Consumer. In a minified consumer
+# build R8 could strip its accept(Object) (empty implementation) ->
+# AbstractMethodError at startup. Keep the SAM method on any such implementor.
+# The interface is provided on the compile classpath via the SDK's POM
+# (androidx.window.extensions.core:core, scope provided) so this rule resolves.
+-keep,allowobfuscation class * implements androidx.window.extensions.core.util.function.Consumer {
+    public void accept(java.lang.Object);
+}
