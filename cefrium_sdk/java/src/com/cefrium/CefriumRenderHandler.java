@@ -49,4 +49,37 @@ public interface CefriumRenderHandler {
      *                  preferred keyboard flavour (numeric, email, ...).
      */
     default void onVirtualKeyboardRequested(int inputMode) {}
+
+    /**
+     * Paints an OSR popup widget (e.g. an HTML {@code <select>} dropdown). Draw
+     * these pixels over the main view at ({@code x}, {@code y}); without this,
+     * dropdowns are invisible in off-screen mode. The buffer is BGRA, valid only
+     * during this call.
+     *
+     * @param x      Popup left, in view pixels.
+     * @param y      Popup top, in view pixels.
+     * @param width  Popup width in pixels.
+     * @param height Popup height in pixels.
+     * @param pixels BGRA pixel data ({@code width * height * 4} bytes).
+     */
+    default void onPopupPaint(int x, int y, int width, int height, ByteBuffer pixels) {}
+
+    /** An OSR popup widget was shown ({@code true}) or hidden ({@code false}). */
+    default void onPopupShow(boolean show) {}
+
+    /** The OSR popup widget's geometry (view pixels). */
+    default void onPopupSize(int x, int y, int width, int height) {}
+
+    /**
+     * The IME composition rectangle (bounds of the first composed character, in
+     * view pixels) changed &mdash; use it to position an IME overlay. Pairs with
+     * the OSR IME input path.
+     */
+    default void onImeCompositionRangeChanged(int x, int y, int width, int height) {}
+
+    /** The selected text changed (empty when the selection is cleared). */
+    default void onTextSelectionChanged(String selectedText) {}
+
+    /** The page scroll offset changed (CSS pixels). */
+    default void onScrollOffsetChanged(double x, double y) {}
 }
