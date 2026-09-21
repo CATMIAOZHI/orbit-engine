@@ -179,12 +179,99 @@ class SdkRenderHandler : public CefRenderHandler {
     if (!byte_buffer) return;
 
     jclass cls = env->GetObjectClass(java_browser_);
-    jmethodID method = env->GetMethodID(cls, "onPaint",
-        "(IILjava/nio/ByteBuffer;)V");
-    if (method) {
-      env->CallVoidMethod(java_browser_, method, width, height, byte_buffer);
+    if (type == PET_POPUP) {
+      // FEATURE-063: OSR popup widget (HTML <select> dropdown etc.). Deliver the
+      // popup pixels + its rect so the host composites it over the view.
+      jmethodID method = env->GetMethodID(cls, "onPopupPaint",
+          "(IIIILjava/nio/ByteBuffer;)V");
+      if (method) {
+        env->CallVoidMethod(java_browser_, method, popup_rect_.x, popup_rect_.y,
+                            width, height, byte_buffer);
+      }
+    } else {
+      jmethodID method = env->GetMethodID(cls, "onPaint",
+          "(IILjava/nio/ByteBuffer;)V");
+      if (method) {
+        env->CallVoidMethod(java_browser_, method, width, height, byte_buffer);
+      }
     }
     env->DeleteLocalRef(byte_buffer);
+    env->DeleteLocalRef(cls);
+  }
+
+  // FEATURE-063: OSR popup widget show/hide + geometry (HTML <select> dropdown).
+  void OnPopupShow(CefRefPtr<CefBrowser> browser, bool show) override {
+    if (!show) popup_rect_ = CefRect(0, 0, 0, 0);
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onPopupShow", "(Z)V");
+    if (method) env->CallVoidMethod(java_browser_, method, show);
+    env->DeleteLocalRef(cls);
+  }
+
+  void OnPopupSize(CefRefPtr<CefBrowser> browser, const CefRect& rect) override {
+    popup_rect_ = rect;
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onPopupSize", "(IIII)V");
+    if (method) {
+      env->CallVoidMethod(java_browser_, method, rect.x, rect.y, rect.width,
+                          rect.height);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  // FEATURE-063: IME composition rect (first character bound) for overlay
+  // positioning; pairs with the OSR IME input path.
+  void OnImeCompositionRangeChanged(
+      CefRefPtr<CefBrowser> browser,
+      const CefRange& selected_range,
+      const RectList& character_bounds) override {
+    if (!java_browser_) return;
+    CefRect r = character_bounds.empty() ? CefRect(0, 0, 0, 0)
+                                         : character_bounds.front();
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method =
+        env->GetMethodID(cls, "onImeCompositionRangeChanged", "(IIII)V");
+    if (method) {
+      env->CallVoidMethod(java_browser_, method, r.x, r.y, r.width, r.height);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  // FEATURE-063: text selection changed (selection handles / copy UI).
+  void OnTextSelectionChanged(CefRefPtr<CefBrowser> browser,
+                              const CefString& selected_text,
+                              const CefRange& selected_range) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onTextSelectionChanged",
+                                        "(Ljava/lang/String;)V");
+    if (method) {
+      jstring j = env->NewStringUTF(selected_text.ToString().c_str());
+      env->CallVoidMethod(java_browser_, method, j);
+      env->DeleteLocalRef(j);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  // FEATURE-063: scroll offset changed.
+  void OnScrollOffsetChanged(CefRefPtr<CefBrowser> browser,
+                             double x, double y) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onScrollOffsetChanged", "(DD)V");
+    if (method) env->CallVoidMethod(java_browser_, method, x, y);
     env->DeleteLocalRef(cls);
   }
 
@@ -222,6 +309,7 @@ class SdkRenderHandler : public CefRenderHandler {
   int height_;
   float scale_;
   jobject java_browser_ = nullptr;
+  CefRect popup_rect_;  // FEATURE-063: last OSR popup geometry (for PET_POPUP).
 };
 
 // Life span handler that captures the browser when created.
@@ -290,6 +378,21 @@ class SdkLifeSpanHandler : public CefLifeSpanHandler {
     return true;  // always cancel the separate popup window
   }
 
+  // FEATURE-063: window.close() / JS-initiated close. Notify Java; return false
+  // for CEF's default close sequence.
+  bool DoClose(CefRefPtr<CefBrowser> browser) override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) {
+        jclass cls = env->GetObjectClass(java_browser_);
+        jmethodID mid = env->GetMethodID(cls, "onDoClose", "()V");
+        if (mid) env->CallVoidMethod(java_browser_, mid);
+        env->DeleteLocalRef(cls);
+      }
+    }
+    return false;
+  }
+
   ~SdkLifeSpanHandler() override {
     if (java_browser_) {
       JNIEnv* env = base::android::AttachCurrentThread();
@@ -332,6 +435,48 @@ class SdkLoadHandler : public CefLoadHandler {
     if (method) {
       env->CallVoidMethod(java_browser_, method,
                           isLoading, canGoBack, canGoForward);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  // FEATURE-063: per-frame navigation start (main frame only up-called).
+  void OnLoadStart(CefRefPtr<CefBrowser> browser,
+                   CefRefPtr<CefFrame> frame,
+                   TransitionType transition_type) override {
+    if (!frame->IsMain() || !java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onLoadStart",
+                                        "(Ljava/lang/String;)V");
+    if (method) {
+      jstring j = env->NewStringUTF(
+          frame->GetURL().ToString().c_str());
+      env->CallVoidMethod(java_browser_, method, j);
+      env->DeleteLocalRef(j);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  // FEATURE-063: per-frame load error. WebView onReceivedError. Main frame only.
+  void OnLoadError(CefRefPtr<CefBrowser> browser,
+                   CefRefPtr<CefFrame> frame,
+                   ErrorCode errorCode,
+                   const CefString& errorText,
+                   const CefString& failedUrl) override {
+    if (!frame->IsMain() || !java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onLoadError",
+        "(ILjava/lang/String;Ljava/lang/String;)V");
+    if (method) {
+      jstring j_txt = env->NewStringUTF(errorText.ToString().c_str());
+      jstring j_url = env->NewStringUTF(failedUrl.ToString().c_str());
+      env->CallVoidMethod(java_browser_, method, static_cast<jint>(errorCode),
+                          j_txt, j_url);
+      env->DeleteLocalRef(j_txt);
+      env->DeleteLocalRef(j_url);
     }
     env->DeleteLocalRef(cls);
   }
@@ -402,6 +547,103 @@ class SdkDisplayHandler : public CefDisplayHandler {
     jmethodID method = env->GetMethodID(cls, "onFullscreenChanged", "(Z)V");
     if (method) {
       env->CallVoidMethod(java_browser_, method, fullscreen);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  // FEATURE-063 (WebView parity): favicon URLs. WebView onReceivedIcon/faviconUrl.
+  void OnFaviconURLChange(CefRefPtr<CefBrowser> browser,
+                          const std::vector<CefString>& icon_urls) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass str_cls = env->FindClass("java/lang/String");
+    jobjectArray arr = env->NewObjectArray(
+        static_cast<jsize>(icon_urls.size()), str_cls, nullptr);
+    for (size_t i = 0; i < icon_urls.size(); ++i) {
+      jstring s = env->NewStringUTF(icon_urls[i].ToString().c_str());
+      env->SetObjectArrayElement(arr, static_cast<jsize>(i), s);
+      env->DeleteLocalRef(s);
+    }
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onFaviconUrlChanged",
+                                        "([Ljava/lang/String;)V");
+    if (method) {
+      env->CallVoidMethod(java_browser_, method, arr);
+    }
+    env->DeleteLocalRef(arr);
+    env->DeleteLocalRef(str_cls);
+    env->DeleteLocalRef(cls);
+  }
+
+  // FEATURE-063: fractional load progress 0..1. WebView onProgressChanged.
+  void OnLoadingProgressChange(CefRefPtr<CefBrowser> browser,
+                               double progress) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onLoadingProgress", "(D)V");
+    if (method) {
+      env->CallVoidMethod(java_browser_, method, progress);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  // FEATURE-063: JS console messages. WebView onConsoleMessage. Return false so
+  // the message is still logged normally.
+  bool OnConsoleMessage(CefRefPtr<CefBrowser> browser,
+                        cef_log_severity_t level,
+                        const CefString& message,
+                        const CefString& source,
+                        int line) override {
+    if (!java_browser_) return false;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return false;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onConsoleMessage",
+                                        "(ILjava/lang/String;Ljava/lang/String;I)V");
+    if (method) {
+      jstring j_msg = env->NewStringUTF(message.ToString().c_str());
+      jstring j_src = env->NewStringUTF(source.ToString().c_str());
+      env->CallVoidMethod(java_browser_, method, static_cast<jint>(level),
+                          j_msg, j_src, line);
+      env->DeleteLocalRef(j_msg);
+      env->DeleteLocalRef(j_src);
+    }
+    env->DeleteLocalRef(cls);
+    return false;
+  }
+
+  // FEATURE-063: link-hover status text.
+  void OnStatusMessage(CefRefPtr<CefBrowser> browser,
+                       const CefString& value) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onStatusMessage",
+                                        "(Ljava/lang/String;)V");
+    if (method) {
+      jstring j = env->NewStringUTF(value.ToString().c_str());
+      env->CallVoidMethod(java_browser_, method, j);
+      env->DeleteLocalRef(j);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  // FEATURE-063: camera/mic in-use change (privacy indicator).
+  void OnMediaAccessChange(CefRefPtr<CefBrowser> browser,
+                           bool has_video_access,
+                           bool has_audio_access) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onMediaAccessChange", "(ZZ)V");
+    if (method) {
+      env->CallVoidMethod(java_browser_, method, has_video_access,
+                          has_audio_access);
     }
     env->DeleteLocalRef(cls);
   }
@@ -736,6 +978,40 @@ class SdkContextMenuHandler : public CefContextMenuHandler {
     }
   }
 
+  // FEATURE-063: context-menu + touch quick-menu lifecycle (copy/share FAB).
+  void OnContextMenuDismissed(CefRefPtr<CefBrowser> browser,
+                              CefRefPtr<CefFrame> frame) override {
+    NotifyNoArg("onContextMenuDismissed");
+  }
+  bool OnQuickMenuCommand(CefRefPtr<CefBrowser> browser,
+                          CefRefPtr<CefFrame> frame,
+                          int command_id,
+                          EventFlags event_flags) override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) {
+        jclass cls = env->GetObjectClass(java_browser_);
+        jmethodID mid = env->GetMethodID(cls, "onQuickMenuCommand", "(I)V");
+        if (mid) env->CallVoidMethod(java_browser_, mid, command_id);
+        env->DeleteLocalRef(cls);
+      }
+    }
+    return false;
+  }
+  void OnQuickMenuDismissed(CefRefPtr<CefBrowser> browser,
+                            CefRefPtr<CefFrame> frame) override {
+    NotifyNoArg("onQuickMenuDismissed");
+  }
+  void NotifyNoArg(const char* name) {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, name, "()V");
+    if (mid) env->CallVoidMethod(java_browser_, mid);
+    env->DeleteLocalRef(cls);
+  }
+
   ~SdkContextMenuHandler() {
     if (java_browser_) {
       JNIEnv* env = base::android::AttachCurrentThread();
@@ -925,6 +1201,72 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
                                       std::move(doc.content_type));
   }
 
+  // FEATURE-063: response-side inspection (WebView has request-side only).
+  void OnResourceRedirect(CefRefPtr<CefBrowser> browser,
+                          CefRefPtr<CefFrame> frame,
+                          CefRefPtr<CefRequest> request,
+                          CefRefPtr<CefResponse> response,
+                          CefString& new_url) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onResourceRedirect",
+        "(Ljava/lang/String;Ljava/lang/String;)V");
+    if (mid) {
+      jstring jo = env->NewStringUTF(request->GetURL().ToString().c_str());
+      jstring jn = env->NewStringUTF(new_url.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, jo, jn);
+      env->DeleteLocalRef(jo);
+      env->DeleteLocalRef(jn);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  bool OnResourceResponse(CefRefPtr<CefBrowser> browser,
+                          CefRefPtr<CefFrame> frame,
+                          CefRefPtr<CefRequest> request,
+                          CefRefPtr<CefResponse> response) override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) {
+        jclass cls = env->GetObjectClass(java_browser_);
+        jmethodID mid = env->GetMethodID(cls, "onResourceResponse",
+            "(Ljava/lang/String;I)V");
+        if (mid) {
+          jstring ju = env->NewStringUTF(request->GetURL().ToString().c_str());
+          env->CallVoidMethod(java_browser_, mid, ju,
+                              response->GetStatus());
+          env->DeleteLocalRef(ju);
+        }
+        env->DeleteLocalRef(cls);
+      }
+    }
+    return false;  // do not re-issue the request
+  }
+
+  void OnResourceLoadComplete(CefRefPtr<CefBrowser> browser,
+                              CefRefPtr<CefFrame> frame,
+                              CefRefPtr<CefRequest> request,
+                              CefRefPtr<CefResponse> response,
+                              URLRequestStatus status,
+                              int64_t received_content_length) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onResourceLoadComplete",
+        "(Ljava/lang/String;IJ)V");
+    if (mid) {
+      jstring ju = env->NewStringUTF(request->GetURL().ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, ju,
+                          response ? response->GetStatus() : 0,
+                          static_cast<jlong>(received_content_length));
+      env->DeleteLocalRef(ju);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
   ~SdkResourceRequestHandler() override {
     if (java_browser_) {
       JNIEnv* env = base::android::AttachCurrentThread();
@@ -999,6 +1341,64 @@ class SdkRequestHandler : public CefRequestHandler {
         env->DeleteLocalRef(cls);
       }
     }
+  }
+
+  // FEATURE-063: window.open / target=_blank / ctrl-click to a new tab. Notify
+  // Java; return false so CEF's default (OnBeforePopup) path still runs.
+  bool OnOpenURLFromTab(CefRefPtr<CefBrowser> browser,
+                        CefRefPtr<CefFrame> frame,
+                        const CefString& target_url,
+                        WindowOpenDisposition target_disposition,
+                        bool user_gesture) override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) {
+        jclass cls = env->GetObjectClass(java_browser_);
+        jmethodID mid = env->GetMethodID(cls, "onOpenUrlFromTab",
+            "(Ljava/lang/String;IZ)V");
+        if (mid) {
+          jstring j = env->NewStringUTF(target_url.ToString().c_str());
+          env->CallVoidMethod(java_browser_, mid, j,
+                              static_cast<jint>(target_disposition),
+                              user_gesture);
+          env->DeleteLocalRef(j);
+        }
+        env->DeleteLocalRef(cls);
+      }
+    }
+    return false;
+  }
+
+  // FEATURE-063: hung-renderer (ANR) detection. Notify Java; return false for
+  // the default behaviour (Chromium's hang UI). WebView onRenderProcessUnresponsive.
+  bool OnRenderProcessUnresponsive(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefUnresponsiveProcessCallback> callback) override {
+    NotifyNoArg("onRenderUnresponsive");
+    return false;
+  }
+
+  void OnRenderProcessResponsive(CefRefPtr<CefBrowser> browser) override {
+    NotifyNoArg("onRenderResponsive");
+  }
+
+  void OnRenderViewReady(CefRefPtr<CefBrowser> browser) override {
+    NotifyNoArg("onRenderViewReady");
+  }
+
+  void OnDocumentAvailableInMainFrame(CefRefPtr<CefBrowser> browser) override {
+    NotifyNoArg("onDocumentAvailable");
+  }
+
+  // Small helper for the no-argument Java up-calls above.
+  void NotifyNoArg(const char* method_name) {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, method_name, "()V");
+    if (mid) env->CallVoidMethod(java_browser_, mid);
+    env->DeleteLocalRef(cls);
   }
 
   void SetMessageRouter(CefRefPtr<CefMessageRouterBrowserSide> router) {
@@ -1121,6 +1521,78 @@ class SdkRequestHandler : public CefRequestHandler {
     }
   }
 
+  // FEATURE-063: client-certificate selection (enterprise/kiosk mTLS). Async:
+  // marshal the cert subjects to Java, hold callback+list by id; Java responds
+  // via nativeSelectClientCertificate(id, index) -> Select(certs[index]), or
+  // index<0 to proceed with no client cert.
+  bool OnSelectClientCertificate(
+      CefRefPtr<CefBrowser> browser,
+      bool isProxy,
+      const CefString& host,
+      int port,
+      const X509CertificateList& certificates,
+      CefRefPtr<CefSelectClientCertificateCallback> callback) override {
+    if (!java_browser_ || certificates.empty()) return false;
+    uint64_t id;
+    {
+      base::AutoLock lock(lock_);
+      id = next_cert_id_++;
+      pending_cert_[id] = {callback, certificates};
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return false;
+    jclass str_cls = env->FindClass("java/lang/String");
+    jobjectArray arr = env->NewObjectArray(
+        static_cast<jsize>(certificates.size()), str_cls, nullptr);
+    for (size_t i = 0; i < certificates.size(); ++i) {
+      std::string subj;
+      if (certificates[i] && certificates[i]->GetSubject()) {
+        subj = certificates[i]->GetSubject()->GetDisplayName().ToString();
+      }
+      jstring s = env->NewStringUTF(subj.c_str());
+      env->SetObjectArrayElement(arr, static_cast<jsize>(i), s);
+      env->DeleteLocalRef(s);
+    }
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onSelectClientCertificate",
+        "(JZLjava/lang/String;I[Ljava/lang/String;)V");
+    bool dispatched = false;
+    if (mid) {
+      jstring jhost = env->NewStringUTF(host.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, static_cast<jlong>(id), isProxy,
+                          jhost, port, arr);
+      env->DeleteLocalRef(jhost);
+      dispatched = true;
+    }
+    env->DeleteLocalRef(cls);
+    env->DeleteLocalRef(arr);
+    env->DeleteLocalRef(str_cls);
+    if (!dispatched) {
+      base::AutoLock lock(lock_);
+      pending_cert_.erase(id);
+      return false;
+    }
+    return true;
+  }
+
+  void RespondClientCert(uint64_t id, int index) {
+    CefRefPtr<CefSelectClientCertificateCallback> cb;
+    X509CertificateList certs;
+    {
+      base::AutoLock lock(lock_);
+      auto it = pending_cert_.find(id);
+      if (it == pending_cert_.end()) return;
+      cb = it->second.first;
+      certs = it->second.second;
+      pending_cert_.erase(it);
+    }
+    if (index >= 0 && index < static_cast<int>(certs.size())) {
+      cb->Select(certs[index]);
+    } else {
+      cb->Select(nullptr);  // proceed with no client certificate
+    }
+  }
+
   ~SdkRequestHandler() override {
     if (java_browser_) {
       JNIEnv* env = base::android::AttachCurrentThread();
@@ -1139,8 +1611,12 @@ class SdkRequestHandler : public CefRequestHandler {
   base::Lock lock_;
   std::map<uint64_t, CefRefPtr<CefCallback>> pending_ssl_;
   std::map<uint64_t, CefRefPtr<CefAuthCallback>> pending_auth_;
+  std::map<uint64_t, std::pair<CefRefPtr<CefSelectClientCertificateCallback>,
+                               X509CertificateList>>
+      pending_cert_;
   uint64_t next_ssl_id_ = 1;
   uint64_t next_auth_id_ = 1;
+  uint64_t next_cert_id_ = 1;
 };
 
 // FEATURE-023 step 4: browser-side handler for window.cefriumQuery. Forwards
@@ -1319,6 +1795,61 @@ class SdkJSDialogHandler : public CefJSDialogHandler {
     return true;  // handled asynchronously
   }
 
+  // FEATURE-063: beforeunload "Leave site?" prompt for dirty forms. Same async
+  // pending_/Resolve mechanism; success == leave. WebView onJsBeforeUnload.
+  bool OnBeforeUnloadDialog(CefRefPtr<CefBrowser> browser,
+                            const CefString& message_text,
+                            bool is_reload,
+                            CefRefPtr<CefJSDialogCallback> callback) override {
+    if (!java_browser_) return false;
+    jlong token;
+    {
+      base::AutoLock l(lock_);
+      token = next_token_++;
+      pending_[token] = callback;
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) {
+      base::AutoLock l(lock_);
+      pending_.erase(token);
+      return false;
+    }
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onBeforeUnloadDialog",
+                                     "(JLjava/lang/String;Z)V");
+    bool dispatched = false;
+    if (mid) {
+      jstring jmsg = env->NewStringUTF(message_text.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, token, jmsg, is_reload);
+      env->DeleteLocalRef(jmsg);
+      dispatched = true;
+    }
+    env->DeleteLocalRef(cls);
+    if (!dispatched) {
+      base::AutoLock l(lock_);
+      pending_.erase(token);
+      return false;
+    }
+    return true;
+  }
+
+  // FEATURE-063: dialog lifecycle notifications.
+  void OnResetDialogState(CefRefPtr<CefBrowser> browser) override {
+    NotifyNoArg("onDialogResetState");
+  }
+  void OnDialogClosed(CefRefPtr<CefBrowser> browser) override {
+    NotifyNoArg("onDialogClosed");
+  }
+  void NotifyNoArg(const char* method_name) {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, method_name, "()V");
+    if (mid) env->CallVoidMethod(java_browser_, mid);
+    env->DeleteLocalRef(cls);
+  }
+
   void Resolve(jlong token, bool success, const CefString& input) {
     CefRefPtr<CefJSDialogCallback> cb;
     {
@@ -1466,6 +1997,28 @@ class SdkPermissionHandler : public CefPermissionHandler {
       promptCb->Continue(grant ? CEF_PERMISSION_RESULT_ACCEPT
                                : CEF_PERMISSION_RESULT_DENY);
     }
+  }
+
+  // FEATURE-063: a pending prompt was auto-dismissed (page navigated away).
+  // Let Java tear down any prompt UI so it does not leak/stick.
+  void OnDismissPermissionPrompt(
+      CefRefPtr<CefBrowser> browser,
+      uint64_t prompt_id,
+      cef_permission_request_result_t result) override {
+    {
+      base::AutoLock l(lock_);
+      pending_.erase(prompt_id);
+    }
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onDismissPermissionPrompt", "(JI)V");
+    if (mid) {
+      env->CallVoidMethod(java_browser_, mid, static_cast<jlong>(prompt_id),
+                          static_cast<jint>(result));
+    }
+    env->DeleteLocalRef(cls);
   }
 
   ~SdkPermissionHandler() override {
@@ -1678,6 +2231,428 @@ class SdkDeviceChooserHandler : public CefDeviceChooserHandler {
   IMPLEMENT_REFCOUNTING(SdkDeviceChooserHandler);
 };
 
+// FEATURE-063: keyboard handler. Synchronous up-calls return a jboolean so Java
+// can intercept/block a key before the page (return true = handled).
+class SdkKeyboardHandler : public CefKeyboardHandler {
+ public:
+  void SetJavaBrowser(JNIEnv* env, jobject jb) {
+    if (jb) java_browser_ = env->NewGlobalRef(jb);
+  }
+  bool OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
+                     const CefKeyEvent& event,
+                     CefEventHandle os_event,
+                     bool* is_keyboard_shortcut) override {
+    return CallJavaKey("onPreKeyEvent", event);
+  }
+  bool OnKeyEvent(CefRefPtr<CefBrowser> browser,
+                  const CefKeyEvent& event,
+                  CefEventHandle os_event) override {
+    return CallJavaKey("onKeyEvent", event);
+  }
+  bool CallJavaKey(const char* name, const CefKeyEvent& event) {
+    if (!java_browser_) return false;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return false;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, name, "(III)Z");
+    jboolean handled = JNI_FALSE;
+    if (mid) {
+      handled = env->CallBooleanMethod(
+          java_browser_, mid, static_cast<jint>(event.type),
+          event.windows_key_code, static_cast<jint>(event.modifiers));
+    }
+    env->DeleteLocalRef(cls);
+    return handled == JNI_TRUE;
+  }
+  ~SdkKeyboardHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+  IMPLEMENT_REFCOUNTING(SdkKeyboardHandler);
+ private:
+  jobject java_browser_ = nullptr;
+};
+
+// FEATURE-063: focus handler. OnSetFocus returns a jboolean (true = cancel).
+class SdkFocusHandler : public CefFocusHandler {
+ public:
+  void SetJavaBrowser(JNIEnv* env, jobject jb) {
+    if (jb) java_browser_ = env->NewGlobalRef(jb);
+  }
+  void OnTakeFocus(CefRefPtr<CefBrowser> browser, bool next) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onTakeFocus", "(Z)V");
+    if (mid) env->CallVoidMethod(java_browser_, mid, next);
+    env->DeleteLocalRef(cls);
+  }
+  bool OnSetFocus(CefRefPtr<CefBrowser> browser, FocusSource source) override {
+    if (!java_browser_) return false;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return false;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onSetFocus", "(I)Z");
+    jboolean cancel = JNI_FALSE;
+    if (mid) {
+      cancel = env->CallBooleanMethod(java_browser_, mid,
+                                      static_cast<jint>(source));
+    }
+    env->DeleteLocalRef(cls);
+    return cancel == JNI_TRUE;
+  }
+  void OnGotFocus(CefRefPtr<CefBrowser> browser) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onGotFocus", "()V");
+    if (mid) env->CallVoidMethod(java_browser_, mid);
+    env->DeleteLocalRef(cls);
+  }
+  ~SdkFocusHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+  IMPLEMENT_REFCOUNTING(SdkFocusHandler);
+ private:
+  jobject java_browser_ = nullptr;
+};
+
+// FEATURE-063: drag handler. OnDragEnter returns a jboolean (true = cancel drop).
+class SdkDragHandler : public CefDragHandler {
+ public:
+  void SetJavaBrowser(JNIEnv* env, jobject jb) {
+    if (jb) java_browser_ = env->NewGlobalRef(jb);
+  }
+  bool OnDragEnter(CefRefPtr<CefBrowser> browser,
+                   CefRefPtr<CefDragData> dragData,
+                   DragOperationsMask mask) override {
+    if (!java_browser_) return false;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return false;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onDragEnter", "(I)Z");
+    jboolean cancel = JNI_FALSE;
+    if (mid) {
+      cancel = env->CallBooleanMethod(java_browser_, mid,
+                                      static_cast<jint>(mask));
+    }
+    env->DeleteLocalRef(cls);
+    return cancel == JNI_TRUE;
+  }
+  void OnDraggableRegionsChanged(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      const std::vector<CefDraggableRegion>& regions) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    // Flatten to int[5*n]: x, y, width, height, draggable per region.
+    jintArray arr = env->NewIntArray(static_cast<jsize>(regions.size() * 5));
+    if (arr) {
+      std::vector<jint> buf;
+      buf.reserve(regions.size() * 5);
+      for (const auto& r : regions) {
+        buf.push_back(r.bounds.x);
+        buf.push_back(r.bounds.y);
+        buf.push_back(r.bounds.width);
+        buf.push_back(r.bounds.height);
+        buf.push_back(r.draggable ? 1 : 0);
+      }
+      if (!buf.empty()) {
+        env->SetIntArrayRegion(arr, 0, static_cast<jsize>(buf.size()),
+                               buf.data());
+      }
+      jclass cls = env->GetObjectClass(java_browser_);
+      jmethodID mid = env->GetMethodID(cls, "onDraggableRegionsChanged", "([I)V");
+      if (mid) env->CallVoidMethod(java_browser_, mid, arr);
+      env->DeleteLocalRef(cls);
+      env->DeleteLocalRef(arr);
+    }
+  }
+  ~SdkDragHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+  IMPLEMENT_REFCOUNTING(SdkDragHandler);
+ private:
+  jobject java_browser_ = nullptr;
+};
+
+// FEATURE-063: audio handler -- raw PCM tap of the page's audio. OPT-IN: enabling
+// it REDIRECTS page audio to the handler (it no longer plays normally), so
+// SdkClient returns this only when the consumer registered a Java audio handler.
+class SdkAudioHandler : public CefAudioHandler {
+ public:
+  void SetJavaBrowser(JNIEnv* env, jobject jb) {
+    if (jb) java_browser_ = env->NewGlobalRef(jb);
+  }
+  void OnAudioStreamStarted(CefRefPtr<CefBrowser> browser,
+                            const CefAudioParameters& params,
+                            int channels) override {
+    channels_ = channels;
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onAudioStreamStarted", "(II)V");
+    if (mid) {
+      env->CallVoidMethod(java_browser_, mid, channels,
+                          params.sample_rate);
+    }
+    env->DeleteLocalRef(cls);
+  }
+  void OnAudioStreamPacket(CefRefPtr<CefBrowser> browser,
+                           const float** data,
+                           int frames,
+                           int64_t pts) override {
+    if (!java_browser_ || channels_ <= 0) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    // Interleave planar channels into one float buffer for Java.
+    std::vector<float> interleaved(static_cast<size_t>(frames) * channels_);
+    for (int f = 0; f < frames; ++f) {
+      for (int c = 0; c < channels_; ++c) {
+        interleaved[f * channels_ + c] = data[c][f];
+      }
+    }
+    jobject buf = env->NewDirectByteBuffer(
+        interleaved.data(),
+        static_cast<jlong>(interleaved.size() * sizeof(float)));
+    if (buf) {
+      jclass cls = env->GetObjectClass(java_browser_);
+      jmethodID mid = env->GetMethodID(cls, "onAudioStreamPacket",
+                                       "(Ljava/nio/ByteBuffer;IJ)V");
+      if (mid) {
+        env->CallVoidMethod(java_browser_, mid, buf, frames,
+                            static_cast<jlong>(pts));
+      }
+      env->DeleteLocalRef(cls);
+      env->DeleteLocalRef(buf);
+    }
+  }
+  void OnAudioStreamStopped(CefRefPtr<CefBrowser> browser) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onAudioStreamStopped", "()V");
+    if (mid) env->CallVoidMethod(java_browser_, mid);
+    env->DeleteLocalRef(cls);
+  }
+  void OnAudioStreamError(CefRefPtr<CefBrowser> browser,
+                          const CefString& message) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onAudioStreamError",
+                                     "(Ljava/lang/String;)V");
+    if (mid) {
+      jstring j = env->NewStringUTF(message.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, j);
+      env->DeleteLocalRef(j);
+    }
+    env->DeleteLocalRef(cls);
+  }
+  ~SdkAudioHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+  IMPLEMENT_REFCOUNTING(SdkAudioHandler);
+ private:
+  jobject java_browser_ = nullptr;
+  int channels_ = 0;
+};
+
+// FEATURE-063: frame lifecycle handler (notify-only).
+class SdkFrameHandler : public CefFrameHandler {
+ public:
+  void SetJavaBrowser(JNIEnv* env, jobject jb) {
+    if (jb) java_browser_ = env->NewGlobalRef(jb);
+  }
+  void OnFrameCreated(CefRefPtr<CefBrowser> browser,
+                      CefRefPtr<CefFrame> frame) override {
+    NotifyFrame("onFrameCreated", frame);
+  }
+  void OnFrameDestroyed(CefRefPtr<CefBrowser> browser,
+                        CefRefPtr<CefFrame> frame) override {
+    NotifyFrame("onFrameDestroyed", frame);
+  }
+  void OnFrameAttached(CefRefPtr<CefBrowser> browser,
+                       CefRefPtr<CefFrame> frame,
+                       bool reattached) override {
+    NotifyFrame("onFrameAttached", frame);
+  }
+  void OnFrameDetached(CefRefPtr<CefBrowser> browser,
+                       CefRefPtr<CefFrame> frame) override {
+    NotifyFrame("onFrameDetached", frame);
+  }
+  void OnMainFrameChanged(CefRefPtr<CefBrowser> browser,
+                          CefRefPtr<CefFrame> old_frame,
+                          CefRefPtr<CefFrame> new_frame) override {
+    NotifyFrame("onMainFrameChanged",
+                new_frame ? new_frame : old_frame);
+  }
+  void NotifyFrame(const char* name, CefRefPtr<CefFrame> frame) {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, name,
+        "(Ljava/lang/String;Z)V");
+    if (mid) {
+      std::string id = frame ? frame->GetIdentifier().ToString() : "";
+      jstring j = env->NewStringUTF(id.c_str());
+      env->CallVoidMethod(java_browser_, mid, j,
+                          frame && frame->IsMain());
+      env->DeleteLocalRef(j);
+    }
+    env->DeleteLocalRef(cls);
+  }
+  ~SdkFrameHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+  IMPLEMENT_REFCOUNTING(SdkFrameHandler);
+ private:
+  jobject java_browser_ = nullptr;
+};
+
+// FEATURE-063: chrome command handler. Returns a jboolean (true = handled).
+class SdkCommandHandler : public CefCommandHandler {
+ public:
+  void SetJavaBrowser(JNIEnv* env, jobject jb) {
+    if (jb) java_browser_ = env->NewGlobalRef(jb);
+  }
+  bool OnChromeCommand(CefRefPtr<CefBrowser> browser,
+                       int command_id,
+                       cef_window_open_disposition_t disposition) override {
+    if (!java_browser_) return false;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return false;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onChromeCommand", "(II)Z");
+    jboolean handled = JNI_FALSE;
+    if (mid) {
+      handled = env->CallBooleanMethod(java_browser_, mid, command_id,
+                                       static_cast<jint>(disposition));
+    }
+    env->DeleteLocalRef(cls);
+    return handled == JNI_TRUE;
+  }
+  ~SdkCommandHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+  IMPLEMENT_REFCOUNTING(SdkCommandHandler);
+ private:
+  jobject java_browser_ = nullptr;
+};
+
+// FEATURE-063: file dialog handler -- <input type=file> / capture picker.
+// WebView onShowFileChooser. Async: hold the callback by id, up-call Java to
+// launch an Intent (ACTION_GET_CONTENT / OPEN_DOCUMENT), Java returns selected
+// paths via nativeFileDialogResult(id, paths) -> Continue()/Cancel().
+class SdkDialogHandler : public CefDialogHandler {
+ public:
+  void SetJavaBrowser(JNIEnv* env, jobject jb) {
+    if (jb) java_browser_ = env->NewGlobalRef(jb);
+  }
+  bool OnFileDialog(CefRefPtr<CefBrowser> browser,
+                    FileDialogMode mode,
+                    const CefString& title,
+                    const CefString& default_file_path,
+                    const std::vector<CefString>& accept_filters,
+                    const std::vector<CefString>& accept_extensions,
+                    const std::vector<CefString>& accept_descriptions,
+                    CefRefPtr<CefFileDialogCallback> callback) override {
+    if (!java_browser_) return false;  // fall back to CEF default (none)
+    jlong id;
+    {
+      base::AutoLock l(lock_);
+      id = next_id_++;
+      pending_[id] = callback;
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) {
+      base::AutoLock l(lock_);
+      pending_.erase(id);
+      return false;
+    }
+    jclass str_cls = env->FindClass("java/lang/String");
+    jobjectArray arr = env->NewObjectArray(
+        static_cast<jsize>(accept_filters.size()), str_cls, nullptr);
+    for (size_t i = 0; i < accept_filters.size(); ++i) {
+      jstring s = env->NewStringUTF(accept_filters[i].ToString().c_str());
+      env->SetObjectArrayElement(arr, static_cast<jsize>(i), s);
+      env->DeleteLocalRef(s);
+    }
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(
+        cls, "onFileDialog", "(JILjava/lang/String;[Ljava/lang/String;)V");
+    bool dispatched = false;
+    if (mid) {
+      jstring j_title = env->NewStringUTF(title.ToString().c_str());
+      env->CallVoidMethod(java_browser_, mid, id, static_cast<jint>(mode),
+                          j_title, arr);
+      env->DeleteLocalRef(j_title);
+      dispatched = true;
+    }
+    env->DeleteLocalRef(cls);
+    env->DeleteLocalRef(arr);
+    env->DeleteLocalRef(str_cls);
+    if (!dispatched) {
+      base::AutoLock l(lock_);
+      pending_.erase(id);
+      return false;
+    }
+    return true;
+  }
+  // Called from nativeFileDialogResult; empty paths => Cancel.
+  void Resolve(jlong id, const std::vector<CefString>& paths) {
+    CefRefPtr<CefFileDialogCallback> cb;
+    {
+      base::AutoLock l(lock_);
+      auto it = pending_.find(id);
+      if (it == pending_.end()) return;
+      cb = it->second;
+      pending_.erase(it);
+    }
+    if (paths.empty()) {
+      cb->Cancel();
+    } else {
+      cb->Continue(paths);
+    }
+  }
+  ~SdkDialogHandler() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+  IMPLEMENT_REFCOUNTING(SdkDialogHandler);
+ private:
+  jobject java_browser_ = nullptr;
+  base::Lock lock_;
+  std::map<jlong, CefRefPtr<CefFileDialogCallback>> pending_;
+  jlong next_id_ = 1;
+};
+
 class SdkClient : public CefClient {
  public:
   SdkClient(CefRefPtr<SdkRenderHandler> render_handler,
@@ -1694,6 +2669,13 @@ class SdkClient : public CefClient {
         js_dialog_handler_(new SdkJSDialogHandler()),
         permission_handler_(new SdkPermissionHandler()),
         device_chooser_handler_(new SdkDeviceChooserHandler()),
+        keyboard_handler_(new SdkKeyboardHandler()),
+        focus_handler_(new SdkFocusHandler()),
+        drag_handler_(new SdkDragHandler()),
+        audio_handler_(new SdkAudioHandler()),
+        frame_handler_(new SdkFrameHandler()),
+        command_handler_(new SdkCommandHandler()),
+        dialog_handler_(new SdkDialogHandler()),
         request_handler_(blocked_count ? new SdkRequestHandler(blocked_count) : nullptr) {
     if (browser_data) {
       load_handler_->SetBrowserData(browser_data);
@@ -1771,6 +2753,32 @@ class SdkClient : public CefClient {
     return device_chooser_handler_;
   }
 
+  // FEATURE-063 handler registrations.
+  CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override {
+    return keyboard_handler_;
+  }
+  CefRefPtr<CefFocusHandler> GetFocusHandler() override {
+    return focus_handler_;
+  }
+  CefRefPtr<CefDragHandler> GetDragHandler() override {
+    return drag_handler_;
+  }
+  CefRefPtr<CefFrameHandler> GetFrameHandler() override {
+    return frame_handler_;
+  }
+  CefRefPtr<CefCommandHandler> GetCommandHandler() override {
+    return command_handler_;
+  }
+  CefRefPtr<CefDialogHandler> GetDialogHandler() override {
+    return dialog_handler_;
+  }
+  // OPT-IN: returning an audio handler REDIRECTS page audio to the tap (it stops
+  // playing normally), so only expose it once the consumer enabled it.
+  CefRefPtr<CefAudioHandler> GetAudioHandler() override {
+    return audio_enabled_ ? audio_handler_ : nullptr;
+  }
+  void SetAudioCaptureEnabled(bool enabled) { audio_enabled_ = enabled; }
+
   CefRefPtr<SdkPermissionHandler> permission_handler() {
     return permission_handler_;
   }
@@ -1816,6 +2824,13 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkLoadHandler> load_handler_ref() { return load_handler_; }
   CefRefPtr<SdkDownloadHandler> download_handler() { return download_handler_; }
   CefRefPtr<SdkFindHandler> find_handler() { return find_handler_; }
+  CefRefPtr<SdkKeyboardHandler> keyboard_handler() { return keyboard_handler_; }
+  CefRefPtr<SdkFocusHandler> focus_handler() { return focus_handler_; }
+  CefRefPtr<SdkDragHandler> drag_handler() { return drag_handler_; }
+  CefRefPtr<SdkAudioHandler> audio_handler() { return audio_handler_; }
+  CefRefPtr<SdkFrameHandler> frame_handler() { return frame_handler_; }
+  CefRefPtr<SdkCommandHandler> command_handler() { return command_handler_; }
+  CefRefPtr<SdkDialogHandler> dialog_handler() { return dialog_handler_; }
   CefriumBridgeHandler* bridge_handler() { return bridge_handler_.get(); }
 
   ~SdkClient() override {
@@ -1839,6 +2854,14 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkJSDialogHandler> js_dialog_handler_;
   CefRefPtr<SdkPermissionHandler> permission_handler_;
   CefRefPtr<SdkDeviceChooserHandler> device_chooser_handler_;
+  CefRefPtr<SdkKeyboardHandler> keyboard_handler_;
+  CefRefPtr<SdkFocusHandler> focus_handler_;
+  CefRefPtr<SdkDragHandler> drag_handler_;
+  CefRefPtr<SdkAudioHandler> audio_handler_;
+  CefRefPtr<SdkFrameHandler> frame_handler_;
+  CefRefPtr<SdkCommandHandler> command_handler_;
+  CefRefPtr<SdkDialogHandler> dialog_handler_;
+  bool audio_enabled_ = false;
   CefRefPtr<SdkRequestHandler> request_handler_;
   // Declared last so the router is destroyed before the handler it references.
   std::unique_ptr<CefriumBridgeHandler> bridge_handler_;
@@ -2402,6 +3425,14 @@ Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
     data->client->js_dialog_handler()->SetJavaBrowser(env, java_browser);
     data->client->permission_handler()->SetJavaBrowser(env, java_browser);
     data->client->device_chooser_handler()->SetJavaBrowser(env, java_browser);
+    // FEATURE-063 parity handlers.
+    data->client->keyboard_handler()->SetJavaBrowser(env, java_browser);
+    data->client->focus_handler()->SetJavaBrowser(env, java_browser);
+    data->client->drag_handler()->SetJavaBrowser(env, java_browser);
+    data->client->audio_handler()->SetJavaBrowser(env, java_browser);
+    data->client->frame_handler()->SetJavaBrowser(env, java_browser);
+    data->client->command_handler()->SetJavaBrowser(env, java_browser);
+    data->client->dialog_handler()->SetJavaBrowser(env, java_browser);
     data->client->SetJavaBrowser(env, java_browser);  // for Web Share
     if (data->client->request_handler()) {
       data->client->request_handler()->SetJavaBrowser(env, java_browser);
@@ -2630,6 +3661,17 @@ Java_com_cefrium_CefriumBrowser_nativeRespondSslError(
   }
 }
 
+// FEATURE-063: Java selects a client certificate by index (or -1 for none).
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSelectClientCertificate(
+    JNIEnv* env, jclass, jlong native_ptr, jlong id, jint index) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client && data->client->request_handler()) {
+    data->client->request_handler()->RespondClientCert(
+        static_cast<uint64_t>(id), index);
+  }
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeRespondHttpAuth(
     JNIEnv* env, jclass, jlong native_ptr, jlong id, jstring username,
@@ -2757,6 +3799,165 @@ Java_com_cefrium_CefriumBrowser_nativeSendKeyEvent(
   event.unmodified_character = static_cast<char16_t>(char_code);
   event.focus_on_editable_field = true;
   data->browser->GetHost()->SendKeyEvent(event);
+}
+
+// FEATURE-063: Java returns the file-chooser selection (paths/URIs), or an
+// empty array to cancel.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeFileDialogResult(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jlong id,
+    jobjectArray paths) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->client) return;
+  std::vector<CefString> out;
+  if (paths) {
+    jsize n = env->GetArrayLength(paths);
+    for (jsize i = 0; i < n; ++i) {
+      jstring s = static_cast<jstring>(env->GetObjectArrayElement(paths, i));
+      if (s) {
+        const char* c = env->GetStringUTFChars(s, nullptr);
+        if (c) {
+          out.push_back(CefString(c));
+          env->ReleaseStringUTFChars(s, c);
+        }
+        env->DeleteLocalRef(s);
+      }
+    }
+  }
+  data->client->dialog_handler()->Resolve(id, out);
+}
+
+// FEATURE-063: enable/disable the raw PCM audio tap (opt-in; redirects audio).
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetAudioCaptureEnabled(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jboolean enabled) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client) {
+    data->client->SetAudioCaptureEnabled(enabled == JNI_TRUE);
+  }
+}
+
+// FEATURE-063: programmatically exit HTML fullscreen (e.g. back button).
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeExitFullscreen(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jboolean will_cause_resize) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser) {
+    data->browser->GetHost()->ExitFullscreen(will_cause_resize == JNI_TRUE);
+  }
+}
+
+// FEATURE-063: force-download a URL.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeStartDownload(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jstring url_jstr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser || !url_jstr) return;
+  const char* url = env->GetStringUTFChars(url_jstr, nullptr);
+  if (url) {
+    data->browser->GetHost()->StartDownload(CefString(url));
+    env->ReleaseStringUTFChars(url_jstr, url);
+  }
+}
+
+// FEATURE-063: history list with titles. Returns String[] of
+// "<isCurrent 0/1>\t<url>\t<title>", oldest-first.
+namespace {
+class NavEntryCollector : public CefNavigationEntryVisitor {
+ public:
+  bool Visit(CefRefPtr<CefNavigationEntry> entry,
+             bool current, int index, int total) override {
+    std::string row = current ? "1\t" : "0\t";
+    row += entry->GetURL().ToString();
+    row += "\t";
+    row += entry->GetTitle().ToString();
+    entries_.push_back(row);
+    return true;
+  }
+  std::vector<std::string> entries_;
+  IMPLEMENT_REFCOUNTING(NavEntryCollector);
+};
+}  // namespace
+
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_cefrium_CefriumBrowser_nativeGetNavigationEntries(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  jclass str_cls = env->FindClass("java/lang/String");
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) {
+    return env->NewObjectArray(0, str_cls, nullptr);
+  }
+  CefRefPtr<NavEntryCollector> visitor(new NavEntryCollector());
+  data->browser->GetHost()->GetNavigationEntries(visitor, /*current_only=*/false);
+  jobjectArray arr = env->NewObjectArray(
+      static_cast<jsize>(visitor->entries_.size()), str_cls, nullptr);
+  for (size_t i = 0; i < visitor->entries_.size(); ++i) {
+    jstring s = env->NewStringUTF(visitor->entries_[i].c_str());
+    env->SetObjectArrayElement(arr, static_cast<jsize>(i), s);
+    env->DeleteLocalRef(s);
+  }
+  return arr;
+}
+
+// FEATURE-063: fetch an image (e.g. favicon) to PNG bytes, delivered to Java
+// onImageDownloaded(url, byte[]). byte[] is null on failure.
+namespace {
+class ImageDownloadCb : public CefDownloadImageCallback {
+ public:
+  explicit ImageDownloadCb(jobject java_browser_global)
+      : java_browser_(java_browser_global) {}
+  void OnDownloadImageFinished(const CefString& image_url,
+                               int http_status_code,
+                               CefRefPtr<CefImage> image) override {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (env && java_browser_) {
+      jbyteArray jbytes = nullptr;
+      if (image) {
+        int w = 0, h = 0;
+        CefRefPtr<CefBinaryValue> png =
+            image->GetAsPNG(1.0f, true, w, h);
+        if (png) {
+          size_t sz = png->GetSize();
+          jbytes = env->NewByteArray(static_cast<jsize>(sz));
+          std::vector<uint8_t> buf(sz);
+          png->GetData(buf.data(), sz, 0);
+          env->SetByteArrayRegion(jbytes, 0, static_cast<jsize>(sz),
+                                  reinterpret_cast<const jbyte*>(buf.data()));
+        }
+      }
+      jclass cls = env->GetObjectClass(java_browser_);
+      jmethodID mid = env->GetMethodID(cls, "onImageDownloaded",
+                                       "(Ljava/lang/String;[B)V");
+      if (mid) {
+        jstring j = env->NewStringUTF(image_url.ToString().c_str());
+        env->CallVoidMethod(java_browser_, mid, j, jbytes);
+        env->DeleteLocalRef(j);
+      }
+      if (jbytes) env->DeleteLocalRef(jbytes);
+      env->DeleteLocalRef(cls);
+      env->DeleteGlobalRef(java_browser_);
+      java_browser_ = nullptr;
+    }
+  }
+  jobject java_browser_;
+  IMPLEMENT_REFCOUNTING(ImageDownloadCb);
+};
+}  // namespace
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeDownloadImage(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jstring url_jstr,
+    jobject java_browser, jint max_size) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser || !url_jstr || !java_browser) return;
+  const char* url = env->GetStringUTFChars(url_jstr, nullptr);
+  if (url) {
+    jobject global = env->NewGlobalRef(java_browser);
+    data->browser->GetHost()->DownloadImage(
+        CefString(url), /*is_favicon=*/true, static_cast<uint32_t>(max_size),
+        /*bypass_cache=*/false, new ImageDownloadCb(global));
+    env->ReleaseStringUTFChars(url_jstr, url);
+  }
 }
 
 // Touch event forwarding: Android MotionEvent → CEF mouse/touch events.

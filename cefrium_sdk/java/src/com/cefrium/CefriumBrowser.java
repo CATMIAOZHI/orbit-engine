@@ -898,6 +898,22 @@ public class CefriumBrowser {
     public interface JsDialogHandler {
         boolean onJsDialog(int type, String message, String defaultPromptText,
                            JsDialogCallback callback);
+
+        /**
+         * A {@code beforeunload} "Leave site?" prompt for a dirty form. Return
+         * true if handled (you MUST call the callback: success = leave). Default
+         * returns false (the load proceeds). {@code userInput} is unused.
+         */
+        default boolean onBeforeUnloadDialog(String message, boolean isReload,
+                                             JsDialogCallback callback) {
+            return false;
+        }
+
+        /** The dialog state was reset (e.g. before a new navigation). */
+        default void onDialogResetState() {}
+
+        /** A JS dialog was closed. */
+        default void onDialogClosed() {}
     }
 
     private JsDialogHandler mJsDialogHandler;
@@ -955,6 +971,13 @@ public class CefriumBrowser {
      */
     public interface PermissionHandler {
         void onPermissionRequest(String origin, int permissions, PermissionCallback callback);
+
+        /**
+         * An in-flight permission prompt was auto-dismissed (e.g. the page
+         * navigated away). Tear down any prompt UI you showed. {@code result} is
+         * Chromium's {@code cef_permission_request_result_t}.
+         */
+        default void onDismissPermissionPrompt(long promptId, int result) {}
     }
 
     private PermissionHandler mPermissionHandler;
@@ -2577,6 +2600,412 @@ public class CefriumBrowser {
         }
     }
 
+    // ===== FEATURE-063: full CEF-API parity handlers =====
+
+    private CefriumDisplayHandler mDisplayHandler;
+    private CefriumLoadHandler mLoadHandler;
+    private CefriumRequestHandler mRequestHandler;
+    private CefriumKeyboardHandler mKeyboardHandler;
+    private CefriumFocusHandler mFocusHandler;
+    private CefriumDragHandler mDragHandler;
+    private CefriumAudioHandler mAudioHandler;
+    private CefriumFrameHandler mFrameHandler;
+    private CefriumCommandHandler mCommandHandler;
+    private CefriumDialogHandler mDialogHandler;
+
+    /** Sets the display handler (favicon, progress, console, status, media). */
+    public void setDisplayHandler(CefriumDisplayHandler handler) {
+        mDisplayHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+    /** Sets the per-frame load handler (load start / error). */
+    public void setLoadHandler(CefriumLoadHandler handler) {
+        mLoadHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+    /** Sets the request handler (open-in-tab, hung renderer, client cert, resource events). */
+    public void setRequestHandler(CefriumRequestHandler handler) {
+        mRequestHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+    /** Sets the keyboard handler (intercept keys before the page). */
+    public void setKeyboardHandler(CefriumKeyboardHandler handler) {
+        mKeyboardHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+    /** Sets the focus handler. */
+    public void setFocusHandler(CefriumFocusHandler handler) {
+        mFocusHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+    /** Sets the drag handler. */
+    public void setDragHandler(CefriumDragHandler handler) {
+        mDragHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+    /**
+     * Sets the audio handler. OPT-IN and exclusive: a non-null handler REDIRECTS
+     * the page's audio to it (it stops playing through the speakers); pass null
+     * to disable and restore normal playback.
+     */
+    public void setAudioHandler(CefriumAudioHandler handler) {
+        mAudioHandler = handler;
+        if (mNativePtr != 0) {
+            nativeSetDisplayCallback(mNativePtr, this);
+            nativeSetAudioCaptureEnabled(mNativePtr, handler != null);
+        }
+    }
+    /** Sets the frame lifecycle handler. */
+    public void setFrameHandler(CefriumFrameHandler handler) {
+        mFrameHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+    /** Sets the Chrome command handler. */
+    public void setCommandHandler(CefriumCommandHandler handler) {
+        mCommandHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+    /** Sets the file-chooser dialog handler ({@code <input type=file>}). */
+    public void setDialogHandler(CefriumDialogHandler handler) {
+        mDialogHandler = handler;
+        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+    }
+
+    private void postMain(Runnable r) {
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(r);
+    }
+
+    // ---- Display bridge (called from native, UI thread) ----
+    private void onFaviconUrlChanged(String[] iconUrls) {
+        CefriumDisplayHandler h = mDisplayHandler;
+        if (h != null) h.onFaviconUrlChanged(iconUrls);
+    }
+    private void onLoadingProgress(double progress) {
+        CefriumDisplayHandler h = mDisplayHandler;
+        if (h != null) h.onLoadingProgress(progress);
+    }
+    private void onConsoleMessage(int level, String message, String source, int line) {
+        CefriumDisplayHandler h = mDisplayHandler;
+        if (h != null) h.onConsoleMessage(level, message, source, line);
+    }
+    private void onStatusMessage(String value) {
+        CefriumDisplayHandler h = mDisplayHandler;
+        if (h != null) h.onStatusMessage(value);
+    }
+    private void onMediaAccessChange(boolean hasVideo, boolean hasAudio) {
+        CefriumDisplayHandler h = mDisplayHandler;
+        if (h != null) h.onMediaAccessChange(hasVideo, hasAudio);
+    }
+
+    // ---- Load bridge ----
+    private void onLoadStart(String url) {
+        CefriumLoadHandler h = mLoadHandler;
+        if (h != null) h.onLoadStart(url);
+    }
+    private void onLoadError(int errorCode, String errorText, String failedUrl) {
+        CefriumLoadHandler h = mLoadHandler;
+        if (h != null) h.onLoadError(errorCode, errorText, failedUrl);
+    }
+
+    // ---- Request bridge ----
+    private void onOpenUrlFromTab(String url, int disposition, boolean userGesture) {
+        CefriumRequestHandler h = mRequestHandler;
+        if (h != null) h.onOpenUrlFromTab(url, disposition, userGesture);
+    }
+    private void onRenderUnresponsive() {
+        CefriumRequestHandler h = mRequestHandler;
+        if (h != null) h.onRenderUnresponsive();
+    }
+    private void onRenderResponsive() {
+        CefriumRequestHandler h = mRequestHandler;
+        if (h != null) h.onRenderResponsive();
+    }
+    private void onRenderViewReady() {
+        CefriumRequestHandler h = mRequestHandler;
+        if (h != null) h.onRenderViewReady();
+    }
+    private void onDocumentAvailable() {
+        CefriumRequestHandler h = mRequestHandler;
+        if (h != null) h.onDocumentAvailable();
+    }
+    private void onResourceRedirect(String oldUrl, String newUrl) {
+        CefriumRequestHandler h = mRequestHandler;
+        if (h != null) h.onResourceRedirect(oldUrl, newUrl);
+    }
+    private void onResourceResponse(String url, int statusCode) {
+        CefriumRequestHandler h = mRequestHandler;
+        if (h != null) h.onResourceResponse(url, statusCode);
+    }
+    private void onResourceLoadComplete(String url, int statusCode, long receivedBytes) {
+        CefriumRequestHandler h = mRequestHandler;
+        if (h != null) h.onResourceLoadComplete(url, statusCode, receivedBytes);
+    }
+    private void onSelectClientCertificate(final long id, boolean isProxy, String host,
+                                           int port, String[] subjectNames) {
+        CefriumRequestHandler h = mRequestHandler;
+        if (h == null) {
+            if (mNativePtr != 0) nativeSelectClientCertificate(mNativePtr, id, -1);
+            return;
+        }
+        final boolean[] answered = {false};
+        CefriumRequestHandler.ClientCertificateCallback cb =
+                new CefriumRequestHandler.ClientCertificateCallback() {
+            @Override public void select(int index) { respond(index); }
+            @Override public void cancel() { respond(-1); }
+            private void respond(int index) {
+                if (answered[0]) return;
+                answered[0] = true;
+                if (mNativePtr != 0) nativeSelectClientCertificate(mNativePtr, id, index);
+            }
+        };
+        h.onSelectClientCertificate(isProxy, host, port, subjectNames, cb);
+    }
+
+    // ---- beforeunload (reuses the JS-dialog resolve path) ----
+    private void onBeforeUnloadDialog(final long token, String message, boolean isReload) {
+        JsDialogCallback cb = (success, userInput) -> {
+            if (mNativePtr != 0) nativeJsDialogResult(mNativePtr, token, success, "");
+        };
+        JsDialogHandler h = mJsDialogHandler;
+        if (h != null && h.onBeforeUnloadDialog(message, isReload, cb)) return;
+        // No handler: allow the navigation (do not block).
+        cb.continueDialog(true, "");
+    }
+    private void onDialogResetState() {
+        JsDialogHandler h = mJsDialogHandler;
+        if (h != null) h.onDialogResetState();
+    }
+    private void onDialogClosed() {
+        JsDialogHandler h = mJsDialogHandler;
+        if (h != null) h.onDialogClosed();
+    }
+
+    // ---- Permission auto-dismiss ----
+    private void onDismissPermissionPrompt(long promptId, int result) {
+        PermissionHandler h = mPermissionHandler;
+        if (h != null) h.onDismissPermissionPrompt(promptId, result);
+    }
+
+    // ---- LifeSpan ----
+    private void onDoClose() {
+        // Notify via the render-process / listener path if the app cares; no-op
+        // by default (CEF continues its default close sequence).
+    }
+
+    // ---- Keyboard (synchronous, returns handled) ----
+    private boolean onPreKeyEvent(int type, int windowsKeyCode, int modifiers) {
+        CefriumKeyboardHandler h = mKeyboardHandler;
+        return h != null && h.onPreKeyEvent(type, windowsKeyCode, modifiers);
+    }
+    private boolean onKeyEvent(int type, int windowsKeyCode, int modifiers) {
+        CefriumKeyboardHandler h = mKeyboardHandler;
+        return h != null && h.onKeyEvent(type, windowsKeyCode, modifiers);
+    }
+
+    // ---- Focus ----
+    private void onTakeFocus(boolean next) {
+        CefriumFocusHandler h = mFocusHandler;
+        if (h != null) h.onTakeFocus(next);
+    }
+    private boolean onSetFocus(int source) {
+        CefriumFocusHandler h = mFocusHandler;
+        return h != null && h.onSetFocus(source);
+    }
+    private void onGotFocus() {
+        CefriumFocusHandler h = mFocusHandler;
+        if (h != null) h.onGotFocus();
+    }
+
+    // ---- Drag ----
+    private boolean onDragEnter(int mask) {
+        CefriumDragHandler h = mDragHandler;
+        return h != null && h.onDragEnter(mask);
+    }
+    private void onDraggableRegionsChanged(int[] regions) {
+        CefriumDragHandler h = mDragHandler;
+        if (h != null) h.onDraggableRegionsChanged(regions);
+    }
+
+    // ---- Audio ----
+    private void onAudioStreamStarted(int channels, int sampleRate) {
+        CefriumAudioHandler h = mAudioHandler;
+        if (h != null) h.onAudioStreamStarted(channels, sampleRate);
+    }
+    private void onAudioStreamPacket(java.nio.ByteBuffer data, int frames, long pts) {
+        CefriumAudioHandler h = mAudioHandler;
+        if (h != null) h.onAudioStreamPacket(data, frames, pts);
+    }
+    private void onAudioStreamStopped() {
+        CefriumAudioHandler h = mAudioHandler;
+        if (h != null) h.onAudioStreamStopped();
+    }
+    private void onAudioStreamError(String message) {
+        CefriumAudioHandler h = mAudioHandler;
+        if (h != null) h.onAudioStreamError(message);
+    }
+
+    // ---- Frame ----
+    private void onFrameCreated(String frameId, boolean isMain) {
+        CefriumFrameHandler h = mFrameHandler;
+        if (h != null) h.onFrameCreated(frameId, isMain);
+    }
+    private void onFrameDestroyed(String frameId, boolean isMain) {
+        CefriumFrameHandler h = mFrameHandler;
+        if (h != null) h.onFrameDestroyed(frameId, isMain);
+    }
+    private void onFrameAttached(String frameId, boolean isMain) {
+        CefriumFrameHandler h = mFrameHandler;
+        if (h != null) h.onFrameAttached(frameId, isMain);
+    }
+    private void onFrameDetached(String frameId, boolean isMain) {
+        CefriumFrameHandler h = mFrameHandler;
+        if (h != null) h.onFrameDetached(frameId, isMain);
+    }
+    private void onMainFrameChanged(String frameId, boolean isMain) {
+        CefriumFrameHandler h = mFrameHandler;
+        if (h != null) h.onMainFrameChanged(frameId, isMain);
+    }
+
+    // ---- Command (synchronous) ----
+    private boolean onChromeCommand(int commandId, int disposition) {
+        CefriumCommandHandler h = mCommandHandler;
+        return h != null && h.onChromeCommand(commandId, disposition);
+    }
+
+    // ---- Context-menu extras ----
+    private void onContextMenuDismissed() {}
+    private void onQuickMenuCommand(int commandId) {}
+    private void onQuickMenuDismissed() {}
+
+    // ---- File chooser (async by id; delivered on main so it can start an Intent) ----
+    private void onFileDialog(final long id, final int mode, final String title,
+                              final String[] acceptFilters) {
+        final CefriumDialogHandler h = mDialogHandler;
+        if (h == null) {
+            if (mNativePtr != 0) nativeFileDialogResult(mNativePtr, id, new String[0]);
+            return;
+        }
+        final boolean[] answered = {false};
+        final CefriumDialogHandler.FileDialogCallback cb =
+                new CefriumDialogHandler.FileDialogCallback() {
+            @Override public void select(String[] paths) {
+                respond(paths == null ? new String[0] : paths);
+            }
+            @Override public void cancel() { respond(new String[0]); }
+            private void respond(String[] paths) {
+                if (answered[0]) return;
+                answered[0] = true;
+                if (mNativePtr != 0) nativeFileDialogResult(mNativePtr, id, paths);
+            }
+        };
+        postMain(() -> h.onFileDialog(mode, title, acceptFilters, cb));
+    }
+
+    /** Delivers a file-chooser selection (empty/null cancels). See {@link CefriumDialogHandler}. */
+    public void fileDialogResult(long id, String[] paths) {
+        if (mNativePtr != 0) {
+            nativeFileDialogResult(mNativePtr, id, paths == null ? new String[0] : paths);
+        }
+    }
+
+    // ---- OSR render extras: forward to the render handler ----
+    private void onPopupPaint(int x, int y, int width, int height,
+                              java.nio.ByteBuffer pixels) {
+        if (mRenderHandler != null) mRenderHandler.onPopupPaint(x, y, width, height, pixels);
+    }
+    private void onPopupShow(boolean show) {
+        if (mRenderHandler != null) mRenderHandler.onPopupShow(show);
+    }
+    private void onPopupSize(int x, int y, int width, int height) {
+        if (mRenderHandler != null) mRenderHandler.onPopupSize(x, y, width, height);
+    }
+    private void onImeCompositionRangeChanged(int x, int y, int width, int height) {
+        if (mRenderHandler != null) mRenderHandler.onImeCompositionRangeChanged(x, y, width, height);
+    }
+    private void onTextSelectionChanged(String selectedText) {
+        if (mRenderHandler != null) mRenderHandler.onTextSelectionChanged(selectedText);
+    }
+    private void onScrollOffsetChanged(double x, double y) {
+        if (mRenderHandler != null) mRenderHandler.onScrollOffsetChanged(x, y);
+    }
+
+    // ---- Image download ----
+    /** Receives an image fetched via {@link #downloadImage(String, int, ImageCallback)}. */
+    public interface ImageCallback {
+        /** @param bitmap the decoded image, or null on failure. */
+        void onImage(String url, android.graphics.Bitmap bitmap);
+    }
+    private final java.util.Map<String, ImageCallback> mPendingImages =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Fetches an image (e.g. a favicon URL from
+     * {@link CefriumDisplayHandler#onFaviconUrlChanged}) to a Bitmap.
+     *
+     * @param url      Image URL.
+     * @param maxSize  Max edge in DIP (0 = no limit).
+     * @param callback Delivered on the main thread; bitmap is null on failure.
+     */
+    public void downloadImage(String url, int maxSize, ImageCallback callback) {
+        if (mNativePtr == 0 || url == null) return;
+        if (callback != null) mPendingImages.put(url, callback);
+        nativeDownloadImage(mNativePtr, url, this, maxSize);
+    }
+    private void onImageDownloaded(String url, byte[] pngBytes) {
+        ImageCallback cb = mPendingImages.remove(url);
+        if (cb == null) return;
+        android.graphics.Bitmap bmp = null;
+        if (pngBytes != null && pngBytes.length > 0) {
+            bmp = android.graphics.BitmapFactory.decodeByteArray(pngBytes, 0, pngBytes.length);
+        }
+        final android.graphics.Bitmap fbmp = bmp;
+        postMain(() -> cb.onImage(url, fbmp));
+    }
+
+    // ---- Misc BrowserHost parity ----
+    /** Programmatically exit HTML fullscreen (e.g. from the back button). */
+    public void exitFullscreen() {
+        if (mNativePtr != 0) nativeExitFullscreen(mNativePtr, true);
+    }
+    /** Force a download of {@code url}. */
+    public void startDownload(String url) {
+        if (mNativePtr != 0 && url != null) nativeStartDownload(mNativePtr, url);
+    }
+
+    /** One entry in the navigation history. See {@link #getNavigationEntries()}. */
+    public static class NavigationEntry {
+        /** True if this is the currently visible entry. */
+        public final boolean current;
+        /** Entry URL. */
+        public final String url;
+        /** Entry display title. */
+        public final String title;
+        public NavigationEntry(boolean current, String url, String title) {
+            this.current = current;
+            this.url = url;
+            this.title = title;
+        }
+    }
+
+    /**
+     * Returns the back/forward history with titles, oldest-first. Empty if the
+     * browser is not ready.
+     */
+    public java.util.List<NavigationEntry> getNavigationEntries() {
+        java.util.List<NavigationEntry> out = new java.util.ArrayList<>();
+        if (mNativePtr == 0) return out;
+        String[] rows = nativeGetNavigationEntries(mNativePtr);
+        if (rows == null) return out;
+        for (String row : rows) {
+            String[] parts = row.split("\t", 3);
+            if (parts.length >= 2) {
+                out.add(new NavigationEntry("1".equals(parts[0]), parts[1],
+                        parts.length >= 3 ? parts[2] : ""));
+            }
+        }
+        return out;
+    }
+
     // Native methods.
     private static native long nativeCreate(int width, int height, float scale);
     private static native long nativeCreateWithSurface(
@@ -2592,6 +3021,14 @@ public class CefriumBrowser {
     private static native void nativeImeCommitText(long nativePtr, String text, int relativeCursorPos);
     private static native void nativeImeFinishComposingText(long nativePtr, boolean keepSelection);
     private static native void nativeImeCancelComposition(long nativePtr);
+    // FEATURE-063 parity native methods.
+    private static native void nativeFileDialogResult(long nativePtr, long id, String[] paths);
+    private static native void nativeSetAudioCaptureEnabled(long nativePtr, boolean enabled);
+    private static native void nativeExitFullscreen(long nativePtr, boolean willCauseResize);
+    private static native void nativeStartDownload(long nativePtr, String url);
+    private static native String[] nativeGetNavigationEntries(long nativePtr);
+    private static native void nativeDownloadImage(long nativePtr, String url, CefriumBrowser browser, int maxSize);
+    private static native void nativeSelectClientCertificate(long nativePtr, long id, int index);
     private static native void nativeSendKeyEvent(long nativePtr, int type, int modifiers, int windowsKeyCode, int nativeKeyCode, int charCode);
     private static native void nativeSendTouchEvent(long nativePtr, int action, float x, float y, int pointerId);
     private static native void nativeSendMouseMoveEvent(long nativePtr, int x, int y, int modifiers, boolean mouseLeave);
