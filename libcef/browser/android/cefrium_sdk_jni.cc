@@ -188,6 +188,26 @@ class SdkRenderHandler : public CefRenderHandler {
     env->DeleteLocalRef(cls);
   }
 
+  // FEATURE-062 (issue #9): OSR virtual keyboard. Fired when the focused
+  // editable node changes. |input_mode| == CEF_TEXT_INPUT_MODE_NONE (0) means
+  // no editable is focused (hide the soft keyboard); any other value means an
+  // editable gained focus (show it). Forwarded to Java so the hosting View can
+  // drive InputMethodManager.
+  void OnVirtualKeyboardRequested(CefRefPtr<CefBrowser> browser,
+                                  TextInputMode input_mode) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method =
+        env->GetMethodID(cls, "onVirtualKeyboardRequested", "(I)V");
+    if (method) {
+      env->CallVoidMethod(java_browser_, method,
+                          static_cast<jint>(input_mode));
+    }
+    env->DeleteLocalRef(cls);
+  }
+
   ~SdkRenderHandler() override {
     if (java_browser_) {
       JNIEnv* env = base::android::AttachCurrentThread();
@@ -2641,6 +2661,102 @@ Java_com_cefrium_CefriumBrowser_nativeInvalidate(
   if (data && data->browser) {
     data->browser->GetHost()->Invalidate(PET_VIEW);
   }
+}
+
+// FEATURE-062 (issue #9): OSR IME. These forward an Android InputConnection's
+// composing/commit calls to CEF's OSR IME path (CefBrowserHost::Ime*), which
+// routes to the renderer. Text is taken as UTF-16 (jchar) so CJK/emoji and
+// supplementary-plane characters survive (GetStringUTFChars would mangle them).
+namespace {
+CefString JStringToCef16(JNIEnv* env, jstring j) {
+  CefString out;
+  if (!j) return out;
+  const jchar* chars = env->GetStringChars(j, nullptr);
+  jsize len = env->GetStringLength(j);
+  if (chars) {
+    out.FromString16(reinterpret_cast<const char16_t*>(chars),
+                     static_cast<size_t>(len));
+    env->ReleaseStringChars(j, chars);
+  }
+  return out;
+}
+}  // namespace
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeImeSetComposition(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jstring text_jstr,
+    jint sel_start, jint sel_end) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return;
+  CefString text = JStringToCef16(env, text_jstr);
+
+  std::vector<CefCompositionUnderline> underlines;
+  CefCompositionUnderline underline;
+  underline.range = CefRange(0, static_cast<uint32_t>(text.length()));
+  underline.color = 0xFF000000;       // opaque black
+  underline.background_color = 0;
+  underline.thick = 0;
+  underline.style = CEF_CUS_SOLID;
+  underlines.push_back(underline);
+
+  // No replacement range: replace the existing composition/selection.
+  CefRange replacement_range = CefRange::InvalidRange();
+  CefRange selection_range(static_cast<uint32_t>(sel_start),
+                           static_cast<uint32_t>(sel_end));
+  data->browser->GetHost()->ImeSetComposition(text, underlines,
+                                              replacement_range,
+                                              selection_range);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeImeCommitText(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jstring text_jstr,
+    jint relative_cursor_pos) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return;
+  CefString text = JStringToCef16(env, text_jstr);
+  data->browser->GetHost()->ImeCommitText(text, CefRange::InvalidRange(),
+                                          relative_cursor_pos);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeImeFinishComposingText(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jboolean keep_selection) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return;
+  data->browser->GetHost()->ImeFinishComposingText(keep_selection);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeImeCancelComposition(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return;
+  data->browser->GetHost()->ImeCancelComposition();
+}
+
+// FEATURE-062 (issue #9): OSR key events. Needed alongside IME for backspace,
+// enter, arrows and any non-composed keystroke. |type| is cef_key_event_type_t
+// (0=RAWKEYDOWN, 1=KEYDOWN, 2=KEYUP, 3=CHAR). |windows_key_code| is a Windows
+// virtual-key code (the platform-independent code Blink expects);
+// |native_key_code| is the raw Android key code; |char_code| is the produced
+// UTF-16 unit (for CHAR events).
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSendKeyEvent(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jint type, jint modifiers,
+    jint windows_key_code, jint native_key_code, jint char_code) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return;
+  CefKeyEvent event;
+  event.type = static_cast<cef_key_event_type_t>(type);
+  event.modifiers = static_cast<uint32_t>(modifiers);
+  event.windows_key_code = windows_key_code;
+  event.native_key_code = native_key_code;
+  event.is_system_key = 0;
+  event.character = static_cast<char16_t>(char_code);
+  event.unmodified_character = static_cast<char16_t>(char_code);
+  event.focus_on_editable_field = true;
+  data->browser->GetHost()->SendKeyEvent(event);
 }
 
 // Touch event forwarding: Android MotionEvent → CEF mouse/touch events.
