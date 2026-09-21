@@ -15,7 +15,20 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
-## [0.9.0] -- UNRELEASED
+## [Unreleased]
+
+- OSR IME + virtual keyboard (issue #9). Off-screen (OSR) browsers now drive the
+  Android soft keyboard: `CefriumRenderHandler.onVirtualKeyboardRequested(int)`
+  fires when an editable node gains/loses focus (hide only for
+  `TEXT_INPUT_MODE_NONE`, show otherwise). New IME input path on
+  `CefriumBrowser`: `imeSetComposition`, `imeCommitText`,
+  `imeFinishComposingText`, `imeCancelComposition`, plus `sendKeyEvent` (with
+  `KEY_*` and `TEXT_INPUT_MODE_*` constants) for backspace/enter/arrows. Wire a
+  custom `InputConnection` to these from the View that hosts the OSR frames (see
+  the OsrImeActivity sample). Windowed/Surface mode (incl. the Compose wrapper)
+  is unaffected -- it already uses Android's native IME. SDK-only, no CEF patch.
+
+## [0.9.0] -- 2026-09-19
 
 Chromium **152.0.7977.82** (CEF branch **7977**). Controllable downloads,
 content:// URLs, and APK asset loading.
