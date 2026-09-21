@@ -1631,6 +1631,17 @@ public class CefriumBrowser {
         }
     }
 
+    // FEATURE-062 (issue #9): OSR virtual keyboard. Called from native
+    // (SdkRenderHandler::OnVirtualKeyboardRequested) when the focused editable
+    // node changes. Re-posted to the main thread and forwarded to the render
+    // handler so the hosting View can drive InputMethodManager.
+    private void onVirtualKeyboardRequested(int inputMode) {
+        final CefriumRenderHandler handler = mRenderHandler;
+        if (handler == null) return;
+        new android.os.Handler(android.os.Looper.getMainLooper())
+                .post(() -> handler.onVirtualKeyboardRequested(inputMode));
+    }
+
     // ── Snapshot / capture ──
 
     /** Receives the captured page bitmap (null on failure). */
@@ -1700,6 +1711,120 @@ public class CefriumBrowser {
     public void invalidate() {
         if (mNativePtr != 0) {
             nativeInvalidate(mNativePtr);
+        }
+    }
+
+    // ----- OSR IME (FEATURE-062, issue #9) ------------------------------------
+    // Feed an Android InputConnection's composing/committed text into CEF's
+    // off-screen IME path. Mirrors CefBrowserHost::Ime*. Use from a custom
+    // InputConnection on the View that hosts the OSR frames; show/hide the soft
+    // keyboard from CefriumRenderHandler#onVirtualKeyboardRequested.
+
+    /**
+     * Set (or update) the current IME composition. Maps to an
+     * {@code InputConnection.setComposingText} call.
+     *
+     * @param text     The full composing text (underlined/marked in the page).
+     * @param selStart Selection/caret start within {@code text}.
+     * @param selEnd   Selection/caret end within {@code text}.
+     */
+    public void imeSetComposition(String text, int selStart, int selEnd) {
+        if (mNativePtr != 0) {
+            nativeImeSetComposition(mNativePtr, text == null ? "" : text,
+                    selStart, selEnd);
+        }
+    }
+
+    /**
+     * Commit text, ending any active composition. Maps to an
+     * {@code InputConnection.commitText} call.
+     *
+     * @param text              The text to commit.
+     * @param relativeCursorPos New caret position relative to the inserted
+     *                          text ({@code 1} places the caret right after it).
+     */
+    public void imeCommitText(String text, int relativeCursorPos) {
+        if (mNativePtr != 0) {
+            nativeImeCommitText(mNativePtr, text == null ? "" : text,
+                    relativeCursorPos);
+        }
+    }
+
+    /**
+     * Complete the current composition, keeping the composed text. Maps to
+     * {@code InputConnection.finishComposingText}.
+     *
+     * @param keepSelection Whether to keep the current selection after
+     *                      finishing.
+     */
+    public void imeFinishComposingText(boolean keepSelection) {
+        if (mNativePtr != 0) {
+            nativeImeFinishComposingText(mNativePtr, keepSelection);
+        }
+    }
+
+    /**
+     * Cancel the current composition, discarding the composed text.
+     */
+    public void imeCancelComposition() {
+        if (mNativePtr != 0) {
+            nativeImeCancelComposition(mNativePtr);
+        }
+    }
+
+    // Text input modes reported by {@link CefriumRenderHandler#onVirtualKeyboardRequested}.
+    // Values match CEF's cef_text_input_mode_t (and HTML inputmode). NOTE: the
+    // default text field is DEFAULT (0), NOT NONE -- hide the keyboard only for
+    // TEXT_INPUT_MODE_NONE (1); every other value means a field is focused and
+    // the keyboard should be shown (the value also picks the keyboard flavour).
+    /** Default input mode (a normal focused field): show the keyboard. */
+    public static final int TEXT_INPUT_MODE_DEFAULT = 0;
+    /** No virtual keyboard (nothing focused, or inputmode="none"): hide it. */
+    public static final int TEXT_INPUT_MODE_NONE = 1;
+    /** Plain text keyboard. */
+    public static final int TEXT_INPUT_MODE_TEXT = 2;
+    /** Telephone keypad. */
+    public static final int TEXT_INPUT_MODE_TEL = 3;
+    /** URL keyboard. */
+    public static final int TEXT_INPUT_MODE_URL = 4;
+    /** Email keyboard. */
+    public static final int TEXT_INPUT_MODE_EMAIL = 5;
+    /** Numeric keyboard. */
+    public static final int TEXT_INPUT_MODE_NUMERIC = 6;
+    /** Decimal keyboard. */
+    public static final int TEXT_INPUT_MODE_DECIMAL = 7;
+    /** Search keyboard. */
+    public static final int TEXT_INPUT_MODE_SEARCH = 8;
+
+    /** Key event type: raw key down (matches CEF {@code KEYEVENT_RAWKEYDOWN}). */
+    public static final int KEY_RAW_DOWN = 0;
+    /** Key event type: key down (matches CEF {@code KEYEVENT_KEYDOWN}). */
+    public static final int KEY_DOWN = 1;
+    /** Key event type: key up (matches CEF {@code KEYEVENT_KEYUP}). */
+    public static final int KEY_UP = 2;
+    /** Key event type: character (matches CEF {@code KEYEVENT_CHAR}). */
+    public static final int KEY_CHAR = 3;
+
+    /**
+     * Send a key event to the browser (OSR). Needed for backspace, enter,
+     * arrows and any keystroke not produced through composition. Mirrors
+     * {@code CefBrowserHost::SendKeyEvent}.
+     *
+     * <p>A typical character keystroke is three events: {@link #KEY_RAW_DOWN},
+     * {@link #KEY_CHAR} (with {@code charCode} set), then {@link #KEY_UP}.
+     *
+     * @param type           One of {@link #KEY_RAW_DOWN}, {@link #KEY_DOWN},
+     *                       {@link #KEY_UP}, {@link #KEY_CHAR}.
+     * @param modifiers      CEF event flags (modifier bits), or 0.
+     * @param windowsKeyCode Windows virtual-key code (what Blink expects).
+     * @param nativeKeyCode  Raw Android key code, or 0.
+     * @param character      Produced character (for {@link #KEY_CHAR}), or 0.
+     */
+    public void sendKeyEvent(int type, int modifiers, int windowsKeyCode,
+                             int nativeKeyCode, char character) {
+        if (mNativePtr != 0) {
+            nativeSendKeyEvent(mNativePtr, type, modifiers, windowsKeyCode,
+                    nativeKeyCode, character);
         }
     }
 
@@ -2463,6 +2588,11 @@ public class CefriumBrowser {
     private static native void nativeLoadDataWithBaseUrl(long nativePtr, String baseUrl,
             String data, String mimeType, String encoding, String historyUrl);
     private static native void nativeInvalidate(long nativePtr);
+    private static native void nativeImeSetComposition(long nativePtr, String text, int selStart, int selEnd);
+    private static native void nativeImeCommitText(long nativePtr, String text, int relativeCursorPos);
+    private static native void nativeImeFinishComposingText(long nativePtr, boolean keepSelection);
+    private static native void nativeImeCancelComposition(long nativePtr);
+    private static native void nativeSendKeyEvent(long nativePtr, int type, int modifiers, int windowsKeyCode, int nativeKeyCode, int charCode);
     private static native void nativeSendTouchEvent(long nativePtr, int action, float x, float y, int pointerId);
     private static native void nativeSendMouseMoveEvent(long nativePtr, int x, int y, int modifiers, boolean mouseLeave);
     private static native void nativeSendMouseClickEvent(long nativePtr, int x, int y, int modifiers, int button, boolean mouseUp, int clickCount);
