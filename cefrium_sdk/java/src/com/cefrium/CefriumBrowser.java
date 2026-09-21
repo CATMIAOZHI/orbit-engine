@@ -2621,6 +2621,24 @@ public class CefriumBrowser {
         if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
     }
     /** Sets the request handler (open-in-tab, hung renderer, client cert, resource events). */
+    /**
+     * Enable the opt-in response-body tap ({@link CefriumRequestHandler#onResponseData}).
+     * Off by default; enabling it copies each response body chunk across JNI
+     * (a hot path). Requires a request handler set to receive the data.
+     */
+    public void setResponseTapEnabled(boolean enabled) {
+        if (mNativePtr != 0) nativeSetResponseTapEnabled(mNativePtr, enabled);
+    }
+
+    /**
+     * Enable the opt-in per-cookie access filter
+     * ({@link CefriumRequestHandler#onCanSendCookie}/{@code onCanSaveCookie}).
+     * Off by default; enabling it calls the handler per cookie (a hot path).
+     */
+    public void setCookieFilterEnabled(boolean enabled) {
+        if (mNativePtr != 0) nativeSetCookieFilterEnabled(mNativePtr, enabled);
+    }
+
     public void setRequestHandler(CefriumRequestHandler handler) {
         mRequestHandler = handler;
         if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
@@ -2736,6 +2754,18 @@ public class CefriumBrowser {
     private void onResourceLoadComplete(String url, int statusCode, long receivedBytes) {
         CefriumRequestHandler h = mRequestHandler;
         if (h != null) h.onResourceLoadComplete(url, statusCode, receivedBytes);
+    }
+    private void onResponseData(String url, java.nio.ByteBuffer chunk) {
+        CefriumRequestHandler h = mRequestHandler;
+        if (h != null) h.onResponseData(url, chunk);
+    }
+    private boolean onCanSendCookie(String url, String name, String value) {
+        CefriumRequestHandler h = mRequestHandler;
+        return h == null || h.onCanSendCookie(url, name, value);
+    }
+    private boolean onCanSaveCookie(String url, String name, String value) {
+        CefriumRequestHandler h = mRequestHandler;
+        return h == null || h.onCanSaveCookie(url, name, value);
     }
     private void onSelectClientCertificate(final long id, boolean isProxy, String host,
                                            int port, String[] subjectNames) {
@@ -3021,6 +3051,8 @@ public class CefriumBrowser {
     // FEATURE-063 parity native methods.
     private static native void nativeFileDialogResult(long nativePtr, long id, String[] paths);
     private static native void nativeSetAudioCaptureEnabled(long nativePtr, boolean enabled);
+    private static native void nativeSetResponseTapEnabled(long nativePtr, boolean enabled);
+    private static native void nativeSetCookieFilterEnabled(long nativePtr, boolean enabled);
     private static native void nativeExitFullscreen(long nativePtr, boolean willCauseResize);
     private static native void nativeStartDownload(long nativePtr, String url);
     private static native String[] nativeGetNavigationEntries(long nativePtr);
