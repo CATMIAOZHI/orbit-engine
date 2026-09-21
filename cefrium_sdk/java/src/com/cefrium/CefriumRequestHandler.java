@@ -69,4 +69,31 @@ public interface CefriumRequestHandler {
 
     /** A resource finished loading. */
     default void onResourceLoadComplete(String url, int statusCode, long receivedBytes) {}
+
+    /**
+     * A chunk of a response body (opt-in; enable with
+     * {@link CefriumBrowser#setResponseTapEnabled(boolean)}). The data passes
+     * through unmodified; this is a read-only tap. {@code chunk} is a direct
+     * buffer valid only during this call &mdash; copy what you need. Delivered on
+     * an IO thread, once per chunk (a hot path; enable only when needed).
+     */
+    default void onResponseData(String url, java.nio.ByteBuffer chunk) {}
+
+    /**
+     * Whether a cookie may be SENT with a request (opt-in; enable with
+     * {@link CefriumBrowser#setCookieFilterEnabled(boolean)}). Return false to
+     * block it. Called per cookie on the network path (a hot path).
+     */
+    default boolean onCanSendCookie(String url, String name, String value) {
+        return true;
+    }
+
+    /**
+     * Whether a cookie may be SAVED from a response (opt-in; see
+     * {@link CefriumBrowser#setCookieFilterEnabled(boolean)}). Return false to
+     * block it.
+     */
+    default boolean onCanSaveCookie(String url, String name, String value) {
+        return true;
+    }
 }
