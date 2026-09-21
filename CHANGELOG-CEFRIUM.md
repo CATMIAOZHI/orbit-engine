@@ -28,6 +28,30 @@ in the internal FEATURE-NNN.md working docs (not published).
   the OsrImeActivity sample). Windowed/Surface mode (incl. the Compose wrapper)
   is unaffected -- it already uses Android's native IME. SDK-only, no CEF patch.
 
+- CEF public-API parity batch. Exposes the previously-unwired CEF handlers and
+  CefBrowserHost methods to the Java SDK, so consumers get WebView/CEF parity in
+  one release instead of a drip of requests:
+  - Display: `CefriumDisplayHandler` -- favicon URLs, JS console messages,
+    fractional loading progress, status text, camera/mic in-use change.
+  - Load: `CefriumLoadHandler` -- onLoadStart, onLoadError (net error + failed URL).
+  - Request: `CefriumRequestHandler` -- open-URL-from-tab, hung-renderer (ANR)
+    un/responsive, render-view-ready, document-available, client-certificate
+    selection, and response-side redirect/response/load-complete inspection.
+  - Dialogs: file chooser (`CefriumDialogHandler`, `<input type=file>` via
+    ACTION_GET_CONTENT), beforeunload ("Leave site?"), JS-dialog lifecycle.
+  - New handlers: `CefriumKeyboardHandler` (intercept keys), `CefriumFocusHandler`,
+    `CefriumDragHandler`, `CefriumFrameHandler` (frame lifecycle),
+    `CefriumCommandHandler`, and `CefriumAudioHandler` (raw PCM tap -- OPT-IN via
+    setAudioHandler; enabling it redirects page audio).
+  - OSR: HTML `<select>` dropdowns now render off-screen (onPopupPaint/Show/Size);
+    plus IME composition-rect, text-selection and scroll-offset callbacks.
+  - CefBrowserHost: `exitFullscreen()`, `startDownload(url)`,
+    `getNavigationEntries()` (history with titles), `downloadImage(url,...)`,
+    plus LifeSpan DoClose and Permission prompt-dismiss.
+  - Sample: `ParityActivity`. SDK-only, no CEF patch. (Response-body streaming
+    filter and per-cookie access filter intentionally deferred -- perf-sensitive
+    hot paths that need their own design.)
+
 ## [0.9.0] -- 2026-09-19
 
 Chromium **152.0.7977.82** (CEF branch **7977**). Controllable downloads,
