@@ -1111,10 +1111,120 @@ class DataDocResourceHandler : public CefResourceHandler {
 };
 
 // Ad-blocking request handler using EasyList filter engine.
+// FEATURE-063 (opt-in): passthrough response filter that taps each body chunk to
+// Java (onResponseData). Installed only when the consumer enabled it, so there is
+// zero cost by default. Runs on the IO thread.
+class SdkResponseFilter : public CefResponseFilter {
+ public:
+  SdkResponseFilter(jobject java_browser_global, const std::string& url)
+      : java_browser_(java_browser_global), url_(url) {}
+  bool InitFilter() override { return true; }
+  FilterStatus Filter(void* data_in, size_t data_in_size, size_t& data_in_read,
+                      void* data_out, size_t data_out_size,
+                      size_t& data_out_written) override {
+    size_t n = data_in_size < data_out_size ? data_in_size : data_out_size;
+    if (data_in && n > 0) {
+      memcpy(data_out, data_in, n);
+      // Tap the chunk to Java (copy happens Java-side during the call).
+      if (java_browser_) {
+        JNIEnv* env = base::android::AttachCurrentThread();
+        if (env) {
+          jobject buf = env->NewDirectByteBuffer(data_out,
+                                                 static_cast<jlong>(n));
+          if (buf) {
+            jclass cls = env->GetObjectClass(java_browser_);
+            jmethodID mid = env->GetMethodID(cls, "onResponseData",
+                "(Ljava/lang/String;Ljava/nio/ByteBuffer;)V");
+            if (mid) {
+              jstring ju = env->NewStringUTF(url_.c_str());
+              env->CallVoidMethod(java_browser_, mid, ju, buf);
+              env->DeleteLocalRef(ju);
+            }
+            env->DeleteLocalRef(cls);
+            env->DeleteLocalRef(buf);
+          }
+        }
+      }
+    }
+    data_in_read = n;
+    data_out_written = n;
+    return (data_in_read < data_in_size) ? RESPONSE_FILTER_NEED_MORE_DATA
+                                         : RESPONSE_FILTER_DONE;
+  }
+  ~SdkResponseFilter() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+  IMPLEMENT_REFCOUNTING(SdkResponseFilter);
+ private:
+  jobject java_browser_;
+  std::string url_;
+};
+
+// FEATURE-063 (opt-in): per-cookie access filter. Synchronous jboolean up-calls
+// (default allow). Installed only when enabled -> zero cost by default.
+class SdkCookieAccessFilter : public CefCookieAccessFilter {
+ public:
+  explicit SdkCookieAccessFilter(jobject java_browser_global)
+      : java_browser_(java_browser_global) {}
+  bool CanSendCookie(CefRefPtr<CefBrowser> browser,
+                     CefRefPtr<CefFrame> frame,
+                     CefRefPtr<CefRequest> request,
+                     const CefCookie& cookie) override {
+    return Ask("onCanSendCookie", request->GetURL(), cookie);
+  }
+  bool CanSaveCookie(CefRefPtr<CefBrowser> browser,
+                     CefRefPtr<CefFrame> frame,
+                     CefRefPtr<CefRequest> request,
+                     CefRefPtr<CefResponse> response,
+                     const CefCookie& cookie) override {
+    return Ask("onCanSaveCookie", request->GetURL(), cookie);
+  }
+  bool Ask(const char* name, const CefString& url, const CefCookie& cookie) {
+    if (!java_browser_) return true;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return true;
+    CefString cn, cv;
+    cn.FromString16(reinterpret_cast<const char16_t*>(cookie.name.str),
+                    cookie.name.length);
+    cv.FromString16(reinterpret_cast<const char16_t*>(cookie.value.str),
+                    cookie.value.length);
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, name,
+        "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Z");
+    jboolean allow = JNI_TRUE;
+    if (mid) {
+      jstring ju = env->NewStringUTF(url.ToString().c_str());
+      jstring jn = env->NewStringUTF(cn.ToString().c_str());
+      jstring jv = env->NewStringUTF(cv.ToString().c_str());
+      allow = env->CallBooleanMethod(java_browser_, mid, ju, jn, jv);
+      env->DeleteLocalRef(ju);
+      env->DeleteLocalRef(jn);
+      env->DeleteLocalRef(jv);
+    }
+    env->DeleteLocalRef(cls);
+    return allow == JNI_TRUE;
+  }
+  ~SdkCookieAccessFilter() override {
+    if (java_browser_) {
+      JNIEnv* env = base::android::AttachCurrentThread();
+      if (env) env->DeleteGlobalRef(java_browser_);
+    }
+  }
+  IMPLEMENT_REFCOUNTING(SdkCookieAccessFilter);
+ private:
+  jobject java_browser_;
+};
+
 class SdkResourceRequestHandler : public CefResourceRequestHandler {
  public:
   explicit SdkResourceRequestHandler(int* blocked_count)
       : blocked_count_(blocked_count) {}
+
+  void SetResponseTapEnabled(bool e) { response_tap_enabled_ = e; }
+  void SetCookieFilterEnabled(bool e) { cookie_filter_enabled_ = e; }
 
   void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
     if (java_browser) java_browser_ = env->NewGlobalRef(java_browser);
@@ -1267,6 +1377,31 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
     env->DeleteLocalRef(cls);
   }
 
+  // FEATURE-063 (opt-in): body-tap response filter. null unless enabled.
+  CefRefPtr<CefResponseFilter> GetResourceResponseFilter(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request,
+      CefRefPtr<CefResponse> response) override {
+    if (!response_tap_enabled_ || !java_browser_) return nullptr;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return nullptr;
+    jobject global = env->NewGlobalRef(java_browser_);
+    return new SdkResponseFilter(global, request->GetURL().ToString());
+  }
+
+  // FEATURE-063 (opt-in): per-cookie access filter. null unless enabled.
+  CefRefPtr<CefCookieAccessFilter> GetCookieAccessFilter(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request) override {
+    if (!cookie_filter_enabled_ || !java_browser_) return nullptr;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return nullptr;
+    jobject global = env->NewGlobalRef(java_browser_);
+    return new SdkCookieAccessFilter(global);
+  }
+
   ~SdkResourceRequestHandler() override {
     if (java_browser_) {
       JNIEnv* env = base::android::AttachCurrentThread();
@@ -1279,6 +1414,8 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
  private:
   int* blocked_count_;
   jobject java_browser_ = nullptr;
+  bool response_tap_enabled_ = false;
+  bool cookie_filter_enabled_ = false;
 };
 
 class SdkRequestHandler : public CefRequestHandler {
@@ -3834,6 +3971,30 @@ Java_com_cefrium_CefriumBrowser_nativeSetAudioCaptureEnabled(
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
   if (data && data->client) {
     data->client->SetAudioCaptureEnabled(enabled == JNI_TRUE);
+  }
+}
+
+// FEATURE-063 (opt-in): enable the passthrough response-body tap (onResponseData).
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetResponseTapEnabled(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jboolean enabled) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client && data->client->request_handler() &&
+      data->client->request_handler()->resource_request_handler()) {
+    data->client->request_handler()->resource_request_handler()
+        ->SetResponseTapEnabled(enabled == JNI_TRUE);
+  }
+}
+
+// FEATURE-063 (opt-in): enable the per-cookie access filter (onCanSend/SaveCookie).
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetCookieFilterEnabled(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jboolean enabled) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client && data->client->request_handler() &&
+      data->client->request_handler()->resource_request_handler()) {
+    data->client->request_handler()->resource_request_handler()
+        ->SetCookieFilterEnabled(enabled == JNI_TRUE);
   }
 }
 
