@@ -15,7 +15,9 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
-## [Unreleased]
+## [0.9.1] -- 2026-09-22
+
+Chromium **152.0.7977.82** (CEF branch **7977**).
 
 - OSR IME + virtual keyboard (issue #9). Off-screen (OSR) browsers now drive the
   Android soft keyboard: `CefriumRenderHandler.onVirtualKeyboardRequested(int)`
