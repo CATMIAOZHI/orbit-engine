@@ -430,6 +430,15 @@ public class CefriumBrowser {
         } catch (Throwable t) {
             android.util.Log.w("Cefrium", "PaymentRequest registrar skipped: " + t);
         }
+        // FEATURE-064: register the WebAuthn Authenticator factory (same rationale
+        // and timing as payments) so passkeys reach the Android Credential Manager
+        // (Proton Pass etc.). Cefrium stubs Chrome's registrar, so nothing binds
+        // blink.mojom.Authenticator without this.
+        try {
+            com.cefrium.webauthn.CefAuthenticatorInterfaceRegistrar.register();
+        } catch (Throwable t) {
+            android.util.Log.w("Cefrium", "WebAuthn registrar skipped: " + t);
+        }
         mCurrentUrl = url;
         if (mCallback != null) mCallback.onUrlChanged(url);
         if (mUrlListener != null) mUrlListener.onUrlChanged(url);
@@ -2268,6 +2277,19 @@ public class CefriumBrowser {
         wc.setDelegates("", delegate, cv, mWindowAndroid,
                 org.chromium.content_public.browser.WebContents
                         .createDefaultInternalsHolder());
+
+        // FEATURE-065: install the text-selection floating toolbar (Select All /
+        // Copy / Paste / Share / Web Search). Content gates the toolbar on an
+        // installed ActionMode callback (isActionModeSupported); without one it
+        // never shows. Chrome/WebView both install one -- content only provides
+        // the reusable helper.
+        try {
+            org.chromium.content_public.browser.SelectionPopupController
+                    .fromWebContents(wc)
+                    .setActionModeCallback(new CefriumActionModeCallback(this, wc));
+        } catch (Throwable t) {
+            android.util.Log.w(TAG, "setActionModeCallback failed: " + t);
+        }
 
         // FEATURE-059: install Chromium's external_intents InterceptNavigationDelegate
         // so unknown/app URL schemes (baiduboxapp://, weixin://, intent://, ...) are
