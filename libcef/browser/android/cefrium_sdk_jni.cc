@@ -2839,6 +2839,34 @@ class SdkClient : public CefClient {
                                 CefRefPtr<CefFrame> frame,
                                 CefProcessId source_process,
                                 CefRefPtr<CefProcessMessage> message) override {
+    // FEATURE-062 follow-up (issue #9): focused-node value/placeholder/type from
+    // the renderer -> Java, for OSR native-overlay consumers.
+    if (message->GetName() == cefrium_bridge::kFocusNodeMessage) {
+      if (java_browser_) {
+        CefRefPtr<CefListValue> args = message->GetArgumentList();
+        bool editable = args->GetBool(0);
+        std::string value = args->GetString(1).ToString();
+        std::string placeholder = args->GetString(2).ToString();
+        std::string type = args->GetString(3).ToString();
+        JNIEnv* env = base::android::AttachCurrentThread();
+        if (env) {
+          jclass cls = env->GetObjectClass(java_browser_);
+          jmethodID mid = env->GetMethodID(cls, "onFocusedNodeChanged",
+              "(ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
+          if (mid) {
+            jstring jv = env->NewStringUTF(value.c_str());
+            jstring jp = env->NewStringUTF(placeholder.c_str());
+            jstring jt = env->NewStringUTF(type.c_str());
+            env->CallVoidMethod(java_browser_, mid, editable, jv, jp, jt);
+            env->DeleteLocalRef(jv);
+            env->DeleteLocalRef(jp);
+            env->DeleteLocalRef(jt);
+          }
+          env->DeleteLocalRef(cls);
+        }
+      }
+      return true;
+    }
     if (message_router_) {
       return message_router_->OnProcessMessageReceived(browser, frame,
                                                        source_process, message);
@@ -3526,6 +3554,10 @@ Java_com_cefrium_CefriumBrowser_nativeSetRenderHandler(
   // Also connect the display handler for URL change callbacks.
   if (data && data->client) {
     data->client->display_handler()->SetJavaBrowser(env, java_browser);
+    // FEATURE-062 follow-up: the client's own java_browser drives the
+    // focused-node process-message up-call (OnProcessMessageReceived). In OSR
+    // mode nativeSetDisplayCallback may never run, so set it here too (idempotent).
+    data->client->SetJavaBrowser(env, java_browser);
   }
 }
 
