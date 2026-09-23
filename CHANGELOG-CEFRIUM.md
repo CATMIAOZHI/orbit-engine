@@ -17,6 +17,12 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+- OSR focused-node value + placeholder (issue #9 follow-up). New
+  `CefriumRenderHandler.onFocusedNodeChanged(editable, value, placeholder, type)`
+  delivers the focused editable field's current value, placeholder and type
+  (read from the DOM in the renderer). Pairs with `onVirtualKeyboardRequested`
+  so an OSR consumer can populate a native input overlay that mirrors the web
+  field. SDK-only. (FEATURE-062)
 - Text-selection floating toolbar in windowed mode. Long-pressing/selecting text
   now shows the Android floating ActionMode (Select All / Copy / Paste / Share /
   Web Search / process-text). Content gates the toolbar on an installed

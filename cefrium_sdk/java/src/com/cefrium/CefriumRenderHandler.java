@@ -51,6 +51,25 @@ public interface CefriumRenderHandler {
     default void onVirtualKeyboardRequested(int inputMode) {}
 
     /**
+     * Called (OSR) when the focused editable node changes, carrying the field's
+     * current value, placeholder and type read from the DOM in the renderer.
+     * Pairs with {@link #onVirtualKeyboardRequested}: use this to populate a
+     * native input overlay that mirrors the focused web field.
+     *
+     * <p>Delivered on the Android main thread.
+     *
+     * @param editable    True if an editable field is focused; false on blur (in
+     *                    which case value/placeholder/type are empty).
+     * @param value       The field's current value (already-typed text).
+     * @param placeholder The field's {@code placeholder} attribute, or "".
+     * @param type        The input {@code type} attribute (e.g. "text",
+     *                    "password", "email"), or the tag name for non-input
+     *                    editables (e.g. "textarea"), or "".
+     */
+    default void onFocusedNodeChanged(boolean editable, String value,
+                                      String placeholder, String type) {}
+
+    /**
      * Paints an OSR popup widget (e.g. an HTML {@code <select>} dropdown). Draw
      * these pixels over the main view at ({@code x}, {@code y}); without this,
      * dropdowns are invisible in off-screen mode. The buffer is BGRA, valid only
