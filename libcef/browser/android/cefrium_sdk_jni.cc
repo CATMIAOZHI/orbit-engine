@@ -275,6 +275,34 @@ class SdkRenderHandler : public CefRenderHandler {
     env->DeleteLocalRef(cls);
   }
 
+  // FEATURE-066: OSR touch-selection handles. A non-zero size is REQUIRED for
+  // the touch-selection controller to treat handles as shown, which gates the
+  // quick menu (SELECTION_HANDLES_SHOWN). Return a standard handle size.
+  void GetTouchHandleSize(CefRefPtr<CefBrowser> browser,
+                          cef_horizontal_alignment_t orientation,
+                          CefSize& size) override {
+    size = CefSize(40, 40);
+  }
+
+  // Bridge handle state so a consumer can draw the draggable selection handles.
+  void OnTouchHandleStateChanged(CefRefPtr<CefBrowser> browser,
+                                 const CefTouchHandleState& state) override {
+    if (!java_browser_) return;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(cls, "onTouchHandleStateChanged",
+                                        "(IIIZ)V");
+    if (method) {
+      // id/orientation, x, y, enabled.
+      env->CallVoidMethod(java_browser_, method,
+                          static_cast<jint>(state.orientation),
+                          state.origin.x, state.origin.y,
+                          state.enabled ? JNI_TRUE : JNI_FALSE);
+    }
+    env->DeleteLocalRef(cls);
+  }
+
   // FEATURE-062 (issue #9): OSR virtual keyboard. Fired when the focused
   // editable node changes. |input_mode| == CEF_TEXT_INPUT_MODE_NONE (0) means
   // no editable is focused (hide the soft keyboard); any other value means an
@@ -983,6 +1011,50 @@ class SdkContextMenuHandler : public CefContextMenuHandler {
                               CefRefPtr<CefFrame> frame) override {
     NotifyNoArg("onContextMenuDismissed");
   }
+  // FEATURE-066: OSR text-selection quick menu (copy/cut/paste). Without this
+  // override the OSR quick menu never shows. Bridge the request to Java (which
+  // draws the menu over its OSR view) and hold the callback; Java returns the
+  // chosen QM_EDITFLAG_CAN_* via nativeQuickMenuCommand -> Continue(). CEF then
+  // executes cut/copy/paste itself (ExecuteCommand -> host_delegate).
+  bool RunQuickMenu(CefRefPtr<CefBrowser> browser,
+                    CefRefPtr<CefFrame> frame,
+                    const CefPoint& location,
+                    const CefSize& size,
+                    QuickMenuEditStateFlags edit_state_flags,
+                    CefRefPtr<CefRunQuickMenuCallback> callback) override {
+    if (!java_browser_) return false;
+    pending_quick_ = callback;
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!env) return false;
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, "onQuickMenu", "(IIIII)V");
+    bool dispatched = false;
+    if (mid) {
+      env->CallVoidMethod(java_browser_, mid, location.x, location.y,
+                          size.width, size.height,
+                          static_cast<jint>(edit_state_flags));
+      dispatched = true;
+    }
+    env->DeleteLocalRef(cls);
+    if (!dispatched) {
+      pending_quick_ = nullptr;
+      return false;
+    }
+    return true;
+  }
+  // Called from nativeQuickMenuCommand: command 0 => cancel; else the chosen
+  // QM_EDITFLAG_CAN_* value.
+  void ResolveQuickMenu(int command) {
+    CefRefPtr<CefRunQuickMenuCallback> cb = pending_quick_;
+    pending_quick_ = nullptr;
+    if (!cb) return;
+    if (command == 0) {
+      cb->Cancel();
+    } else {
+      cb->Continue(command, EVENTFLAG_NONE);
+    }
+  }
+
   bool OnQuickMenuCommand(CefRefPtr<CefBrowser> browser,
                           CefRefPtr<CefFrame> frame,
                           int command_id,
@@ -1024,6 +1096,7 @@ class SdkContextMenuHandler : public CefContextMenuHandler {
  private:
   jobject java_browser_ = nullptr;
   CefRefPtr<CefRunContextMenuCallback> pending_callback_;
+  CefRefPtr<CefRunQuickMenuCallback> pending_quick_;  // FEATURE-066 (OSR)
 };
 
 // Global AdBlock filter engine — shared across all browsers.
@@ -3968,6 +4041,18 @@ Java_com_cefrium_CefriumBrowser_nativeSendKeyEvent(
   event.unmodified_character = static_cast<char16_t>(char_code);
   event.focus_on_editable_field = true;
   data->browser->GetHost()->SendKeyEvent(event);
+}
+
+// FEATURE-066: Java returns the chosen OSR quick-menu command (a QM_EDITFLAG_CAN_*
+// value, or 0 to cancel).
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeQuickMenuCommand(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jint command) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->client) return;
+  auto* cmh = static_cast<SdkContextMenuHandler*>(
+      data->client->GetContextMenuHandler().get());
+  if (cmh) cmh->ResolveQuickMenu(command);
 }
 
 // FEATURE-063: Java returns the file-chooser selection (paths/URIs), or an

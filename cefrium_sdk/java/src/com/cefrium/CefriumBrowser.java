@@ -1685,6 +1685,54 @@ public class CefriumBrowser {
                         editable, value, placeholder, type));
     }
 
+    // ── OSR text-selection quick menu (FEATURE-066) ──
+
+    /** Quick-menu edit-state flag: Cut is available (matches CEF QM_EDITFLAG_CAN_CUT). */
+    public static final int QM_CAN_CUT = 1 << 1;
+    /** Quick-menu edit-state flag: Copy is available. */
+    public static final int QM_CAN_COPY = 1 << 2;
+    /** Quick-menu edit-state flag: Paste is available. */
+    public static final int QM_CAN_PASTE = 1 << 3;
+
+    /**
+     * Executes the OSR text-selection quick-menu choice. CEF performs the actual
+     * cut/copy/paste; call exactly one of these once, from
+     * {@link CefriumRenderHandler#onQuickMenu}.
+     */
+    public final class QuickMenuCallback {
+        private boolean mDone;
+        private void send(int command) {
+            if (mDone) return;
+            mDone = true;
+            if (mNativePtr != 0) nativeQuickMenuCommand(mNativePtr, command);
+        }
+        public void cut() { send(QM_CAN_CUT); }
+        public void copy() { send(QM_CAN_COPY); }
+        public void paste() { send(QM_CAN_PASTE); }
+        /** Dismiss the menu without acting. */
+        public void cancel() { send(0); }
+    }
+
+    // Called from native (SdkContextMenuHandler::RunQuickMenu) when the OSR
+    // touch-selection quick menu should be shown. Delivered on the main thread.
+    private void onQuickMenu(int x, int y, int width, int height, int editFlags) {
+        final CefriumRenderHandler handler = mRenderHandler;
+        final QuickMenuCallback cb = new QuickMenuCallback();
+        if (handler == null) { cb.cancel(); return; }
+        new android.os.Handler(android.os.Looper.getMainLooper())
+                .post(() -> handler.onQuickMenu(x, y, width, height, editFlags, cb));
+    }
+
+    // Called from native (SdkRenderHandler::OnTouchHandleStateChanged, OSR).
+    private void onTouchHandleStateChanged(int orientation, int x, int y,
+                                           boolean enabled) {
+        final CefriumRenderHandler handler = mRenderHandler;
+        if (handler == null) return;
+        new android.os.Handler(android.os.Looper.getMainLooper())
+                .post(() -> handler.onTouchHandleStateChanged(
+                        orientation, x, y, enabled));
+    }
+
     // ── Snapshot / capture ──
 
     /** Receives the captured page bitmap (null on failure). */
@@ -2301,6 +2349,23 @@ public class CefriumBrowser {
             org.chromium.content_public.browser.SelectionPopupController
                     .fromWebContents(wc)
                     .setActionModeCallback(new CefriumActionModeCallback(this, wc));
+            // Smart Text selection: use the platform TextClassifier so the
+            // selection toolbar offers entity actions (phone->call, address->map,
+            // URL->open), matching WebView. getTextClassifier() falls back to the
+            // system one, but set it explicitly like WebView does.
+            if (mActivity != null
+                    && android.os.Build.VERSION.SDK_INT
+                            >= android.os.Build.VERSION_CODES.O) {
+                android.view.textclassifier.TextClassificationManager tcm =
+                        (android.view.textclassifier.TextClassificationManager)
+                                mActivity.getSystemService(
+                                        android.content.Context.TEXT_CLASSIFICATION_SERVICE);
+                if (tcm != null) {
+                    org.chromium.content_public.browser.SelectionPopupController
+                            .fromWebContents(wc)
+                            .setTextClassifier(tcm.getTextClassifier());
+                }
+            }
         } catch (Throwable t) {
             android.util.Log.w(TAG, "setActionModeCallback failed: " + t);
         }
@@ -3095,6 +3160,7 @@ public class CefriumBrowser {
     private static native void nativeDownloadImage(long nativePtr, String url, CefriumBrowser browser, int maxSize);
     private static native void nativeSelectClientCertificate(long nativePtr, long id, int index);
     private static native void nativeSendKeyEvent(long nativePtr, int type, int modifiers, int windowsKeyCode, int nativeKeyCode, int charCode);
+    private static native void nativeQuickMenuCommand(long nativePtr, int command);
     private static native void nativeSendTouchEvent(long nativePtr, int action, float x, float y, int pointerId);
     private static native void nativeSendMouseMoveEvent(long nativePtr, int x, int y, int modifiers, boolean mouseLeave);
     private static native void nativeSendMouseClickEvent(long nativePtr, int x, int y, int modifiers, int button, boolean mouseUp, int clickCount);
