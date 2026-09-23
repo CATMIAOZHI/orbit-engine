@@ -70,6 +70,44 @@ public interface CefriumRenderHandler {
                                       String placeholder, String type) {}
 
     /**
+     * Called (OSR) when the text-selection quick menu (Cut / Copy / Paste)
+     * should be shown -- e.g. after long-pressing a word. Draw a small menu over
+     * your OSR view at ({@code x},{@code y}) offering the items enabled in
+     * {@code editFlags} (bitmask of {@link CefriumBrowser#QM_CAN_CUT},
+     * {@link CefriumBrowser#QM_CAN_COPY}, {@link CefriumBrowser#QM_CAN_PASTE}),
+     * then call exactly one of {@code callback.cut()/copy()/paste()}, or
+     * {@code callback.cancel()} to dismiss. CEF performs the edit itself.
+     *
+     * <p>Without handling this, OSR text selection has no copy/paste menu.
+     * Delivered on the Android main thread.
+     *
+     * @param x         Menu anchor x, in view pixels.
+     * @param y         Menu anchor y, in view pixels.
+     * @param width     Selection/anchor width.
+     * @param height    Selection/anchor height.
+     * @param editFlags Bitmask of available items (QM_CAN_*).
+     * @param callback  Result callback (call exactly one method once).
+     */
+    default void onQuickMenu(int x, int y, int width, int height, int editFlags,
+                             CefriumBrowser.QuickMenuCallback callback) {
+        // Default: dismiss (no menu) so CEF does not wait on a response.
+        callback.cancel();
+    }
+
+    /**
+     * Called (OSR) when a text-selection handle's state changes. Optional: draw
+     * draggable selection handles over your OSR view at ({@code x},{@code y}).
+     * The quick menu (onQuickMenu) works without drawing these.
+     *
+     * @param orientation Handle orientation (cef_horizontal_alignment_t).
+     * @param x           Handle origin x, view pixels.
+     * @param y           Handle origin y, view pixels.
+     * @param enabled     Whether the handle is enabled/visible.
+     */
+    default void onTouchHandleStateChanged(int orientation, int x, int y,
+                                           boolean enabled) {}
+
+    /**
      * Paints an OSR popup widget (e.g. an HTML {@code <select>} dropdown). Draw
      * these pixels over the main view at ({@code x}, {@code y}); without this,
      * dropdowns are invisible in off-screen mode. The buffer is BGRA, valid only
