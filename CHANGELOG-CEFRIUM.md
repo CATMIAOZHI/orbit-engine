@@ -15,6 +15,20 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [Unreleased]
+
+- Text-selection floating toolbar in windowed mode. Long-pressing/selecting text
+  now shows the Android floating ActionMode (Select All / Copy / Paste / Share /
+  Web Search / process-text). Content gates the toolbar on an installed
+  ActionMode callback; Cefrium now installs one (CefriumActionModeCallback),
+  mirroring Chrome/WebView. SDK-only. (FEATURE-065)
+- Passkey / WebAuthn via the Android Credential Manager. `navigator.credentials
+  .create/get({publicKey})` now reaches the Android Fido2 / Credential Manager,
+  so credential providers (e.g. Proton Pass) are offered. Cefrium stubs Chrome's
+  interface registrar and re-adds interfaces per-embedder; the WebAuthn
+  Authenticator mojo factory was missing (payments was already re-added) --
+  CefAuthenticatorInterfaceRegistrar now binds it. SDK-only. (FEATURE-064)
+
 ## [0.9.1] -- 2026-09-22
 
 Chromium **152.0.7977.82** (CEF branch **7977**).
