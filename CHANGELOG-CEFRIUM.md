@@ -17,6 +17,14 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+- Smart Text selection: the windowed selection toolbar now uses the platform
+  TextClassifier, adding entity actions (phone->call, address->map, URL->open),
+  matching WebView. (FEATURE-065 follow-up)
+- OSR text-selection quick-menu API wired: CefriumRenderHandler.onQuickMenu
+  (Cut/Copy/Paste) + QuickMenuCallback + onTouchHandleStateChanged, and the
+  RunQuickMenu/touch-handle bridge. NOTE: the OSR quick menu does not trigger yet
+  (the OSR touch-selection controller does not activate -- see FEATURE-066);
+  the API/foundation ships but the feature is not functional until that lands.
 - OSR focused-node value + placeholder (issue #9 follow-up). New
   `CefriumRenderHandler.onFocusedNodeChanged(editable, value, placeholder, type)`
   delivers the focused editable field's current value, placeholder and type
