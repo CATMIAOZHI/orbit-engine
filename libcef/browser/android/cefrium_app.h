@@ -37,6 +37,11 @@ class CefriumApp : public CefApp, public CefRenderProcessHandler {
   void OnContextReleased(CefRefPtr<CefBrowser> browser,
                          CefRefPtr<CefFrame> frame,
                          CefRefPtr<CefV8Context> context) override;
+  // FEATURE-062 follow-up: forward the focused editable node's value +
+  // placeholder + type to the browser (for OSR native-overlay consumers).
+  void OnFocusedNodeChanged(CefRefPtr<CefBrowser> browser,
+                            CefRefPtr<CefFrame> frame,
+                            CefRefPtr<CefDOMNode> node) override;
   bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
                                 CefRefPtr<CefFrame> frame,
                                 CefProcessId source_process,

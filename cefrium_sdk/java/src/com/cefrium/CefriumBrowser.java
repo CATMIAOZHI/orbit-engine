@@ -1671,6 +1671,17 @@ public class CefriumBrowser {
                 .post(() -> handler.onVirtualKeyboardRequested(inputMode));
     }
 
+    // FEATURE-062 follow-up (issue #9): focused editable node's value +
+    // placeholder + type, from the renderer. Delivered on the main thread.
+    private void onFocusedNodeChanged(boolean editable, String value,
+                                      String placeholder, String type) {
+        final CefriumRenderHandler handler = mRenderHandler;
+        if (handler == null) return;
+        new android.os.Handler(android.os.Looper.getMainLooper())
+                .post(() -> handler.onFocusedNodeChanged(
+                        editable, value, placeholder, type));
+    }
+
     // ── Snapshot / capture ──
 
     /** Receives the captured page bitmap (null on failure). */
