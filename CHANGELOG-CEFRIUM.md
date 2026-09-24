@@ -17,6 +17,15 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+- Fix passkey / WebAuthn not offering third-party providers (Proton Pass, etc.)
+  in the browser. The per-WebContents CHROME_3PP_ENABLED WebAuthn mode (required
+  for the CredMan path's security checks to pass) was set inside the Autofill
+  try/catch; AutofillProvider construction throws on some OEM ROMs (MIUI/Xiaomi,
+  some tablets), which silently left WebAuthn in the global BROWSER mode so
+  CredMan (and thus Proton Pass) was never invoked. Decoupled into its own
+  try/catch. Validated on device: webauthn.io registration now shows the Proton
+  Pass sheet. (FEATURE-064 follow-up)
+
 ## [0.9.2] - 2026-09-24
 
 - Smart Text selection: the windowed selection toolbar now uses the platform
