@@ -17,6 +17,8 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-09-24
+
 - Smart Text selection: the windowed selection toolbar now uses the platform
   TextClassifier, adding entity actions (phone->call, address->map, URL->open),
   matching WebView. (FEATURE-065 follow-up)
