@@ -879,7 +879,11 @@ class SdkDownloadHandler : public CefDownloadHandler {
 class SdkContextMenuHandler : public CefContextMenuHandler {
  public:
   void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
-    if (java_browser) java_browser_ = env->NewGlobalRef(java_browser);
+    // Idempotent: both nativeSetRenderHandler (OSR) and nativeSetDisplayCallback
+    // (Surface) wire this handler; guard against leaking a second global ref.
+    if (java_browser && !java_browser_) {
+      java_browser_ = env->NewGlobalRef(java_browser);
+    }
   }
 
   void OnBeforeContextMenu(CefRefPtr<CefBrowser> browser,
@@ -3056,6 +3060,9 @@ class SdkClient : public CefClient {
     env->DeleteLocalRef(cls);
     return ok;
   }
+  CefRefPtr<SdkContextMenuHandler> context_menu_handler() {
+    return context_menu_handler_;
+  }
   CefRefPtr<SdkRequestHandler> request_handler() { return request_handler_; }
   CefRefPtr<SdkJSDialogHandler> js_dialog_handler() { return js_dialog_handler_; }
   CefRefPtr<SdkDisplayHandler> display_handler() { return display_handler_; }
@@ -3627,6 +3634,11 @@ Java_com_cefrium_CefriumBrowser_nativeSetRenderHandler(
   // Also connect the display handler for URL change callbacks.
   if (data && data->client) {
     data->client->display_handler()->SetJavaBrowser(env, java_browser);
+    // FEATURE-066: the OSR text-selection quick menu (RunQuickMenu) up-calls
+    // Java via the context-menu handler's own java_browser. OSR consumers use
+    // setRenderHandler (this path) and may never call nativeSetDisplayCallback,
+    // so wire it here too or the quick menu silently no-ops (java_browser null).
+    data->client->context_menu_handler()->SetJavaBrowser(env, java_browser);
     // FEATURE-062 follow-up: the client's own java_browser drives the
     // focused-node process-message up-call (OnProcessMessageReceived). In OSR
     // mode nativeSetDisplayCallback may never run, so set it here too (idempotent).
@@ -3662,6 +3674,7 @@ Java_com_cefrium_CefriumBrowser_nativeSetDisplayCallback(
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
   if (data && data->client) {
     data->client->display_handler()->SetJavaBrowser(env, java_browser);
+    data->client->context_menu_handler()->SetJavaBrowser(env, java_browser);
     data->client->load_handler_ref()->SetJavaBrowser(env, java_browser);
     data->client->find_handler()->SetJavaBrowser(env, java_browser);
     data->client->js_dialog_handler()->SetJavaBrowser(env, java_browser);
