@@ -1088,6 +1088,20 @@ void CefRenderWidgetHostViewOSR::OnFrameComplete(
   begin_frame_pending_ = false;
 }
 
+void CefRenderWidgetHostViewOSR::OnRenderFrameMetadataChangedBeforeActivation(
+    const cc::RenderFrameMetadata& metadata) {
+#if BUILDFLAG(IS_ANDROID)
+  // On Android the OSR view has no on-screen Viz display compositor: frames are
+  // produced via CopyOutputRequest (the video consumer), so the frame-token ACK
+  // that drives OnRenderFrameMetadataChangedAfterActivation is never delivered
+  // and that callback never runs. Deliver the scroll-offset and touch-selection
+  // metadata here instead, where the callback fires synchronously. Without this
+  // the ui::TouchSelectionController never receives selection bounds, so text
+  // selection never activates the handles or the quick menu.
+  ProcessRenderFrameMetadata(metadata);
+#endif
+}
+
 void CefRenderWidgetHostViewOSR::OnRenderFrameMetadataChangedAfterActivation(
     base::TimeTicks activation_time) {
   auto metadata =
@@ -1099,6 +1113,11 @@ void CefRenderWidgetHostViewOSR::OnRenderFrameMetadataChangedAfterActivation(
     video_consumer_->SizeChanged(metadata.viewport_size_in_pixels);
   }
 
+  ProcessRenderFrameMetadata(metadata);
+}
+
+void CefRenderWidgetHostViewOSR::ProcessRenderFrameMetadata(
+    const cc::RenderFrameMetadata& metadata) {
   gfx::PointF root_scroll_offset;
   if (metadata.root_scroll_offset) {
     root_scroll_offset = *metadata.root_scroll_offset;
