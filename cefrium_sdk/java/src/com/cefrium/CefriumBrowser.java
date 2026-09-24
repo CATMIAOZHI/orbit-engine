@@ -2408,15 +2408,23 @@ public class CefriumBrowser {
                     new java.lang.ref.WeakReference<>(mActivity),
                     cv, wc, "Cefrium");
             cv.setImportantForAutofill(android.view.View.IMPORTANT_FOR_AUTOFILL_YES);
+        } catch (Throwable e) {
+            // Autofill not available — non-critical.
+        }
 
-            // Set WebAuthn mode per-WebContents to CHROME_3PP_ENABLED.
-            // This enables CredMan-only path (no Play Services Fido2 privileged
-            // API). Security checks pass with this mode (unlike BROWSER mode).
+        // Set WebAuthn mode per-WebContents to CHROME_3PP_ENABLED. This enables
+        // the CredMan-only path (no Play Services Fido2 privileged API) so
+        // third-party passkey providers (Proton Pass, 1Password...) are offered,
+        // and its security checks pass (unlike BROWSER mode). MUST be independent
+        // of the Autofill try/catch above: AutofillProvider construction throws on
+        // some OEM ROMs (MIUI/Xiaomi, some tablets), and sharing a catch silently
+        // left WebAuthn in the global BROWSER mode -> CredMan never invoked.
+        try {
             org.chromium.components.webauthn.WebauthnModeProvider.getInstance()
                     .setWebauthnModeForWebContents(wc,
                             org.chromium.components.webauthn.WebauthnMode.CHROME_3PP_ENABLED);
         } catch (Throwable e) {
-            // Autofill not available — non-critical.
+            // WebAuthn classes unavailable (pre-Android-14 build) — non-critical.
         }
 
         // A restored tab deferred its load until now (surface connected +
