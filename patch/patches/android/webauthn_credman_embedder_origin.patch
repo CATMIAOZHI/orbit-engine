@@ -1,0 +1,33 @@
+diff --git components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManCreateCredentialRequestHelper.java components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManCreateCredentialRequestHelper.java
+index 0525d2bab6050..959385a6461fc 100644
+--- components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManCreateCredentialRequestHelper.java
++++ components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManCreateCredentialRequestHelper.java
+@@ -63,6 +63,10 @@ class CredManCreateCredentialRequestHelper {
+                         .setAlwaysSendAppInfoToProvider(true);
+         if (decorator != null) {
+             decorator.updateCreateCredentialRequestBuilder(builder, this);
++        } else if (mOrigin != null) {
++            // See CredManGetCredentialRequestHelper: embedders without the
++            // Chrome decorator must declare the caller origin themselves.
++            builder.setOrigin(mOrigin);
+         }
+         return builder.build();
+     }
+diff --git components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManGetCredentialRequestHelper.java components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManGetCredentialRequestHelper.java
+index 4b7ada5323ac9..3ec70b59d587b 100644
+--- components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManGetCredentialRequestHelper.java
++++ components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManGetCredentialRequestHelper.java
+@@ -92,6 +92,13 @@ class CredManGetCredentialRequestHelper {
+                 getPasswordCredentialOption(decorator);
+         if (decorator != null) {
+             decorator.updateGetCredentialRequestBuilder(builder, this);
++        } else if (mOrigin != null) {
++            // Embedders (no Chrome-supplied decorator) must still declare the
++            // caller origin. Without it CredMan treats the request as first-party
++            // from the embedder's own package, so providers look for credentials
++            // belonging to the app instead of the page's RP and return
++            // TYPE_NO_CREDENTIAL. Requires CREDENTIAL_MANAGER_SET_ORIGIN.
++            builder.setOrigin(mOrigin);
+         }
+         if (publicKeyCredentialOption != null) {
+             builder.addCredentialOption(publicKeyCredentialOption);
