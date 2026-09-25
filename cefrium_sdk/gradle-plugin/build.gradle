@@ -3,6 +3,17 @@ plugins {
     id 'java-gradle-plugin'
 }
 
+// Target JVM 17 bytecode explicitly. This plugin is plain Groovy against the
+// Gradle API and needs nothing newer; without this it inherits the build JDK
+// (25 -> class-file 69) and every consumer is forced onto JDK 25 merely to LOAD
+// the plugin during Gradle's configuration phase. 17 is the floor Gradle 9 and
+// AGP 9 already require, so nothing is lost. NOTE: this does not lower the SDK's
+// own requirement -- cefrium-sdk ships Java-25 bytecode and still needs JDK 25.
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+
 gradlePlugin {
     plugins {
         cefrium {
