@@ -17,6 +17,16 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+- The `com.cefrium` Gradle plugin is now compiled to **JVM 17 bytecode**
+  (class-file 61) instead of inheriting the build JDK's class-file 69. The plugin
+  is plain Groovy against the Gradle API and needs nothing newer; shipping it as
+  Java-25 bytecode forced every consumer onto JDK 25 merely to *load* the plugin
+  during Gradle's configuration phase, which is where the confusing
+  `Unsupported class file major version 69` first appears. 17 is the floor Gradle 9
+  and AGP 9 already require. **This does not change the SDK's requirements**:
+  `cefrium-sdk` still ships Java-25 bytecode and still needs JDK 25 / Gradle 9.7.1 /
+  AGP 9.4 / compileSdk 37.
+
 - Passkeys: route a modal `get()` carrying `allowCredentials` to the Android
   Credential Manager instead of Play Services. Chromium routes such requests
   straight to Play Services ("non-discoverable allowlist"), which is a Chrome+GMS
