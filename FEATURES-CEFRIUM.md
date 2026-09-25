@@ -132,6 +132,33 @@ passkey providers for *creation*), **Android 14+**, and a Play-certified device
 with a screen lock. On older devices the request falls back gracefully (rejects,
 no crash). Validated end-to-end against webauthn.io (register + authenticate).
 
+### IMPORTANT: third-party passkey managers and the privileged-app allowlist
+
+**Creating** a passkey in a third-party manager (Proton Pass, 1Password, Bitwarden,
+Dashlane...) works from any app. **Using an existing passkey does not**, unless your
+app is on the platform's privileged-browser allowlist:
+
+    https://www.gstatic.com/gpm-passkeys-privileged-apps/apps.json
+
+Third-party managers honour that list. When an app that is not on it issues a
+cross-origin `navigator.credentials.get()`, the provider is queried, answers
+normally, and deliberately returns **no credential** (`TYPE_NO_CREDENTIAL` /
+"No credentials available"); the request then falls back to the platform's
+cross-device (hybrid/Bluetooth) flow. This is a deliberate anti-impersonation
+protection, not an SDK defect: an unlisted app must not be able to ask a password
+manager to hand over a user's existing passkey for, say, `google.com`. Listed
+browsers (Chrome, Firefox, Edge, Brave, Opera, Vivaldi, Samsung Internet, ...)
+are unaffected, which is why the same account works there.
+
+What this means for you:
+
+- Passkey **registration** works out of the box.
+- Passkey **sign-in against a third-party manager** requires your app (package name
+  + release signing certificate SHA-256) to be added to that allowlist. Google
+  Password Manager and platform/device credentials are not affected.
+- Plan your auth UX accordingly, and offer a fallback (password, OTP, or a passkey
+  stored in Google Password Manager) until/unless your app is listed.
+
 ## Payment Request / Google Pay (0.5.0+)
 
 The W3C **Payment Request API** (`new PaymentRequest(...).show()`) works end-to-end

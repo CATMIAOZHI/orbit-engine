@@ -17,6 +17,23 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+- Passkeys: route a modal `get()` carrying `allowCredentials` to the Android
+  Credential Manager instead of Play Services. Chromium routes such requests
+  straight to Play Services ("non-discoverable allowlist"), which is a Chrome+GMS
+  assumption: for an embedder the passkeys live in a third-party provider that GMS
+  knows nothing about, so Play Services finds no match and the request falls
+  through to the GMSCore hybrid flow (the "check Bluetooth" error page) without
+  ever offering the provider. (patch android/webauthn_3pp_get_credman_routing)
+- Passkeys: declare the caller origin on Credential Manager requests. Chromium
+  applies `setOrigin()` only from a `CredManRequestDecorator` that just Chrome
+  registers via ServiceLoader, so an embedder never declared it; CredMan then
+  treated the request as first-party from the app's own package and providers
+  looked for credentials belonging to the app rather than the page's relying
+  party. Affects both get and create.
+  (patch android/webauthn_credman_embedder_origin)
+  NOTE: with both fixes the request now reaches third-party providers correctly,
+  but releasing an EXISTING passkey additionally requires the app to be on the
+  platform's privileged-browser allowlist -- see FEATURES-CEFRIUM.md.
 - Fix passkey / WebAuthn not offering third-party providers (Proton Pass, etc.)
   in the browser. The per-WebContents CHROME_3PP_ENABLED WebAuthn mode (required
   for the CredMan path's security checks to pass) was set inside the Autofill
