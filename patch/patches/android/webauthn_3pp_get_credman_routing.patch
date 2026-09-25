@@ -1,0 +1,22 @@
+diff --git components/webauthn/android/java/src/org/chromium/components/webauthn/Fido2CredentialRequest.java components/webauthn/android/java/src/org/chromium/components/webauthn/Fido2CredentialRequest.java
+index 055d8c5f07067..a757c680e3ddf 100644
+--- components/webauthn/android/java/src/org/chromium/components/webauthn/Fido2CredentialRequest.java
++++ components/webauthn/android/java/src/org/chromium/components/webauthn/Fido2CredentialRequest.java
+@@ -760,9 +760,16 @@ public class Fido2CredentialRequest implements WebauthnBrowserBridge.Provider {
+                         mBarrier,
+                         this::stopImmediateTimer,
+                         /* ignoreGpm= */ false);
+-            } else if (hasAllowCredentials && mPlayServicesAvailable) {
++            } else if (hasAllowCredentials
++                    && mPlayServicesAvailable
++                    && is(mAuthenticationContextProvider.getWebContents(), WebauthnMode.CHROME)) {
+                 // If the allowlist contains non-discoverable credentials then
+                 // the request needs to be routed directly to Play Services.
++                // NOT for CHROME_3PP_ENABLED (embedders such as Cefrium): their
++                // passkeys live in a third-party provider (Proton Pass, 1Password)
++                // that GMS knows nothing about, so Play Services finds no match and
++                // falls through to the GMSCore hybrid/Bluetooth flow, and the 3P
++                // provider is never offered. Those requests go to CredMan (below).
+                 if (is(mAuthenticationContextProvider.getWebContents(), WebauthnMode.CHROME)) {
+                     mCredManHelper.setNoCredentialsFallback(
+                             () ->
