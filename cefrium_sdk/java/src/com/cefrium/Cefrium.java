@@ -60,10 +60,113 @@ import org.chromium.ui.base.ResourceBundle;
  * It is idempotent and self-sufficient — no custom {@code Application} needed.</p>
  */
 public final class Cefrium {
+    private static final String TAG = "Cefrium";
+
     private static boolean sInitialized;
     private static boolean sProcessSetUp;
 
+    // Engine background-network opt-outs. Both default to the engine's normal
+    // behaviour; see the setters for what turning them off costs.
+    private static boolean sComponentUpdatesEnabled = true;
+    private static boolean sNetworkTimeQueriesEnabled = true;
+
     private Cefrium() {}
+
+    /**
+     * Control whether the engine keeps its security data up to date over the
+     * network. Enabled by default. Must be called <b>before</b> the engine
+     * initializes, i.e. before {@link #initialize(Context)} and before the first
+     * browser is created; afterwards it has no effect and logs a warning.
+     *
+     * <p>When enabled (the default), Chromium's component updater contacts
+     * {@code update.googleapis.com} and downloads data files the engine relies on:
+     * the certificate revocation list (CRLSet), Certificate Transparency log
+     * metadata, the dangerous-download file-type policy, TLS error diagnostics,
+     * Trust Token key commitments, First-Party Sets and the subresource filtering
+     * ruleset. The request carries component ids and versions, the platform, and a
+     * random per-component install identifier. It carries no URL, no account and
+     * nothing the user typed.</p>
+     *
+     * <p><b>What you give up by disabling it.</b> This is a security trade-off, not
+     * merely a privacy setting. With component updates off, all of the above freeze
+     * at the state baked into the SDK version you shipped. In particular
+     * <b>certificate revocation data stops being refreshed</b>, so a certificate
+     * revoked after your build date will still be accepted. The failure mode is
+     * silent: nothing crashes and no user complains. If you disable this, you are
+     * taking on responsibility for shipping SDK updates promptly.</p>
+     *
+     * <p>Legitimate reasons to disable it: an air-gapped or offline deployment where
+     * the requests cannot succeed anyway, a kiosk on a metered or whitelisted
+     * network, or a deployment whose compliance regime forbids unattended third-party
+     * requests. In those cases pin the SDK version deliberately and track releases.</p>
+     *
+     * <p>Implemented with Chromium's own {@code --disable-component-update} switch,
+     * which suppresses {@code RegisterComponentsForUpdate()} in the browser process.
+     * It is an upstream switch, so it keeps working across engine updates.</p>
+     *
+     * @param enabled false to stop the engine's component update checks.
+     */
+    public static synchronized void setComponentUpdatesEnabled(boolean enabled) {
+        if (sInitialized) {
+            android.util.Log.w(TAG, "setComponentUpdatesEnabled() ignored: the engine is "
+                    + "already initialized. Call it before the first browser is created.");
+            return;
+        }
+        sComponentUpdatesEnabled = enabled;
+    }
+
+    /** @return whether engine component updates are enabled (default true). */
+    public static synchronized boolean areComponentUpdatesEnabled() {
+        return sComponentUpdatesEnabled;
+    }
+
+    /**
+     * Control whether the engine queries Google's time service. Enabled by default
+     * (it is on by default in Chromium on Android). Must be called <b>before</b> the
+     * engine initializes; afterwards it has no effect and logs a warning.
+     *
+     * <p>When enabled, the engine performs an occasional request to
+     * {@code http://clients2.google.com/time/1/current} (roughly daily by design) to
+     * detect a badly set device clock. The request carries no identifier and no user
+     * data.</p>
+     *
+     * <p><b>What you give up by disabling it</b> is small: on a device whose clock is
+     * wrong, Chromium can no longer tell that this is the reason an HTTPS certificate
+     * looks expired, so the user sees a generic certificate error instead of a
+     * clock-related one. Certificate validation itself is unaffected. On Android the
+     * system clock is normally synchronised by the carrier or NTP already, which is
+     * why disabling this is cheap.</p>
+     *
+     * <p>Implemented by disabling Chromium's {@code NetworkTimeServiceQuerying}
+     * feature. Any {@code disable-features} value already on the command line is
+     * preserved and appended to, not overwritten.</p>
+     *
+     * @param enabled false to stop the engine's network time queries.
+     */
+    public static synchronized void setNetworkTimeQueriesEnabled(boolean enabled) {
+        if (sInitialized) {
+            android.util.Log.w(TAG, "setNetworkTimeQueriesEnabled() ignored: the engine is "
+                    + "already initialized. Call it before the first browser is created.");
+            return;
+        }
+        sNetworkTimeQueriesEnabled = enabled;
+    }
+
+    /** @return whether engine network time queries are enabled (default true). */
+    public static synchronized boolean areNetworkTimeQueriesEnabled() {
+        return sNetworkTimeQueriesEnabled;
+    }
+
+    // Add a feature to --disable-features without clobbering a value the embedder
+    // (or an earlier call) already put there.
+    private static void disableFeature(String feature) {
+        CommandLine commandLine = CommandLine.getInstance();
+        String existing = commandLine.getSwitchValue("disable-features", "");
+        String merged = (existing == null || existing.isEmpty())
+                ? feature
+                : existing + "," + feature;
+        commandLine.appendSwitchWithValue("disable-features", merged);
+    }
 
     /**
      * Run the per-process Chromium setup the browser process needs before native
@@ -176,6 +279,17 @@ public final class Cefrium {
         // permission (system apps only).
         // Preparatory patches saved in patch/patches/android/ for when
         // browser verification is obtained.
+
+        // Engine background-network opt-outs (see setComponentUpdatesEnabled /
+        // setNetworkTimeQueriesEnabled). Both default to the engine's normal
+        // behaviour; an embedder must opt out explicitly, because switching these
+        // off trades away security-data freshness.
+        if (!sComponentUpdatesEnabled) {
+            CommandLine.getInstance().appendSwitch("disable-component-update");
+        }
+        if (!sNetworkTimeQueriesEnabled) {
+            disableFeature("NetworkTimeServiceQuerying");
+        }
 
         // Set device scale factor from screen density so pages render
         // with correct mobile viewport (e.g., 1080px at 2.75x = ~393 CSS px).
