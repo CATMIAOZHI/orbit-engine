@@ -362,3 +362,81 @@ timestamp and `seekTo` on return instead. Sample: `cefrium-sample/loaddata-baseu
 
 Background media: `CefriumView` auto-pauses inline video/audio when the host is
 backgrounded (see `backgroundMediaPolicy`); no work required.
+
+## What the engine contacts in the background, and how to turn it off (0.9.3+)
+
+Cefrium embeds a real Chromium engine, and like Chromium it keeps some of its data
+current over the network. Audited on device; these are the only two outbound
+requests the engine makes that are not your app's own browsing:
+
+| What | Where | Carries |
+|---|---|---|
+| Component updater | `update.googleapis.com` (HTTPS) | component ids + versions, platform, a random per-component install id |
+| Network time | `http://clients2.google.com/time/1/current` | nothing identifying |
+
+The component updater is how the engine downloads the certificate revocation list
+(CRLSet), Certificate Transparency log metadata, the dangerous-download file-type
+policy, TLS error diagnostics, Trust Token key commitments, First-Party Sets and the
+subresource filtering ruleset. **It is a security feed, not telemetry.**
+
+**What the engine does NOT do, each one verified rather than assumed:** no usage
+statistics or metrics upload (Chromium's UMA/UKM reporting is off and no consent is
+recorded), no crash-report upload (the crash reporter is never configured, so it is
+never started), no Chromium field-trial/"variations" seed fetch, and no Google Cloud
+Messaging (disabled in our build). The SDK also ships without Google API keys, so the
+engine's Google account, sync and optimization-guide backends are inert.
+
+### Turning them off
+
+Both are opt-out, never off by default, and must be set before the engine
+initializes -- that is, before your first browser is created:
+
+```java
+// In Application.onCreate(), or anywhere before the first CefriumBrowser.
+Cefrium.setComponentUpdatesEnabled(false);    // stop the component update checks
+Cefrium.setNetworkTimeQueriesEnabled(false);  // stop the time query
+```
+
+```kotlin
+Cefrium.setComponentUpdatesEnabled(false)
+Cefrium.setNetworkTimeQueriesEnabled(false)
+```
+
+Called after initialization they are ignored and log a warning. Read the current
+state with `Cefrium.areComponentUpdatesEnabled()` /
+`Cefrium.areNetworkTimeQueriesEnabled()`.
+
+### Read this before disabling component updates
+
+**This is a security trade-off, not just a privacy setting.** With component updates
+off, every data file listed above freezes at the state baked into the SDK version you
+shipped. In particular **certificate revocation data stops being refreshed**, so a
+certificate revoked after your build date will still be accepted by your app. The
+failure mode is silent: nothing crashes, nothing logs an error, and no user
+complains.
+
+If you disable it, you are taking on the job of shipping SDK updates promptly, so
+pin the Cefrium version deliberately and follow releases.
+
+Legitimate reasons to disable it:
+
+- an air-gapped or offline deployment, where the requests cannot succeed anyway;
+- a kiosk on a metered or strictly whitelisted network;
+- a compliance regime that forbids unattended third-party requests.
+
+"I would rather not talk to Google" on a general-purpose, internet-connected app is
+**not** a good enough reason on its own: you would be trading real revocation
+coverage for a short privacy note.
+
+Disabling the network time query is much cheaper: you only lose Chromium's ability to
+explain that a wrong device clock is why a certificate looks expired. Certificate
+validation itself is unaffected, and Android normally syncs the clock via the carrier
+or NTP anyway.
+
+### For your store listing and privacy policy
+
+If you publish on Google Play you must declare what leaves the device. The two
+requests above share device/app technical data and a pseudonymous per-component
+install id with Google, and no user content. The honest declaration is short, and
+Cefrium's own browser publishes exactly that -- see <https://cefrium.com/privacy/>
+for wording you can adapt.
