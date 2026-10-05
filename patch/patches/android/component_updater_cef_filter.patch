@@ -1,0 +1,71 @@
+diff --git components/component_updater/BUILD.gn components/component_updater/BUILD.gn
+index 31b516c..f3338fa 100644
+--- components/component_updater/BUILD.gn
++++ components/component_updater/BUILD.gn
+@@ -3,6 +3,7 @@
+ # found in the LICENSE file.
+ 
+ import("//build/config/chrome_build.gni")
++import("//cef/libcef/features/features.gni")
+ 
+ component("component_updater_paths") {
+   defines = [ "IS_COMPONENT_UPDATER_PATHS_IMPL" ]
+@@ -62,6 +63,19 @@ static_library("component_updater") {
+     "//ui/base",
+     "//url",
+   ]
++
++  if (enable_cef) {
++    # The filter source is compiled into this target rather than linked from
++    # libcef_static, because this library can be pulled into a `component`
++    # target and an is_component_build link would otherwise fail. This is the
++    # arrangement cef/libcef/features/BUILD.gn documents for that case.
++    sources += [
++      "//cef/libcef/browser/component_updater_filter.cc",
++      "//cef/libcef/browser/component_updater_filter.h",
++    ]
++    configs += [ "//cef/libcef/features:config" ]
++    deps += [ "//cef/libcef/features:deps" ]
++  }
+ }
+ 
+ static_library("test_support") {
+diff --git components/component_updater/component_updater_service.cc components/component_updater/component_updater_service.cc
+index b8210dc..74ec388 100644
+--- components/component_updater/component_updater_service.cc
++++ components/component_updater/component_updater_service.cc
+@@ -4,6 +4,12 @@
+ 
+ #include "components/component_updater/component_updater_service.h"
+ 
++#include "cef/libcef/features/features.h"
++
++#if BUILDFLAG(ENABLE_CEF)
++#include "cef/libcef/browser/component_updater_filter.h"
++#endif
++
+ #include <algorithm>
+ #include <map>
+ #include <memory>
+@@ -206,6 +212,21 @@ bool CrxUpdateService::RegisterComponent(
+     return false;
+   }
+ 
++#if BUILDFLAG(ENABLE_CEF)
++  // An embedding inherits Chrome's entire component list, including components
++  // for product features it does not expose. Filtering here rather than in
++  // chrome/browser/component_updater/registration.cc keeps the change to one
++  // early return: this is the single choke point every registration passes
++  // through and its signature is stable, whereas the registration list churns
++  // every Chromium bump.
++  //
++  // Which components are kept, and why, is in
++  // cef/libcef/browser/component_updater_filter.h.
++  if (!cef_component_updater::ShouldRegisterComponent(component.app_id)) {
++    return false;
++  }
++#endif
++
+   // Cancel any pending unregistration for this component.
+   std::erase(components_pending_unregistration_, component.app_id);
+ 
