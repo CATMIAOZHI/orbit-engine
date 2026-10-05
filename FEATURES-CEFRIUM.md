@@ -406,10 +406,16 @@ Cefrium embeds a real Chromium engine, and like Chromium it keeps some of its da
 current over the network. Audited on device; these are the only two outbound
 requests the engine makes that are not your app's own browsing:
 
-| What | Where | Carries |
-|---|---|---|
-| Component updater | `update.googleapis.com` (HTTPS) | component ids + versions, platform, a random per-component install id |
-| Network time | `http://clients2.google.com/time/1/current` | nothing identifying |
+| What | Where | Default | Carries |
+|---|---|---|---|
+| Component updater | `update.googleapis.com` (HTTPS) | **on** | component ids + versions, platform, a random per-component install id |
+| Network time | `http://clients2.google.com/time/1/current` | **off since 0.9.3** | nothing identifying |
+
+The defaults differ because the two requests are not comparable. One is a security
+feed whose absence degrades the engine silently; the other only improves an error
+message. So the engine's data feed stays on and you opt out of it, while the time
+query is off and you opt back in. Upstream Chromium has both on; the time query is
+the one place Cefrium deliberately diverges from the engine's default.
 
 The component updater is how the engine downloads the certificate revocation list
 (CRLSet), Certificate Transparency log metadata, the dangerous-download file-type
@@ -423,25 +429,29 @@ never started), no Chromium field-trial/"variations" seed fetch, and no Google C
 Messaging (disabled in our build). The SDK also ships without Google API keys, so the
 engine's Google account, sync and optimization-guide backends are inert.
 
-### Turning them off
+### Changing either default
 
-Both are opt-out, never off by default, and must be set before the engine
-initializes -- that is, before your first browser is created:
+Both controls must be set before the engine initializes -- that is, before your
+first browser is created:
 
 ```java
 // In Application.onCreate(), or anywhere before the first CefriumBrowser.
-Cefrium.setComponentUpdatesEnabled(false);    // stop the component update checks
-Cefrium.setNetworkTimeQueriesEnabled(false);  // stop the time query
+Cefrium.setComponentUpdatesEnabled(false);   // opt OUT of the security data feed
+Cefrium.setNetworkTimeQueriesEnabled(true);  // opt back IN to the time query
 ```
 
 ```kotlin
 Cefrium.setComponentUpdatesEnabled(false)
-Cefrium.setNetworkTimeQueriesEnabled(false)
+Cefrium.setNetworkTimeQueriesEnabled(true)
 ```
 
 Called after initialization they are ignored and log a warning. Read the current
 state with `Cefrium.areComponentUpdatesEnabled()` /
 `Cefrium.areNetworkTimeQueriesEnabled()`.
+
+Both map onto Chromium's own switches (`--disable-component-update` and
+`--disable-features=NetworkTimeServiceQuerying`), so they keep working across engine
+updates instead of depending on a patch we have to carry.
 
 ### Read this before disabling component updates
 
@@ -465,15 +475,23 @@ Legitimate reasons to disable it:
 **not** a good enough reason on its own: you would be trading real revocation
 coverage for a short privacy note.
 
-Disabling the network time query is much cheaper: you only lose Chromium's ability to
-explain that a wrong device clock is why a certificate looks expired. Certificate
-validation itself is unaffected, and Android normally syncs the clock via the carrier
-or NTP anyway.
+### Read this before re-enabling the network time query
+
+The query's only job is to let Chromium say "your clock is wrong" instead of showing
+a generic expired-certificate error. It carries no security data, certificate
+validation does not depend on it, and Android normally syncs the clock via the
+carrier or NTP -- which is why 0.9.3 turned it off by default.
+
+Turn it back on if your hardware has no dependable clock: a device with no cellular
+modem and no NTP reachability, or a kiosk whose RTC has no battery. There a clock far
+enough off to break HTTPS is a real support case, and the precise error message is
+worth one request a day.
 
 ### For your store listing and privacy policy
 
-If you publish on Google Play you must declare what leaves the device. The two
-requests above share device/app technical data and a pseudonymous per-component
-install id with Google, and no user content. The honest declaration is short, and
+If you publish on Google Play you must declare what leaves the device. On the 0.9.3
+defaults that is the component updater alone: it shares device/app technical data and
+a pseudonymous per-component install id with Google, and no user content. The honest
+declaration is short, and
 Cefrium's own browser publishes exactly that -- see <https://cefrium.com/privacy/>
 for wording you can adapt.

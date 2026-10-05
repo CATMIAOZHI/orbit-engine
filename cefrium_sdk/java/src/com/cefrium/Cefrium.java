@@ -65,10 +65,13 @@ public final class Cefrium {
     private static boolean sInitialized;
     private static boolean sProcessSetUp;
 
-    // Engine background-network opt-outs. Both default to the engine's normal
-    // behaviour; see the setters for what turning them off costs.
+    // Engine background-network controls. See the setters for what each one
+    // costs. Component updates keep the engine's default (on) because turning
+    // them off trades away security-data freshness. The network time query keeps
+    // no security data, so Cefrium defaults it off and diverges from Chromium
+    // here deliberately.
     private static boolean sComponentUpdatesEnabled = true;
-    private static boolean sNetworkTimeQueriesEnabled = true;
+    private static boolean sNetworkTimeQueriesEnabled = false;
 
     private Cefrium() {}
 
@@ -121,27 +124,39 @@ public final class Cefrium {
     }
 
     /**
-     * Control whether the engine queries Google's time service. Enabled by default
-     * (it is on by default in Chromium on Android). Must be called <b>before</b> the
-     * engine initializes; afterwards it has no effect and logs a warning.
+     * Control whether the engine queries Google's time service.
+     * <b>Disabled by default in Cefrium</b>, which is a deliberate divergence from
+     * Chromium, where the feature is enabled by default on Android. Must be called
+     * <b>before</b> the engine initializes, i.e. before {@link #initialize(Context)}
+     * and before the first browser is created; afterwards it has no effect and logs
+     * a warning.
      *
      * <p>When enabled, the engine performs an occasional request to
      * {@code http://clients2.google.com/time/1/current} (roughly daily by design) to
      * detect a badly set device clock. The request carries no identifier and no user
      * data.</p>
      *
-     * <p><b>What you give up by disabling it</b> is small: on a device whose clock is
-     * wrong, Chromium can no longer tell that this is the reason an HTTPS certificate
-     * looks expired, so the user sees a generic certificate error instead of a
-     * clock-related one. Certificate validation itself is unaffected. On Android the
-     * system clock is normally synchronised by the carrier or NTP already, which is
-     * why disabling this is cheap.</p>
+     * <p><b>Why Cefrium defaults this off.</b> The query's only purpose is to explain
+     * a certificate error better: on a device whose clock is wrong, Chromium can say
+     * so instead of showing a generic "certificate expired". It carries no security
+     * data, so switching it off costs no freshness -- unlike
+     * {@link #setComponentUpdatesEnabled(boolean)}. On Android the system clock is
+     * already synchronised by the carrier or by NTP, so the diagnosis is rarely
+     * needed, and an unconditional daily request to a third party is a poor trade for
+     * an embedded engine whose host app did not ask for it. Certificate validation
+     * itself is unaffected either way.</p>
+     *
+     * <p>Pass true to restore Chromium's upstream behaviour. That is the right call
+     * if your deployment runs on hardware with no reliable clock source -- devices
+     * with no cellular modem and no NTP reachability, or a kiosk whose RTC has no
+     * battery -- where a clock far enough off to break HTTPS is a real support case
+     * and a precise error message saves a call.</p>
      *
      * <p>Implemented by disabling Chromium's {@code NetworkTimeServiceQuerying}
      * feature. Any {@code disable-features} value already on the command line is
      * preserved and appended to, not overwritten.</p>
      *
-     * @param enabled false to stop the engine's network time queries.
+     * @param enabled true to restore the engine's network time queries.
      */
     public static synchronized void setNetworkTimeQueriesEnabled(boolean enabled) {
         if (sInitialized) {
@@ -152,7 +167,7 @@ public final class Cefrium {
         sNetworkTimeQueriesEnabled = enabled;
     }
 
-    /** @return whether engine network time queries are enabled (default true). */
+    /** @return whether engine network time queries are enabled (default false). */
     public static synchronized boolean areNetworkTimeQueriesEnabled() {
         return sNetworkTimeQueriesEnabled;
     }
@@ -280,13 +295,18 @@ public final class Cefrium {
         // Preparatory patches saved in patch/patches/android/ for when
         // browser verification is obtained.
 
-        // Engine background-network opt-outs (see setComponentUpdatesEnabled /
-        // setNetworkTimeQueriesEnabled). Both default to the engine's normal
-        // behaviour; an embedder must opt out explicitly, because switching these
-        // off trades away security-data freshness.
+        // Engine background-network controls (see setComponentUpdatesEnabled /
+        // setNetworkTimeQueriesEnabled).
+        //
+        // Component updates keep the engine's default (on): an embedder must opt out
+        // explicitly, because that switch trades away security-data freshness
+        // (CRLSet, CT metadata, download file-type policy) silently.
         if (!sComponentUpdatesEnabled) {
             CommandLine.getInstance().appendSwitch("disable-component-update");
         }
+        // The network time query carries no security data -- it only lets Chromium
+        // explain a certificate error as a wrong clock -- so Cefrium defaults it off
+        // and an embedder opts back IN. Upstream switch, so it survives engine bumps.
         if (!sNetworkTimeQueriesEnabled) {
             disableFeature("NetworkTimeServiceQuerying");
         }
