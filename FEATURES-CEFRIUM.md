@@ -296,8 +296,7 @@ read/write example.
 
 Because Cefrium runs the full Chromium engine, the broad modern web platform works
 out of the box with no SDK code - verified on device: Web Speech recognition
-(`SpeechRecognition`) and synthesis, Generic Sensors (Accelerometer / Gyroscope /
-Orientation / Gravity / LinearAcceleration), WebRTC (`RTCPeerConnection` + data
+(`SpeechRecognition`) and synthesis, WebRTC (`RTCPeerConnection` + data
 channels), `MediaRecorder`, `ImageCapture`, WebCodecs, `MediaCapabilities`,
 `BarcodeDetector` (QR/EAN/Code128/...), WebGL2, WebGPU, OffscreenCanvas, Origin
 Private File System (`navigator.storage.getDirectory`), IndexedDB, Cache API, Web
@@ -308,6 +307,33 @@ API, FedCM, AudioContext / AudioWorklet, CompressionStream, BroadcastChannel, an
 View Transitions. Not available on Android (platform, not Cefrium): Face/Text
 Detector, Handwriting Recognition, Chrome built-in AI (Translator / Language
 Detector), Compute Pressure, Local Font Access, registerProtocolHandler.
+
+### Motion sensors: use DeviceMotionEvent, not the Generic Sensor API (known gap)
+
+For device motion and orientation, use the older
+`DeviceMotionEvent` / `DeviceOrientationEvent`. They work and deliver real readings.
+
+The **Generic Sensor API** (`Accelerometer`, `Gyroscope`, `GravitySensor`,
+`LinearAccelerationSensor`, `AbsoluteOrientationSensor`) is exposed and **appears**
+to work, but delivers nothing. Measured on a W90 tablet from a secure
+`http://localhost` origin, Cefrium 0.9.2 / Chromium 152:
+
+| What was checked | Result |
+|---|---|
+| `isSecureContext`, permissions policy | true, `accelerometer` and `gyroscope` allowed |
+| `navigator.permissions.query({name:'accelerometer'})` | `granted` |
+| `new Accelerometer({frequency:10})`, `.start()` | constructs, returns, no throw |
+| `activate` event | fires |
+| `sensor.activated` after 2 s | `true` |
+| `sensor.hasReading` / `sensor.timestamp` after 2 s | **`false` / `null`** |
+| `DeviceMotionEvent` on the same hardware | **works**, real values |
+
+So it is not the origin, the permission, the policy or the device: the gap is in the
+Generic Sensor reading pipeline in this embedding. Until it is fixed, treat any
+Generic Sensor class as EXPOSED but non-functional.
+
+A reproducible probe that prints all of the above and beacons it back ships in
+`cefrium-sample/kiosk-pos/app/src/main/assets/sensor-probe/`.
 
 ## Inline HTML with a real origin: loadHtmlWithBaseUrl (0.5.2+)
 
