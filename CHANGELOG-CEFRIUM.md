@@ -53,6 +53,42 @@ in the internal FEATURE-NNN.md working docs (not published).
   try/catch. Validated on device: webauthn.io registration now shows the Proton
   Pass sheet. (FEATURE-064 follow-up)
 
+- **Behaviour change -- the engine no longer queries Google's time service by
+  default.** Chromium enables `NetworkTimeServiceQuerying` on Android, which makes
+  roughly one request a day to `http://clients2.google.com/time/1/current`. Its only
+  purpose is to notice a badly set device clock so that a certificate error can be
+  explained as a clock problem rather than an expired certificate; it carries no
+  identifier and no security data, and Android devices normally get the clock from
+  the carrier or NTP. The SDK now applies
+  `--disable-features=NetworkTimeServiceQuerying` by default, so that call is gone.
+  Certificate validation is unaffected. Restore upstream behaviour with
+  `Cefrium.setNetworkTimeQueriesEnabled(true)` before the first browser is created
+  -- worth doing if your hardware has no dependable clock source (no cellular modem
+  and no NTP reachability, or an RTC with no battery), where a clock far enough off
+  to break HTTPS is a real support case. Decision note: implemented as the upstream
+  switch rather than by patching the feature's default, so an embedder can still
+  choose and the behaviour survives engine bumps without a patch to carry.
+  (FEATURE-067)
+
+- New API to control what the engine does on the network in the background, with
+  the two requests given opposite defaults on purpose:
+  `Cefrium.setComponentUpdatesEnabled(boolean)` /
+  `areComponentUpdatesEnabled()` and
+  `Cefrium.setNetworkTimeQueriesEnabled(boolean)` /
+  `areNetworkTimeQueriesEnabled()`. Both must be called before the engine
+  initializes; afterwards they are ignored and log a warning. Component updates stay
+  **on** by default because they are a security feed, not telemetry -- the channel
+  that delivers certificate revocation (CRLSet), Certificate Transparency metadata,
+  the dangerous-download file-type policy, TLS error diagnostics, Trust Token key
+  commitments, First-Party Sets and the subresource filtering ruleset. Disabling
+  them freezes all of that at the SDK version you shipped, and the failure mode is
+  silent, so it is an opt-out intended for air-gapped, metered-network and
+  compliance-constrained deployments that accept pinning their security data to a
+  release. Both are Chromium's own switches, and setting `disable-features` merges
+  with any value already on the command line instead of overwriting it. See
+  FEATURES-CEFRIUM.md and <https://cefrium.com/guides/network-behaviour/>.
+  (FEATURE-067)
+
 ## [0.9.2] - 2026-09-24
 
 - Smart Text selection: the windowed selection toolbar now uses the platform
