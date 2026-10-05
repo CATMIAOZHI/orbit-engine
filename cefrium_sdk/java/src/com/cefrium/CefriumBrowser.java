@@ -2210,6 +2210,24 @@ public class CefriumBrowser {
 
         browser.mActivity = activity;
 
+        // Install the native display callback unconditionally.
+        //
+        // onUrlChanged() is not merely a convenience listener: it is where the
+        // PaymentRequest and WebAuthn interface factories are registered, and the
+        // timing matters (they must be added after Chrome's registrars so that
+        // last-writer-wins puts ours on top). Until now the native callback was
+        // installed only as a side effect of the app setting SOME handler, so an
+        // app that set none -- a bare CefriumWebView(url = ...), for instance --
+        // silently lost both features: PaymentRequest.show() rejected with
+        // "Unable to find Chrome activity" and navigator.credentials never bound.
+        // Found on device 2026-10-05 with the kiosk checkout sample.
+        //
+        // Registration must not depend on an unrelated callback a consumer may
+        // never pass.
+        if (browser.mNativePtr != 0) {
+            nativeSetDisplayCallback(browser.mNativePtr, browser);
+        }
+
         return browser;
     }
 

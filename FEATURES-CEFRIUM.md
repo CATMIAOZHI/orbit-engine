@@ -314,9 +314,12 @@ For device motion and orientation, use the older
 `DeviceMotionEvent` / `DeviceOrientationEvent`. They work and deliver real readings.
 
 The **Generic Sensor API** (`Accelerometer`, `Gyroscope`, `GravitySensor`,
-`LinearAccelerationSensor`, `AbsoluteOrientationSensor`) is exposed and **appears**
-to work, but delivers nothing. Measured on a W90 tablet from a secure
-`http://localhost` origin, Cefrium 0.9.2 / Chromium 152:
+`LinearAccelerationSensor`, `AbsoluteOrientationSensor`) is exposed, activates, and
+then delivers readings **unreliably**: on a fresh page load none arrived within 75
+seconds of a successful `start()`, while a page left open for about an hour did
+eventually receive a continuous stream. Treat it as unusable for anything that needs
+a reading promptly. Measured on a W90 tablet from a secure `http://localhost` origin,
+Cefrium 0.9.2 / Chromium 152:
 
 | What was checked | Result |
 |---|---|
@@ -325,12 +328,20 @@ to work, but delivers nothing. Measured on a W90 tablet from a secure
 | `new Accelerometer({frequency:10})`, `.start()` | constructs, returns, no throw |
 | `activate` event | fires |
 | `sensor.activated` after 2 s | `true` |
-| `sensor.hasReading` / `sensor.timestamp` after 2 s | **`false` / `null`** |
-| `DeviceMotionEvent` on the same hardware | **works**, real values |
+| `activate` event | fires at about +350 ms |
+| `sensor.hasReading` / `sensor.timestamp` after 2 s, and after 75 s | **`false` / `null`** |
+| the same page after roughly an hour open | a continuous `reading` stream did arrive |
+| `DeviceMotionEvent` on the same hardware | **works immediately**, real values |
 
 So it is not the origin, the permission, the policy or the device: the gap is in the
-Generic Sensor reading pipeline in this embedding. Until it is fixed, treat any
-Generic Sensor class as EXPOSED but non-functional.
+Generic Sensor reading pipeline in this embedding, and it is a latency/reliability
+failure rather than a total absence. Treat any Generic Sensor class as unusable
+until it is fixed.
+
+> Recorded because it cost us: an early 2-second probe window produced the
+> conclusion "delivers nothing", which was too strong. A long-lived page disproved
+> it. When a reading never arrives, measure the time to first reading explicitly
+> before calling the API dead.
 
 A reproducible probe that prints all of the above and beacons it back ships in
 `cefrium-sample/kiosk-pos/app/src/main/assets/sensor-probe/`.
