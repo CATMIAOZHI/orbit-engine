@@ -17,6 +17,43 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-10-06
+
+Engine: **Chromium 154.0.8037.98 / CEF branch 8037** (was 152.0.7977.82 / 7977).
+
+### Changed
+
+- **Engine bumped two milestones.** CEF has no 153 branch, so this moves 152 ->
+  154 in one step. Debian's chromium is on 154.0.8037.92 and the CEF branch pins
+  .98, so version parity (the mechanism by which this port inherits CVE fixes)
+  is satisfied with room to spare. Nine upstream API changes had to be adapted,
+  the notable ones for consumers being an OSR surface-embedding change and a new
+  `InterceptNavigationDelegateClient.isTabInPopup()` that the SDK now implements
+  -- answering false, because no Cefrium browser is ever a popup window, and
+  answering true would have silently disabled the external-scheme hand-off
+  (intent://, market://, tel://) shipped in 0.8.8.
+
+- **Behaviour change -- the engine no longer queries Google's time service by
+  default.** See the entry below; this is the one place Cefrium deliberately
+  diverges from Chromium's own default.
+
+- The engine now registers only the ten component-updater components this
+  embedding actually uses, instead of inheriting Chrome's full list of about
+  twenty. Validated on device: the ten dropped ones no longer register, every
+  kept one still arrives, and certificate revocation data still updates. See
+  the FEATURE-067 entries below.
+
+### Fixed
+
+- A stale checked-in JNI registration would have crashed any consumer of this
+  release on its first child-process launch (`NoSuchMethodError` on
+  `SysUtils.hasLargeProcessCountSupport`, new in 154). 107 JNI methods were
+  added and 70 removed since 152. The release gate already checked for this;
+  the build now checks too, so a dev build fails on drift rather than producing
+  an AAR that only breaks on a device.
+
+### Also in this release
+
 - The `com.cefrium` Gradle plugin is now compiled to **JVM 17 bytecode**
   (class-file 61) instead of inheriting the build JDK's class-file 69. The plugin
   is plain Groovy against the Gradle API and needs nothing newer; shipping it as
