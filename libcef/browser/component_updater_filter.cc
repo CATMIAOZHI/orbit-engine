@@ -4,10 +4,9 @@
 
 #include "cef/libcef/browser/component_updater_filter.h"
 
+#include <algorithm>
 #include <array>
 #include <string_view>
-
-#include "base/containers/contains.h"
 
 namespace cef_component_updater {
 
@@ -69,7 +68,7 @@ constexpr auto kKeep = std::to_array<std::string_view>({
 }  // namespace
 
 bool ShouldRegisterComponent(std::string_view app_id) {
-  return base::Contains(kKeep, app_id);
+  return std::ranges::contains(kKeep, app_id);
 }
 
 }  // namespace cef_component_updater
