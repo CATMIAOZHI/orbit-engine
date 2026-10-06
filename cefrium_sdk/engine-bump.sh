@@ -87,6 +87,38 @@ if run sync; then hdr "gclient sync to $CTAG (DESTRUCTIVE: resets chromium/src w
   # phase; cef/ and out/ are nested/gitignored so checkout never touches them.
   git -C "$SRC" -c advice.detachedHead=false checkout -f "refs/tags/$CTAG"  # discards applied patches
   git -C "$SRC" clean -fd -e '/cef' -e '/out'                              # keep cef/ and out/
+  # DEP HYGIENE -- do this BEFORE gclient sync, or the sync dies partway through.
+  #
+  # gclient only CHECKS OUT a dep that is on a detached HEAD. A dep sitting on a
+  # local branch it treats as "managed by you", so it tries to REBASE that branch
+  # onto the new DEPS pin -- and if the branch tracks the dep's real upstream it is
+  # hundreds of commits ahead, so the rebase conflicts and aborts the whole sync.
+  # On the 152->154 bump third_party/fontconfig/src was on `master`, 498 commits
+  # ahead, and died on a conflict in src/fcstat.c after the main tree had already
+  # been checked out.
+  #
+  # Detaching at the CURRENT commit discards nothing: gclient then checks out the
+  # pin itself, the normal path. We never patch a separate dep repo (our patches
+  # target main src only, blink included), so there is nothing of ours to lose.
+  #
+  # NOTE: an in-progress rebase leaves HEAD detached, so "is it on a branch?"
+  # MISSES exactly the dep that is already stuck -- check for a rebase state dir
+  # too. (That is why the first attempt at this looked clean and was not.)
+  echo "  detaching gclient deps so sync checks them out instead of rebasing them..."
+  while IFS= read -r g; do
+    d="$(dirname "$g")"
+    [ "$d" = "$SRC" ] && continue          # never the main tree
+    case "$d" in "$SRC"/cef|"$SRC"/cef/*|"$SRC"/out/*) continue;; esac
+    if [ -d "$g/rebase-merge" ] || [ -d "$g/rebase-apply" ]; then
+      echo "    aborting a stuck rebase in ${d#$SRC/}"
+      git -C "$d" rebase --abort 2>/dev/null || true
+    fi
+    if git -C "$d" symbolic-ref --quiet HEAD >/dev/null 2>&1; then
+      echo "    detaching ${d#$SRC/} (was on $(git -C "$d" rev-parse --abbrev-ref HEAD))"
+      git -C "$d" checkout --detach --quiet 2>/dev/null || true
+    fi
+  done < <(find "$SRC" -maxdepth 6 -name .git -not -path "$SRC/.git" -not -path "$SRC/cef/*" 2>/dev/null)
+
   # --force --reset: gclient-managed deps (third_party/dawn, angle, ...) are
   # SEPARATE git checkouts; the checkout -f above only reset the main src tree, so
   # a dep left dirty by a prior sync/build makes gclient refuse ("you have
@@ -121,6 +153,21 @@ if run rebase; then hdr "rebase CEF android-port onto upstream branch $CEFBR (gu
   # files would be overwritten"). The rebase re-creates source from commits.
   echo "  cleaning untracked build artifacts before rebase..."
   git clean -fdq
+  # -fdq above is NOT enough: it leaves files that .gitignore covers TODAY, and
+  # those are exactly the ones old commits TRACKED (gradle-plugin/build,
+  # cefrium_compose/build, __pycache__). The rebase then stops partway with
+  # "untracked working tree files would be overwritten". So clean the ignored
+  # build outputs too -- by explicit path, because a blanket `-fdx` would also
+  # take gradle/wrapper/gradle-wrapper.jar (gitignored, and a pain to restore).
+  echo "  cleaning gitignored build outputs (old commits tracked these paths)..."
+  git clean -fdxq \
+    cefrium_sdk/gradle-plugin/build cefrium_sdk/gradle-plugin/.gradle \
+    cefrium_compose/build cefrium_compose/.gradle cefrium_compose/libs \
+    cefrium_instrumentation_test/build cefrium_instrumentation_test/.gradle \
+    cefrium_instrumentation_test/app/build 2>/dev/null || true
+  # The AARs in cefrium_compose/libs/ are staged copies of a PREVIOUS engine's
+  # build; after a bump they are stale and actively dangerous to keep, since a
+  # Gradle step can pick one up silently. They are re-staged from the new build.
   # FORK POINT -- derived, never hardcoded. The replay range must be exactly our
   # own commits: `<fork>..android-port`. Our branch sits on whichever upstream
   # branch the LAST bump rebased it onto, so the fork point is the merge-base
