@@ -111,7 +111,7 @@ java_group("cefrium_jni_java_deps") {
 # Generate JNI registration (GEN_JNI class) for all Java→native bindings
 # used by libcef.so. This is SDK infrastructure, NOT test code.
 # testonly is required because libcef depends on libcef_test_support (upstream).
-generate_jni_registration("cefrium_jni_registration") {
+generate_final_jni("cefrium_jni_registration") {
   testonly = true
   java_targets = [ ":cefrium_jni_java_deps" ]
   native_deps = [ "//cef:libcef" ]
