@@ -175,6 +175,15 @@ EOF
     return 1
   }
 
+  # The checked-in GEN_JNI.java is the one build input nothing invalidates, so
+  # after an engine bump it goes stale silently: this build succeeds and the AAR
+  # crashes on device with NoSuchMethodError. Fail here instead.
+  echo ">>> GEN_JNI freshness $dir_name"
+  "$SCRIPT_DIR/check-gen-jni.sh" "$build_dir" || {
+    echo "ERROR: GEN_JNI is stale for $dir_name -- see the fix above"
+    return 1
+  }
+
   echo ">>> slim_aar $dir_name"
   python3 "$SLIM_AAR" \
     --input "$build_dir/cefrium-raw.aar" \
