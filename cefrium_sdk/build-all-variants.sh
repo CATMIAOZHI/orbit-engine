@@ -179,8 +179,9 @@ EOF
   # after an engine bump it goes stale silently: this build succeeds and the AAR
   # crashes on device with NoSuchMethodError. Fail here instead.
   echo ">>> GEN_JNI freshness $dir_name"
-  "$SCRIPT_DIR/check-gen-jni.sh" "$build_dir" || {
-    echo "ERROR: GEN_JNI is stale for $dir_name -- see the fix above"
+  "$SCRIPT_DIR/regen-gen-jni.sh" --check "$build_dir" || {
+    echo "ERROR: GEN_JNI is stale for $dir_name."
+    echo "       Fix: cef/cefrium_sdk/regen-gen-jni.sh $build_dir"
     return 1
   }
 
