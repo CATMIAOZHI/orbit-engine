@@ -106,6 +106,20 @@ class CefInterceptNavigationDelegateClient implements InterceptNavigationDelegat
     }
 
     @Override
+    public boolean isTabInPopup() {
+        // Not a stub: no Cefrium browser is ever a popup window. The SDK never
+        // spawns one -- window.open / target=_blank either goes to the app's
+        // PopupHandler, which opens a browser of its own, or loads in this
+        // browser (see CefriumBrowser.PopupHandler).
+        //
+        // This answer is load-bearing. ExternalNavigationHandler suppresses the
+        // hand-off to external apps when it is true, so returning true would
+        // silently kill intent://, market:// and tel:// hand-off (FEATURE-059).
+        // Revisit only if the SDK ever grows real popup windows.
+        return false;
+    }
+
+    @Override
     public boolean isTabDetached() {
         return false;
     }
