@@ -25,6 +25,12 @@ constexpr auto kKeep = std::to_array<std::string_view>({
     // --- security data: removing any of these freezes trust data at build time
     "hfnkpimlhhgieaddgfemjhofmfblmnib",  // CRLSet: certificate revocation
     "efniojlnjndmcbiieegkicadnoecjjef",  // PKI metadata: Certificate Transparency
+    // [upstream-gated] Chromium only registers this one under
+    // CHROME_ROOT_STORE_SUPPORTED && net::features::kVerifyMTCs, which is
+    // FEATURE_DISABLED_BY_DEFAULT as of 154, so a default build never offers
+    // it and the audit must not read its absence as a dropped security feed.
+    // It stays on the keep list so that it is allowed through if the feature
+    // is ever turned on.
     "oaanfgijljhkdknnacjidbpmmgnghhjj",  // PKI metadata fast push
     "khaoiebndkojlmppeemjhbpbandiljpe",  // File type policies: dangerous downloads
     "giekcmmlnklenlaomppkphknjmnnpneh",  // SSL error assistant: TLS diagnosis
