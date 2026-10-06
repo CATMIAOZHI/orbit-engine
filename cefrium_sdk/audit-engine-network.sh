@@ -94,12 +94,22 @@ for k in sorted(apps):
 REG_N=$(printf '%s\n' "$REGISTERED" | grep -c . || true)
 say "  $REG_N registered"
 
+# Some kept ids are gated upstream behind a disabled-by-default feature, so a
+# default build never registers them and their absence proves nothing. Those are
+# marked [upstream-gated] in the filter's comments; read that marker rather than
+# hardcoding a second list here.
+GATED_IDS=$(awk '/\[upstream-gated\]/{g=1} g && match($0, /"[a-p]{32}"/){print substr($0, RSTART+1, 32); g=0}' "$FILTER_CC")
+
 fail=0
 hdr "KEPT components -- each MUST be present (a missing security feed is a FAIL)"
 for id in $KEEP_IDS; do
   reason=$(grep -F "\"$id\"" "$FILTER_CC" | sed 's|.*// *||')
+  gated=0
+  printf '%s\n' "$GATED_IDS" | grep -qx "$id" && gated=1
   if printf '%s\n' "$REGISTERED" | grep -qx "$id"; then
     say "  OK       $id  $reason"
+  elif [ "$gated" = "1" ]; then
+    say "  n/a      $id  $reason (gated upstream, not offered by this build)"
   else
     say "  MISSING  $id  $reason"
     fail=$((fail+1))
