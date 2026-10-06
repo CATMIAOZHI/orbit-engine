@@ -1,24 +1,50 @@
 diff --git base/synchronization/lock_metrics_recorder.cc base/synchronization/lock_metrics_recorder.cc
-index fcf5bea..3785b08 100644
+index 3e2533316ef2a..cf3f3f7e935f4 100644
 --- base/synchronization/lock_metrics_recorder.cc
 +++ base/synchronization/lock_metrics_recorder.cc
-@@ -130,6 +130,19 @@ void LockMetricsRecorder::ReportLockHistogram(
+@@ -154,6 +154,26 @@ void LockMetricsRecorder::ReportLockHistogram(const LockMetricSample& sample) {
  
  bool LockMetricsRecorder::ShouldRecordLockAcquisitionTime() const {
-   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+   DCHECK(CalledOnValidThread());
 +  // Re-entrancy guard. subsampler_.ShouldSample() lazily seeds its
 +  // InsecureRandomGenerator on first use via base::RandUint64() -> BoringSSL
-+  // RAND_bytes -> malloc. Under PartitionAlloc-Everywhere that allocation can
-+  // take a contended SpinningMutex, whose ScopedLockAcquisitionTimer calls back
-+  // into this method before the seed completes -> unbounded recursion -> stack
-+  // overflow (observed intermittently during process startup on Android). On
-+  // re-entry, skip sampling so the nested allocation records no metric and the
-+  // seed can complete.
-+  static thread_local bool recording_in_progress = false;
-+  if (recording_in_progress) {
++  // RAND_bytes -> malloc (see the comment on
++  // InsecureRandomGenerator::RandUint64(), which keeps the seeding lazy on
++  // purpose so that *construction* stays allocator-safe). Under
++  // PartitionAlloc-Everywhere that allocation can take a contended
++  // SpinningMutex, whose ScopedLockAcquisitionTimer calls back into this method
++  // before the seed completes -> unbounded recursion -> stack overflow
++  // (observed intermittently during process startup on Android). On re-entry,
++  // skip sampling so the nested allocation records no metric and the seed can
++  // complete.
++  //
++  // The flag is a member, not a `thread_local`: this object is already
++  // per-thread, and constraint 1 above forbids allocating here -- a
++  // `thread_local`'s first access does allocate (BionicAllocator on Android),
++  // which would reintroduce the very recursion this guards against.
++  if (subsampling_in_progress_) {
 +    return false;
 +  }
-+  const base::AutoReset<bool> guard(&recording_in_progress, true);
++  const AutoReset<bool> guard(&subsampling_in_progress_, true);
    return !iterating_in_progress_ && subsampler_.ShouldSample(kSamplingRatio);
  }
  
+diff --git base/synchronization/lock_metrics_recorder.h base/synchronization/lock_metrics_recorder.h
+index d25bf5a282707..32313121d4f8a 100644
+--- base/synchronization/lock_metrics_recorder.h
++++ base/synchronization/lock_metrics_recorder.h
+@@ -151,6 +151,14 @@ class BASE_EXPORT LockMetricsRecorder {
+ 
+   bool iterating_in_progress_ = false;
+ 
++  // Re-entrancy guard for ShouldRecordLockAcquisitionTime(). A plain member
++  // rather than a `thread_local`: this object is already per-thread (reached
++  // through the TLS slot above), and the file's constraints forbid a
++  // `thread_local` on a path that must not allocate -- its first access
++  // allocates (BionicAllocator on Android), which is the very reentrancy this
++  // guards against. Mutable because the method it guards is const.
++  mutable bool subsampling_in_progress_ = false;
++
+   RingBuffer<LockMetricSample, kMaxSamples> unified_sample_buffer_;
+ 
+   // Include the subsampler in the thread-local data to avoid reallocations
