@@ -121,12 +121,53 @@ if run rebase; then hdr "rebase CEF android-port onto upstream branch $CEFBR (gu
   # files would be overwritten"). The rebase re-creates source from commits.
   echo "  cleaning untracked build artifacts before rebase..."
   git clean -fdq
-  FORK=$(git merge-base "$REBASE_REMOTE/$CEFBR" android-port 2>/dev/null || git merge-base origin/7778 android-port)
+  # FORK POINT -- derived, never hardcoded. The replay range must be exactly our
+  # own commits: `<fork>..android-port`. Our branch sits on whichever upstream
+  # branch the LAST bump rebased it onto, so the fork point is the merge-base
+  # with THAT branch -- and which one it is changes every bump. Hardcoding it
+  # (this used to say origin/7778) silently rots: against a stale base the range
+  # also picks up the previous branch's upstream commits that the new branch does
+  # not have, and the rebase replays upstream CEF history onto upstream CEF
+  # history. Measured on the 152->154 bump: a 7778 base gave 547 commits where
+  # the real answer was 469, i.e. 78 upstream commits replayed for nothing.
+  #
+  # So: of every upstream branch ref we have, take the one whose merge-base with
+  # android-port is NEWEST (the fewest commits to replay). That is by definition
+  # the branch we last rebased onto, and it self-corrects on every future bump.
+  FORK=""; FORK_N=""; FORK_SRC=""
+  for ref in $(git for-each-ref --format='%(refname:short)' \
+                 'refs/remotes/origin/[0-9][0-9][0-9][0-9]' \
+                 'refs/remotes/upstream/[0-9][0-9][0-9][0-9]' 2>/dev/null); do
+    mb=$(git merge-base "$ref" android-port 2>/dev/null) || continue
+    n=$(git rev-list --count "$mb..android-port" 2>/dev/null) || continue
+    if [ -z "$FORK_N" ] || [ "$n" -lt "$FORK_N" ]; then
+      FORK="$mb"; FORK_N="$n"; FORK_SRC="$ref"
+    fi
+  done
+  if [ -z "$FORK" ]; then
+    echo "  ERROR: could not derive a fork point (no upstream branch refs fetched?)."
+    echo "         Fetch the branch you last rebased onto, then re-run --from rebase."
+    exit 1
+  fi
+  echo "  fork point: $FORK  (merge-base with $FORK_SRC; $FORK_N commits to replay)"
+  # Sanity: the replay range must contain only our commits. An upstream author in
+  # there means the fork point is wrong and the rebase would replay CEF history.
+  # Both maintainer addresses count: older port commits are authored as
+  # vejeta@gmail.com (the address the Chromium CLA/Gerrit side uses), newer ones
+  # as juan.mendezr@proton.me.
+  MAINTAINER_MAILS='juan.mendezr@proton.me|vejeta@gmail.com'
+  foreign=$(git log "$FORK..android-port" --format='%ae' | grep -Evc "$MAINTAINER_MAILS" || true)
+  if [ "${foreign:-0}" -gt 0 ]; then
+    echo "  WARNING: $foreign of those $FORK_N commits are authored by neither maintainer"
+    echo "           address, which usually means the fork point is too old and the"
+    echo "           rebase would replay upstream CEF history. Inspect before rebasing:"
+    echo "             git log $FORK..android-port --format='%h %ae %s' | grep -Ev '$MAINTAINER_MAILS'"
+  fi
   echo "  Rebase (do it by hand so you control conflict resolution):"
   echo "    cd $CEF"
   echo "    git branch -f android-port-$CEFBR android-port && git checkout android-port-$CEFBR"
   echo "    git rebase --committer-date-is-author-date \\"
-  echo "        --onto $REBASE_REMOTE/$CEFBR \$(git merge-base origin/7778 HEAD) android-port-$CEFBR"
+  echo "        --onto $REBASE_REMOTE/$CEFBR $FORK android-port-$CEFBR"
   echo "  Resolution playbook (from the 7778->7827 bump):"
   echo "    - PRESERVE DATES: the --committer-date-is-author-date flag above sets each"
   echo "      replayed commit's committer date to its author date (the real history),"
