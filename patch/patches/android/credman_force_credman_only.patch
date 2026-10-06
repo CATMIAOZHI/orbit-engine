@@ -1,20 +1,24 @@
 diff --git components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManSupportProvider.java components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManSupportProvider.java
+index 6715cf7c52b8c..6b0be71918cb4 100644
 --- components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManSupportProvider.java
 +++ components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManSupportProvider.java
-@@ -36,6 +36,16 @@
+@@ -37,6 +37,19 @@ public class CredManSupportProvider {
      private static @Nullable Integer sOverrideAndroidVersion;
-     private static @Nullable Boolean sOverrideForcesGpm;
+     private static @TriState int sOverrideForcesGpm;
  
 +    /**
-+     * Force CredMan-only mode for embedders (e.g., CEF) that can't use
-+     * Play Services Fido2 privileged API (requires app verification).
-+     * Must be called before any WebAuthn request.
++     * Force CredMan-only mode for embedders (e.g., CEF) that can't use Play Services Fido2
++     * privileged API (requires app verification). Must be called before any WebAuthn request.
++     *
++     * <p>TriState.TRUE makes getCredManSupport() resolve to FULL_UNLESS_INAPPLICABLE, i.e. CredMan
++     * handles everything with no parallel FIDO2 path; NOT_SET restores the default, where the
++     * decision follows CredManUiRecommender.
 +     */
 +    public static void setForceCredManOnly(boolean force) {
-+        sOverrideForcesGpm = force ? Boolean.TRUE : null;
++        sOverrideForcesGpm = force ? TriState.TRUE : TriState.NOT_SET;
 +        sCredManSupport = CredManSupport.NOT_EVALUATED;
 +    }
 +
      public static void setupForTesting(
-             @Nullable Integer overrideAndroidVersion, @Nullable Boolean overrideForcesGpm) {
+             @Nullable Integer overrideAndroidVersion, @TriState int overrideForcesGpm) {
          sOverrideAndroidVersion = overrideAndroidVersion;

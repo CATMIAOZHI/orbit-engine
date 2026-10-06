@@ -1,14 +1,17 @@
 diff --git base/android/java/src/org/chromium/base/FeatureMap.java base/android/java/src/org/chromium/base/FeatureMap.java
-index 562bd9048a..27886aa385 100644
+index 75cf442d57ddb..17eb51e0e7167 100644
 --- base/android/java/src/org/chromium/base/FeatureMap.java
 +++ base/android/java/src/org/chromium/base/FeatureMap.java
-@@ -54,6 +54,10 @@ public abstract class FeatureMap {
-     public boolean isEnabledInNative(String featureName) {
-         Boolean testValue = FeatureOverrides.getTestValueForFeatureStrict(featureName);
-         if (testValue != null) return testValue;
-+        // Return false (disabled) if native FeatureList is not yet initialized.
-+        // This can happen in CEF where Java code queries features during early
-+        // initialization before FeatureList::SetInstance is called.
+@@ -132,6 +132,13 @@ public abstract class FeatureMap {
+     }
+ 
+     public boolean queryFeatureValueFromNative(String featureName) {
++        // Return false (disabled) if the native FeatureList is not yet
++        // initialized. This happens in CEF, where Java code queries features
++        // during early initialization, before FeatureList::SetInstance is
++        // called. Guarding here rather than in isEnabledInNative() covers every
++        // path that would otherwise reach native too early; this method is the
++        // only one that touches it.
 +        if (!FeatureList.isNativeInitialized()) return false;
          ensureNativeMapInit();
          return FeatureMapJni.get().isEnabled(mNativeMapPtr, featureName);
