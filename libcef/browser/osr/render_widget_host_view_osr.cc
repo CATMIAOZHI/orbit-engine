@@ -1280,11 +1280,17 @@ void CefRenderWidgetHostViewOSR::SynchronizeVisualProperties(
     // This replaces DelegatedFrameHost::EmbedSurface which is desktop-only.
     if (root_layer_) {
       viz::SurfaceId surface_id(GetFrameSinkId(), GetCurrentLocalSurfaceId());
-      root_layer_->SetShowSurface(
-          surface_id, GetViewBounds().size(),
+      // Chromium 154 dropped the background colour parameter from
+      // SetShowSurface; it is now a separate call made immediately before,
+      // which is the pattern DelegatedFrameHost::EmbedSurface uses upstream.
+      // Keep setting it so the gutter behind the surface stays the browser's
+      // background colour rather than whatever the layer last had.
+      root_layer_->SetFallbackBackgroundColor(
           SkColor4f::FromColor(GetBackgroundColor() ? *GetBackgroundColor()
-                                                    : SK_ColorBLACK),
-          deadline_policy, false /* stretch_content_to_fill_bounds */);
+                                                   : SK_ColorBLACK));
+      root_layer_->SetShowSurface(
+          surface_id, GetViewBounds().size(), deadline_policy,
+          false /* stretch_content_to_fill_bounds */);
     }
 #endif
 
