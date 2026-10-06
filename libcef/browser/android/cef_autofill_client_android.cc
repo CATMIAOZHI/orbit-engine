@@ -15,7 +15,8 @@
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/aliases.h"
 #include "components/prefs/pref_service.h"
-#include "components/security_state/content/security_state_tab_helper.h"
+#include "components/security_state/content/content_utils.h"
+#include "components/security_state/core/security_state.h"
 #include "components/user_prefs/user_prefs.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_controller.h"
@@ -169,9 +170,13 @@ url::Origin CefAutofillClientAndroid::GetLastCommittedPrimaryMainFrameOrigin()
 
 security_state::SecurityLevel
 CefAutofillClientAndroid::GetSecurityLevelForUmaHistograms() {
-  if (SecurityStateTabHelper* helper =
-          ::SecurityStateTabHelper::FromWebContents(&GetWebContents())) {
-    return helper->GetSecurityLevel();
+  // Chromium 154 deleted SecurityStateTabHelper; the level is now computed on
+  // demand. Use the components-level API rather than chrome/browser/ssl's
+  // chrome_security_state_util.h, which is the Chrome-layer equivalent: this
+  // needs no chrome dependency and no tab-helper attached to the WebContents.
+  if (auto visible_security_state =
+          security_state::GetVisibleSecurityState(&GetWebContents())) {
+    return security_state::GetSecurityLevel(*visible_security_state);
   }
   return security_state::SecurityLevel::SECURITY_LEVEL_COUNT;
 }
@@ -233,9 +238,12 @@ bool CefAutofillClientAndroid::IsPasswordManagerEnabled() const {
 }
 
 bool CefAutofillClientAndroid::IsContextSecure() const {
-  if (SecurityStateTabHelper* helper =
-          SecurityStateTabHelper::FromWebContents(&GetWebContents())) {
-    return security_state::IsSslCertificateValid(helper->GetSecurityLevel());
+  // See GetSecurityLevelForUmaHistograms: SecurityStateTabHelper is gone in
+  // Chromium 154, so compute the level from the visible security state.
+  if (auto visible_security_state =
+          security_state::GetVisibleSecurityState(&GetWebContents())) {
+    return security_state::IsSslCertificateValid(
+        security_state::GetSecurityLevel(*visible_security_state));
   }
 
   content::NavigationEntry* navigation_entry =
