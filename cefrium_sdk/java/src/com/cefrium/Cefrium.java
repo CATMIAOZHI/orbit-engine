@@ -411,7 +411,7 @@ public final class Cefrium {
     public static final String VERSION = "0.9.2";
 
     /** Bundled Chromium engine version (pinned to the build). */
-    public static final String CHROMIUM_VERSION = "152.0.7977.82";
+    public static final String CHROMIUM_VERSION = "154.0.8037.98";
 
     /**
      * @return the Cefrium SDK version, e.g. {@code "0.5.0"}.
