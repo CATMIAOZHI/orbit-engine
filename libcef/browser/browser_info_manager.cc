@@ -9,6 +9,7 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
+#include "build/build_config.h"
 #include "cef/libcef/browser/browser_guest_util.h"
 #include "cef/libcef/browser/browser_host_base.h"
 #include "cef/libcef/browser/browser_platform_delegate.h"
@@ -18,7 +19,11 @@
 #include "cef/libcef/common/cef_switches.h"
 #include "cef/libcef/common/frame_util.h"
 #include "cef/libcef/common/values_impl.h"
+// top_chrome is desktop-only (its BUILD.gn asserts !is_android), and the Chrome
+// UI contents it marks -- omnibox popups, side panels -- do not exist there.
+#if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/webui/top_chrome/webui_contents_preload_state.h"
+#endif
 #include "content/public/browser/child_process_host.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
@@ -624,12 +629,14 @@ bool CefBrowserInfoManager::IsExcludedFrameHost(content::RenderFrameHost* rfh) {
   }
 
   auto* web_contents = content::WebContents::FromRenderFrameHost(rfh);
+#if !BUILDFLAG(IS_ANDROID)
   if (WebUIContentsPreloadState::FromWebContents(web_contents)) {
     // WebUIContentsPreloadManager creates non-tab contents for Chrome UI
     // (omnibox popups, side panels, etc). The marker is set before navigation,
     // including when the contents are created on demand rather than preloaded.
     return true;
   }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   // Standalone Chrome UI windows (e.g. the profile picker) create their
   // contents without the preload marker. Use the main frame's controller
