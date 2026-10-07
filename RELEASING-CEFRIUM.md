@@ -32,21 +32,35 @@ flagship APK -> `release-codeberg.sh` (tag + GPG-signed SHA256SUMS + assets) ->
 version; `CEFRIUM_YES=1` bypasses them for CI. After it finishes, commit/push the
 web + cef repos and regenerate Javadoc/Dokka if the API changed.
 
-**Maven Central (migration target -- removes the pruning entirely).** We prune on
-Codeberg only because it is a quota-limited donated host; that pruning is what
-404'd our first external adopter's pinned version. `publish-maven.sh` publishes to
-Codeberg; `publish-central.sh` publishes the same coordinates to Maven Central via
-the Sonatype Central Portal, which has no quota on us and NEVER deletes a version
-(so no prune, no 404) and needs no `maven { url }` line in the consumer
-(`mavenCentral()` already resolves it). It ships one signed bundle per coordinate
-(each SDK variant, compose, plugin + marker), defaults to USER_MANAGED (validates
-but does not release until you press Publish), and supports `--dry-run` (assemble +
-validate locally, no network) and `--publish` (release). One-time setup before the
-first Central publish is in the script header: verify the `com.cefrium` namespace
-via a cefrium.com DNS TXT record, put a Portal user token in `~/.publish-token`,
-and send the signing key's public half to keys.openpgp.org. Once Central is the
-primary host, drop the prune gate and change QUICKSTART's "Version availability"
-note to "all versions permanent".
+**Maven Central is THE channel adopters consume -- not a migration target.** This
+was mis-framed here as something aspirational, and the consequence was concrete:
+Central publishing stayed a separate manual step, stopped being run after 0.8.9
+(2026-09-18), and 0.9.0 through 0.9.3 went to Codeberg only. Every 0.9.x is an
+HTTP 404 on Central, so no external adopter received those four releases -- and
+because bug reports went quiet three days later, the silence read as new-found
+stability. Treat "published" as meaning Central.
+
+The Codeberg registry is a **latest-only mirror**: we prune it because it is a
+quota-limited donated host, and that pruning is what 404'd our first external
+adopter's pinned version. It cannot be pinned, which is exactly what we tell
+integrators, so it is not a delivery channel on its own.
+
+`cut-release.sh` now has a **`central` phase** between `publish` and `flagship`,
+so it can no longer be forgotten: it fails the cut when `~/.publish-token` is
+absent and only skips on a deliberate `CEFRIUM_SKIP_CENTRAL=1`. Note the phase
+needs `cefrium-sdk-libre.aar`, so a single-variant cut cannot reach Central at
+all -- another reason releases ship the full four variants.
+
+`publish-central.sh` ships one signed bundle per coordinate (each SDK variant,
+compose, plugin + marker), defaults to USER_MANAGED (validates but does not
+release until you press Publish in the Portal), and supports `--dry-run`
+(assemble + validate locally, no network) and `--publish` (release, immutable).
+One-time setup is in the script header: verify the `com.cefrium` namespace via a
+cefrium.com DNS TXT record, put a Portal user token in `~/.publish-token`, and
+send the signing key's public half to keys.openpgp.org. Since Central keeps every
+version permanently, the Codeberg prune gate stays optional housekeeping, and
+QUICKSTART's "Version availability" note should say all Central versions are
+permanent.
 
 **Reference apps are a release gate, not an afterthought.** The two reference
 apps (`cefrium-browser/` View API + `compose-browser/` Compose API) are the
