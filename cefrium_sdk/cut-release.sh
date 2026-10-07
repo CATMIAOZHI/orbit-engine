@@ -9,9 +9,21 @@
 #   patches build merge compose plugin stats sanity publish flagship release web prune
 #
 # Bypass the confirmation gates non-interactively with CEFRIUM_YES=1 (CI only).
-# Fast DEV cut of only the build we use (arm64+codecs; skips libre + x86_64):
-#   CEFRIUM_VARIANTS=arm64:codecs CEFRIUM_INCREMENTAL=1 CEFRIUM_YES=1 cut-release.sh <ver> <prev>
-# Use the default (all 4 variants) for the PUBLIC ANNOUNCEMENT.
+#
+# PUBLISH ALL FOUR VARIANTS. The default (no CEFRIUM_VARIANTS) is what every
+# release ships, and it is not optional:
+#   - x86_64 lives INSIDE the multi-ABI cefrium-sdk.aar, so a single-arch cut
+#     publishes an artifact that cannot run on an EMULATOR at all -- the consumer
+#     gets UnsatisfiedLinkError at runtime, not a build error.
+#   - a single-codec cut skips the cefrium-sdk-libre coordinate entirely, so the
+#     FOSS audience has nothing to depend on at that version.
+#   Maven versions are immutable, so neither gap can be patched afterwards: the
+#   only remedy is another release. 0.9.3 shipped arm64+codecs only and cost us
+#   developers who test on an emulator -- do not repeat it.
+#
+# CEFRIUM_VARIANTS=arm64:codecs still exists for a LOCAL throwaway build you do
+# NOT publish. If you set it on a cut that reaches the publish phase, you are
+# shipping a broken matrix.
 set -euo pipefail
 
 VERSION="${1:?usage: cut-release.sh <version> <prev-version> [--from phase] [--notes ...]}"
@@ -36,10 +48,11 @@ export PATH="$ROOT/depot_tools:$PATH"
 export CEFRIUM_NINJA_JOBS="${CEFRIUM_NINJA_JOBS:-16}"
 PHASES="patches build merge compose plugin stats sanity publish flagship release web prune"
 # Variant scope. Default "all" = the 4 published variants (codecs/libre x arm64/x64).
-# Set CEFRIUM_VARIANTS="arm64:codecs" for a fast DEV cut that builds + publishes ONLY
-# the build we use (arm64 + codecs) -- skips libre and x86_64. The 4-variant build
-# relinks libcef.so per variant and is the biggest time sink; single is ~4x faster.
-# Use the full default only at the public announcement. See feedback memory + ROADMAP.
+# CEFRIUM_VARIANTS="arm64:codecs" narrows to one variant. The 4-variant build
+# relinks libcef.so per variant and is the biggest time sink (~4x), which is why it
+# used to be skipped -- but it skips x86_64 (no emulator support) and the whole
+# libre coordinate, and Maven immutability means a later top-up is impossible.
+# Releases publish all four; narrow only for a build you will not publish.
 VARIANTS="${CEFRIUM_VARIANTS:-all}"
 V_ARCH="${VARIANTS%%:*}"; V_CODEC="${VARIANTS##*:}"
 
@@ -186,8 +199,31 @@ if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
 fi
 
 if run publish; then hdr "publish to Maven (IMMUTABLE)"
+  # Refuse to publish an incomplete variant matrix. This is a hard stop, not a
+  # warning, because the damage is invisible at publish time and unfixable after:
+  # the version is immutable, x86_64 ships INSIDE cefrium-sdk.aar (so emulator
+  # users get a runtime UnsatisfiedLinkError, not a build error), and a
+  # codecs-only cut leaves the libre coordinate missing entirely. 0.9.3 went out
+  # arm64+codecs and cost us developers who test on emulators.
+  if [ "$VARIANTS" != "all" ]; then
+    echo
+    echo "============================================================"
+    echo "  REFUSING TO PUBLISH A PARTIAL VARIANT MATRIX"
+    echo "============================================================"
+    echo "  CEFRIUM_VARIANTS=$VARIANTS builds one variant; a release needs all four."
+    echo "  Missing from this cut:"
+    [ "$V_ARCH"  = "arm64"  ] && echo "    - x86_64  -> the published AAR cannot run on an emulator"
+    [ "$V_CODEC" = "codecs" ] && echo "    - libre   -> com.cefrium:cefrium-sdk-libre:$VERSION would not exist"
+    echo "  Maven versions are immutable, so this cannot be topped up later."
+    echo
+    echo "  Re-run without CEFRIUM_VARIANTS (all four), or, if you really intend to"
+    echo "  publish a partial matrix, set CEFRIUM_ALLOW_PARTIAL=1."
+    echo
+    [ "${CEFRIUM_ALLOW_PARTIAL:-0}" = "1" ] || exit 1
+    echo "  CEFRIUM_ALLOW_PARTIAL=1 -- proceeding against the policy."
+  fi
   gate "publish $VERSION to the Codeberg Maven registry (cannot be overwritten)"
-  # Single-variant: only cefrium-sdk exists (no libre), so smoke only that coordinate.
+  # Partial matrix (only with CEFRIUM_ALLOW_PARTIAL): only cefrium-sdk exists.
   [ "$VARIANTS" = "all" ] || export CEFRIUM_SMOKE_VARIANTS="cefrium-sdk"
   cef/cefrium_sdk/publish-maven.sh "$VERSION"   # uploads + smoke-tests the coordinate(s)
 fi
