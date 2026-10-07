@@ -70,18 +70,11 @@ dependencyResolutionManagement {
 }
 ```
 
-> **Which version.** The snippets use **0.8.9**: it is the newest release on Maven
-> Central and the newest carrying BOTH ABIs (`arm64-v8a` + `x86_64`), so it runs on a
-> device and on an **x86_64 emulator**. **0.9.3** has a newer engine (Chromium 154) but
-> was cut for arm64 only, is not on Central, and has no `cefrium-sdk-libre`; take it
-> from the Codeberg registry only if you need 154 on a physical arm64 device. The next
-> release restores one complete version on both channels.
-
 **app/build.gradle:**
 ```groovy
 plugins {
     id 'com.android.application'
-    id 'com.cefrium' version '0.8.9'
+    id 'com.cefrium' version '0.9.4'
 }
 
 android {
@@ -104,7 +97,7 @@ android {
 }
 
 dependencies {
-    implementation 'com.cefrium:cefrium-sdk:0.8.9'  // multi-ABI; App Bundle/ABI splits ship one ABI per device
+    implementation 'com.cefrium:cefrium-sdk:0.9.4'  // multi-ABI; App Bundle/ABI splits ship one ABI per device
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.mediarouter:mediarouter:1.7.0'
     implementation 'androidx.core:core:1.16.0'
