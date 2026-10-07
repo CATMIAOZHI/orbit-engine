@@ -6,7 +6,7 @@
 # Usage:
 #   cef/cefrium_sdk/cut-release.sh <version> <prev-version> [--from <phase>] [--notes "<html>"]
 # Phases (use --from to resume after a long build):
-#   patches build merge compose plugin stats sanity publish flagship release web prune
+#   patches build merge compose plugin stats sanity publish central flagship release web prune
 #
 # Bypass the confirmation gates non-interactively with CEFRIUM_YES=1 (CI only).
 #
@@ -46,7 +46,7 @@ export JAVA_HOME="${JAVA_HOME:-$ROOT/android-studio/android-studio/jbr}"
 export ANDROID_HOME="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}"
 export PATH="$ROOT/depot_tools:$PATH"
 export CEFRIUM_NINJA_JOBS="${CEFRIUM_NINJA_JOBS:-16}"
-PHASES="patches build merge compose plugin stats sanity publish flagship release web prune"
+PHASES="patches build merge compose plugin stats sanity publish central flagship release web prune"
 # Variant scope. Default "all" = the 4 published variants (codecs/libre x arm64/x64).
 # CEFRIUM_VARIANTS="arm64:codecs" narrows to one variant. The 4-variant build
 # relinks libcef.so per variant and is the biggest time sink (~4x), which is why it
@@ -226,6 +226,37 @@ if run publish; then hdr "publish to Maven (IMMUTABLE)"
   # Partial matrix (only with CEFRIUM_ALLOW_PARTIAL): only cefrium-sdk exists.
   [ "$VARIANTS" = "all" ] || export CEFRIUM_SMOKE_VARIANTS="cefrium-sdk"
   cef/cefrium_sdk/publish-maven.sh "$VERSION"   # uploads + smoke-tests the coordinate(s)
+fi
+
+if run central; then hdr "publish to Maven Central (the channel adopters pin)"
+  # THIS PHASE EXISTS BECAUSE IT WAS MISSED FOR FOUR RELEASES. Central is what
+  # external adopters resolve from -- the Codeberg registry is latest-only and
+  # cannot be pinned, which is what we tell integrators. Publishing to Central
+  # used to be a separate manual publish-central.sh that simply stopped being
+  # run after 0.8.9 (2026-09-18): 0.9.0 through 0.9.3 went to Codeberg only, so
+  # every 0.9.x is a 404 on Central and no adopter ever received those fixes.
+  # Bug reports went quiet three days after that last Central delivery, and it
+  # read as "we got more stable". Never make this a step someone must remember.
+  #
+  # Not gated: the default mode uploads and VALIDATES as USER_MANAGED, so
+  # nothing becomes public here. Pressing Publish in the Portal (or re-running
+  # with --publish) is the human checkpoint, and a Central release is immutable.
+  if [ ! -f "$HOME/.publish-token" ]; then
+    echo "ERROR: ~/.publish-token is missing, so this release would reach Codeberg"
+    echo "       but NOT Maven Central -- which is the channel adopters pin to."
+    echo "       Create a Portal user token (Portal -> Account -> Generate User"
+    echo "       Token), store 'username:password' on one line, chmod 600, re-run:"
+    echo "         cef/cefrium_sdk/cut-release.sh $VERSION $PREV --from central"
+    echo "       Skipping deliberately? CEFRIUM_SKIP_CENTRAL=1."
+    [ "${CEFRIUM_SKIP_CENTRAL:-0}" = "1" ] || exit 1
+  fi
+  if [ "${CEFRIUM_SKIP_CENTRAL:-0}" = "1" ]; then
+    echo ">>> CEFRIUM_SKIP_CENTRAL=1 -- NOT publishing to Central."
+    echo "    External adopters will not receive $VERSION. Codeberg is latest-only"
+    echo "    and unpinnable, so this version is effectively internal."
+  else
+    cef/cefrium_sdk/publish-central.sh "$VERSION"
+  fi
 fi
 
 if run flagship; then hdr "flagship APK on $VERSION"
