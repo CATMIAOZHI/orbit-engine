@@ -18,6 +18,12 @@
 #   --dry-run    Assemble + sign + validate the bundle locally. No network.
 #                Set CEFRIUM_SKIP_SIGN=1 to check only the layout (no GPG/hardware signing key).
 #   --publish    After Central reports VALIDATED, release it (irreversible).
+#   --release <deployment-id>...
+#                Release deployments that are ALREADY uploaded and VALIDATED,
+#                without re-uploading the bundles (irreversible). Use this when a
+#                cut uploaded as USER_MANAGED and you then decide to publish: the
+#                alternative, re-running with --publish, would re-upload ~500 MB
+#                and leave the first set of deployments orphaned.
 #
 # One-time prerequisites (NOT done by this script):
 #   1. Namespace com.cefrium verified in the Central Portal via a DNS TXT record on
@@ -38,13 +44,46 @@ set -euo pipefail
 VERSION="${1:?Usage: $0 <version> [--dry-run|--publish]}"
 shift || true
 MODE="upload"            # upload | dry-run | publish
+RELEASE_IDS=()
 for arg in "$@"; do
   case "$arg" in
     --dry-run) MODE="dry-run" ;;
     --publish) MODE="publish" ;;
-    *) echo "Unknown arg: $arg" >&2; exit 2 ;;
+    --release) MODE="release" ;;
+    *) if [ "$MODE" = "release" ]; then RELEASE_IDS+=("$arg")
+       else echo "Unknown arg: $arg" >&2; exit 2; fi ;;
   esac
 done
+
+# --release short-circuits everything else: it needs no artifacts, only the token
+# and the deployment ids. DEPLOY_URL was declared for this and never wired up.
+if [ "$MODE" = "release" ]; then
+  [ "${#RELEASE_IDS[@]}" -gt 0 ] || { echo "usage: $0 <version> --release <deployment-id>..." >&2; exit 2; }
+  TOKEN_FILE="$HOME/.publish-token"
+  [ -f "$TOKEN_FILE" ] || { echo "ERROR: $TOKEN_FILE missing" >&2; exit 2; }
+  AUTH="Bearer $(tr -d '\n' < "$TOKEN_FILE" | base64 | tr -d '\n')"
+  CFG="$(mktemp "${TMPDIR:-/tmp}/cefrium-central-rel.XXXXXX")"; chmod 600 "$CFG"
+  printf 'header = "Authorization: %s"\n' "$AUTH" > "$CFG"
+  trap 'rm -f "$CFG"' EXIT
+  echo ""
+  echo "Releasing ${#RELEASE_IDS[@]} VALIDATED deployment(s) to Maven Central -- IRREVERSIBLE."
+  rc=0
+  for id in "${RELEASE_IDS[@]}"; do
+    code="$(curl -s -o /tmp/cefrium-rel-body -w '%{http_code}' -K "$CFG" \
+             -X POST "https://central.sonatype.com/api/v1/publisher/deployment/$id")"
+    if [ "$code" = "200" ] || [ "$code" = "204" ]; then
+      echo "  released $id"
+    else
+      echo "  FAILED  $id (HTTP $code): $(head -c 300 /tmp/cefrium-rel-body)"
+      rc=1
+    fi
+    rm -f /tmp/cefrium-rel-body
+  done
+  echo ""
+  [ "$rc" = "0" ] && echo "Done. Search propagation to Central can take a few hours." \
+                  || echo "One or more releases failed; check https://central.sonatype.com/publishing/deployments"
+  exit "$rc"
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CEF_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
