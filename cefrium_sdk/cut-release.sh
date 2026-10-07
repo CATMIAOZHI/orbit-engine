@@ -238,9 +238,14 @@ if run central; then hdr "publish to Maven Central (the channel adopters pin)"
   # Bug reports went quiet three days after that last Central delivery, and it
   # read as "we got more stable". Never make this a step someone must remember.
   #
-  # Not gated: the default mode uploads and VALIDATES as USER_MANAGED, so
-  # nothing becomes public here. Pressing Publish in the Portal (or re-running
-  # with --publish) is the human checkpoint, and a Central release is immutable.
+  # Released automatically (--publish), to match Codeberg. Asymmetry was the
+  # wrong call: the Codeberg publish above is already live and immutable after a
+  # single confirmation, so making Central alone wait on a Portal click bought no
+  # safety -- it just meant adopters did not get the release, which is the exact
+  # failure this phase exists to prevent (0.9.0-0.9.3 never reached Central).
+  # The gate on the Codeberg publish is the human checkpoint for both.
+  # A Central release is immutable. To upload without releasing, run
+  # publish-central.sh <ver> by hand, then release later with --release <id>...
   if [ ! -f "$HOME/.publish-token" ]; then
     echo "ERROR: ~/.publish-token is missing, so this release would reach Codeberg"
     echo "       but NOT Maven Central -- which is the channel adopters pin to."
@@ -255,7 +260,7 @@ if run central; then hdr "publish to Maven Central (the channel adopters pin)"
     echo "    External adopters will not receive $VERSION. Codeberg is latest-only"
     echo "    and unpinnable, so this version is effectively internal."
   else
-    cef/cefrium_sdk/publish-central.sh "$VERSION"
+    cef/cefrium_sdk/publish-central.sh "$VERSION" --publish
   fi
 fi
 
