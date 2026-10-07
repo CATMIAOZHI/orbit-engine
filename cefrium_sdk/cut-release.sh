@@ -130,6 +130,16 @@ if run merge;   then hdr "merge multi-ABI"
     echo ">>> single-variant: cefrium-sdk.aar = ${V_ARCH}-${V_CODEC}; libre skipped"
   fi
 fi
+if run merge; then
+  # Assert the BYTES of what is about to be published, not the build log. Three
+  # separate staleness bugs in one day each passed the log and failed on a
+  # device. Runs here, before compose/publish, so a wrong artifact never reaches
+  # an immutable registry. (The plugin/APK checks it also does are no-ops until
+  # those exist; the publish-side call below covers them.)
+  cef/cefrium_sdk/verify-release-artifacts.sh "$VERSION" || {
+    echo "ERROR: release artifacts do not match $VERSION -- refusing to continue."; exit 1; }
+fi
+
 if run compose; then hdr "compose AAR"
   mkdir -p cef/cefrium_compose/libs   # gitignored compileOnly dep dir; may be absent on a fresh tree
   cp out/release/cefrium-sdk.aar cef/cefrium_compose/libs/
@@ -273,6 +283,12 @@ if run flagship; then hdr "flagship APK on $VERSION"
   cp out/release/cefrium-sdk.aar "$BROWSER/app/libs/cefrium-sdk.aar"
   cp cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar "$BROWSER/app/libs/cefrium-compose.aar"
   ( cd "$BROWSER" && ./gradlew clean assembleDebug -PcefriumSource=local --no-daemon )
+  # The APK is a release asset, so assert it carries this engine and both ABIs.
+  # `clean` above should make that certain, but Gradle has reported
+  # "up-to-date" on a replaced AAR before and shipped the previous engine.
+  cef/cefrium_sdk/verify-release-artifacts.sh "$VERSION" \
+    --apk "$BROWSER/app/build/outputs/apk/debug/app-debug.apk" || {
+    echo "ERROR: the flagship APK does not match $VERSION -- refusing to continue."; exit 1; }
 fi
 if run release; then hdr "Codeberg release (tag + GPG-signed SHA256SUMS + assets)"
   cef/cefrium_sdk/release-codeberg.sh "$VERSION" \
