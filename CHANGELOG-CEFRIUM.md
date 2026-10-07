@@ -17,6 +17,38 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-10-07
+
+Engine: **Chromium 154.0.8037.98 / CEF branch 8037** -- unchanged from 0.9.3.
+This release exists to fix *delivery*, not the engine.
+
+### Fixed
+
+- **Back on Maven Central, and with every ABI again.** 0.9.0 through 0.9.3 were
+  published to the Codeberg registry only, so they were a 404 on Maven Central --
+  which is where adopters resolve from, since the Codeberg mirror keeps only the
+  latest version and cannot be pinned. Central had served nothing since 0.8.9. On
+  top of that, 0.9.3 was cut for `arm64-v8a` alone, so it could not run on an
+  **x86_64 emulator** and published no `cefrium-sdk-libre` coordinate at all.
+  0.9.4 restores the full matrix (codecs/libre x arm64/x86_64) on both channels.
+
+  **If you were on 0.8.9**, this release carries everything from the four
+  versions you never received: controllable downloads, `content://` URLs and APK
+  asset loading (0.9.0), Smart Text selection via the platform TextClassifier
+  (0.9.2), the OSR copy/paste and WebAuthn third-party-provider fixes (0.9.2,
+  0.9.3), the Chromium 152 -> 154 engine bump, and the engine network controls
+  below (0.9.3). Each is detailed in its own section.
+
+- Two guards so neither failure can recur silently. `cut-release.sh` now refuses
+  at the publish phase when the variant matrix is incomplete, naming what would
+  be missing, and it has a `central` phase that fails when the Central token is
+  absent rather than quietly shipping to Codeberg only. The second one matters
+  because Maven versions are immutable: a release that misses a channel or an ABI
+  cannot be topped up afterwards.
+
+- Consumer docs no longer advertise a version the recommended repository does not
+  serve, and no longer promise `x86_64` for a release that lacks it.
+
 ## [0.9.3] - 2026-10-06
 
 Engine: **Chromium 154.0.8037.98 / CEF branch 8037** (was 152.0.7977.82 / 7977).
