@@ -1,14 +1,17 @@
 #!/bin/bash
 # Orchestrate a full Cefrium release cut. Chains the per-step scripts in order
-# and STOPS for explicit confirmation before the two irreversible steps
-# (immutable Maven publish, destructive registry prune). See RELEASING-CEFRIUM.md.
+# and STOPS for explicit confirmation before the irreversible publish steps
+# (Maven versions are immutable). See RELEASING-CEFRIUM.md.
 #
 # Usage:
 #   cef/cefrium_sdk/cut-release.sh <version> <prev-version> [--from <phase>] [--notes "<html>"]
 # Phases (use --from to resume after a long build):
 #   patches build merge compose plugin stats sanity publish central flagship release web prune
 #
-# Bypass the confirmation gates non-interactively with CEFRIUM_YES=1 (CI only).
+# Bypass the confirmation gates non-interactively with CEFRIUM_YES=1 (CI only);
+# a cut launched as a background job has no stdin and MUST set it, or it dies at
+# the first gate. The final prune is retention policy and needs no gate: it is
+# unattended and interlocked on $VERSION being served (CEFRIUM_NO_PRUNE=1 skips).
 #
 # PUBLISH ALL FOUR VARIANTS. The default (no CEFRIUM_VARIANTS) is what every
 # release ships, and it is not optional:
@@ -65,8 +68,18 @@ hdr()  { echo; echo "===========================================================
 
 gate() { # human confirmation for an irreversible step
   local what="$1"
-  if [ "${CEFRIUM_YES:-0}" = "1" ]; then echo "[gate] $what — auto-confirmed (CEFRIUM_YES=1)"; return; fi
+  if [ "${CEFRIUM_YES:-0}" = "1" ]; then echo "[gate] $what -- auto-confirmed (CEFRIUM_YES=1)"; return; fi
   echo; echo "*** IRREVERSIBLE: $what"
+  # A cut is normally launched as a background job with no stdin, where `read`
+  # hits EOF immediately and dies under errexit at a half-finished release. Say
+  # so instead of failing cryptically, and name the way through.
+  if [ ! -t 0 ]; then
+    echo "    No terminal on stdin, so this gate cannot be answered here."
+    echo "    Re-run this phase from a terminal, or set CEFRIUM_YES=1 to"
+    echo "    pre-authorize the irreversible steps for this cut."
+    echo "Aborted at: $what"
+    exit 1
+  fi
   printf "    Type the version (%s) to proceed, anything else to abort: " "$VERSION"
   read -r ans
   [ "$ans" = "$VERSION" ] || { echo "Aborted at: $what"; exit 1; }
@@ -158,13 +171,13 @@ fi
 if run plugin;  then hdr "plugin jar check"
   jar=cef/cefrium_sdk/gradle-plugin/build/libs/gradle-plugin.jar
   unzip -p "$jar" 'com/cefrium/CefriumPlugin*.class' | strings | grep -q gms.common \
-    && echo "plugin jar current" || echo "WARN: plugin jar may be stale — rebuild it"
+    && echo "plugin jar current" || echo "WARN: plugin jar may be stale -- rebuild it"
 fi
 if run stats;   then hdr "patch stats"; cef/cefrium_sdk/update-patch-stats.sh || true; fi
 if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   cp out/release/cefrium-sdk.aar "$ROOT/cefrium-sample/push-demo/app/libs/cefrium-sdk.aar"
   ( cd "$ROOT/cefrium-sample/push-demo" && ./gradlew clean assembleDebug --no-daemon )
-  echo "Sanity green — the fresh AAR is consumable (compile-time)."
+  echo "Sanity green -- the fresh AAR is consumable (compile-time)."
 
   # Runtime FEATURE gate (the 0.4.0 lesson): compile-time checks miss runtime
   # feature regressions -- 0.4.0 shipped a 149 flagship crash + a content-setting
@@ -309,9 +322,45 @@ if run web;     then hdr "update cefrium.com pages + committed repo docs"
   echo "Review + commit the web repo (quickstart, releases -> push pages) AND the"
   echo "cef repo (QUICKSTART-CEFRIUM.md, README -> push android-port)."
 fi
-if run prune;   then hdr "prune previous versions (DESTRUCTIVE, latest-only)"
-  gate "prune every registry version except $VERSION"
-  cef/cefrium_sdk/prune-old-versions.sh "$VERSION" --yes
+PRUNE_STATE="not reached"
+if run prune;   then hdr "prune previous versions (latest-only retention)"
+  # Final verdict on the release as ADOPTERS see it: both registries, the
+  # release record, and the engine/ABIs inside the PUBLISHED bytes. This used to
+  # be typed out by hand as curl one-liners after a cut, which is exactly why
+  # Central being stuck at 0.8.9 went unnoticed across four releases. If the new
+  # version is not fully published, do not touch the old ones -- they are the
+  # only thing consumers can still resolve.
+  if ! cef/cefrium_sdk/release-status.sh "$VERSION"; then
+    echo
+    echo "Release $VERSION is INCOMPLETE (see above). Skipping the prune: the"
+    echo "superseded versions stay up so consumers keep something resolvable."
+    PRUNE_STATE="skipped -- $VERSION incomplete, fix publication first"
+    echo "Registry prune: $PRUNE_STATE"
+    exit 1
+  fi
+  # This used to sit behind an interactive gate, which meant it NEVER ran: a cut
+  # is launched as a background job, the gate's `read` hit EOF, and the phase
+  # died at the very end of an otherwise complete release. The registry still
+  # served a stale 0.1.0 row months later as a result.
+  #
+  # So it runs unattended now. Retention is settled policy, not a per-release
+  # decision (superseded versions live on as the git tag + GPG-signed
+  # SHA256SUMS on their Codeberg release), and the protection that actually
+  # matters is not a keystroke but the interlock inside prune-old-versions.sh:
+  # nothing is deleted unless BOTH SDK coordinates of $VERSION are provably
+  # being served. Set CEFRIUM_NO_PRUNE=1 to keep the old versions on purpose.
+  if [ "${CEFRIUM_NO_PRUNE:-0}" = "1" ]; then
+    echo "skipped: CEFRIUM_NO_PRUNE=1 (old versions kept in the registry)"
+    PRUNE_STATE="skipped on request"
+  elif cef/cefrium_sdk/prune-old-versions.sh "$VERSION" --yes; then
+    PRUNE_STATE="done"
+  else
+    # A failed interlock is not a failed release -- the release is published and
+    # fine, only the cleanup did not happen. Report it loudly rather than
+    # aborting, so it cannot pass as success the way it did before.
+    PRUNE_STATE="FAILED -- rerun: cef/cefrium_sdk/prune-old-versions.sh $VERSION --yes"
+  fi
 fi
 
 echo; echo "Release $VERSION cut. Remaining manual: commit/push web + cef, regenerate Javadoc/Dokka if API changed, remove any 'releasing shortly' notices."
+echo "Registry prune: $PRUNE_STATE"
