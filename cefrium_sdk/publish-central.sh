@@ -59,7 +59,7 @@ done
 # and the deployment ids. DEPLOY_URL was declared for this and never wired up.
 if [ "$MODE" = "release" ]; then
   [ "${#RELEASE_IDS[@]}" -gt 0 ] || { echo "usage: $0 <version> --release <deployment-id>..." >&2; exit 2; }
-  TOKEN_FILE="$HOME/.publish-token"
+TOKEN_FILE="$HOME/.publish-token"
   [ -f "$TOKEN_FILE" ] || { echo "ERROR: $TOKEN_FILE missing" >&2; exit 2; }
   AUTH="Bearer $(tr -d '\n' < "$TOKEN_FILE" | base64 | tr -d '\n')"
   CFG="$(mktemp "${TMPDIR:-/tmp}/cefrium-central-rel.XXXXXX")"; chmod 600 "$CFG"
@@ -98,6 +98,18 @@ PLUGIN_SRC="$SCRIPT_DIR/gradle-plugin/src/main/groovy"
 # Existing generated API docs (jarred as -javadoc.jar when present); a minimal
 # placeholder pointing at cefrium.com/docs is used when a dir is absent.
 WEB_DOCS="$CEF_DIR/../cefrium-web/docs"
+
+# The engine this release embeds, read from the SDK's own constant so the POM can
+# never disagree with the artifact. Published as a POM property (machine-readable)
+# and appended to the SDK descriptions (human-readable in the Central UI): before
+# this, nothing in the published metadata said WHICH Chromium a version carried,
+# so an evaluator had to download 250 MB to find out. Deliberately NOT a CPE: the
+# Chrome CPE matches at milestone level, so every 154.x scores the same ~122 CVEs
+# whether fully patched or not, which would misrepresent the artifact permanently.
+CHROMIUM_VERSION="$(grep -oE 'CHROMIUM_VERSION = "[0-9.]+"' \
+  "$SCRIPT_DIR/java/src/com/cefrium/Cefrium.java" | grep -oE '[0-9.]+')"
+[ -n "$CHROMIUM_VERSION" ] || { echo "ERROR: cannot read CHROMIUM_VERSION" >&2; exit 2; }
+
 
 TOKEN_FILE="$HOME/.publish-token"
 GPG_KEY="${CEFRIUM_GPG_KEY:-2A840ED00DE669F4219B8B3302A79E3B82151695}"
@@ -199,6 +211,9 @@ write_pom() {
   <packaging>$packaging</packaging>
   <name>$name</name>
   <description>$desc</description>
+  <properties>
+    <cefrium.chromium.version>$CHROMIUM_VERSION</cefrium.chromium.version>
+  </properties>
   <url>https://cefrium.com</url>
   <licenses>
     <license>
@@ -270,7 +285,7 @@ SDK_DEPS='  <dependencies>
 for v in cefrium-sdk cefrium-sdk-libre; do
   [ -n "${AAR[$v]:-}" ] || { echo "skip $v (not built)"; continue; }
   echo "Staging $v (multi-ABI)..."
-  write_pom "$v" "aar" "Cefrium SDK" "CEF (Chromium Embedded Framework) for native Android -- multi-ABI." "$SDK_DEPS"
+  write_pom "$v" "aar" "Cefrium SDK" "CEF (Chromium Embedded Framework) for native Android -- multi-ABI. Embeds Chromium $CHROMIUM_VERSION." "$SDK_DEPS"
   place "$v" "$VERSION" "${AAR[$v]}" "aar"
   make_sources_jar "$v" "$SDK_SRC"
   make_javadoc_jar "$v" "$WEB_DOCS"

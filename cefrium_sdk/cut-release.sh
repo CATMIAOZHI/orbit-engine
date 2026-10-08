@@ -140,6 +140,12 @@ if run merge; then
     echo "ERROR: release artifacts do not match $VERSION -- refusing to continue."; exit 1; }
 fi
 
+if run merge; then
+  # Supply-chain artifacts, generated from the same build the release ships.
+  cef/cefrium_sdk/generate-sbom.sh "$VERSION" || {
+    echo "ERROR: could not generate the SBOM/NOTICE for $VERSION."; exit 1; }
+fi
+
 if run compose; then hdr "compose AAR"
   mkdir -p cef/cefrium_compose/libs   # gitignored compileOnly dep dir; may be absent on a fresh tree
   cp out/release/cefrium-sdk.aar cef/cefrium_compose/libs/

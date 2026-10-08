@@ -22,7 +22,7 @@ BASE_URL="https://codeberg.org/api/packages/cefrium/maven"
 
 if [ ! -f "$TOKEN_FILE" ]; then
   echo "ERROR: Token not found at $TOKEN_FILE"
-  echo "Create one at: Codeberg → Settings → Applications → Generate Token (package scope)"
+  echo "Create one at: Codeberg -> Settings -> Applications -> Generate Token (package scope)"
   exit 1
 fi
 
@@ -39,7 +39,7 @@ trap 'rm -f "$CURL_AUTH_CFG"' EXIT
 unset TOKEN  # no longer needed; header now lives only in the 0600 config file
 
 # DEP-8-style integrity gate: re-fetch a just-published artifact and confirm it is
-# what a consumer will actually download — not a multipart envelope, an HTML error
+# what a consumer will actually download -- not a multipart envelope, an HTML error
 # page, or an empty body. AAR/JAR must start with the ZIP magic "PK"; POM/XML must
 # begin with a real XML element. This is what would have caught the multipart-upload
 # corruption immediately instead of after a consumer's build failed.
@@ -88,7 +88,7 @@ verify_artifact() {
     return 0
   fi
   echo "    *** VERIFY FAILED: published $url is not a valid $ext"
-  echo "    *** (corrupt upload — e.g. multipart envelope baked in; aborting release)"
+  echo "    *** (corrupt upload -- e.g. multipart envelope baked in; aborting release)"
   return 1
 }
 
@@ -143,7 +143,7 @@ upload() {
     esac
     attempt=$((attempt + 1))
     [ "$attempt" -ge 12 ] && break
-    echo "    (HTTP $status — teardown/API blip, retry $attempt/12 after backoff)"
+    echo "    (HTTP $status -- teardown/API blip, retry $attempt/12 after backoff)"
     sleep 10
   done
 
@@ -151,13 +151,20 @@ upload() {
     echo "    OK (201 Created)"
     verify_artifact "$url" "$ext" || exit 1
   elif [ "$status" = "409" ]; then
-    echo "    Already exists (409 Conflict) — skipping upload, verifying existing"
+    echo "    Already exists (409 Conflict) -- skipping upload, verifying existing"
     verify_artifact "$url" "$ext" || exit 1
   else
     echo "    FAILED (HTTP $status)"
     return 1
   fi
 }
+
+# Engine embedded by this release, read from the SDK's own constant so the POM
+# cannot disagree with the artifact. See publish-central.sh for why this is a
+# version and NOT a CPE.
+CHROMIUM_VERSION="$(grep -oE 'CHROMIUM_VERSION = "[0-9.]+"' \
+  "$SCRIPT_DIR/java/src/com/cefrium/Cefrium.java" | grep -oE '[0-9.]+')"
+[ -n "$CHROMIUM_VERSION" ] || { echo "ERROR: cannot read CHROMIUM_VERSION" >&2; exit 2; }
 
 generate_pom() {
   local artifact="$1"
@@ -177,6 +184,9 @@ generate_pom() {
   <packaging>aar</packaging>
   <name>$artifact</name>
   <description>$desc</description>
+  <properties>
+    <cefrium.chromium.version>$CHROMIUM_VERSION</cefrium.chromium.version>
+  </properties>
   <url>https://cefrium.com</url>
   <licenses>
     <license>
@@ -202,11 +212,11 @@ echo ""
 # are build intermediates; merge-multiabi.sh combines each codec flavor's arches
 # into one multi-ABI AAR (cefrium-sdk.aar = codecs default, cefrium-sdk-libre.aar).
 # AGP packages all ABIs from the AAR and the consumer's APK/App Bundle delivers
-# only the device's ABI — so a single coordinate works on arm64 and x86_64.
+# only the device's ABI -- so a single coordinate works on arm64 and x86_64.
 # Runtime androidx dependencies the SDK references (from the content/embedder
-# layer) but does NOT vendor — the consumer gets them transitively. The AAR is a
+# layer) but does NOT vendor -- the consumer gets them transitively. The AAR is a
 # fat AAR (it vendors chrome_all_java's Material/Preference/Cast classes AND, since
-# compat_strings.xml is wired in, their string resources — see FEATURE-038
+# compat_strings.xml is wired in, their string resources -- see FEATURE-038
 # Option A), so the consumer must NOT add material/preference itself (would
 # duplicate the vendored classes). Only the content-layer androidx below is
 # declared. This exact set was validated by a Maven-path consumer build: a project
@@ -248,7 +258,7 @@ for artifact in cefrium-sdk cefrium-sdk-libre; do
     continue
   fi
   echo "Publishing $artifact (multi-ABI)..."
-  pom=$(generate_pom "$artifact" "Cefrium SDK — CEF for Android (multi-ABI)" "$SDK_DEPS")
+  pom=$(generate_pom "$artifact" "Cefrium SDK -- CEF for Android (multi-ABI). Embeds Chromium $CHROMIUM_VERSION." "$SDK_DEPS")
   upload "$artifact" "$pom"
   upload "$artifact" "$aar"
   rm -f "$pom"
@@ -284,7 +294,7 @@ PLUGIN_JAR="$SCRIPT_DIR/gradle-plugin/build/libs/gradle-plugin.jar"
 if [ -f "$PLUGIN_JAR" ]; then
   echo "Publishing cefrium-gradle-plugin..."
   pom=$(generate_pom "cefrium-gradle-plugin" \
-    "Cefrium Gradle Plugin — generates R.java for Chromium packages" "")
+    "Cefrium Gradle Plugin -- generates R.java for Chromium packages" "")
   upload "cefrium-gradle-plugin" "$pom"
   upload "cefrium-gradle-plugin" "$PLUGIN_JAR"
   rm -f "$pom"
@@ -314,7 +324,7 @@ EOF
   rm -f "$MARKER_POM"
   echo ""
 else
-  echo "WARNING: Gradle Plugin JAR not found at $PLUGIN_JAR — skipping"
+  echo "WARNING: Gradle Plugin JAR not found at $PLUGIN_JAR -- skipping"
   echo ""
 fi
 
@@ -328,7 +338,7 @@ echo ""
 # local-AAR sample builds cannot. Skip with CEFRIUM_SKIP_SMOKE_TEST=1 (e.g. when
 # Gradle/Android SDK are unavailable on the publishing host).
 # Both published SDK coordinates are gated: cefrium-sdk (default) AND
-# cefrium-sdk-libre — distinct artifacts, and the FOSS audience uses libre.
+# cefrium-sdk-libre -- distinct artifacts, and the FOSS audience uses libre.
 # Override for a single-variant publish (no libre): CEFRIUM_SMOKE_VARIANTS="cefrium-sdk".
 SMOKE_VARIANTS="${CEFRIUM_SMOKE_VARIANTS:-cefrium-sdk cefrium-sdk-libre}"
 if [ "${CEFRIUM_SKIP_SMOKE_TEST:-0}" = "1" ]; then
@@ -352,7 +362,7 @@ else
   done
 fi
 echo ""
-echo "Done — $VERSION published AND verified consumable."
+echo "Done -- $VERSION published AND verified consumable."
 echo ""
 echo "Usage in build.gradle:"
 echo '  maven { url "https://codeberg.org/api/packages/cefrium/maven" }'
