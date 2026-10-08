@@ -1,6 +1,6 @@
 #!/bin/bash
 # Codeberg release for a published Cefrium version: tag, GPG-signed SHA256SUMS,
-# release object, and assets. Idempotent — re-running skips what already exists.
+# release object, and assets. Idempotent -- re-running skips what already exists.
 #
 # Usage: cef/cefrium_sdk/release-codeberg.sh <version> [flagship.apk]
 # Inputs:
@@ -17,6 +17,10 @@ CEF_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"                  # chromium/src/cef
 REL_DIR="$SRC_DIR/out/release"
 COMPOSE_AAR="$CEF_DIR/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar"
 GPG_KEY="2A840ED00DE669F4219B8B3302A79E3B82151695"
+# Read the engine out of the tree, never hardcode it: the release notes are the
+# first place an adopter looks for what Chromium a version embeds.
+ENGINE="$(grep -oE 'CHROMIUM_VERSION = "[0-9.]+"' "$SCRIPT_DIR/java/src/com/cefrium/Cefrium.java" | grep -oE '[0-9.]+')"
+[ -n "$ENGINE" ] || { echo "ERROR: cannot read CHROMIUM_VERSION from Cefrium.java"; exit 2; }
 API="https://codeberg.org/api/v1/repos/cefrium/cef-android"
 TOKEN="$(cat "$HOME/.registry-token")"
 # Keep the token OUT of argv (`ps`): pass the auth header via a 0600 curl config
@@ -54,6 +58,13 @@ if [ -f cefrium-sdk-libre.aar ]; then
   SUM_FILES="$SUM_FILES cefrium-sdk-libre-$VERSION.aar"
 fi
 [ -f "$COMPOSE_AAR" ] && { cp -f "$COMPOSE_AAR" "cefrium-compose-$VERSION.aar"; SUM_FILES="$SUM_FILES cefrium-compose-$VERSION.aar"; }
+# The supply-chain disclosure goes INSIDE the signed manifest. An SBOM that
+# states which engine a release embeds is only worth as much as its integrity:
+# unattested, anyone can serve a different one. (Covered from 0.9.5 on; the
+# 0.9.4 assets predate this and are attested only by the release itself.)
+for extra in "cefrium-sdk-$VERSION.spdx.json" "cefrium-sdk-$VERSION-NOTICE.txt"; do
+  [ -f "$extra" ] && SUM_FILES="$SUM_FILES $extra"
+done
 SUMS="SHA256SUMS-$VERSION"
 say "generating $SUMS"
 sha256sum $SUM_FILES > "$SUMS"
@@ -76,7 +87,7 @@ say "ensuring release $TAG exists"
 rid=$(curl -s "$API/releases/tags/$TAG" -K "$CURL_AUTH_CFG" \
         | grep -oE '"id":[0-9]+' | head -1 | cut -d: -f2 || true)
 if [ -z "$rid" ]; then
-  body="Cefrium $VERSION. Artifacts on the Codeberg Maven registry (com.cefrium:cefrium-sdk:$VERSION and -libre). SHA256SUMS (GPG-signed) attached; the listed AAR hashes are byte-identical to the registry artifacts. https://cefrium.com/releases"
+  body="Cefrium $VERSION (Chromium $ENGINE). Artifacts on the Codeberg Maven registry (com.cefrium:cefrium-sdk:$VERSION and -libre) and on Maven Central. SHA256SUMS (GPG-signed) attached and covers every listed asset; the AAR hashes in it are byte-identical to the registry artifacts. SBOM and third-party NOTICE attached. https://cefrium.com/releases"
   rid=$(curl -s -X POST "$API/releases" -K "$CURL_AUTH_CFG" \
     -H "Content-Type: application/json" \
     -d "{\"tag_name\":\"$TAG\",\"name\":\"Cefrium $VERSION\",\"body\":\"$body\"}" \
