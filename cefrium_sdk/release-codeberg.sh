@@ -99,6 +99,16 @@ upload_asset() {
 }
 upload_asset "$REL_DIR/$SUMS"
 upload_asset "$REL_DIR/$SUMS.asc"
+# Supply-chain disclosure. The SBOM names the embedded engine version (one
+# package, no CPE -- see generate-sbom.sh for why), and the NOTICE lists every
+# bundled third-party licence, which is the one real finding against us in
+# Sonatype's policy view. Attached here rather than to the Maven coordinates:
+# scanners auto-ingest Maven classifiers, and a versionless component list makes
+# them invent findings.
+for extra in "cefrium-sdk-$VERSION.spdx.json" "cefrium-sdk-$VERSION-NOTICE.txt"; do
+  if [ -f "$REL_DIR/$extra" ]; then upload_asset "$REL_DIR/$extra"
+  else say "skip $extra (not generated)"; fi
+done
 if [ -n "$FLAGSHIP" ] && [ -f "$FLAGSHIP" ]; then
   cp -f "$FLAGSHIP" "$REL_DIR/cefrium-browser-$VERSION-debug.apk"
   upload_asset "$REL_DIR/cefrium-browser-$VERSION-debug.apk"
