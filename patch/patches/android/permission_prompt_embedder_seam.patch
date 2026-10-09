@@ -1,8 +1,8 @@
 diff --git components/permissions/android/permission_prompt/permission_prompt_android_factory.cc components/permissions/android/permission_prompt/permission_prompt_android_factory.cc
-index 949b255d2ac9f..9dcf6a1029486 100644
+index 81bf91db38140456a32a8f4d54c2ff831a784c23..79f17a7dc2dd7d87248dc2e2dd7c0c21d1d48e14 100644
 --- components/permissions/android/permission_prompt/permission_prompt_android_factory.cc
 +++ components/permissions/android/permission_prompt/permission_prompt_android_factory.cc
-@@ -17,9 +17,38 @@
+@@ -16,9 +16,38 @@
  
  namespace permissions {
  
@@ -42,7 +42,7 @@ index 949b255d2ac9f..9dcf6a1029486 100644
            ShouldCurrentRequestUsePermissionElementSecondaryUI(delegate)) {
      if (auto embedded_prompt =
 diff --git components/permissions/permission_prompt.h components/permissions/permission_prompt.h
-index 88bda23a85fc6..e80c77ebdbcd8 100644
+index a126ac33eba4f31bec9fc3c839de434104c66fc3..db0868257d43b8164b7ebbde2800d4383724e682 100644
 --- components/permissions/permission_prompt.h
 +++ components/permissions/permission_prompt.h
 @@ -11,6 +11,7 @@
@@ -53,7 +53,7 @@ index 88bda23a85fc6..e80c77ebdbcd8 100644
  #include "components/permissions/features.h"
  #include "components/permissions/permission_request_data.h"
  #include "components/permissions/permission_uma_constants.h"
-@@ -158,6 +159,20 @@ class PermissionPrompt {
+@@ -165,6 +166,20 @@ class PermissionPrompt {
        content::WebContents* web_contents,
        Delegate* delegate);
  

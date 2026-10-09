@@ -1,5 +1,5 @@
 diff --git components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManSupportProvider.java components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManSupportProvider.java
-index 6715cf7c52b8c..6b0be71918cb4 100644
+index 6715cf7c52b8c2db14800c0c2a8080e98ca1fe34..6b0be71918cb41c6c987bd8c0c00f72ad750eab0 100644
 --- components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManSupportProvider.java
 +++ components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManSupportProvider.java
 @@ -37,6 +37,19 @@ public class CredManSupportProvider {

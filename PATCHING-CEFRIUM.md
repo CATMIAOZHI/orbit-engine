@@ -119,10 +119,80 @@ patches modify the same hunk:
   (`if (enable_cef && !is_android)`), not add a second parallel block. Core
   applies first, so the android patch sees the core-modified file.
 
-## Adding or regenerating a patch (workdir method)
+## Adding or regenerating a patch: use upstream's tool
 
-Never hand-write patch bodies. Generate them from a real diff in an isolated
-git workdir so paths and context are exact.
+**Preferred method, for both new and existing patches.** CEF ships the tool that
+owns this job, and it has been in the tree all along:
+
+```
+SRC=<cef-dev>/chromium/src
+cd "$SRC"
+
+# Create a patch from changes already made to a file in the tree:
+python3 cef/tools/patch_updater.py --resave --patch android/my_new_guard \
+                                   --add chrome/browser/ui/browser.cc
+
+# Regenerate an existing patch (after editing the file in the tree):
+python3 cef/tools/patch_updater.py --resave --patch android/my_new_guard
+
+# Revert / reapply a single patch while working on it:
+python3 cef/tools/patch_updater.py --revert  --patch android/my_new_guard
+python3 cef/tools/patch_updater.py --reapply --patch android/my_new_guard
+```
+
+Internally it runs `git diff --no-prefix --relative --full-index`, which is the
+`-p0` format CEF stores **plus full 40-hex index hashes**. Those hashes are not
+cosmetic: they are what lets `git apply --3way` locate the blobs, and `--3way` is
+upstream's documented recovery path when a patch stops applying after a Chromium
+bump. Hand-rolled patches (the workdir method below) omit them, which is why
+engine-bump conflicts were always resolved by hand here.
+
+**TRAP: `--patch` takes the name exactly as `patch.cfg` registers it, WITH the
+`android/` prefix.** Passing the bare basename is a *silent no-op*: it prints
+only `Reading patch config`, writes nothing, and exits 0. The selector is
+`if options.patch and not patch['name'] in options.patch: continue`.
+
+**Constraint (unchanged by the tool):** `--resave` regenerates from the working
+tree, so it attributes every change in a file to the patch being saved. Where
+two patches touch one file it silently absorbs the other's hunks -- exactly how
+`resource_bundle_2512.patch` once swallowed the Android changes. Only resave a
+patch that solely owns its files; see "Ownership" above.
+
+### Bulk regeneration
+
+`cef/cefrium_sdk/resave-patches.sh` does the whole android set safely: it backs
+up every patch to `cef-dev/tmp/patch-backup-<stamp>/`, computes file ownership
+across *all* patches and refuses any patch that shares a file (naming the
+collision), then for each one proves equivalence **by tree, not by text** --
+revert the owned files to pristine, apply the regenerated patch, and require the
+resulting bytes to be identical. Anything that fails is restored from the backup.
+
+Text comparison cannot decide this. A correct resave legitimately rewrites hunk
+headers: our stored patches carried offsets and context from older milestones
+(`picture_in_picture_guard_null_tab` still said
+`extends AsyncInitializationActivity` where upstream now has
+`extends VideoOverlayActivity`), and git may choose a different but equivalent
+`-`/`+` split. Both read as "content changed" to a diff; neither is.
+
+```
+cef/cefrium_sdk/resave-patches.sh --dry-run    # report only
+cef/cefrium_sdk/resave-patches.sh              # all safe android/* patches
+cef/cefrium_sdk/resave-patches.sh android/lock_metrics_reentrancy
+```
+
+It also finds dead patches: a resave that comes out EMPTY means the tree no
+longer differs from upstream for those files, i.e. upstream adopted the change.
+That is how `android/glic_android_jni_headers_dep` was found obsolete in 154 --
+upstream added both `//chrome/browser/glic/android:jni_headers` deps, the patch
+had stopped applying, and the failure was invisible because `apply-patches.py`
+runs under `|| true` for the known-fuzz core patches.
+
+## Adding or regenerating a patch (workdir method, legacy)
+
+Use this only when `patch_updater.py --resave` cannot: a patch whose file is
+shared with another patch, where resaving would merge both. Never hand-write
+patch bodies. Generate them from a real diff in an isolated git workdir so paths
+and context are exact.
 
 ```
 SRC=<cef-dev>/chromium/src

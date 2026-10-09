@@ -1,5 +1,5 @@
 diff --git base/synchronization/lock_metrics_recorder.cc base/synchronization/lock_metrics_recorder.cc
-index 3e2533316ef2a..cf3f3f7e935f4 100644
+index 3e2533316ef2afbbcdd81858d52efb849a5d82c1..cf3f3f7e935f4770e42c5bfb95131f4abd5d711f 100644
 --- base/synchronization/lock_metrics_recorder.cc
 +++ base/synchronization/lock_metrics_recorder.cc
 @@ -154,6 +154,26 @@ void LockMetricsRecorder::ReportLockHistogram(const LockMetricSample& sample) {
@@ -30,7 +30,7 @@ index 3e2533316ef2a..cf3f3f7e935f4 100644
  }
  
 diff --git base/synchronization/lock_metrics_recorder.h base/synchronization/lock_metrics_recorder.h
-index d25bf5a282707..32313121d4f8a 100644
+index d25bf5a282707ae43f3cafc2c291b46c58a91534..32313121d4f8a58f7a81ef18d30631074c9fa574 100644
 --- base/synchronization/lock_metrics_recorder.h
 +++ base/synchronization/lock_metrics_recorder.h
 @@ -151,6 +151,14 @@ class BASE_EXPORT LockMetricsRecorder {

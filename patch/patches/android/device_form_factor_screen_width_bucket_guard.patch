@@ -1,5 +1,5 @@
 diff --git ui/android/java/src/org/chromium/ui/base/DeviceFormFactor.java ui/android/java/src/org/chromium/ui/base/DeviceFormFactor.java
-index 789c3a2..df6ab6e 100644
+index 789c3a2df0761b8048b1ad73ce18317bece66d04..df6ab6eedc25493e16d401f387301fb283dbe1fb 100644
 --- ui/android/java/src/org/chromium/ui/base/DeviceFormFactor.java
 +++ ui/android/java/src/org/chromium/ui/base/DeviceFormFactor.java
 @@ -159,14 +159,28 @@ public class DeviceFormFactor {

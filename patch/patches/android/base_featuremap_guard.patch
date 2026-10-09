@@ -1,5 +1,5 @@
 diff --git base/android/java/src/org/chromium/base/FeatureMap.java base/android/java/src/org/chromium/base/FeatureMap.java
-index 75cf442d57ddb..17eb51e0e7167 100644
+index 75cf442d57ddb9097539074330e716884192719b..17eb51e0e7167a65ffbf4cec377b6f42e71b0715 100644
 --- base/android/java/src/org/chromium/base/FeatureMap.java
 +++ base/android/java/src/org/chromium/base/FeatureMap.java
 @@ -132,6 +132,13 @@ public abstract class FeatureMap {

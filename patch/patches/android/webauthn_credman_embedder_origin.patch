@@ -1,5 +1,5 @@
 diff --git components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManCreateCredentialRequestHelper.java components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManCreateCredentialRequestHelper.java
-index 0525d2bab6050..959385a6461fc 100644
+index 0525d2bab60505cd6099aed04f0987139078c514..959385a6461fcba35ec063a9bd818b09284e9b85 100644
 --- components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManCreateCredentialRequestHelper.java
 +++ components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManCreateCredentialRequestHelper.java
 @@ -63,6 +63,10 @@ class CredManCreateCredentialRequestHelper {
@@ -14,7 +14,7 @@ index 0525d2bab6050..959385a6461fc 100644
          return builder.build();
      }
 diff --git components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManGetCredentialRequestHelper.java components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManGetCredentialRequestHelper.java
-index 4b7ada5323ac9..3ec70b59d587b 100644
+index 4b7ada5323ac9c79f6436786fa876799caf6d095..3ec70b59d587b049efc53ae24a806672f61ad077 100644
 --- components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManGetCredentialRequestHelper.java
 +++ components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManGetCredentialRequestHelper.java
 @@ -92,6 +92,13 @@ class CredManGetCredentialRequestHelper {
