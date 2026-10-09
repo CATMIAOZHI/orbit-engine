@@ -1,8 +1,8 @@
 diff --git content/public/android/java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java content/public/android/java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java
-index e76f297..32fa7e8 100644
+index e0c6d95d6e3c6d4f9fb3418589061c118522a4e8..44b5342d3d3755abbb0a524a598ca62a5820e03a 100644
 --- content/public/android/java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java
 +++ content/public/android/java/src/org/chromium/content_public/browser/media/capture/ScreenCapture.java
-@@ -194,10 +194,14 @@ public class ScreenCapture implements ImageHandler.Delegate {
+@@ -210,10 +210,14 @@ public class ScreenCapture implements ImageHandler.Delegate {
      @CalledByNative
      boolean startCapture() {
          final PickState pickState = sNextPickState.getAndSet(null);

@@ -1,8 +1,8 @@
 diff --git chrome/android/java/src/org/chromium/chrome/browser/notifications/NotificationPlatformBridge.java chrome/android/java/src/org/chromium/chrome/browser/notifications/NotificationPlatformBridge.java
-index 86d5ac08df..f058a24352 100644
+index 744a501c280d470d78ec729a425f95c934ca0435..2c944955f5c444aa0687c00ba6c663ae2d9efa0a 100644
 --- chrome/android/java/src/org/chromium/chrome/browser/notifications/NotificationPlatformBridge.java
 +++ chrome/android/java/src/org/chromium/chrome/browser/notifications/NotificationPlatformBridge.java
-@@ -1025,9 +1025,14 @@ public class NotificationPlatformBridge {
+@@ -1024,9 +1024,14 @@ public class NotificationPlatformBridge {
              return Promise.fulfilled(true);
          }
  

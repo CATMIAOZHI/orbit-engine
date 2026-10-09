@@ -1,5 +1,5 @@
 diff --git components/component_updater/BUILD.gn components/component_updater/BUILD.gn
-index 31b516cde43f8..f3338fa3cd53b 100644
+index 31b516cde43f8be171d7c24d584890a70839884e..f3338fa3cd53b133e1bcfb58c5ad85401e656048 100644
 --- components/component_updater/BUILD.gn
 +++ components/component_updater/BUILD.gn
 @@ -3,6 +3,7 @@
@@ -31,7 +31,7 @@ index 31b516cde43f8..f3338fa3cd53b 100644
  
  static_library("test_support") {
 diff --git components/component_updater/component_updater_service.cc components/component_updater/component_updater_service.cc
-index b8210dce96d80..ef3088b79ee8c 100644
+index a1daf3154fa11842d7b92a42215788759cde6f7f..40a3af5d05adbc63918563959d13032c4813a03e 100644
 --- components/component_updater/component_updater_service.cc
 +++ components/component_updater/component_updater_service.cc
 @@ -26,6 +26,7 @@

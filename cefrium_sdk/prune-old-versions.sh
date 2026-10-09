@@ -125,6 +125,15 @@ for v in $to_prune; do
   done
 done
 
+# Scoped like the version list above: an unscoped query here reports other
+# com.cefrium products (e.g. exam-lockdown 0.1.0) as if they were SDK versions
+# this policy had failed to clean up.
 remaining=$(curl -s "$API?type=maven&limit=100" -K "$CURL_AUTH_CFG" \
-             | grep -oE '"version":"[^"]*"' | cut -d'"' -f4 | sort -u | tr '\n' ' ')
-echo "Done. Registry now serves: $remaining"
+             | python3 -c '
+import json, sys
+want = set(sys.argv[1].split())
+seen = {p["version"] for p in json.load(sys.stdin)
+        if p.get("name","").split(":")[-1] in want}
+print(" ".join(sorted(seen)))
+' "$COORDS")
+echo "Done. Registry now serves (SDK coordinates): $remaining"

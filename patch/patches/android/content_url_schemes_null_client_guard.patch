@@ -1,5 +1,5 @@
 diff --git content/common/url_schemes.cc content/common/url_schemes.cc
-index 225e017909..9426310795 100644
+index 225e017909b8869231b870eaaf161a0b5e93e2a0..9426310795479ea35d32582147dc643d704a0258 100644
 --- content/common/url_schemes.cc
 +++ content/common/url_schemes.cc
 @@ -56,7 +56,9 @@ void RegisterContentSchemes(bool should_lock_registry) {

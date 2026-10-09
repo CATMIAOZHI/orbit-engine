@@ -1,8 +1,8 @@
 diff --git services/device/nfc/android/java/src/org/chromium/device/nfc/NfcBlocklist.java services/device/nfc/android/java/src/org/chromium/device/nfc/NfcBlocklist.java
-index 165b21dc3ca92..8df5d76d78b01 100644
+index 5c43d0dba1887e3f3b326abb53141d982c433de3..270fae6ad3dcb93221e2a94e9cd3005a2c29f4dc 100644
 --- services/device/nfc/android/java/src/org/chromium/device/nfc/NfcBlocklist.java
 +++ services/device/nfc/android/java/src/org/chromium/device/nfc/NfcBlocklist.java
-@@ -71,9 +71,18 @@ public class NfcBlocklist {
+@@ -62,9 +62,18 @@ public class NfcBlocklist {
      }
  
      private NfcBlocklist() {

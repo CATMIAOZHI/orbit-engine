@@ -1,8 +1,8 @@
 diff --git content/browser/renderer_host/navigation_transitions/navigation_transition_utils.cc content/browser/renderer_host/navigation_transitions/navigation_transition_utils.cc
-index dbcde4a..b454e89 100644
+index 8615caedcc2b24afd59938a03311095ecc3af5b4..7eba15e45a30665c2ce6f7f1a07f0bc47c024e57 100644
 --- content/browser/renderer_host/navigation_transitions/navigation_transition_utils.cc
 +++ content/browser/renderer_host/navigation_transitions/navigation_transition_utils.cc
-@@ -729,8 +729,15 @@ void NavigationTransitionUtils::SetSameDocumentNavigationEntryScreenshotToken(
+@@ -706,8 +706,15 @@ void NavigationTransitionUtils::SetSameDocumentNavigationEntryScreenshotToken(
    RenderFrameHostImpl* current_rfh =
        navigation_request.frame_tree_node()->current_frame_host();
    RenderWidgetHostView* rwhv = current_rfh->GetView();

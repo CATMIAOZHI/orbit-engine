@@ -1,5 +1,5 @@
 diff --git components/webauthn/android/java/src/org/chromium/components/webauthn/Fido2CredentialRequest.java components/webauthn/android/java/src/org/chromium/components/webauthn/Fido2CredentialRequest.java
-index 055d8c5f07067..a757c680e3ddf 100644
+index 055d8c5f070678cd4b3da4ce6986d33f89a0f43f..a757c680e3ddfb8628802db98a06396136f5ff65 100644
 --- components/webauthn/android/java/src/org/chromium/components/webauthn/Fido2CredentialRequest.java
 +++ components/webauthn/android/java/src/org/chromium/components/webauthn/Fido2CredentialRequest.java
 @@ -760,9 +760,16 @@ public class Fido2CredentialRequest implements WebauthnBrowserBridge.Provider {
