@@ -1,8 +1,8 @@
 diff --git chrome/browser/download/download_request_limiter.cc chrome/browser/download/download_request_limiter.cc
-index eb1ace9..6ee7ea8 100644
+index 011a277d7647552fcc59dee4c28458e4bdd1df88..94b29551d68b210c0a2135f6e636863c142f0a34 100644
 --- chrome/browser/download/download_request_limiter.cc
 +++ chrome/browser/download/download_request_limiter.cc
-@@ -603,6 +603,19 @@ void DownloadRequestLimiter::CanDownloadImpl(
+@@ -621,6 +621,19 @@ void DownloadRequestLimiter::CanDownloadImpl(
      Callback callback) {
    DCHECK(originating_contents);
  
@@ -22,7 +22,7 @@ index eb1ace9..6ee7ea8 100644
    // Always allow download resulted from a cross-origin redirect from a previous
    // download attempt, and there's no need to update any state.
    if (from_download_cross_origin_redirect) {
-@@ -725,6 +738,7 @@ void DownloadRequestLimiter::CanDownloadImpl(
+@@ -743,6 +756,7 @@ void DownloadRequestLimiter::CanDownloadImpl(
  
    if (!on_can_download_decided_callback_.is_null())
      on_can_download_decided_callback_.Run(ret);

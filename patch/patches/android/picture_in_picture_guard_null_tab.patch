@@ -1,8 +1,8 @@
 diff --git chrome/android/java/src/org/chromium/chrome/browser/media/PictureInPictureActivity.java chrome/android/java/src/org/chromium/chrome/browser/media/PictureInPictureActivity.java
-index fa17fa2..3a3f18b 100644
+index 8edb5a1d6d485efe152224fe1e2f701c1e4eed2e..710ee00d390cf2a43f7fb836be1dba90171a3c19 100644
 --- chrome/android/java/src/org/chromium/chrome/browser/media/PictureInPictureActivity.java
 +++ chrome/android/java/src/org/chromium/chrome/browser/media/PictureInPictureActivity.java
-@@ -1005,6 +1005,13 @@ public class PictureInPictureActivity extends AsyncInitializationActivity {
+@@ -839,6 +839,13 @@ public class PictureInPictureActivity extends VideoOverlayActivity {
              int sourceY,
              int sourceWidth,
              int sourceHeight) {

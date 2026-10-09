@@ -1,5 +1,5 @@
 diff --git chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
-index d03e8b261b..dd3b71ffde 100644
+index f24466f8ab5edefb9496594ad35e0734c1c35e5d..2003c1127dfcb3d96ba262a0b1136baf47bc2678 100644
 --- chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
 +++ chrome/browser/ui/browser_window/internal/android/global_browser_collection_platform_delegate_android.cc
 @@ -12,12 +12,23 @@ GlobalBrowserCollectionPlatformDelegate::

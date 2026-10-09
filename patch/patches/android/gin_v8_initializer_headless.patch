@@ -1,5 +1,5 @@
 diff --git gin/v8_initializer.cc gin/v8_initializer.cc
-index f32f4077d5..f6d33e76dd 100644
+index 1726efa5883d75d1c81d69a56581a33746c2778e..f05663a5720f1123d1dd83c104180f28230e3d7b 100644
 --- gin/v8_initializer.cc
 +++ gin/v8_initializer.cc
 @@ -48,7 +48,10 @@

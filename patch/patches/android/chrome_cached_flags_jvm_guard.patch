@@ -1,8 +1,8 @@
 diff --git chrome/browser/android/flags/chrome_cached_flags.cc chrome/browser/android/flags/chrome_cached_flags.cc
-index c81932b308..4f41ee568b 100644
+index fc9f06b7fcaacb8185479371096f667b0033420f..fdb68dbeb3f9b246d602c35de8f1be97a8bf9ea1 100644
 --- chrome/browser/android/flags/chrome_cached_flags.cc
 +++ chrome/browser/android/flags/chrome_cached_flags.cc
-@@ -7,6 +7,7 @@
+@@ -6,6 +6,7 @@
  
  #include "base/android/jni_string.h"
  #include "base/feature_list.h"
@@ -10,7 +10,7 @@ index c81932b308..4f41ee568b 100644
  
  // Must come after all headers that specialize FromJniType() / ToJniType().
  #include "chrome/android/chrome_jni_headers/ChromeCachedFlags_jni.h"
-@@ -17,6 +18,10 @@ using base::android::ScopedJavaLocalRef;
+@@ -13,6 +14,10 @@
  namespace chrome::android {
  
  bool IsJavaDrivenFeatureEnabled(const base::Feature& feature) {

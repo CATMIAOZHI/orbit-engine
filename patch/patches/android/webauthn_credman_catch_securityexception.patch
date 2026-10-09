@@ -1,8 +1,8 @@
 diff --git components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManHelper.java components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManHelper.java
-index fb9ad22..4169484 100644
+index 65ef1a2c04bb0c801b24af4937ab9fc0b861d389..3ab71d052ff59dda96735c3af11ab8f56b4c5649 100644
 --- components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManHelper.java
 +++ components/webauthn/android/java/src/org/chromium/components/webauthn/cred_man/CredManHelper.java
-@@ -236,7 +236,17 @@ public class CredManHelper {
+@@ -240,7 +240,17 @@ public class CredManHelper {
          assumeNonNull(context);
          final CredentialManager manager =
                  (CredentialManager) context.getSystemService(Context.CREDENTIAL_SERVICE);
@@ -21,7 +21,7 @@ index fb9ad22..4169484 100644
          mMetricsHelper.recordCredManCreateRequestHistogram(CredManCreateRequestEnum.SENT_REQUEST);
          return AuthenticatorStatus.SUCCESS;
      }
-@@ -423,8 +433,19 @@ public class CredManHelper {
+@@ -427,8 +437,19 @@ public class CredManHelper {
          assumeNonNull(context);
          final CredentialManager manager =
                  (CredentialManager) context.getSystemService(Context.CREDENTIAL_SERVICE);
@@ -43,7 +43,7 @@ index fb9ad22..4169484 100644
          mMetricsHelper.recordCredmanPrepareRequestHistogram(CredManPrepareRequestEnum.SENT_REQUEST);
      }
  
-@@ -704,8 +725,15 @@ public class CredManHelper {
+@@ -718,8 +739,15 @@ public class CredManHelper {
          assumeNonNull(context);
          final CredentialManager manager =
                  (CredentialManager) context.getSystemService(Context.CREDENTIAL_SERVICE);
