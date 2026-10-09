@@ -1,5 +1,5 @@
 diff --git base/android/apk_info.cc base/android/apk_info.cc
-index d42a851cf6..39730170ae 100644
+index ee32d52762558c69cd8b69a4a200aacbbcb546f9..887b9d5095ad9223ddb44848430421419842db32 100644
 --- base/android/apk_info.cc
 +++ base/android/apk_info.cc
 @@ -5,6 +5,9 @@
@@ -12,7 +12,7 @@ index d42a851cf6..39730170ae 100644
  #include <variant>
  
  #include "base/android/jni_android.h"
-@@ -50,9 +53,39 @@ static std::optional<IApkInfo>& get_holder() {
+@@ -51,9 +54,39 @@ static std::optional<IApkInfo>& get_holder() {
  }
  
  const IApkInfo& get_apk_info() {
@@ -55,7 +55,7 @@ index d42a851cf6..39730170ae 100644
    return *holder;
  }
 diff --git base/android/device_info.cc base/android/device_info.cc
-index f69a39d59a..f0bfd918d4 100644
+index dc0347596ba4389eaae5aff9759177c6a3a4928b..05d47a9b628defba8108126141d6884bdd705c33 100644
 --- base/android/device_info.cc
 +++ base/android/device_info.cc
 @@ -5,6 +5,9 @@
