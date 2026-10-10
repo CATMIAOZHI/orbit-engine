@@ -1,5 +1,5 @@
 #!/bin/bash
-# Engine-bump assistant — the MECHANICAL scaffolding for moving the Android port
+# Engine-bump assistant -- the MECHANICAL scaffolding for moving the Android port
 # onto a new Chromium/CEF release (e.g. 148 -> 149). It does NOT auto-resolve
 # patch conflicts or fix Chromium API breaks: those need human judgment. What it
 # does: pin the new version, sync, guide the CEF rebase, re-apply patches, and
@@ -13,7 +13,7 @@
 #
 # Destructive phases (sync, rebase) require typing the chromium tag to confirm;
 # CEFRIUM_YES=1 bypasses (CI). The port's patches live in cef/patch/ (committed),
-# so a clean re-sync never loses them — it re-applies them onto the new tree.
+# so a clean re-sync never loses them -- it re-applies them onto the new tree.
 set -euo pipefail
 
 CTAG="${1:?usage: engine-bump.sh <chromium-tag> [cef-branch] [--from phase]}"; shift
@@ -27,7 +27,7 @@ while [ $# -gt 0 ]; do case "$1" in --from) FROM="$2"; shift 2;; *) echo "unknow
 
 # Core CEF patches that are large and routinely apply with fuzz on a new Chromium
 # (Debian handles the same class via a skip-list + `--fuzz=3`). They are NOT real
-# conflicts — the report flags them separately so a bump isn't derailed by them.
+# conflicts -- the report flags them separately so a bump isn't derailed by them.
 KNOWN_FUZZ="gn_config chrome_runtime chrome_browser_profiles"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -37,6 +37,11 @@ CEF="$SRC/cef"
 GCLIENT="$SRC/../.gclient"
 COMPAT="$CEF/CHROMIUM_BUILD_COMPATIBILITY.txt"
 CEFJAVA="$CEF/cefrium_sdk/java/src/com/cefrium/Cefrium.java"
+# Bump artefacts (patcher log, analyses) live on the workspace NVMe, not /tmp:
+# /tmp is tmpfs here, so a reboot mid-bump loses the log you need to diagnose the
+# conflicts, and this machine has already hit a machine-wide ENOSPC from /tmp.
+BUMP_TMP="$ROOT/tmp/engine-bump"
+mkdir -p "$BUMP_TMP"
 PHASES="preflight pin sync rebase apply report brand"
 
 idx() { local i=0; for p in $PHASES; do [ "$p" = "$1" ] && { echo $i; return; }; i=$((i+1)); done; echo 999; }
@@ -44,7 +49,7 @@ FROM_I=$(idx "$FROM")
 run() { [ "$(idx "$1")" -ge "$FROM_I" ]; }
 hdr() { echo; echo "============================================================"; echo "  PHASE: $1"; echo "============================================================"; }
 gate() {
-  [ "${CEFRIUM_YES:-0}" = "1" ] && { echo "[gate] $1 — auto (CEFRIUM_YES=1)"; return; }
+  [ "${CEFRIUM_YES:-0}" = "1" ] && { echo "[gate] $1 -- auto (CEFRIUM_YES=1)"; return; }
   echo; echo "*** DESTRUCTIVE: $1"
   printf "    Type the chromium tag (%s) to proceed, anything else aborts: " "$CTAG"
   read -r a; [ "$a" = "$CTAG" ] || { echo "Aborted."; exit 1; }
@@ -56,7 +61,7 @@ if run preflight; then hdr "preflight"
   echo "  current Chromium: $CUR_CTAG   ->   target: $CTAG   (CEF branch $CEFBR)"
   # Patches are safe only if the cef working tree is committed.
   if [ -n "$(git -C "$CEF" status --porcelain)" ]; then
-    echo "  ERROR: cef tree has uncommitted changes — commit/stash before bumping (patches must be safe in git)."; exit 1
+    echo "  ERROR: cef tree has uncommitted changes -- commit/stash before bumping (patches must be safe in git)."; exit 1
   fi
   echo "  cef android-port: clean ($(git -C "$CEF" rev-parse --short HEAD))"
   # Confirm the new Chromium tag is reachable on the remote.
@@ -238,12 +243,12 @@ if run apply; then hdr "apply patches (incl. Android-conditional set)"
   # NOTE: do NOT use `export 'target_os=="android"'=1` -- that illegal env name
   # is mangled by the shell and the Android patches get silently skipped. The
   # wrapper sets the condition key correctly (see apply-patches.py header).
-  python3 cef/cefrium_sdk/apply-patches.py 2>&1 | tee /tmp/cefrium-patcher-$CTAG.log || true
+  python3 cef/cefrium_sdk/apply-patches.py 2>&1 | tee "$BUMP_TMP/patcher-$CTAG.log" || true
 fi
 
 if run report; then hdr "patch conflict report"
   cd "$SRC"
-  log="/tmp/cefrium-patcher-$CTAG.log"
+  log="$BUMP_TMP/patcher-$CTAG.log"
   clean=0; conflict=0
   echo "  Per Android patch (the port's own; core CEF patches come from the rebased branch):"
   for p in cef/patch/patches/android/*.patch; do
@@ -263,8 +268,55 @@ if run report; then hdr "patch conflict report"
   echo "  Summary: $clean applied, $conflict conflicting (need manual regeneration)."
   [ -f "$log" ] && echo "  Full patcher log: $log"
   echo
+
+  # Upstream's own patcher-output analyzer. CEF ships it (with unit tests) at
+  # cef/tools/claude/, and it does what used to be done by reading the raw log by
+  # eye: groups the failures and detects files that MOVED between the two
+  # Chromium versions, which is the most common cause of a patch that "just
+  # stopped applying". Reading the log manually is slow, unrepeatable, and the
+  # conclusion depends on who read it.
+  ANALYZER="cef/tools/claude/analyze_patch_output.py"
+  if [ -f "$log" ] && [ -f "$ANALYZER" ]; then
+    out="$BUMP_TMP/patch-analysis-$CTAG.txt"
+    if python3 "$ANALYZER" "$log" --no-color \
+         --old-version "${CUR_CTAG#v}" --new-version "$CTAG" \
+         --project-root "$SRC" > "$out" 2>/dev/null; then
+      echo "  Upstream patch analysis: $out"
+      sed -n '1,40p' "$out" | sed 's/^/    /'
+      [ "$(grep -c . "$out")" -gt 40 ] && echo "    ... (full report in $out)"
+    else
+      echo "  (analyze_patch_output.py could not parse the log; raw log above)"
+    fi
+    echo
+  fi
+
+  # OBSOLESCENCE AUDIT. A patch whose files no longer differ from HEAD
+  # contributes nothing: upstream adopted the change, or it stopped applying.
+  # This is invisible otherwise, because apply-patches.py runs under `|| true`
+  # for the known-fuzz core patches -- which is how android/glic_android_jni_
+  # headers_dep stayed registered and dead from Chromium 154 onward.
+  #
+  # WHAT THIS CANNOT SEE, so do not read "none" as "every patch is justified":
+  # the other kind of dead patch is one that still applies PERFECTLY and is no
+  # longer NEEDED -- a workaround for a bug upstream fixed elsewhere, a guard for
+  # a code path nothing reaches any more, a flag for a toolchain nobody ships.
+  # Those produce a clean diff forever and no tool detects them. Only reading the
+  # patch and asking whether its reason still holds does, which is human work and
+  # belongs in the periodic patch review, not here.
+  echo "  Obsolescence audit (patch files identical to upstream HEAD => dead patch):"
+  dead=0
+  for p in cef/patch/patches/android/*.patch; do
+    files=$(grep "^--- " "$p" | grep -v /dev/null | sed 's/^--- //;s/\t.*//')
+    [ -z "$files" ] && continue
+    if [ "$(git diff --name-only HEAD -- $files 2>/dev/null | wc -l)" -eq 0 ]; then
+      echo "    DEAD     $(basename "$p" .patch) -- upstream has it; drop the patch + its patch.cfg entry"
+      dead=$((dead+1))
+    fi
+  done
+  [ "$dead" -eq 0 ] && echo "    none -- every android patch still contributes a change"
+  echo
   echo "  Known-fuzz core CEF patches (Debian applies these with --fuzz=3; patcher.py"
-  echo "  reports them 'failed' but they ARE applied — verify by a signature line, don't"
+  echo "  reports them 'failed' but they ARE applied -- verify by a signature line, don't"
   echo "  treat as conflicts):"
   for kf in $KNOWN_FUZZ; do
     pf="cef/patch/patches/$kf.patch"
@@ -274,13 +326,13 @@ if run report; then hdr "patch conflict report"
     if [ -n "$tok" ] && grep -qF "$tok" "$tgt" 2>/dev/null; then
       echo "    APPLIED  $kf (signature present in $tgt)"
     else
-      echo "    CHECK    $kf (signature absent — this one may be a real conflict from the rebase)"
+      echo "    CHECK    $kf (signature absent -- this one may be a real conflict from the rebase)"
     fi
   done
 fi
 
 # `--from report` is a read-only audit: stop before touching the brand mark.
-[ "$FROM" = "report" ] && { echo; echo "(report-only run — no files changed)"; exit 0; }
+[ "$FROM" = "report" ] && { echo; echo "(report-only run -- no files changed)"; exit 0; }
 
 if run brand; then hdr "brand mark (atomic number auto-follows CHROMIUM_VERSION)"
   ( cd "$ROOT/cefrium-sample" && ./regenerate-icons.sh ) || echo "  (run regenerate-icons.sh manually)"
