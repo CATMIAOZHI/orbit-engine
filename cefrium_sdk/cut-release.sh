@@ -319,8 +319,31 @@ if run web;     then hdr "update cefrium.com pages + committed repo docs"
   # download URLs). release-web-update.sh only touches the cefrium.com web tree, so
   # without this the repo docs go stale (they sat at 0.3.1 through 0.4.1).
   cef/cefrium_sdk/release-bump-docs.sh "$VERSION" "$PREV"
-  echo "Review + commit the web repo (quickstart, releases -> push pages) AND the"
-  echo "cef repo (QUICKSTART-CEFRIUM.md, README -> push android-port)."
+
+  # Regenerate the API reference, and REFUSE to continue if it is incomplete.
+  # Both generators fail silently (javadoc leaves the old tree when it aborts;
+  # Dokka keeps a stale page set), so regen-docs.sh asserts that every public
+  # symbol in the source has a generated page. Skipping this is how the site
+  # came to serve "Cefrium 0.9.2" Javadoc during 0.9.4, with the 0.9.3 network
+  # opt-out API missing from the reference entirely.
+  if ! cef/cefrium_sdk/regen-docs.sh "$VERSION"; then
+    echo
+    echo "ERROR: the regenerated API docs are incomplete (see above)."
+    echo "Not publishing docs for $VERSION. Fix, then: --from web"
+    exit 1
+  fi
+
+  # Commit + push both doc repos, each as its own verified step. This used to be
+  # a printed reminder and two hand-typed cycles per release.
+  if [ "${CEFRIUM_NO_DOC_PUSH:-0}" = "1" ]; then
+    echo "CEFRIUM_NO_DOC_PUSH=1 -- docs regenerated but NOT pushed; publish with:"
+    echo "  cef/cefrium_sdk/release-publish-docs.sh $VERSION"
+  else
+    cef/cefrium_sdk/release-publish-docs.sh "$VERSION" || {
+      echo "ERROR: docs did not publish; re-run: cef/cefrium_sdk/release-publish-docs.sh $VERSION"
+      exit 1
+    }
+  fi
 fi
 PRUNE_STATE="not reached"
 if run prune;   then hdr "prune previous versions (latest-only retention)"
