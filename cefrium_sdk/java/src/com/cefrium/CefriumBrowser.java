@@ -2230,6 +2230,15 @@ public class CefriumBrowser {
 
         browser.mActivity = activity;
 
+        // Issue #10: forward window focus to CefBrowserHost::SetFocus. Without
+        // this nothing ever focused the browser and the page's document stayed
+        // unfocused for its whole life, which silently broke every API Blink
+        // gates on document focus (the async clipboard rejects with "Document is
+        // not focused." before any permission check even runs). Wired here,
+        // after mNativePtr exists, and seeded from the current window state
+        // because the view is attached before the native browser is created.
+        browser.mSurfaceContainer.setFocusSink(browser::setFocus);
+
         // Install the native display callback unconditionally.
         //
         // onUrlChanged() is not merely a convenience listener: it is where the
