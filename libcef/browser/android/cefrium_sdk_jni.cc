@@ -4128,6 +4128,28 @@ Java_com_cefrium_CefriumBrowser_nativeSetCookieFilterEnabled(
   }
 }
 
+// Issue #10: give or take keyboard focus.
+//
+// An off-screen (OSR) browser has no platform widget, so nothing ever delivers
+// focus to it and its document stays unfocused forever. That is not cosmetic:
+// Blink gates several APIs on document focus BEFORE any permission check, so
+// they fail in a way that looks like a permission bug. The reported case is
+// navigator.clipboard.readText(), which rejects with
+//   NotAllowedError: "Document is not focused."
+// in clipboard_promise.cc, without the permission handler ever being consulted.
+//
+// CefBrowserHost::SetFocus is the public CEF API for this and is what the
+// desktop ports drive from their platform focus events; on-screen Android
+// browsers get it from the View, OSR browsers had no way to receive it at all.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetFocus(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jboolean focus) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser) {
+    data->browser->GetHost()->SetFocus(focus == JNI_TRUE);
+  }
+}
+
 // FEATURE-063: programmatically exit HTML fullscreen (e.g. back button).
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeExitFullscreen(
