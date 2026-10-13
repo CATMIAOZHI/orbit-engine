@@ -974,9 +974,29 @@ public class CefriumBrowser {
 
     /**
      * Decides web permission requests (geolocation, camera, mic, ...). Without a
-     * handler set, all requests are denied — the default Android permission
-     * dialog is not available in this engine. To actually deliver geolocation,
-     * the app must also hold the ACCESS_FINE_LOCATION runtime permission.
+     * handler set, all requests are denied -- the default Android permission
+     * dialog is not available in this engine.
+     *
+     * <p><b>Two requests can never reach this handler, and neither is a handler
+     * bug.</b> Both are rejected further down the stack, before a web permission
+     * request exists at all:
+     *
+     * <ul>
+     * <li><b>Geolocation</b> is intercepted by Android's own permission context
+     *     before the web layer. It requires the app to declare AND hold
+     *     {@code ACCESS_FINE_LOCATION} (or {@code ACCESS_COARSE_LOCATION}) and
+     *     the device's system location setting to be ON. If either is missing,
+     *     the request is denied immediately and this handler is never called --
+     *     the page sees {@code PERMISSION_DENIED} (code 1). The SDK deliberately
+     *     does not declare the location permission for you; a library must not
+     *     force it on every consumer.</li>
+     * <li><b>Clipboard read</b> requires the document to be FOCUSED, which Blink
+     *     checks before any permission check. An off-screen (OSR) browser has no
+     *     view and is never focused unless you call {@link #setFocus(boolean)},
+     *     so {@code navigator.clipboard.readText()} rejects with
+     *     {@code NotAllowedError: Document is not focused.} with this handler
+     *     never consulted. Call {@code setFocus(true)} first.</li>
+     * </ul>
      */
     public interface PermissionHandler {
         void onPermissionRequest(String origin, int permissions, PermissionCallback callback);
@@ -3117,6 +3137,35 @@ public class CefriumBrowser {
     }
 
     // ---- Misc BrowserHost parity ----
+    /**
+     * Gives or takes keyboard focus for this browser.
+     *
+     * <p>On-screen browsers receive focus from their Android {@code View}, so you
+     * rarely need this. <b>Off-screen (OSR) browsers have no view</b>, so nothing
+     * ever focuses them unless you call this, and their document stays unfocused
+     * for its whole lifetime.
+     *
+     * <p>That matters beyond typing, because Blink gates some APIs on document
+     * focus <i>before</i> any permission check, which makes them look like
+     * permission failures. The clearest case is the async clipboard:
+     *
+     * <pre>{@code
+     * // Without focus this rejects with
+     * //   NotAllowedError: Document is not focused.
+     * // and no CefriumBrowser.PermissionHandler is ever consulted.
+     * browser.setFocus(true);
+     * browser.evaluateJavaScript("navigator.clipboard.readText()", null);
+     * }</pre>
+     *
+     * <p>Focus is independent of visibility: see {@link #setPageVisible(boolean)}
+     * for the "is the page being shown" signal. A browser can be visible and
+     * unfocused, or focused and hidden.
+     *
+     * @param focus {@code true} to focus this browser, {@code false} to blur it.
+     */
+    public void setFocus(boolean focus) {
+        if (mNativePtr != 0) nativeSetFocus(mNativePtr, focus);
+    }
     /** Programmatically exit HTML fullscreen (e.g. from the back button). */
     public void exitFullscreen() {
         if (mNativePtr != 0) nativeExitFullscreen(mNativePtr, true);
@@ -3180,6 +3229,8 @@ public class CefriumBrowser {
     private static native void nativeSetAudioCaptureEnabled(long nativePtr, boolean enabled);
     private static native void nativeSetResponseTapEnabled(long nativePtr, boolean enabled);
     private static native void nativeSetCookieFilterEnabled(long nativePtr, boolean enabled);
+    // Issue #10: CefBrowserHost::SetFocus -- the only way an OSR browser can be focused.
+    private static native void nativeSetFocus(long nativePtr, boolean focus);
     private static native void nativeExitFullscreen(long nativePtr, boolean willCauseResize);
     private static native void nativeStartDownload(long nativePtr, String url);
     private static native String[] nativeGetNavigationEntries(long nativePtr);
