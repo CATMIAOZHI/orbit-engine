@@ -449,6 +449,26 @@ class CefriumNavigator {
         state?.browser?.setPageVisible(visible)
     }
 
+    /**
+     * Gives or takes keyboard focus for the browser.
+     *
+     * An on-screen `CefriumView` is focused by the Android view system, so you
+     * rarely need this. An **off-screen (OSR)** browser has no view, so nothing
+     * focuses it unless you call this and its document stays unfocused.
+     *
+     * That reaches further than typing: Blink gates some APIs on document focus
+     * *before* any permission check, so they fail looking like permission bugs.
+     * `navigator.clipboard.readText()` is the clear case -- unfocused it rejects
+     * with `NotAllowedError: Document is not focused.` and no permission handler
+     * is ever consulted.
+     *
+     * Focus is independent of [setPageVisible]: a browser can be visible and
+     * unfocused, or focused and hidden.
+     */
+    fun setFocus(focus: Boolean) {
+        state?.browser?.setFocus(focus)
+    }
+
     /** Hard-stops all media (not resumable) and mutes; for "release audio on background". */
     fun stopAllMedia() {
         state?.browser?.stopAllMedia()
