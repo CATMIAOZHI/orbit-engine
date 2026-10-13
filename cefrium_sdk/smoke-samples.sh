@@ -25,7 +25,46 @@ AAPT="$(ls "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | head -1)"
 [ -f "$SDK_AAR" ] || { echo "FAIL: no SDK AAR at $SDK_AAR -- build it first."; exit 1; }
 [ "$("$ADB" devices 2>/dev/null | grep -c 'device$')" -ge 1 ] || { echo "FAIL: no device connected."; exit 1; }
 
+# --registry <version>: smoke the PUBLISHED artifact instead of the local build.
+#
+# This answers a different question from the pre-publish gate. The default mode
+# proves "what we just built works"; --registry proves "what an adopter actually
+# resolves works", which is not the same claim and has been wrong before -- 0.9.3
+# published an arm64-only fat AAR, so every emulator user got an
+# UnsatisfiedLinkError at runtime while every local build was green.
+#
+# The browsers resolve from the registry natively (that is their default, so the
+# local-AAR staging below is skipped and cefriumVersion is pinned). The
+# file-based samples consume an AAR from libs/, so the published AAR is
+# downloaded and staged there -- same bytes, delivered by hand.
+REGISTRY_VERSION=""
+[ "${1:-}" = "--registry" ] && { REGISTRY_VERSION="${2:?--registry needs a version}"; shift 2; }
+
 SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive"
+
+if [ -n "$REGISTRY_VERSION" ]; then
+  echo "=== REGISTRY MODE: smoking published cefrium-sdk $REGISTRY_VERSION ==="
+  PUB="$ROOT/tmp/registry-smoke/$REGISTRY_VERSION"
+  mkdir -p "$PUB"
+  for art in cefrium-sdk cefrium-compose; do
+    f="$PUB/$art.aar"
+    if [ ! -s "$f" ]; then
+      url="https://repo1.maven.org/maven2/com/cefrium/$art/$REGISTRY_VERSION/$art-$REGISTRY_VERSION.aar"
+      echo "  fetching $art $REGISTRY_VERSION from Maven Central"
+      curl -sfL -o "$f" "$url" || { echo "FAIL: $art $REGISTRY_VERSION is not on Central ($url)"; exit 1; }
+    fi
+    echo "  $art: $(du -h "$f" | cut -f1)"
+  done
+  # Prove the published bytes before installing anything built from them: a
+  # missing x86_64 is invisible until an emulator runs it.
+  abis="$(unzip -l "$PUB/cefrium-sdk.aar" | grep -oE 'jni/[a-z0-9_-]+/libcef\.so' \
+          | sed 's|jni/||;s|/libcef.so||' | sort -u | tr '\n' ' ')"
+  echo "  published ABIs: ${abis:-none}"
+  case "$abis" in *arm64-v8a*) ;; *) echo "FAIL: published AAR has no arm64-v8a"; exit 1 ;; esac
+  case "$abis" in *x86_64*)    ;; *) echo "FAIL: published AAR has no x86_64 -- emulator users get UnsatisfiedLinkError"; exit 1 ;; esac
+  SDK_AAR="$PUB/cefrium-sdk.aar"
+  COMPOSE_AAR="$PUB/cefrium-compose.aar"
+fi
 # The two browsers live in their own repo (cefrium/cefrium-browser); the rest are
 # in cefrium-sample.
 is_browser() { case "$1" in cefrium-browser|compose-browser) return 0 ;; *) return 1 ;; esac; }
@@ -35,7 +74,11 @@ for s in $SAMPLES; do
   if is_browser "$s"; then d="$ROOT/cefrium-browser/$s"; else d="$ROOT/cefrium-sample/$s"; fi
   [ -d "$d" ] || { echo "  $s: SKIP (missing)"; continue; }
   GA=""
-  if is_browser "$s"; then
+  if is_browser "$s" && [ -n "$REGISTRY_VERSION" ]; then
+    # Registry mode: resolve exactly what an adopter resolves. No local staging,
+    # no -PcefriumSource=local -- just pin the version and let Gradle fetch it.
+    GA="-PcefriumVersion=$REGISTRY_VERSION"
+  elif is_browser "$s"; then
     # Browser repo defaults to the registry, but this gate runs BEFORE publish --
     # the new version is not in the registry yet, so build against the fresh
     # local AARs (-PcefriumSource=local).
