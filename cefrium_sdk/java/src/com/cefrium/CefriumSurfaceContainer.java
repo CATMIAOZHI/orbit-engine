@@ -50,6 +50,42 @@ public class CefriumSurfaceContainer extends FrameLayout
         mWebContents = webContents;
     }
 
+    /** Receives this view's window-focus transitions. */
+    interface FocusSink {
+        void onWindowFocus(boolean focused);
+    }
+
+    private FocusSink mFocusSink;
+
+    /** Binds the sink that forwards window focus to CefBrowserHost::SetFocus. */
+    void setFocusSink(FocusSink sink) {
+        mFocusSink = sink;
+        // The window may already be focused by the time we are bound (the view is
+        // created and attached before the native browser exists), and in that case
+        // no further onWindowFocusChanged will arrive. Seed from the current state
+        // instead of waiting for an edge that already happened.
+        if (sink != null && hasWindowFocus()) {
+            sink.onWindowFocus(true);
+        }
+    }
+
+    // Issue #10: nothing used to deliver focus to the browser, so the page's
+    // document was NEVER focused -- measured on device: document.hasFocus() was
+    // false in the on-screen flagship browser, and navigator.clipboard.readText()
+    // rejected with "Document is not focused." Blink checks document focus before
+    // any permission check, so this looked like a permission-handler bug.
+    //
+    // The desktop ports drive CefBrowserHost::SetFocus from their platform focus
+    // events; on Android this view IS the platform, so it owns that job.
+    @Override
+    public void onWindowFocusChanged(boolean hasWindowFocus) {
+        super.onWindowFocusChanged(hasWindowFocus);
+        FocusSink sink = mFocusSink;
+        if (sink != null) {
+            sink.onWindowFocus(hasWindowFocus);
+        }
+    }
+
     private boolean pageAtTop() {
         if (mWebContents == null) return true;
         RenderCoordinates rc = RenderCoordinates.fromWebContents(mWebContents);
