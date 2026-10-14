@@ -72,6 +72,7 @@
 #include "third_party/blink/public/common/page_state/page_state.h"
 #include "ui/android/window_android.h"
 #include "ui/base/page_transition_types.h"
+#include "ui/events/keycodes/keyboard_code_conversion_android.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -4052,6 +4053,59 @@ Java_com_cefrium_CefriumBrowser_nativeSendKeyEvent(
   event.is_system_key = 0;
   event.character = static_cast<char16_t>(char_code);
   event.unmodified_character = static_cast<char16_t>(char_code);
+  event.focus_on_editable_field = true;
+  data->browser->GetHost()->SendKeyEvent(event);
+}
+
+// Issue #11: send a key event described the way ANDROID describes it.
+//
+// The raw nativeSendKeyEvent above needs a WINDOWS virtual-key code, because
+// that is what Blink derives DOM `key` and `code` from. An Android embedder has
+// an android.view.KeyEvent and no reason to know what a Windows VK is, so the
+// five-int API is easy to get wrong: passing windowsKeyCode=0 yields keydown and
+// keyup events whose key/code are empty strings and whose keyCode is 0, which
+// looks like the engine dropping the event rather than a mis-filled struct.
+//
+// Do the conversion here with Chromium's own table rather than a hand-written
+// one in Java: ui::KeyboardCodeFromAndroidKeyCode is the mapping the rest of
+// Chromium-on-Android uses, so it cannot drift from the platform. This mirrors
+// what the Windows and Linux platform delegates do with their own
+// keyboard_code_conversion_* headers.
+//
+// `android_meta_state` is an android.view.KeyEvent metaState; the bit values are
+// Android's public API constants and are stable.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSendKeyEventAndroid(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jint type,
+    jint android_key_code, jint android_meta_state, jint unicode_char) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return;
+
+  // android.view.KeyEvent.META_* -> cef_event_flags_t.
+  enum : int {
+    kMetaShiftOn = 0x00000001,
+    kMetaAltOn = 0x00000002,
+    kMetaSymOn = 0x00000004,
+    kMetaCapsLockOn = 0x00100000,
+    kMetaCtrlOn = 0x00001000,
+    kMetaNumLockOn = 0x00200000,
+  };
+  uint32_t modifiers = EVENTFLAG_NONE;
+  if (android_meta_state & kMetaShiftOn) modifiers |= EVENTFLAG_SHIFT_DOWN;
+  if (android_meta_state & kMetaAltOn) modifiers |= EVENTFLAG_ALT_DOWN;
+  if (android_meta_state & kMetaCtrlOn) modifiers |= EVENTFLAG_CONTROL_DOWN;
+  if (android_meta_state & kMetaCapsLockOn) modifiers |= EVENTFLAG_CAPS_LOCK_ON;
+  if (android_meta_state & kMetaNumLockOn) modifiers |= EVENTFLAG_NUM_LOCK_ON;
+
+  CefKeyEvent event;
+  event.type = static_cast<cef_key_event_type_t>(type);
+  event.modifiers = modifiers;
+  event.windows_key_code =
+      ui::KeyboardCodeFromAndroidKeyCode(android_key_code);
+  event.native_key_code = android_key_code;
+  event.is_system_key = 0;
+  event.character = static_cast<char16_t>(unicode_char);
+  event.unmodified_character = static_cast<char16_t>(unicode_char);
   event.focus_on_editable_field = true;
   data->browser->GetHost()->SendKeyEvent(event);
 }
