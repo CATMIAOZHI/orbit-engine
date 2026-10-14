@@ -44,6 +44,22 @@ BUMP_TMP="$ROOT/tmp/engine-bump"
 mkdir -p "$BUMP_TMP"
 PHASES="preflight pin sync rebase apply report brand"
 
+# HERMETIC PYTHON, FIRST ON PATH. The system python3 here is 3.14, which breaks
+# Chromium's gyp/jinja scripts (argparse changes). gclient sync runs those as
+# hooks, so without this the sync can die HOURS in, and apply-patches.py would
+# run under the wrong interpreter too. depot_tools ships 3.11.8 for exactly this.
+if [ -x "$ROOT/depot_tools/python-bin/python3" ]; then
+  PATH="$ROOT/depot_tools/python-bin:$PATH"
+  export PATH
+fi
+echo "python3: $(python3 --version 2>&1) ($(command -v python3))"
+
+# Sync parallelism. This machine may be running an unrelated long build (a Debian
+# armhf qemu build takes 40+ hours), and a full-tilt sync starves it. Default to
+# something considerate rather than gclient's maximum; override when the machine
+# is idle.
+SYNC_JOBS="${CEFRIUM_SYNC_JOBS:-8}"
+
 idx() { local i=0; for p in $PHASES; do [ "$p" = "$1" ] && { echo $i; return; }; i=$((i+1)); done; echo 999; }
 FROM_I=$(idx "$FROM")
 run() { [ "$(idx "$1")" -ge "$FROM_I" ]; }
@@ -130,7 +146,7 @@ if run sync; then hdr "gclient sync to $CTAG (DESTRUCTIVE: resets chromium/src w
   # uncommitted changes"). --reset cleans each dep to its DEPS pin first. Safe: our
   # CEF patches only target main-src files (incl. third_party/blink, which lives IN
   # main src), never a separate dep repo, so nothing of ours is discarded here.
-  ( cd "$ROOT/depot_tools" && cd "$SRC" && gclient sync --no-history -D --force --reset )
+  ( cd "$ROOT/depot_tools" && cd "$SRC" && gclient sync --no-history -D --force --reset -j "$SYNC_JOBS" )
   echo "  synced to $CTAG."
   # CRITICAL: a BUILD-number bump leaves STALE Java build metadata
   # (build_config.json + turbine graph) in any pre-existing out/ dir. That stale
