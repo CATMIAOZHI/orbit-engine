@@ -329,32 +329,96 @@ if run report; then hdr "patch conflict report"
   # Those produce a clean diff forever and no tool detects them. Only reading the
   # patch and asking whether its reason still holds does, which is human work and
   # belongs in the periodic patch review, not here.
-  echo "  Obsolescence audit (patch files identical to upstream HEAD => dead patch):"
-  dead=0
+  # "No diff from HEAD" is NOT sufficient on its own. A patch that FAILED to
+  # apply also leaves its files pristine, so the naive test calls it dead and
+  # invites someone to delete a live patch. (It did exactly that for
+  # accessibility_expanded_state_guard on the 154->156 bump: the file was
+  # pristine because the patch had conflicted, and upstream had adopted nothing.)
+  #
+  # The distinguishing question is whether the patch's OWN ADDED CONTENT is
+  # already in the file:
+  #   no diff + added content present  -> upstream really adopted it: DEAD.
+  #   no diff + added content absent   -> the patch simply did not apply: FAILED.
+  echo "  Obsolescence audit (upstream adopted the change => dead patch):"
+  dead=0; notapplied=0
   for p in cef/patch/patches/android/*.patch; do
+    name="$(basename "$p" .patch)"
     files=$(grep "^--- " "$p" | grep -v /dev/null | sed 's/^--- //;s/\t.*//')
     [ -z "$files" ] && continue
-    if [ "$(git diff --name-only HEAD -- $files 2>/dev/null | wc -l)" -eq 0 ]; then
-      echo "    DEAD     $(basename "$p" .patch) -- upstream has it; drop the patch + its patch.cfg entry"
+    [ "$(git diff --name-only HEAD -- $files 2>/dev/null | wc -l)" -eq 0 ] || continue
+    # A distinctive added line: longest '+' line, which is unlikely to be
+    # boilerplate like a brace or a blank.
+    probe="$(grep '^+' "$p" | grep -v '^+++' | sed 's/^+//' \
+             | awk '{ print length, $0 }' | sort -rn | head -1 | cut -d' ' -f2-)"
+    hit=0
+    for f in $files; do
+      [ -f "$f" ] && grep -qF -- "$probe" "$f" 2>/dev/null && { hit=1; break; }
+    done
+    if [ "$hit" -eq 1 ]; then
+      echo "    DEAD     $name -- upstream has it; drop the patch + its patch.cfg entry"
       dead=$((dead+1))
-    fi
-  done
-  [ "$dead" -eq 0 ] && echo "    none -- every android patch still contributes a change"
-  echo
-  echo "  Known-fuzz core CEF patches (Debian applies these with --fuzz=3; patcher.py"
-  echo "  reports them 'failed' but they ARE applied -- verify by a signature line, don't"
-  echo "  treat as conflicts):"
-  for kf in $KNOWN_FUZZ; do
-    pf="cef/patch/patches/$kf.patch"
-    [ -f "$pf" ] || { echo "    -        $kf (patch not present)"; continue; }
-    tgt=$(grep -E '^\+\+\+ ' "$pf" | head -1 | sed 's/^+++ [ab]\///;s/\t.*//')
-    tok=$(grep -E '^\+' "$pf" | grep -viE '^\+\+\+' | grep -iE 'cef' | head -1 | sed 's/^+//;s/^[[:space:]]*//')
-    if [ -n "$tok" ] && grep -qF "$tok" "$tgt" 2>/dev/null; then
-      echo "    APPLIED  $kf (signature present in $tgt)"
     else
-      echo "    CHECK    $kf (signature absent -- this one may be a real conflict from the rebase)"
+      echo "    NOT APPLIED  $name -- its content is absent, so it CONFLICTED (not dead)"
+      notapplied=$((notapplied+1))
     fi
   done
+  [ "$((dead+notapplied))" -eq 0 ] && echo "    none -- every android patch still contributes a change"
+  echo
+  # PATCHER'S OWN TALLY IS AUTHORITATIVE. This used to guess, per known-fuzz core
+  # patch, by looking for a cef-mentioning added line in the target file -- a weak
+  # proxy that reported "CHECK: may be a real conflict" for gn_config,
+  # chrome_runtime and chrome_browser_profiles on the 154->156 bump when all three
+  # had applied perfectly. Three false alarms in one report is worse than no
+  # report: it trains you to ignore it. patcher.py prints exactly what failed and
+  # where, so read that instead of inferring.
+  echo "  Patcher result (authoritative):"
+  if [ -f "$log" ]; then
+    grep -E "patches total \(" "$log" | tail -1 | sed 's/^/    /'
+    # "failed" from patcher has TWO meanings and they look identical in the log:
+    #   - the patch is ALREADY APPLIED (a re-run, or a known-fuzz core patch that
+    #     git apply will not replay) -- benign;
+    #   - the patch genuinely does not fit the new tree -- a real conflict.
+    # Do not guess, and do not just quote the count: a re-run of the apply phase
+    # legitimately reports "3 failed" with nothing wrong. Ask each named patch
+    # whether it REVERSE-applies; if it does, its content is in the tree.
+    if grep -q "patches failed to apply" "$log"; then
+      named="$(grep -A1 "To manually revert failed patches" "$log" | tail -1 \
+               | grep -oE "\-\-patch [^ ]+" | sed 's/--patch //')"
+      benign=0; real=0
+      for n in $named; do
+        pf="cef/patch/patches/$n.patch"
+        [ -f "$pf" ] || { echo "    ? $n (patch file missing)"; real=$((real+1)); continue; }
+        # Ask whether the patch's OWN ADDED CONTENT is in its target files.
+        #
+        # Do NOT use reverse-apply for this. The known-fuzz core patches
+        # (gn_config, chrome_runtime, chrome_browser_profiles) apply WITH FUZZ,
+        # and a fuzzily-applied patch does not reverse-apply -- not even with
+        # -C1. Measured on the 154->156 bump: all three reverse-apply NO, and
+        # all three are demonstrably applied. Content presence is the test that
+        # survives fuzz; it is the same test the obsolescence audit uses.
+        pfiles=$(grep '^--- ' "$pf" | grep -v /dev/null | sed 's/^--- //;s/\t.*//')
+        probe=$(grep '^+' "$pf" | grep -v '^+++' | sed 's/^+//' \
+                | awk '{ print length, $0 }' | sort -rn | head -1 | cut -d' ' -f2-)
+        hit=0
+        for f in $pfiles; do
+          [ -f "$f" ] && grep -qF -- "$probe" "$f" 2>/dev/null && { hit=1; break; }
+        done
+        if [ "$hit" -eq 1 ]; then
+          echo "    already applied (benign, likely with fuzz): $n"
+          benign=$((benign+1))
+        else
+          echo "    REAL FAILURE: $n -- its content is NOT in the tree"
+          real=$((real+1))
+        fi
+      done
+      echo "    -> $benign already-applied, $real real failure(s)"
+      [ "$real" -gt 0 ] && echo "    revert with: python3 cef/tools/patch_updater.py --revert --patch <name>"
+    else
+      echo "    no failures reported"
+    fi
+  else
+    echo "    (no patcher log at $log -- run --from apply first)"
+  fi
 fi
 
 # `--from report` is a read-only audit: stop before touching the brand mark.
