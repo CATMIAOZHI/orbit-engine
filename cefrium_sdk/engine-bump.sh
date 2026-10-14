@@ -50,9 +50,19 @@ PHASES="preflight pin sync rebase apply report brand"
 # run under the wrong interpreter too. depot_tools ships 3.11.8 for exactly this.
 if [ -x "$ROOT/depot_tools/python-bin/python3" ]; then
   PATH="$ROOT/depot_tools/python-bin:$PATH"
-  export PATH
 fi
+# depot_tools ITSELF must be on PATH for `gclient`. This script used to rely on
+# the caller's shell having it, which is true interactively and false in any
+# scripted or background run -- the sync then died with
+# "gclient: command not found" AFTER the tree had already been checked out to the
+# new tag, leaving the main tree on the new Chromium and every dep on the old
+# pins. Do not depend on the environment for a tool the script needs.
+PATH="$PATH:$ROOT/depot_tools"
+export PATH
 echo "python3: $(python3 --version 2>&1) ($(command -v python3))"
+command -v gclient >/dev/null \
+  || { echo "ERROR: gclient not found even with $ROOT/depot_tools on PATH"; exit 2; }
+echo "gclient: $(command -v gclient)"
 
 # Sync parallelism. This machine may be running an unrelated long build (a Debian
 # armhf qemu build takes 40+ hours), and a full-tilt sync starves it. Default to
