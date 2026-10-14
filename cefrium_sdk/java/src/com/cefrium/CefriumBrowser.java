@@ -1940,6 +1940,76 @@ public class CefriumBrowser {
     }
 
     /**
+     * Sends an Android {@link android.view.KeyEvent} to the browser (OSR).
+     *
+     * <p><b>Prefer this over the five-argument {@code sendKeyEvent}.</b> That one
+     * takes a <i>Windows</i> virtual-key code, because that is what Blink derives
+     * DOM {@code key} and {@code code} from -- so passing an Android key code, or
+     * 0, produces {@code keydown}/{@code keyup} events whose {@code key} and
+     * {@code code} are empty strings and whose {@code keyCode} is 0. This overload
+     * does the Android-to-Windows mapping with Chromium's own conversion table,
+     * so it cannot drift from the platform.
+     *
+     * <p>It also emits the right CEF sequence for you. CEF expects a printable
+     * keystroke as {@code RAWKEYDOWN} then {@code CHAR}, and a release as
+     * {@code KEYUP}; sending only down/up gives a page that sees the event but
+     * receives no text.
+     *
+     * <pre>{@code
+     * // In your View, or wherever you receive key input:
+     * @Override public boolean onKeyDown(int code, KeyEvent ev) {
+     *     browser.sendKeyEvent(ev);   // RAWKEYDOWN (+ CHAR if printable)
+     *     return true;
+     * }
+     * @Override public boolean onKeyUp(int code, KeyEvent ev) {
+     *     browser.sendKeyEvent(ev);   // KEYUP
+     *     return true;
+     * }
+     * }</pre>
+     *
+     * <p>Note this is for OSR input injection. An on-screen browser receives key
+     * input through its own view, and composition (soft-keyboard) text should go
+     * through the IME methods instead -- see {@link #imeCommitText(String, int)}.
+     *
+     * @param event the Android key event; ignored if {@code null}.
+     */
+    public void sendKeyEvent(android.view.KeyEvent event) {
+        if (mNativePtr == 0 || event == null) return;
+        final int keyCode = event.getKeyCode();
+        final int meta = event.getMetaState();
+        switch (event.getAction()) {
+            case android.view.KeyEvent.ACTION_DOWN: {
+                nativeSendKeyEventAndroid(mNativePtr, KEY_RAW_DOWN, keyCode, meta, 0);
+                // Only a printable key produces text. getUnicodeChar() applies the
+                // meta state, so shifted and dead-key combinations come out right.
+                final int ch = event.getUnicodeChar(meta);
+                if (ch != 0) {
+                    nativeSendKeyEventAndroid(mNativePtr, KEY_CHAR, keyCode, meta, ch);
+                }
+                break;
+            }
+            case android.view.KeyEvent.ACTION_UP:
+                nativeSendKeyEventAndroid(mNativePtr, KEY_UP, keyCode, meta, 0);
+                break;
+            case android.view.KeyEvent.ACTION_MULTIPLE: {
+                // A batch of characters with no single key behind them (e.g. text
+                // pasted by an input method). There is no key to press, so send
+                // CHAR only.
+                final String chars = event.getCharacters();
+                if (chars != null) {
+                    for (int i = 0; i < chars.length(); i++) {
+                        nativeSendKeyEventAndroid(mNativePtr, KEY_CHAR, 0, meta,
+                                chars.charAt(i));
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    /**
      * Forward a touch event to the browser.
      *
      * @param action 0=DOWN, 1=UP, 2=MOVE, 3=CANCEL
@@ -3240,6 +3310,10 @@ public class CefriumBrowser {
     private static native void nativeSetCookieFilterEnabled(long nativePtr, boolean enabled);
     // Issue #10: CefBrowserHost::SetFocus -- the only way an OSR browser can be focused.
     private static native void nativeSetFocus(long nativePtr, boolean focus);
+    // Issue #11: Android-shaped key events; maps the keycode with Chromium's
+    // own ui::KeyboardCodeFromAndroidKeyCode so DOM key/code are populated.
+    private static native void nativeSendKeyEventAndroid(
+            long nativePtr, int type, int androidKeyCode, int metaState, int unicodeChar);
     private static native void nativeExitFullscreen(long nativePtr, boolean willCauseResize);
     private static native void nativeStartDownload(long nativePtr, String url);
     private static native String[] nativeGetNavigationEntries(long nativePtr);
