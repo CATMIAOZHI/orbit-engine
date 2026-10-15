@@ -78,6 +78,12 @@ echo "Web update: $PREV -> $NEW (CEF $BRANCH, Chromium $CHROMIUM, $DATE)"
 apply "$QS" "s{(com\\.cefrium['\"]\\)? version ['\"])[0-9]+\\.[0-9]+\\.[0-9]+(['\"])}{\${1}$NEW\${2}}g; s{(com\\.cefrium:cefrium-(?:sdk|compose)[^:\"]*:)[0-9]+\\.[0-9]+\\.[0-9]+}{\${1}$NEW}g" \
   "$NEW" "quickstart version"
 
+# 1b. Upstream page -- it states which SDK the patch counts are for. No script
+# touched it, so it silently aged: it still said 0.9.4 while 0.10.0 shipped.
+apply "$WEB/upstream/index.html" \
+  "s{(Counts for Cefrium SDK )[0-9]+\\.[0-9]+\\.[0-9]+}{\${1}$NEW}g" \
+  "$NEW" "upstream page version"
+
 # 2-3. Releases page (native <details> accordion layout, redesigned 2026-06). Skip
 # the whole insert on a same-version re-cut. Otherwise: demote the current latest
 # entry (drop `open`, flip its Maven status to superseded), then insert the new
