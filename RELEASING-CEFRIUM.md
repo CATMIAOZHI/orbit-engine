@@ -20,7 +20,7 @@ prune):
 # Bump Cefrium.java VERSION first, then:
 cef/cefrium_sdk/cut-release.sh <version> <prev-version> --notes "<releases-row HTML>"
 # Resume after a long build:  --from publish   (phases: patches build merge
-#   compose plugin stats sanity publish flagship release web prune)
+#   compose plugin stats sanity publish central flagship release web prune play)
 ```
 
 It chains the per-step scripts (all committed alongside it):
@@ -28,9 +28,26 @@ It chains the per-step scripts (all committed alongside it):
 -> local sanity -> **[gate]** `publish-maven.sh` (smoke-tests both coordinates) ->
 flagship APK -> `release-codeberg.sh` (tag + GPG-signed SHA256SUMS + assets) ->
 `release-web-update.sh` (releases row, quickstart bump, previous superseded) ->
-**[gate]** `prune-old-versions.sh` (latest-only). Each gate requires typing the
-version; `CEFRIUM_YES=1` bypasses them for CI. After it finishes, commit/push the
-web + cef repos and regenerate Javadoc/Dokka if the API changed.
+**[gate]** `prune-old-versions.sh` (latest-only) -> **[gate]** `release-play.sh`.
+Each gate requires typing the version; `CEFRIUM_YES=1` bypasses them for CI.
+After it finishes, commit/push the web + cef repos and regenerate Javadoc/Dokka
+if the API changed.
+
+**The `play` phase ships the apps, and it runs last for a reason.** The browser
+apps resolve the SDK from the registry, so uploading before the coordinate is
+served would put an app built against the PREVIOUS engine in front of users --
+browser 0.1.18 shipped Chromium 149 exactly that way, from a `cefriumVersion`
+left pinned at 0.5.9. `release-play.sh <version> [track]` therefore does the
+whole mechanical chain itself: pin `cefriumVersion` in both app modules, bump
+`versionCode` (+1, which Play rejects only after a full upload if you forget)
+and `versionName`, rebuild EVERY sample against the new fat AAR as an API gate
+-- a sample that stops compiling means we broke the public API and the release
+must stop -- and only then build the signed AABs and upload them. Track defaults
+to `internal`; set `CEFRIUM_PLAY_TRACK`. `CEFRIUM_NO_PLAY=1` skips the phase for
+a cut not meant to reach users. What stays manual, because it is judgement and
+not mechanics: the first AAB of a new app (Play requires it by hand), the
+listing copy, staged-rollout percentages, and the 12-testers-for-14-days closed
+test that gates production access. See `PLAY-PUBLIC-TRACK-RUNBOOK.md`.
 
 **Maven Central is THE channel adopters consume -- not a migration target.** This
 was mis-framed here as something aspirational, and the consequence was concrete:
