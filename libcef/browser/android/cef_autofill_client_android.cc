@@ -211,6 +211,7 @@ CefAutofillClientAndroid::ShowAutofillSuggestions(
 }
 
 void CefAutofillClientAndroid::UpdateAutofillDataListValues(
+    const autofill::LocalFrameToken& frame_token,
     base::span<const autofill::SelectOption> datalist) {}
 
 void CefAutofillClientAndroid::HideSuggestions(
