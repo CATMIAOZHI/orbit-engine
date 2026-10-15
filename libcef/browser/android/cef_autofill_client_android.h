@@ -71,6 +71,7 @@ class CefAutofillClientAndroid : public autofill::ContentAutofillClient {
       const autofill::AutofillClient::PopupOpenArgs& open_args,
       base::WeakPtr<autofill::AutofillSuggestionDelegate> delegate) override;
   void UpdateAutofillDataListValues(
+      const autofill::LocalFrameToken& frame_token,
       base::span<const autofill::SelectOption> datalist) override;
   void HideSuggestions(
       autofill::SuggestionHidingReason reason,
