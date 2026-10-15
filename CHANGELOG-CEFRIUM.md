@@ -40,6 +40,18 @@ Engine: **Chromium 156.0.8078.17 / CEF branch 8078** (was 154.0.8037.98 / 8037).
 
 ### Fixed
 
+- **One browser's teardown stopped the media foreground service of another that
+  was still playing.** The service is app-wide, a media session is per browser,
+  and `hide()` called `stopService()` unconditionally -- so in a host with
+  several browsers, anything that destroyed a WebContents (a plain reload, or
+  restoring a discarded tab) took the service down while a *different* browser
+  was audible: no lock-screen or shade controls, and the process became
+  low-memory-killable while playing background audio. The service is now
+  refcounted over the set of sessions that want it; only the last one stops it,
+  and the notification is handed to a session that is still active rather than
+  dropped. Measured on device before and after with
+  `dumpsys activity services` against a started AAudio stream.
+
 - **OSR documents were never focused, which broke every focus-gated web API.**
   Nothing in the SDK called `CefBrowserHost::SetFocus` in any configuration, so
   `document.hasFocus()` stayed false for a browser's whole lifetime and Blink
