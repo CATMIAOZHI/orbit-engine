@@ -215,8 +215,10 @@ void ExecuteResult(CefRefPtr<CefBrowserHostBase> browser,
 cef_permission_request_types_t GetCefRequestType(
     permissions::RequestType type) {
   switch (type) {
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     case permissions::RequestType::kAmbientLogin:
       return CEF_PERMISSION_TYPE_AMBIENT_LOGIN;
+#endif
     case permissions::RequestType::kArSession:
       return CEF_PERMISSION_TYPE_AR_SESSION;
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
