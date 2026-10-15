@@ -996,6 +996,15 @@ public class CefriumBrowser {
      *     so {@code navigator.clipboard.readText()} rejects with
      *     {@code NotAllowedError: Document is not focused.} with this handler
      *     never consulted. Call {@code setFocus(true)} first.</li>
+     * <li><b>Any permission, if the page was loaded with {@link #loadHtml}.</b>
+     *     That produces a {@code data:} URL, whose document has an OPAQUE
+     *     origin, and the web platform denies every permission on an opaque
+     *     origin without reaching any permission context -- so nothing is
+     *     prompted and this handler is never called. It is not specific to
+     *     this engine; the same page in any browser behaves the same way. Load
+     *     from a real origin instead: a normal URL, or
+     *     {@link #loadHtmlWithBaseUrl(String, String)}, which gives the
+     *     document the base URL's origin.</li>
      * </ul>
      */
     public interface PermissionHandler {
