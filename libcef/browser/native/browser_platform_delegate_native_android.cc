@@ -4,6 +4,7 @@
 
 #include "cef/libcef/browser/native/browser_platform_delegate_native_android.h"
 
+#include "base/android/jni_android.h"
 #include "cef/libcef/browser/browser_host_base.h"
 #include "cef/libcef/browser/native/menu_runner_android.h"
 #include "cef/libcef/browser/thread_util.h"
@@ -15,6 +16,10 @@
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/common/input/web_mouse_wheel_event.h"
 #include "ui/events/base_event_utils.h"
+#include "ui/events/event_constants.h"
+#include "ui/events/keycodes/dom/dom_code.h"
+#include "ui/events/keycodes/dom/dom_key.h"
+#include "ui/events/keycodes/keyboard_code_conversion.h"
 
 CefBrowserPlatformDelegateNativeAndroid::
     CefBrowserPlatformDelegateNativeAndroid(const CefWindowInfo& window_info,
@@ -196,8 +201,52 @@ CefBrowserPlatformDelegateNativeAndroid::TranslateWebKeyEvent(
 
   int modifiers = TranslateWebEventModifiers(key_event.modifiers);
 
-  return input::NativeWebKeyboardEvent(type, modifiers,
-                                       base::TimeTicks::Now());
+  // Build through Android's own WebKeyboardEventBuilder. It derives the
+  // Windows key code, dom_code, dom_key and text from the Android key code and
+  // the character, which is what Blink turns into event.key and event.code.
+  // Constructing from (type, modifiers, timestamp) alone leaves all of those
+  // zero, so a page saw keydown/keyup with empty key/code and keyCode 0.
+  input::NativeWebKeyboardEvent result(
+      base::android::AttachCurrentThread(),
+      base::android::JavaRef<jobject>(),  // no originating Android KeyEvent
+      type, modifiers, base::TimeTicks::Now(), key_event.native_key_code,
+      /*scancode=*/0, key_event.character, key_event.is_system_key != 0);
+
+  // The five-argument CefBrowserHost::SendKeyEvent API documents
+  // native_key_code as optional, so a caller may pass only the Windows key
+  // code; keep honouring that rather than silently dropping it.
+  if (result.windows_key_code == 0 && key_event.windows_key_code != 0) {
+    result.windows_key_code = key_event.windows_key_code;
+  }
+
+  // An injected event has no Android scancode and no originating KeyEvent
+  // object, so the builder leaves dom_code NONE and dom_key UNIDENTIFIED --
+  // which reach the page as code "" and key "Unidentified". Fall back to the
+  // US layout, the same mapping Chromium uses when there is no physical key.
+  if (result.dom_code == static_cast<int>(ui::DomCode::NONE) &&
+      result.windows_key_code != 0) {
+    result.dom_code = static_cast<int>(ui::UsLayoutKeyboardCodeToDomCode(
+        static_cast<ui::KeyboardCode>(result.windows_key_code)));
+  }
+  if (result.dom_key == static_cast<uint32_t>(ui::DomKey::UNIDENTIFIED) ||
+      result.dom_key == static_cast<uint32_t>(ui::DomKey::NONE)) {
+    int flags = ui::EF_NONE;
+    if (key_event.modifiers & EVENTFLAG_SHIFT_DOWN) flags |= ui::EF_SHIFT_DOWN;
+    if (key_event.modifiers & EVENTFLAG_CONTROL_DOWN) {
+      flags |= ui::EF_CONTROL_DOWN;
+    }
+    if (key_event.modifiers & EVENTFLAG_ALT_DOWN) flags |= ui::EF_ALT_DOWN;
+    if (key_event.modifiers & EVENTFLAG_CAPS_LOCK_ON) {
+      flags |= ui::EF_CAPS_LOCK_ON;
+    }
+    ui::DomKey dom_key = ui::DomKey::NONE;
+    ui::KeyboardCode ignored = ui::VKEY_UNKNOWN;
+    if (ui::DomCodeToUsLayoutDomKey(static_cast<ui::DomCode>(result.dom_code),
+                                    flags, &dom_key, &ignored)) {
+      result.dom_key = dom_key;
+    }
+  }
+  return result;
 }
 
 blink::WebMouseEvent
