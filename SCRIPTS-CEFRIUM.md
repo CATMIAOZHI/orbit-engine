@@ -119,6 +119,19 @@ cef/cefrium_sdk/release-publish-docs.sh       # commit + push both doc trees
 `regen-docs.sh` refuses to claim success unless every public symbol in the
 source has a generated page -- both generators fail silently otherwise.
 
+## Dev iteration (the loop you run while fixing something)
+
+```bash
+cef/cefrium_sdk/dev-iterate.sh [--activity <Name>] [--clean-profile] [--skip-build]
+```
+
+ninja (libcef + AAR) -> slim -> stage into the sample -> Gradle -> install ->
+launch -> read the verdict file, exiting non-zero unless it says PASS. It
+snapshots the verdict files before launching so a leftover result cannot be
+read as this run's pass, and `--clean-profile` does the `pm clear` + re-grant
+that permission tests need (a decided permission is remembered, and then the
+handler is never consulted). `--skip-build` for sample-only edits.
+
 ## Device checks
 
 | Task | Command |
