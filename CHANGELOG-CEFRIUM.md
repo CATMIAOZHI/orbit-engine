@@ -17,6 +17,56 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-15
+
+Engine: **Chromium 156.0.8078.17 / CEF branch 8078** (was 154.0.8037.98 / 8037).
+
+### Added
+
+- **`CefriumBrowser.setFocus(boolean)`**, with `CefriumNavigator.setFocus` for
+  the Compose API. Off-screen browsers have no Android `View`, so nothing could
+  focus them; this is the only way for an OSR embedder to give the document
+  keyboard focus. See the Fixed entry below for why it matters beyond typing.
+- **`CefriumBrowser.sendKeyEvent(android.view.KeyEvent)`.** The existing
+  five-argument overload mirrors `CefBrowserHost::SendKeyEvent` and so takes a
+  *Windows* virtual-key code, which is not something an Android embedder has.
+  The new overload maps the Android key code with Chromium's own conversion
+  table, maps `metaState` to CEF modifiers, and emits the sequence CEF expects
+  (`RAWKEYDOWN` then `CHAR` for a printable key, `KEYUP` on release). The old
+  overload stays.
+- Sample `OsrFocusKeyActivity` in `java-sample`, which drives both APIs on an OSR
+  browser and asserts the page's `document.hasFocus()`, clipboard focus gate and
+  DOM `key`/`code`/`keyCode`.
+
+### Fixed
+
+- **OSR documents were never focused, which broke every focus-gated web API.**
+  Nothing in the SDK called `CefBrowserHost::SetFocus` in any configuration, so
+  `document.hasFocus()` stayed false for a browser's whole lifetime and Blink
+  rejected the async clipboard with `NotAllowedError: Document is not focused.`
+  That gate runs *before* any permission check, so a `PermissionHandler` was
+  never consulted and the failure looked like a permission bug. On-screen
+  browsers now take focus from `CefriumSurfaceContainer.onWindowFocusChanged`
+  (seeded from `hasWindowFocus()`, because the view is attached before the native
+  browser exists and the focus edge has usually already passed); OSR embedders
+  call `setFocus` themselves.
+
+### Changed
+
+- **`PERMISSION_NFC` is now `1 << 30`** (was `1 << 29`): upstream CEF 8078 took
+  `1 << 29` for its own `AMBIENT_LOGIN` permission type. Code that uses the
+  constant only needs recompiling; code that hardcoded the numeric value must be
+  updated.
+
+### Notes
+
+- Geolocation permission requests still do not reach `PermissionHandler`, and
+  that is not a Cefrium bug: `GeolocationPermissionContextAndroid` intercepts
+  before the web layer and denies unless the *app* holds `ACCESS_FINE_LOCATION`
+  and the system location setting is on. The AAR deliberately declares no
+  location permission -- a library must not force one on its consumers. Now
+  documented on `PermissionHandler`.
+
 ## [0.9.4] - 2026-10-07
 
 Engine: **Chromium 154.0.8037.98 / CEF branch 8037** -- unchanged from 0.9.3.
