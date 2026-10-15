@@ -31,8 +31,14 @@
 #   - the 12-testers-for-14-days closed-test gate for production access.
 set -euo pipefail
 
-VERSION="${1:?usage: release-play.sh <version> [track]}"
+VERSION="${1:?usage: release-play.sh <version> [track] [--dry-run]}"
 TRACK="${2:-internal}"
+# --dry-run does everything up to the upload: pin, bump, rebuild every sample.
+# That is the half worth rehearsing -- it is where a broken public API or a
+# stale pin shows up -- and it touches nothing outside this machine.
+DRY=0
+for a in "$@"; do [ "$a" = "--dry-run" ] && DRY=1; done
+[ "$TRACK" = "--dry-run" ] && TRACK="internal"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC="$(cd "$SCRIPT_DIR/../.." && pwd)"              # chromium/src
 ROOT="$(cd "$SRC/../.." && pwd)"                    # cef-dev
@@ -79,9 +85,19 @@ done
 # ---- 2. bump the app version ---------------------------------------------
 # Play rejects a versionCode that already exists, and it rejects it only after
 # the upload, so get it right before spending the bandwidth.
+#
+# IDEMPOTENT. A re-run after a failed upload must not bump again: that silently
+# inflates the versionCode every retry and makes the script unsafe to re-run,
+# which is the main thing keeping this phase out of the unattended cut. Each
+# module records the SDK version it was last prepared for.
 for m in $MODULES; do
   BG="$BROWSER_REPO/$m/app/build.gradle"
+  GP="$BROWSER_REPO/$m/gradle.properties"
   [ -f "$BG" ] || { echo "ERROR: $BG not found"; exit 1; }
+  if grep -q "^cefriumPreparedFor=$VERSION\$" "$GP" 2>/dev/null; then
+    echo ">>> $m already prepared for $VERSION ($(grep -oE '^\s*versionName\s+"[^"]+"' "$BG" | grep -oE '"[^"]+"' | tr -d '"')) -- not bumping again"
+    continue
+  fi
   OLD_CODE=$(grep -oE '^\s*versionCode\s+[0-9]+' "$BG" | grep -oE '[0-9]+' | head -1)
   OLD_NAME=$(grep -oE '^\s*versionName\s+"[^"]+"' "$BG" | grep -oE '"[^"]+"' | tr -d '"' | head -1)
   [ -n "$OLD_CODE" ] && [ -n "$OLD_NAME" ] \
@@ -97,6 +113,13 @@ for m in $MODULES; do
   grep -qE "^\s*versionCode\s+$NEW_CODE\$" "$BG" \
     && grep -qE "^\s*versionName\s+\"$NEW_NAME\"\$" "$BG" \
     || { echo "ERROR: version bump did not take in $BG"; exit 1; }
+  # Mark it prepared only AFTER the bump is verified, so a crash in between
+  # leaves the module unmarked and the next run redoes it rather than skipping.
+  if grep -q "^cefriumPreparedFor=" "$GP" 2>/dev/null; then
+    perl -0777 -i -pe "s{^cefriumPreparedFor=.*\$}{cefriumPreparedFor=$VERSION}m" "$GP"
+  else
+    printf 'cefriumPreparedFor=%s\n' "$VERSION" >> "$GP"
+  fi
   echo ">>> $m $OLD_NAME/$OLD_CODE -> $NEW_NAME/$NEW_CODE"
 done
 
@@ -128,6 +151,15 @@ if [ "${CEFRIUM_PLAY_SKIP_SAMPLES:-0}" != "1" ]; then
 fi
 
 # ---- 4. build + upload ----------------------------------------------------
+if [ "$DRY" = "1" ]; then
+  echo
+  echo "[dry-run] stopping before the upload. Pins, version bumps and the"
+  echo "          sample rebuild above are done and are what a real run would"
+  echo "          have produced. To ship:"
+  echo "            cef/cefrium_sdk/release-play.sh $VERSION $TRACK"
+  exit 0
+fi
+
 gate "upload the browser app(s) to the Play '$TRACK' track"
 for m in $MODULES; do
   echo
