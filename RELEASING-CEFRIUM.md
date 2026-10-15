@@ -2,15 +2,43 @@
 
 Scope: this document is for CEFRIUM (CEF ported to native Android) and its SDK, not upstream CEF.
 
-Runbook for cutting a Cefrium SDK release (the exact, verified sequence:
-**build -> merge -> publish -> test**). The Codeberg Maven registry is
-**immutable** - a version is uploaded once and never overwritten, so the local
-sanity gate (step 7) exists to catch a broken artifact *before* it is published.
+Versions follow `VERSIONING-CEFRIUM.md`: new public API => minor, fixes only =>
+patch, engine bumps noted in the `/releases` table regardless.
 
-Versions follow `VERSIONING-CEFRIUM.md`: new public API => minor, fixes only => patch,
-engine bumps noted in the `/releases` table regardless.
+## The process
 
-## Automated - `cut-release.sh`
+One script runs all of it. The phases, in order, and what each one is for:
+
+| # | Phase | What it does | Script |
+|---|-------|--------------|--------|
+| 1 | `patches` | Set `Cefrium.VERSION`, apply the CEF patches, touch their targets so ninja rebuilds | `apply-patches.py` |
+| 2 | `build` | The 4 variants: codecs/libre x arm64/x86_64 (~6.5 h cold on 24c/62G) | `build-all-variants.sh` |
+| 3 | `merge` | Fuse arm64 + x86_64 into the published fat AARs | `merge-multiabi.sh` |
+| 4 | `compose` | The Compose wrapper AAR | (gradle, in `cefrium_compose`) |
+| 5 | `plugin` | Check the Gradle plugin jar | - |
+| 6 | `stats` | Refresh the patch counts quoted on the site and README | `update-patch-stats.sh` |
+| 7 | `sanity` | Build a REAL consumer against the fresh AAR, before anything immutable | - |
+| 8 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
+| 9 | `central` | Upload to Maven Central, the channel adopters actually pin | `publish-central.sh` |
+| 10 | `flagship` | Build the browser APK against this exact SDK | - |
+| 11 | `release` | Codeberg release: tag, assets, GPG-signed `SHA256SUMS` | `release-codeberg.sh` |
+| 12 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, then VERIFY | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
+| 13 | `prune` | Drop superseded versions from the latest-only Codeberg mirror | `prune-old-versions.sh` |
+| 14 | `play` | Pin + version-bump the apps, rebuild every sample, upload to Play | `release-play.sh` |
+
+Two things need a human and are not automated:
+
+- **The gates.** Publishing is irreversible (Maven versions are immutable) and
+  Play reaches users. Each gate asks you to type the version. `CEFRIUM_YES=1`
+  pre-authorizes them, which an unattended run MUST set -- a background job has
+  no stdin and dies at the first gate otherwise.
+- **The hardware signing key**, for the GPG-signed `SHA256SUMS` in phase 11. Prime it in a
+  terminal that can show a pinentry prompt before starting.
+
+Everything else, including the pushes, is scripted. The index of every script
+is `SCRIPTS-CEFRIUM.md`.
+
+## Running it
 
 The whole pipeline below is orchestrated by one script that stops for explicit
 confirmation before the two irreversible steps (immutable publish, destructive
@@ -23,15 +51,10 @@ cef/cefrium_sdk/cut-release.sh <version> <prev-version> --notes "<releases-row H
 #   compose plugin stats sanity publish central flagship release web prune play)
 ```
 
-It chains the per-step scripts (all committed alongside it):
-`build-all-variants.sh` -> `merge-multiabi.sh` -> compose -> `update-patch-stats.sh`
--> local sanity -> **[gate]** `publish-maven.sh` (smoke-tests both coordinates) ->
-flagship APK -> `release-codeberg.sh` (tag + GPG-signed SHA256SUMS + assets) ->
-`release-web-update.sh` (releases row, quickstart bump, previous superseded) ->
-**[gate]** `prune-old-versions.sh` (latest-only) -> **[gate]** `release-play.sh`.
-Each gate requires typing the version; `CEFRIUM_YES=1` bypasses them for CI.
-After it finishes, commit/push the web + cef repos and regenerate Javadoc/Dokka
-if the API changed.
+Useful flags: `CEFRIUM_INCREMENTAL=1` reuses the out dirs (note the `patches`
+phase touches every patched file by design, so this saves less than it looks);
+`CEFRIUM_NO_PRUNE=1` and `CEFRIUM_NO_PLAY=1` skip those phases;
+`CEFRIUM_PLAY_TRACK` picks the Play track.
 
 **The `play` phase ships the apps, and it runs last for a reason.** The browser
 apps resolve the SDK from the registry, so uploading before the coordinate is
@@ -90,8 +113,13 @@ device, but confirm `compose-browser` builds too so neither reference app ships
 stale. A reference app that does not build on the release's own toolchain is a
 release blocker.
 
-The manual sequence below is the reference for what each phase does (and for
-running a phase by hand when needed).
+To run a single phase by hand, use its script from the table above, or the
+per-task index in `SCRIPTS-CEFRIUM.md`. This document used to carry a parallel
+hand-run copy of the whole sequence; it was removed because it had drifted --
+it still told you to export the JDK 21 that stopped working at 0.8.0, and to
+spot-check a "signature line" to decide whether a patch applied, a test that
+reports applied patches as failures. Two copies of a procedure means one of
+them is wrong and you cannot tell which.
 
 ## Engine bump - new Chromium / CEF (e.g. 148 -> 149)
 
@@ -146,8 +174,8 @@ Chromium-version API breaks at build time, then cut a release with `cut-release.
 
 ### Bump scenarios + lessons from the Debian CEF package
 
-The Debian CEF package (`<debian-dev>/chromium-embedded-framework`,
-same maintainer, 2000+ builds) has a mature update methodology
+The Debian CEF package (same maintainer, 2000+ builds) has a mature update
+methodology
 (`CEF-UPDATE-GUIDE.md`, `debian/README.source`). Key transferable lessons:
 
 - **CEF branch = the Chromium BUILD number** (3rd version component): 149.0.**7827**.53
@@ -263,138 +291,61 @@ onto the new CEF branch. What the terse "rebase" phase actually takes:
   `/releases` cards and benchmark "measured on X" data (changing those falsifies
   history / measured numbers).
 
-## 0. Environment
+## Prerequisites
 
 ```bash
-export JAVA_HOME=<dev>/android/android-studio/android-studio/jbr   # JDK 21
-export ANDROID_HOME=<cef-dev>/chromium/src/third_party/android_sdk/public
-export PATH="<cef-dev>/depot_tools:$PATH"               # gn + ninja
-# Publish token at ~/.registry-token (package scope); read by the script, never echoed.
+# JDK 25 -- Chromium's bundled Temurin. NOT the Android Studio JBR 21: since
+# SDK 0.8.0 the AAR ships Java-25 (class-69) bytecode that javac 21 cannot read.
+cd <your-checkout>/chromium/src
+export JAVA_HOME="$PWD/third_party/jdk/current"
+export ANDROID_HOME="$PWD/third_party/android_sdk/public"
+export PATH="$PWD/../../depot_tools:$PATH"   # gn + ninja
 ```
 
-## 1. Pre-flight
+Also needed: the Codeberg publish token at `~/.registry-token` (package scope;
+read by the script, never echoed), the Maven Central credentials for the
+`central` phase, the Play service-account JSON at
+`cefrium-browser/secrets/play-sa.json` for the `play` phase, and a primed
+hardware signing key for the signed `SHA256SUMS`.
 
-```bash
-cd <cef-dev>/chromium/src
+## Facts that bite
 
-# (a) Bump the version string.
-#   cef/cefrium_sdk/java/src/com/cefrium/Cefrium.java -> VERSION = "<version>"
+These are the ones that have actually cost a release:
 
-# (b) Confirm the version is NOT already published (immutable; expect HTTP 404).
-curl -s -o /dev/null -w '%{http_code}\n' \
-  "https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk/<version>/cefrium-sdk-<version>.aar"
+- **Maven versions are immutable.** An existing artifact returns `409` and is
+  skipped, never overwritten. To ship changed bytes you bump the version --
+  there is no other remedy, which is why the `sanity` phase builds a real
+  consumer against the fresh AAR BEFORE anything is uploaded.
+- **"Published" means Maven Central.** Codeberg is a latest-only mirror that
+  gets pruned and cannot be pinned. Central publishing used to be a separate
+  manual step, it stopped being run after 0.8.9, and every 0.9.x was a 404 for
+  external adopters for three weeks. It is a phase now; do not skip it.
+- **Publish all four variants.** x86_64 lives INSIDE the multi-ABI AAR, so an
+  arm64-only cut gives emulator users an `UnsatisfiedLinkError` at runtime, and
+  a codecs-only cut publishes no `-libre` coordinate at all. 0.9.3 shipped that
+  way and cost us developers. `cut-release.sh` now refuses a partial matrix at
+  the publish phase.
+- **Smoke BOTH coordinates after publishing.** They are distinct artifacts and
+  the FOSS audience goes straight to `-libre`. `publish-maven.sh` runs the DEP-8
+  test itself when the toolchain is present; if `JAVA_HOME`/`ANDROID_HOME` are
+  missing it warns, skips, and still succeeds -- the upload did happen, and a
+  missing toolchain must not report a completed publish as failed. Run it by
+  hand in that case:
 
-# (c) Apply the CEF patches and force-recompile the deltas.
-#   apply-patches.py sets the illegal 'target_os=="android"' condition key (which
-#   neither export nor env can) and runs patcher.py; a bare patcher.py would
-#   silently skip every android/* patch.
-python3 cef/cefrium_sdk/apply-patches.py
-#   NOTE: gn_config / chrome_runtime / chrome_browser_profiles may report
-#   "failed" - that is the benign already-applied quirk on CEF's largest
-#   patches, NOT a broken tree. Spot-check a signature line from each if unsure
-#   (e.g. grep 'IsUniqueForCEF' chrome/browser/profiles/off_the_record_profile_impl.cc).
-# Touch the Android-patch targets + edited libcef sources so ninja rebuilds them:
-for p in cef/patch/patches/android/*.patch; do
-  for f in $(grep '^+++ ' "$p" | grep -v /dev/null | sed 's/^+++ [ab]\///;s/\t.*//'); do
-    [ -f "$f" ] && touch "$f"; done; done
-touch cef/libcef/browser/android/cefrium_sdk_jni.cc \
-      cef/libcef/common/chrome/chrome_main_delegate_cef.cc
-```
+  ```bash
+  export GRADLE=../../cefrium-sample/push-demo/gradlew   # any real gradlew
+  for art in cefrium-sdk cefrium-sdk-libre; do
+    ARTIFACT="$art" cef/cefrium_sdk/test-published-release.sh <version>
+  done
+  ```
 
-## 2. Build the 4 variants
-
-```bash
-CEFRIUM_NINJA_JOBS=16 cef/cefrium_sdk/build-all-variants.sh all
-# -> out/release/cefrium-sdk-{arm64,x64}-{codecs,libre}.aar  (~6.5 h cold, on 24c/62G)
-```
-
-## 3. Merge multi-ABI
-
-```bash
-cef/cefrium_sdk/merge-multiabi.sh codecs   # -> out/release/cefrium-sdk.aar
-cef/cefrium_sdk/merge-multiabi.sh libre    # -> out/release/cefrium-sdk-libre.aar
-# Verify each carries BOTH jni/arm64-v8a/libcef.so and jni/x86_64/libcef.so:
-unzip -l out/release/cefrium-sdk.aar | grep 'jni/.*/libcef.so'
-```
-
-## 4. Compose AAR
-
-```bash
-cp out/release/cefrium-sdk.aar cef/cefrium_compose/libs/
-( cd cef/cefrium_compose && ./gradlew assembleRelease --no-daemon )
-# -> cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar
-```
-
-## 5. Gradle plugin jar
-
-Ensure `cef/cefrium_sdk/gradle-plugin/build/libs/gradle-plugin.jar` is current
-(its compiled `CHROMIUM_R_PACKAGES` must include every package whose `R` class
-Chromium code reads at runtime). Rebuild if the source is newer; verify:
-
-```bash
-unzip -p cef/cefrium_sdk/gradle-plugin/build/libs/gradle-plugin.jar \
-  'com/cefrium/CefriumPlugin*.class' | strings | grep -E 'gms.common|notifications'
-```
-
-## 6. Refresh the derived "auditable" numbers
-
-```bash
-cef/cefrium_sdk/update-patch-stats.sh        # rewrites patch count/lines on landing + README
-# (idempotent; --check exits non-zero if stale, for CI)
-```
-
-## 7. Local sanity gate - BEFORE the immutable publish
-
-Build a real consumer against the freshly merged AAR. Green here means the
-artifact is consumable and the new APIs resolve; only then publish.
-
-```bash
-cp out/release/cefrium-sdk.aar ../../cefrium-sample/push-demo/app/libs/cefrium-sdk.aar
-( cd ../../cefrium-sample/push-demo && ./gradlew clean assembleDebug --no-daemon )
-```
-
-## 8. Publish (immutable)
-
-```bash
-cef/cefrium_sdk/publish-maven.sh <version>
-```
-
-- Uploads `cefrium-sdk`, `cefrium-sdk-libre`, `cefrium-compose`,
-  `cefrium-gradle-plugin` (+ POMs + the plugin marker POM), verifying each
-  upload's integrity.
-- **Immutable:** an existing artifact returns `409` and is skipped - never
-  overwritten. To ship changed bytes, bump the version.
-- It then runs the post-publish smoke test for **both** SDK coordinates if
-  `JAVA_HOME`/`ANDROID_HOME` are set; if they are not, it **skips with a warning
-  and still succeeds** (the uploads already happened - a missing build toolchain
-  must not report a completed publish as failed). Run step 9 manually in that case.
-
-## 9. Post-publish smoke test - DEP-8, BOTH coordinates
-
-A throwaway consumer project that resolves the plugin + SDK **only from the
-registry** and assembles. Run it for both coordinates - they are distinct
-artifacts and the FOSS/no-telemetry audience goes straight to `-libre`.
-
-```bash
-# GRADLE must point at a real gradlew (no system gradle); any project's works.
-export GRADLE=../../cefrium-sample/push-demo/gradlew
-for art in cefrium-sdk cefrium-sdk-libre; do
-  ARTIFACT="$art" cef/cefrium_sdk/test-published-release.sh <version>
-done
-# Both must print "PASS: <artifact> <version> resolves and assembles ...".
-```
-
-## 10. Release page, assets, flagship APK
-
-- `/releases` (cefrium-web): add the `<version>` row; confirm every link resolves.
-- Attach the merged AARs to the Codeberg release with a `SHA256SUMS`,
-  **GPG-signed** (hardware signing key); document verification on `/releases`.
-- Rebuild / relabel the flagship `cefrium-browser` APK on `<version>` - never a
-  version-ambiguous binary link. The browser lives in its own repo
-  (cefrium/cefrium-browser); `cut-release.sh` builds it in `local` source mode
-  (`-PcefriumSource=local`) against the freshly built AAR.
-- Remove any "releasing shortly" version notice from the guides now that the
-  coordinate resolves.
+- **A phase that "ran" is not a phase that worked.** Both doc generators fail
+  silently, so `regen-docs.sh` asserts every public symbol has a page, and
+  `release-web-verify.sh` asserts the site actually shows the new version and
+  that no referenced asset is missing. The published Javadoc once sat at 0.9.2
+  while 0.9.4 was the release, because nothing checked.
+- **After the cut:** remove any "releasing shortly" notice from the guides now
+  that the coordinate resolves.
 
 ## Provenance note
 
