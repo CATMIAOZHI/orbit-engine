@@ -1979,17 +1979,21 @@ public class CefriumBrowser {
         final int meta = event.getMetaState();
         switch (event.getAction()) {
             case android.view.KeyEvent.ACTION_DOWN: {
-                nativeSendKeyEventAndroid(mNativePtr, KEY_RAW_DOWN, keyCode, meta, 0);
-                // Only a printable key produces text. getUnicodeChar() applies the
-                // meta state, so shifted and dead-key combinations come out right.
+                // getUnicodeChar() applies the meta state, so shifted and dead-key
+                // combinations come out right. It goes on the RAWKEYDOWN too, not
+                // only the CHAR: Blink derives the DOM key from it, and without it
+                // the page sees key "Unidentified".
                 final int ch = event.getUnicodeChar(meta);
+                nativeSendKeyEventAndroid(mNativePtr, KEY_RAW_DOWN, keyCode, meta, ch);
+                // Only a printable key produces text.
                 if (ch != 0) {
                     nativeSendKeyEventAndroid(mNativePtr, KEY_CHAR, keyCode, meta, ch);
                 }
                 break;
             }
             case android.view.KeyEvent.ACTION_UP:
-                nativeSendKeyEventAndroid(mNativePtr, KEY_UP, keyCode, meta, 0);
+                nativeSendKeyEventAndroid(mNativePtr, KEY_UP, keyCode, meta,
+                        event.getUnicodeChar(meta));
                 break;
             case android.view.KeyEvent.ACTION_MULTIPLE: {
                 // A batch of characters with no single key behind them (e.g. text
