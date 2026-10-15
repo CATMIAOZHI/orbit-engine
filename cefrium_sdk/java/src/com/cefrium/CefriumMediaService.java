@@ -34,10 +34,17 @@ public class CefriumMediaService extends Service {
     static void show(Context context, Notification notification) {
         Intent i = new Intent(context, CefriumMediaService.class)
                 .setAction(ACTION_SHOW);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(i);
-        } else {
-            context.startService(i);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(i);
+            } else {
+                context.startService(i);
+            }
+        } catch (Exception e) {
+            // Android 12+ refuses a background service start. Allowed when the
+            // service is already foreground, which is the case when one tab
+            // hands the notification to another, but not guaranteed -- and an
+            // SDK must not take the host app down over a notification.
         }
         // The notification itself is fetched from the active session in
         // onStartCommand to avoid passing a large Parcelable through the intent.
