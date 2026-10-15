@@ -125,7 +125,7 @@ patches modify the same hunk:
 owns this job, and it has been in the tree all along:
 
 ```
-SRC=<cef-dev>/chromium/src
+SRC=<your-checkout>/chromium/src
 cd "$SRC"
 
 # Create a patch from changes already made to a file in the tree:
@@ -195,7 +195,7 @@ patch bodies. Generate them from a real diff in an isolated git workdir so paths
 and context are exact.
 
 ```
-SRC=<cef-dev>/chromium/src
+SRC=<your-checkout>/chromium/src
 cd "$SRC"
 
 # 1. Workdir mirroring the path from the src root. Copy the CURRENT (already

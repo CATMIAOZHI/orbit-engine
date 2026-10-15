@@ -150,7 +150,7 @@ by hand. The sections below (7.1-7.5) document what each phase does; reach for t
 only to run a phase in isolation or debug a failure.
 
 ```bash
-export JAVA_HOME=<dev>/android/android-studio/android-studio/jbr
+export JAVA_HOME="$PWD/third_party/jdk/current"   # from chromium/src
 export ANDROID_HOME=$PWD/third_party/android_sdk/public
 cef/cefrium_sdk/cut-release.sh <version> <prev-version>     # e.g. 0.4.0 0.3.2
 ```

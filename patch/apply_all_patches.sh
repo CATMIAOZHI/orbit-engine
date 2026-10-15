@@ -5,7 +5,7 @@
 # Chromium checkout. Run from chromium/src/ directory.
 #
 # Usage:
-#   cd <cef-dev>/chromium/src
+#   cd <your-checkout>/chromium/src
 #   bash cef/patch/apply_all_patches.sh
 #
 # Prerequisites:
