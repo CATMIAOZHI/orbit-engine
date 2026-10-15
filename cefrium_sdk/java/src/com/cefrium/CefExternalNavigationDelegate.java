@@ -172,9 +172,6 @@ class CefExternalNavigationDelegate implements ExternalNavigationDelegate {
     public void notifyCctPasswordSavingRecorderOfExternalNavigation() {}
 
     @Override
-    public void reportIntentToSafeBrowsing(Intent intent) {}
-
-    @Override
     public Intent createIntentToPreventIncognitoAccess(GURL url) {
         return null;
     }
