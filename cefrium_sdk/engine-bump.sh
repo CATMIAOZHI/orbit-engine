@@ -173,11 +173,25 @@ if run rebase; then hdr "rebase CEF android-port onto upstream branch $CEFBR (gu
   gate "fetch + rebase cef android-port onto upstream/$CEFBR"
   cd "$CEF"
   # CEF's upstream is on bitbucket (origin here) and github; use whichever has it.
+  #
+  # NO --depth HERE. A depth-limited fetch re-writes .git/shallow even on a repo
+  # that is already complete, and Codeberg REJECTS a push from a shallow repo
+  # ("shallow update not allowed"). This fetch used --depth=200, so every engine
+  # bump quietly re-shallowed the clone and the next push of android-port failed
+  # -- which read as "Codeberg changed again" when the cause was local and ours.
+  # A plain fetch of one branch is incremental and costs little on a full clone.
   REBASE_REMOTE=origin
   git rev-parse --verify "origin/$CEFBR" >/dev/null 2>&1 || \
-    git fetch --depth=200 origin "$CEFBR:refs/remotes/origin/$CEFBR" 2>/dev/null || \
+    git fetch origin "$CEFBR:refs/remotes/origin/$CEFBR" 2>/dev/null || \
     { git remote get-url upstream >/dev/null 2>&1 || git remote add upstream https://github.com/chromiumembedded/cef.git; \
-      git fetch --depth=200 upstream "$CEFBR:refs/remotes/upstream/$CEFBR"; REBASE_REMOTE=upstream; }
+      git fetch upstream "$CEFBR:refs/remotes/upstream/$CEFBR"; REBASE_REMOTE=upstream; }
+
+  # Repair it if anything else shallowed the clone, rather than discovering it
+  # at push time at the end of a bump.
+  if [ -f "$CEF/.git/shallow" ]; then
+    echo "  clone is shallow -- deepening, or the push at the end will be rejected"
+    git fetch --unshallow origin || git fetch --unshallow upstream
+  fi
   # CRITICAL: remove untracked build artifacts first. During the rebase, early
   # commits predate the .gitignore rules for build/.gradle/__pycache__, so any
   # such files on disk make git refuse the checkout ("untracked working tree
