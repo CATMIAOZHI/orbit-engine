@@ -11,9 +11,9 @@ Gradle step needs them (JDK 25 since SDK 0.8.0 -- older javac cannot read the
 class-69 bytecode the AAR ships):
 
 ```bash
-export JAVA_HOME=<cef-dev>/chromium/src/third_party/jdk/current
-export ANDROID_HOME=<cef-dev>/chromium/src/third_party/android_sdk/public
-cd <cef-dev>/chromium/src
+cd <your-checkout>/chromium/src
+export JAVA_HOME="$PWD/third_party/jdk/current"
+export ANDROID_HOME="$PWD/third_party/android_sdk/public"
 ```
 
 ## Push to Codeberg
