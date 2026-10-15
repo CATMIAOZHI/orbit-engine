@@ -149,6 +149,15 @@ handler is never consulted). `--skip-build` for sample-only edits.
 | Test a published release e2e | `cef/cefrium_sdk/test-published-release.sh <version>` |
 | Verify an artifact's engine/ABIs | `cef/cefrium_sdk/verify-release-artifacts.sh <version>` |
 | Audit the engine's network calls | `cef/cefrium_sdk/audit-engine-network.sh` |
+| Did it crash, and of what? | `cef/cefrium_sdk/why-died.sh [package]` |
+
+`why-died.sh` is read-only and answers the question that is most often got
+wrong here: it reads `dumpsys activity exit-info` and classifies the reason
+(4/5/6 = a real crash, 10 = your own force-stop, 13 subreason 17 = normal
+sandboxed-renderer reaping), then pulls the Java cause and any `libcef.so`
+backtrace and prints the `llvm-addr2line` command for it. Use it instead of
+`pidof`: the W90 takes 15-20 s to spawn a renderer, so a check before that
+reports a crash that never happened.
 
 Validation samples live in `cefrium-sample/java-sample`; each writes a verdict
 file read with `adb shell run-as com.cefrium.sample cat files/<name>.txt`. The
