@@ -49,7 +49,7 @@ export JAVA_HOME="${JAVA_HOME:-$ROOT/android-studio/android-studio/jbr}"
 export ANDROID_HOME="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}"
 export PATH="$ROOT/depot_tools:$PATH"
 export CEFRIUM_NINJA_JOBS="${CEFRIUM_NINJA_JOBS:-16}"
-PHASES="patches build merge compose plugin stats sanity publish central flagship release web prune"
+PHASES="patches build merge compose plugin stats sanity publish central flagship release web prune play"
 # Variant scope. Default "all" = the 4 published variants (codecs/libre x arm64/x64).
 # CEFRIUM_VARIANTS="arm64:codecs" narrows to one variant. The 4-variant build
 # relinks libcef.so per variant and is the biggest time sink (~4x), which is why it
@@ -385,5 +385,24 @@ if run prune;   then hdr "prune previous versions (latest-only retention)"
   fi
 fi
 
+if run play;    then hdr "Google Play (rebuild consumers, upload the apps)"
+  # LAST, and after `publish`/`central` on purpose: the apps resolve the SDK
+  # from the registry, so uploading before the coordinate is served would ship
+  # an app built against the previous engine. Skipped with CEFRIUM_NO_PLAY=1
+  # for a cut that is not meant to reach users (a re-cut, an SDK-only release).
+  if [ "${CEFRIUM_NO_PLAY:-0}" = "1" ]; then
+    echo "skipped: CEFRIUM_NO_PLAY=1"
+    PLAY_STATE="skipped on request"
+  elif cef/cefrium_sdk/release-play.sh "$VERSION" "${CEFRIUM_PLAY_TRACK:-internal}"; then
+    PLAY_STATE="uploaded to '${CEFRIUM_PLAY_TRACK:-internal}'"
+  else
+    # Same reasoning as the prune: the SDK release itself is published and
+    # fine, only the app rollout did not happen. Say so instead of implying
+    # the whole cut failed.
+    PLAY_STATE="FAILED -- rerun: cef/cefrium_sdk/release-play.sh $VERSION ${CEFRIUM_PLAY_TRACK:-internal}"
+  fi
+fi
+
 echo; echo "Release $VERSION cut. Remaining manual: commit/push web + cef, regenerate Javadoc/Dokka if API changed, remove any 'releasing shortly' notices."
 echo "Registry prune: $PRUNE_STATE"
+echo "Google Play:    ${PLAY_STATE:-not run}"
