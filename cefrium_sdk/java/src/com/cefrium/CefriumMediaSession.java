@@ -39,8 +39,41 @@ public class CefriumMediaSession {
     // The active session whose transport buttons CefriumMediaService routes to.
     private static volatile CefriumMediaSession sCurrent;
 
+    // Every session that currently wants the shared foreground service: playing
+    // audio, or controllable so its notification can resume it. The service is
+    // app-wide and a browser has one session PER TAB, so it must be refcounted
+    // over this set. Without it, any tab that stopped -- including one merely
+    // reloading or being restored from a discard, via webContentsDestroyed() --
+    // called stopService() and tore down the service of a DIFFERENT tab that was
+    // still audible, leaving background audio with no foreground service (no
+    // lock-screen controls, process LMK-eligible). Insertion-ordered so the most
+    // recently activated session is the one the notification falls back to.
+    private static final java.util.LinkedHashSet<CefriumMediaSession> sActive =
+            new java.util.LinkedHashSet<>();
+
+    /**
+     * Session the service routes transport actions to. Falls back to the most
+     * recent still-active session: a start intent can land after another tab's
+     * teardown cleared {@code sCurrent}, and returning null there makes the
+     * service stop itself while audio is playing.
+     */
     static CefriumMediaSession current() {
-        return sCurrent;
+        CefriumMediaSession s = sCurrent;
+        if (s != null) return s;
+        synchronized (sActive) {
+            CefriumMediaSession last = null;
+            for (CefriumMediaSession a : sActive) last = a;
+            return last;
+        }
+    }
+
+    /** Marks this session as wanting the service, and as the newest one. */
+    private void activate() {
+        synchronized (sActive) {
+            sActive.remove(this);   // re-insert so iteration order stays newest-last
+            sActive.add(this);
+        }
+        sCurrent = this;
     }
 
     private final Context mAppContext;
@@ -117,7 +150,7 @@ public class CefriumMediaSession {
                 mControllable = isControllable;
                 mPaused = isSuspended;
                 if (isControllable) {
-                    sCurrent = CefriumMediaSession.this;
+                    activate();
                     mCompat.setActive(true);
                     pushState();
                     CefriumMediaService.show(mAppContext, buildNotification());
@@ -174,7 +207,7 @@ public class CefriumMediaSession {
             public void mediaStartedPlaying(int id, boolean hasAudio, boolean hasVideo) {
                 if (!hasAudio) return;  // muted/silent media needs no background protection
                 mPlayingIds.add(id);
-                sCurrent = CefriumMediaSession.this;
+                activate();
                 mCompat.setActive(true);
                 mPaused = false;
                 pushState();
@@ -244,10 +277,27 @@ public class CefriumMediaSession {
         mCompat.release();
     }
 
+    /**
+     * This session no longer wants the shared service. Only the LAST one may
+     * stop it; otherwise the notification is handed to a session that is still
+     * active, because this one may well have been the one it was showing.
+     */
     private void hide() {
         mCompat.setActive(false);
-        if (sCurrent == this) sCurrent = null;
-        CefriumMediaService.stop(mAppContext);
+        final CefriumMediaSession next;
+        synchronized (sActive) {
+            sActive.remove(this);
+            CefriumMediaSession last = null;
+            for (CefriumMediaSession a : sActive) last = a;
+            next = last;
+        }
+        if (next == null) {
+            sCurrent = null;
+            CefriumMediaService.stop(mAppContext);
+        } else if (sCurrent == this || sCurrent == null) {
+            sCurrent = next;
+            CefriumMediaService.show(mAppContext, next.buildNotification());
+        }
     }
 
     /**
