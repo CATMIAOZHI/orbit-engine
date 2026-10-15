@@ -57,9 +57,18 @@ Individual phases, runnable on their own:
 | Publish to Codeberg Maven | `cef/cefrium_sdk/publish-maven.sh <version>` |
 | Publish to Maven Central | `cef/cefrium_sdk/publish-central.sh <version>` |
 | Codeberg release + GPG sums | `cef/cefrium_sdk/release-codeberg.sh <version> <apk>` |
-| Update cefrium.com + docs | `cef/cefrium_sdk/release-web-update.sh <version>` |
+| Update cefrium.com + docs | `cef/cefrium_sdk/release-web-update.sh <version> <prev>` |
+| Verify cefrium.com matches | `cef/cefrium_sdk/release-web-verify.sh <version> [prev]` |
 | Google Play (apps) | `cef/cefrium_sdk/release-play.sh <version> [track]` |
 | Drop superseded versions | `cef/cefrium_sdk/prune-old-versions.sh <version> --yes` |
+
+`release-web-verify.sh` checks the POST-conditions rather than the steps: every
+page that carries a version carries this one, no page still advertises the
+superseded one as current, the Java and Kotlin docs were regenerated, every
+locally-referenced asset exists (the only deterministic form of "the icon and
+the Cefrium graphic are not broken"), and the download links return 200. The
+updates above fail SOFT by design -- a reworded anchor must not corrupt a page
+-- so this is what turns "it ran" into "it is right".
 
 ## Check what is actually published
 
