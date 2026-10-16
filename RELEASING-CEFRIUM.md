@@ -86,8 +86,9 @@ adopter's pinned version. It cannot be pinned, which is exactly what we tell
 integrators, so it is not a delivery channel on its own.
 
 `cut-release.sh` now has a **`central` phase** between `publish` and `flagship`,
-so it can no longer be forgotten: it fails the cut when `~/.publish-token` is
-absent and only skips on a deliberate `CEFRIUM_SKIP_CENTRAL=1`. Note the phase
+so it can no longer be forgotten: it fails the cut when `CEFRIUM_CENTRAL_TOKEN`
+is unset or its file is missing, and only skips on a deliberate
+`CEFRIUM_SKIP_CENTRAL=1`. Note the phase
 needs `cefrium-sdk-libre.aar`, so a single-variant cut cannot reach Central at
 all -- another reason releases ship the full four variants.
 
@@ -96,7 +97,8 @@ compose, plugin + marker), defaults to USER_MANAGED (validates but does not
 release until you press Publish in the Portal), and supports `--dry-run`
 (assemble + validate locally, no network) and `--publish` (release, immutable).
 One-time setup is in the script header: verify the `com.cefrium` namespace via a
-cefrium.com DNS TXT record, put a Portal user token in `~/.publish-token`, and
+cefrium.com DNS TXT record, put a Portal user token in the file
+`CEFRIUM_CENTRAL_TOKEN` names, and
 send the signing key's public half to keys.openpgp.org. Since Central keeps every
 version permanently, the Codeberg prune gate stays optional housekeeping, and
 QUICKSTART's "Version availability" note should say all Central versions are
@@ -302,8 +304,9 @@ export ANDROID_HOME="$PWD/third_party/android_sdk/public"
 export PATH="$PWD/../../depot_tools:$PATH"   # gn + ninja
 ```
 
-Also needed: the Codeberg publish token at `~/.registry-token` (package scope;
-read by the script, never echoed), the Maven Central credentials for the
+Also needed: `CEFRIUM_REGISTRY_TOKEN` and `CEFRIUM_CENTRAL_TOKEN`, each naming
+a file that holds the corresponding token (read by the scripts, never echoed;
+the paths live in your local setup notes, deliberately not here), the Maven Central credentials for the
 `central` phase, the Play service-account JSON at
 `cefrium-browser/secrets/play-sa.json` for the `play` phase, and a primed
 hardware signing key for the signed `SHA256SUMS`.

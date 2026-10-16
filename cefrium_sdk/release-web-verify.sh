@@ -51,6 +51,20 @@ check_has() { # file, label, expected-count-at-least
 check_has quickstart/index.html "quickstart coordinates" 4
 check_has upstream/index.html   "upstream page" 1
 
+# The avatar badge states the Chromium MAJOR. It must match the engine this
+# release actually ships, or the most visible number on the site is a lie --
+# it read 154 while 156 was published.
+ENGINE="$(grep -oE 'CHROMIUM_VERSION = "[^"]*"' \
+  "$SCRIPT_DIR/../cefrium_sdk/java/src/com/cefrium/Cefrium.java" 2>/dev/null | cut -d'"' -f2)"
+MAJOR="${ENGINE%%.*}"
+if [ -z "$MAJOR" ]; then
+  bad "could not read CHROMIUM_VERSION to check the avatar badge"
+elif grep -qE "font-size=\"72\"[^>]*>$MAJOR</text>" avatar.svg 2>/dev/null; then
+  ok "avatar badge says Chromium $MAJOR"
+else
+  bad "avatar badge does not say Chromium $MAJOR (engine is $ENGINE)"
+fi
+
 # "Does the string appear somewhere" is a vacuous test on a page that lists
 # every past version. Assert the two things that actually matter: this release
 # is the TOP row, and the recommendation table points at it. The table is the
@@ -165,6 +179,10 @@ if [ "$NONET" = "0" ]; then
   echo
   echo "live site (cefrium.com)"
   CB="$(date +%s)"
+  live_badge="$(curl -s --max-time 25 "https://cefrium.com/avatar.svg?cb=$CB" \
+                | grep -oE 'font-size="72"[^>]*>[0-9]+</text>' | grep -oE '>[0-9]+<' | tr -d '><')"
+  [ "$live_badge" = "$MAJOR" ] && ok "live avatar badge says Chromium $MAJOR" \
+                               || bad "live avatar badge says ${live_badge:-nothing}, expected $MAJOR"
   for page in releases quickstart; do
     body="$(curl -s --max-time 25 "https://cefrium.com/$page/?cb=$CB" || true)"
     if [ -z "$body" ]; then
