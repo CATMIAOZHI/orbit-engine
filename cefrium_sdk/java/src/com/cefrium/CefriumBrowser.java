@@ -977,9 +977,10 @@ public class CefriumBrowser {
      * handler set, all requests are denied -- the default Android permission
      * dialog is not available in this engine.
      *
-     * <p><b>Two requests can never reach this handler, and neither is a handler
-     * bug.</b> Both are rejected further down the stack, before a web permission
-     * request exists at all:
+     * <p><b>Some requests are rejected further down the stack, before a web
+     * permission request exists at all, so this handler is never consulted.
+     * None of these is a handler bug.</b> Each states what makes it reach the
+     * handler instead:
      *
      * <ul>
      * <li><b>Geolocation</b> is intercepted by Android's own permission context
@@ -989,7 +990,16 @@ public class CefriumBrowser {
      *     the request is denied immediately and this handler is never called --
      *     the page sees {@code PERMISSION_DENIED} (code 1). The SDK deliberately
      *     does not declare the location permission for you; a library must not
-     *     force it on every consumer.</li>
+     *     force it on every consumer.
+     *     <p>Once the app DOES hold it and location is on, geolocation reaches
+     *     this handler normally, with {@link #PERMISSION_GEOLOCATION}. Measured
+     *     on device, same OSR browser, only the Android permission changed:
+     *     revoked gives {@code handler=no, page=err1}; granted gives
+     *     {@code handler=yes(256), page=ok}.
+     *     <p>In OSR specifically, "the app can be prompted for it" is not an
+     *     option: that needs a native window and an off-screen browser has
+     *     none, so request the Android permission from your Activity before the
+     *     page asks.</li>
      * <li><b>Clipboard read</b> requires the document to be FOCUSED, which Blink
      *     checks before any permission check. An off-screen (OSR) browser has no
      *     view and is never focused unless you call {@link #setFocus(boolean)},
