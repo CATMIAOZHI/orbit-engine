@@ -16,7 +16,17 @@
 #              consumers, so a sample that stops compiling is an SDK API break
 #              and must stop the release, not be discovered by a user
 #   4. upload  per app: scripts/publish-play.sh <track> <module>, with
-#              EXPECT_SDK set so a stale pin fails before anything is uploaded
+#              EXPECT_SDK set so a stale pin fails before anything is uploaded.
+#              That script also asks Play whether the versionCode is free
+#              BEFORE building, because Play rejects a duplicate only after the
+#              whole bundle has been sent.
+#   5. record  commit the pin + bump and push, so the repo states what is on
+#              Play. After the upload: a failed upload must not leave a commit
+#              for something that never shipped.
+#
+# Backing out a bad release: PLAY-PUBLIC-TRACK-RUNBOOK.md section 5. Short
+# version -- a versionCode on Play is permanent and never reusable, so the only
+# real options are halting a staged rollout or rolling forward.
 #
 # Usage:  release-play.sh <version> [track]
 #           track = internal (default) | alpha | beta | production
@@ -169,5 +179,30 @@ done
 
 echo
 echo "OK: $MODULES on Play '$TRACK', built against cefrium-sdk:$VERSION."
-echo "Commit the pin and version bumps in the browser repo, then push:"
-echo "  cd $BROWSER_REPO && git add -A && git commit && git push codeberg main"
+
+# ---- 5. record what shipped ----------------------------------------------
+# The pin and the version bump are the repo's statement of what is on Play, and
+# leaving them uncommitted is how the next run reads a versionCode that is
+# already uploaded. Committed AFTER the upload, so a failed upload leaves the
+# edits in the working tree to retry rather than a commit for something that
+# never shipped. Named paths, never `git add -A`: this phase runs in a tree that
+# may hold unrelated work.
+PATHS=""
+for m in $MODULES; do
+  for f in "$m/gradle.properties" "$m/app/build.gradle"; do
+    [ -f "$BROWSER_REPO/$f" ] && PATHS="$PATHS $f"
+  done
+done
+if [ -n "$PATHS" ] && ! git -C "$BROWSER_REPO" diff --quiet -- $PATHS; then
+  echo ">>> recording the pin and version bumps"
+  NAMES="$(for m in $MODULES; do
+    printf '%s %s/%s, ' "$m" \
+      "$(grep -oE '^\s*versionName\s+"[^"]+"' "$BROWSER_REPO/$m/app/build.gradle" | grep -oE '"[^"]+"' | tr -d '"' | head -1)" \
+      "$(grep -oE '^\s*versionCode\s+[0-9]+' "$BROWSER_REPO/$m/app/build.gradle" | grep -oE '[0-9]+' | head -1)"
+  done | sed 's/, $//')"
+  git -C "$BROWSER_REPO" add -- $PATHS
+  git -C "$BROWSER_REPO" commit -q -m "Ship on Play against cefrium-sdk $VERSION: $NAMES"
+  "$SCRIPT_DIR/push.sh" browser
+else
+  echo ">>> pin and version bumps already committed -- nothing to record"
+fi
