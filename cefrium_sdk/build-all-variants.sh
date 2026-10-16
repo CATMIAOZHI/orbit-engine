@@ -23,6 +23,17 @@ SRC_DIR="$(pwd)"
 SLIM_AAR="$SCRIPT_DIR/slim_aar.py"
 RELEASE_DIR="$SRC_DIR/out/release"
 
+# Put depot_tools' pinned python (3.11.8) ahead of the system one. Chromium 156
+# invokes its own `third_party/cpython3` for gn actions, so this is currently
+# belt-and-braces -- but the system python here is 3.14, whose stricter argparse
+# aborts Chromium's gyp scripts, and that failure lands hours into a release
+# build. A release must not depend on what the invoking shell happened to have
+# on PATH.
+_DT="$(cd "$SRC_DIR/../.." 2>/dev/null && pwd)/depot_tools/python-bin"
+if [ -x "$_DT/python3" ]; then
+  export PATH="$_DT:$PATH"
+fi
+
 # RAM-aware default for ninja parallelism (~3 GB per CEF/Chromium compile job),
 # mirroring the Debian CEF package's debian/rules. Prevents the OOM killer from
 # terminating the link/compile (exit 137). An explicit CEFRIUM_NINJA_JOBS wins;
