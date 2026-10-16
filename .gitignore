@@ -1029,3 +1029,17 @@ Thumbs.db
 /libcef_dll/wrapper/libcef_dll_dylib.cc
 /libcef_dll/wrapper/libcef_dll_wrapper.cc
 /libcef_dll/wrapper_types.h
+
+# Cefrium: build output and tool caches. None of this is source, and two of
+# them have already been committed by accident: a 262 MB AAR that made the
+# clone 10x its real size, and a Gradle execution-history cache with the
+# absolute build path repeated 937 times inside a binary file.
+.gradle/
+cefrium_compose/build/
+cefrium_compose/libs/*.aar
+cefrium_instrumentation_test/app/libs/*.aar
+cefrium_instrumentation_test/build/
+cefrium_instrumentation_test/app/build/
+cefrium_sdk/gradle-plugin/build/
+*.apk
+*.aab

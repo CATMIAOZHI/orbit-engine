@@ -111,11 +111,15 @@ FAIL=0
 
 # 1. Binary artifacts that embed a build path. These are the dangerous ones:
 #    invisible to review, and .gitignore does not cover what is already tracked.
-BIN="$(printf '%s\n' "$FILES" | grep -E '(__pycache__/|\.pyc$|\.pyo$)' || true)"
+#    Found this way, twice: 13 `__pycache__/*.pyc`, and a Gradle
+#    executionHistory.bin with the absolute build path in it 937 times. Both
+#    are regenerable caches, and no diff review would ever have shown either.
+BIN="$(printf '%s\n' "$FILES" | grep -E '(__pycache__/|\.pyc$|\.pyo$|(^|/)\.gradle/|\.aar$|\.apk$|\.aab$)' || true)"
 if [ -n "$BIN" ]; then
-  echo "FAIL  compiled Python is tracked -- .pyc embeds the absolute build path:"
-  printf '%s\n' "$BIN" | sed 's/^/        /'
-  echo "      git rm -r --cached <path>   (they are regenerable)"
+  echo "FAIL  a build artifact or tool cache is tracked -- these embed the absolute"
+  echo "      build path in BINARY, where no review will see it:"
+  printf '%s\n' "$BIN" | head -10 | sed 's/^/        /'
+  echo "      git rm -r --cached <path>, and add it to .gitignore (they are regenerable)"
   FAIL=1
 fi
 
