@@ -24,10 +24,34 @@ cef/cefrium_sdk/push.sh <cef|sample|browser|web> [--force] [--dry-run]
 
 One repo per run. It verifies the directory, the `codeberg` remote and the
 branch before doing anything, repairs a shallow clone (Codeberg rejects those
-with `shallow update not allowed`), refuses a diverged push unless you pass
-`--force`, pushes a timestamped backup branch at the current remote head before
-any forced update, and verifies the remote afterwards instead of trusting the
-exit code. `--dry-run` prints what would happen and pushes nothing.
+with `shallow update not allowed`), **scans the tree for machine-specific
+content and refuses to push if it finds any**, refuses a diverged push unless
+you pass `--force`, pushes a timestamped backup branch at the current remote
+head before any forced update, and verifies the remote afterwards instead of
+trusting the exit code. `--dry-run` prints what would happen and pushes nothing.
+
+## Keep this machine out of the published repos
+
+```bash
+cef/cefrium_sdk/check-no-local-leaks.sh [--staged|--install-hook] [--require-private]
+```
+
+`push.sh` runs it with `--require-private` on whichever repo it is pushing, and
+`--install-hook` wires it in as `pre-commit`. It flags absolute `/home/<user>/`
+paths, credential filenames, SSH keys, private keys, and tracked `*.pyc` --
+those last were the find no review would have made, 13 `__pycache__` blobs with
+the build path embedded in binary.
+
+The needles that would themselves name something private -- the signing
+hardware's vendor, the real credential filenames, the host and account aliases,
+this machine's home path -- are **not in the script**, because the script is
+published. They come from a local-only list, by default `LOCAL-LEAK-PATTERNS`
+beside the checkouts, or wherever `CEFRIUM_LEAK_PATTERNS` points.
+`--require-private` fails if that list is missing, so a run that only checked
+the generic classes can never be mistaken for a full one. The script is exempt
+from its own generic patterns and from nothing else: the blanket
+self-exemption it started with is exactly what let it sit in a public repo
+with a vendor name in cleartext.
 
 Do not push any other directory. In particular `upstream-patches/` is a
 local-only archive and must never be given a remote; back it up with
