@@ -50,6 +50,16 @@ done
 
 export JAVA_HOME="${JAVA_HOME:-$SRC/third_party/jdk/current}"
 export ANDROID_HOME="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}"
+
+# Put depot_tools' pinned python (3.11.8) ahead of the system one. Chromium 156
+# invokes its own `third_party/cpython3` for gn actions, so this is currently
+# belt-and-braces -- but the system python here is 3.14, whose stricter argparse
+# aborts Chromium's gyp scripts, and that failure lands HOURS into a build. The
+# cost of the guard is one PATH entry; the cost of not having it was a dead
+# build once already. Keep it independent of whatever the ambient shell has.
+if [ -x "$ROOT/depot_tools/python-bin/python3" ]; then
+  export PATH="$ROOT/depot_tools/python-bin:$PATH"
+fi
 ADB="$ANDROID_HOME/platform-tools/adb"
 OUT="$SRC/out/$VARIANT"
 PROJ="$ROOT/cefrium-sample/$SAMPLE"
@@ -99,7 +109,21 @@ say "install"
 if [ "$CLEAN_PROFILE" = "1" ]; then
   say "pm clear + re-grant (fresh profile)"
   "$ADB" shell pm clear "$PKG" >/dev/null
-  "$ADB" shell pm grant "$PKG" android.permission.POST_NOTIFICATIONS 2>/dev/null || true
+  # Re-grant EVERY runtime permission the app declares, read back from the
+  # device so the list maintains itself. Granting only POST_NOTIFICATIONS (what
+  # this did) silently breaks any test whose subject is gated on another one:
+  # with location revoked, a geolocation request is denied by
+  # IsLocationAccessPossible before it reaches the code under test, and the run
+  # reports a pass for a path that never executed.
+  GRANTED=0
+  for p in $("$ADB" shell dumpsys package "$PKG" 2>/dev/null \
+             | grep -oE 'android\.permission\.[A-Z_]+' | sort -u); do
+    # Non-runtime permissions make pm grant fail; that is expected, not an error.
+    if "$ADB" shell pm grant "$PKG" "$p" >/dev/null 2>&1; then
+      GRANTED=$((GRANTED+1))
+    fi
+  done
+  say "re-granted $GRANTED runtime permission(s)"
 else
   "$ADB" shell am force-stop "$PKG" >/dev/null 2>&1 || true
 fi
