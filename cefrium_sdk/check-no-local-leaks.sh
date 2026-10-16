@@ -56,8 +56,9 @@ PATTERNS=(
   "BEGIN [A-Z ]*PRIVATE KEY@@a private key@@testdata/|test/data/|tests/"
 )
 
-# Deliberately public, and not a leak: authorship and contact metadata.
-ALLOW_FILES="LICENSE-CEFRIUM.md|LICENSES/|REUSE.toml|README.md|AUTHORS"
+# Deliberately public, and not a leak: authorship and contact metadata. And
+# this script itself, which necessarily contains every pattern it hunts for.
+ALLOW_FILES="LICENSE-CEFRIUM.md|LICENSES/|REUSE.toml|README.md|AUTHORS|check-no-local-leaks.sh"
 
 if [ "$MODE" = "staged" ]; then
   FILES="$(git diff --cached --name-only --diff-filter=ACMR)"
