@@ -65,6 +65,25 @@ else
   bad "avatar badge does not say Chromium $MAJOR (engine is $ENGINE)"
 fi
 
+# Pages that state the engine Cefrium ships RIGHT NOW must state this one.
+# This is an explicit list, not a sweep, because most engine numbers on the site
+# are historical and correct: /benchmarks reports what was measured on 0.5.2
+# (Chromium 149), /upstream says which Chromium milestone absorbed a patch, and
+# /releases names the engine of every past release. Bumping any of those would
+# turn a true statement into a false one. A sweep flagged all three on its first
+# run -- and a gate that reports known non-problems is one people switch off.
+# Add a page here when it makes a live claim about the current engine.
+ENGINE_CLAIM_PAGES="modern-web/index.html"
+if [ -n "$MAJOR" ]; then
+  for f in $ENGINE_CLAIM_PAGES; do
+    [ -f "$f" ] || { bad "engine claim: $f missing"; continue; }
+    WRONG="$(grep -ohE "Chromium (<b>)?1[0-9][0-9]\b" "$f" | grep -oE '1[0-9][0-9]' \
+             | sort -u | grep -v "^$MAJOR$" | tr '\n' ' ' || true)"
+    [ -z "$WRONG" ] && ok "$f claims Chromium $MAJOR" \
+                    || bad "$f still claims Chromium $WRONG(engine is $MAJOR)"
+  done
+fi
+
 # "Does the string appear somewhere" is a vacuous test on a page that lists
 # every past version. Assert the two things that actually matter: this release
 # is the TOP row, and the recommendation table points at it. The table is the
