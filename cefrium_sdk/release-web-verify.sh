@@ -207,7 +207,14 @@ if [ "$NONET" = "0" ]; then
     for i in 1 2 3 4 5 6; do
       body="$(curl -s --max-time 25 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
               "https://cefrium.com/$path?cb=$(date +%s)-$i" || true)"
-      printf '%s' "$body" | grep -qF "$needle" && return 0
+      # A shell match, NOT `printf ... | grep -q`. Under `set -o pipefail` that
+      # pipeline reports FAILURE on a successful match of a large page: grep -q
+      # exits the instant it matches, printf then takes SIGPIPE, and pipefail
+      # propagates printf's 141. It only bites above the pipe buffer, so it
+      # passed on /quickstart (small) and reported /releases (85 KB) as stale
+      # for as long as this check existed -- a gate crying wolf about a page
+      # that was correct all along.
+      [[ "$body" == *"$needle"* ]] && return 0
       sleep 10
     done
     return 1
