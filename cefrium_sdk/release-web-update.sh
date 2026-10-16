@@ -103,6 +103,17 @@ apply "$WEB/upstream/index.html" \
   "s{(Counts for Cefrium SDK )[0-9]+\\.[0-9]+\\.[0-9]+}{\${1}$NEW}g" \
   "$NEW" "upstream page version"
 
+# 1c. The modern-web demo page names the Chromium major four times, in prose, in
+# a parallax layer and in a view-transition label. Hand-maintained, so it sat at
+# 154 with 156 published -- on the one page whose entire argument is "you ship a
+# newer engine than the System WebView".
+# Anchored on what makes each one an engine number -- the word "Chromium" or
+# the layer div -- so no bare three-digit figure elsewhere on the page can be
+# caught by it, and nothing has to name the OUTGOING major.
+apply "$WEB/modern-web/index.html" \
+  "s{(Chromium\\s*(?:<b>)?)1[0-9][0-9]\\b}{\${1}$MAJOR}g; s{(<div class=\"layer\">)1[0-9][0-9](</div>)}{\${1}$MAJOR\${2}}g" \
+  "Chromium <b>$MAJOR</b>" "modern-web page (Chromium major)"
+
 # 2-3. Releases page (native <details> accordion layout, redesigned 2026-06). Skip
 # the whole insert on a same-version re-cut. Otherwise: demote the current latest
 # entry (drop `open`, flip its Maven status to superseded), then insert the new
