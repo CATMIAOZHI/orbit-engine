@@ -78,6 +78,16 @@ echo "Web update: $PREV -> $NEW (CEF $BRANCH, Chromium $CHROMIUM, $DATE)"
 apply "$QS" "s{(com\\.cefrium['\"]\\)? version ['\"])[0-9]+\\.[0-9]+\\.[0-9]+(['\"])}{\${1}$NEW\${2}}g; s{(com\\.cefrium:cefrium-(?:sdk|compose)[^:\"]*:)[0-9]+\\.[0-9]+\\.[0-9]+}{\${1}$NEW}g" \
   "$NEW" "quickstart version"
 
+# 1. The site avatar carries the Chromium MAJOR as a badge. It is the most
+# visible version statement on the whole site and it was hand-edited, so it
+# aged silently: the live badge still read 154 after 156 shipped. Derived from
+# Cefrium.CHROMIUM_VERSION like everything else, so it cannot disagree with the
+# engine the release actually carries.
+MAJOR="$(echo "$CHROMIUM" | cut -d. -f1)"
+apply "$WEB/avatar.svg" \
+  "s{(font-size=\"72\"[^>]*>)[0-9]+(</text>)}{\${1}$MAJOR\${2}}" \
+  ">$MAJOR<" "avatar badge (Chromium major)"
+
 # 1a. The "Which version, and where" table on /releases -- the one line on the
 # whole site that tells an adopter what to depend on. No script touched it, so
 # after 0.10.0 shipped it still recommended 0.9.4 and still explained a Central
