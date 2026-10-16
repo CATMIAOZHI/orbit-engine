@@ -12,7 +12,7 @@ KEEP="${1:?usage: prune-old-versions.sh <keep-version> [--yes]}"
 YES=0
 [ "${2:-}" = "--yes" ] && YES=1
 [ "${CEFRIUM_YES:-0}" = "1" ] && YES=1
-TOKEN="$(cat "$HOME/.registry-token")"
+TOKEN="$(cat "${CEFRIUM_REGISTRY_TOKEN:?set CEFRIUM_REGISTRY_TOKEN to the file holding your registry token (see your local setup notes)}")"
 # Keep the token OUT of argv (`ps`): pass the auth header via a 0600 curl config
 # file (`curl -K`) instead of putting it on the command line. Removed on exit.
 CURL_AUTH_CFG="$(mktemp "${TMPDIR:-/tmp}/cefrium-curl-auth.XXXXXX")"

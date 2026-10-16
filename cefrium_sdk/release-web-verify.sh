@@ -49,8 +49,21 @@ check_has() { # file, label, expected-count-at-least
                       || bad "$label: expected >= $min occurrence(s) of $NEW, found $n"
 }
 check_has quickstart/index.html "quickstart coordinates" 4
-check_has releases/index.html   "releases page" 1
 check_has upstream/index.html   "upstream page" 1
+
+# "Does the string appear somewhere" is a vacuous test on a page that lists
+# every past version. Assert the two things that actually matter: this release
+# is the TOP row, and the recommendation table points at it. The table is the
+# one line on the site that tells an adopter what to depend on, and after
+# 0.10.0 shipped it still said 0.9.4.
+TOP="$(grep -oE 'id="v[0-9.]+"' releases/index.html | head -1 | tr -d '"' | sed 's/id=v//')"
+[ "$TOP" = "$NEW" ] && ok "releases: newest row is $NEW" \
+                    || bad "releases: newest row is ${TOP:-none}, expected $NEW"
+if grep -qE "<td><strong>$NEW</strong></td>" releases/index.html; then
+  ok "releases: recommendation table points at $NEW"
+else
+  bad "releases: the 'Which version, and where' table does not recommend $NEW"
+fi
 
 # ---- 2. nothing still presents the OLD version as current ---------------
 # The /releases page legitimately keeps every past version in its history, so
@@ -141,6 +154,31 @@ if [ "$NONET" = "0" ]; then
 else
   echo
   echo "  (--no-net: skipped the download-link check)"
+fi
+
+# ---- 6. the LIVE site, not just this disk -------------------------------
+# Everything above reads the local checkout. That is not what an adopter sees:
+# the pages still have to be committed, pushed and served. This script once
+# reported "consistent" while cefrium.com was still serving the previous
+# release, which is the only failure mode that actually reaches a user.
+if [ "$NONET" = "0" ]; then
+  echo
+  echo "live site (cefrium.com)"
+  CB="$(date +%s)"
+  for page in releases quickstart; do
+    body="$(curl -s --max-time 25 "https://cefrium.com/$page/?cb=$CB" || true)"
+    if [ -z "$body" ]; then
+      bad "could not fetch https://cefrium.com/$page/"
+    elif printf '%s' "$body" | grep -qF "$NEW"; then
+      ok "https://cefrium.com/$page/ serves $NEW"
+    else
+      bad "https://cefrium.com/$page/ does NOT serve $NEW yet (pushed? Pages rebuilt?)"
+    fi
+  done
+  live_top="$(curl -s --max-time 25 "https://cefrium.com/releases/?cb=$CB" \
+              | grep -oE 'id="v[0-9.]+"' | head -1 | tr -d '"' | sed 's/id=v//')"
+  [ "$live_top" = "$NEW" ] && ok "live releases: newest row is $NEW" \
+                           || bad "live releases: newest row is ${live_top:-none}, expected $NEW"
 fi
 
 echo
