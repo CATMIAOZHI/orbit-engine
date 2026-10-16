@@ -62,13 +62,24 @@ Individual phases, runnable on their own:
 | Google Play (apps) | `cef/cefrium_sdk/release-play.sh <version> [track]` |
 | Drop superseded versions | `cef/cefrium_sdk/prune-old-versions.sh <version> --yes` |
 
-`release-web-verify.sh` checks the POST-conditions rather than the steps: every
-page that carries a version carries this one, no page still advertises the
-superseded one as current, the Java and Kotlin docs were regenerated, every
-locally-referenced asset exists (the only deterministic form of "the icon and
-the Cefrium graphic are not broken"), and the download links return 200. The
-updates above fail SOFT by design -- a reworded anchor must not corrupt a page
--- so this is what turns "it ran" into "it is right".
+`release-web-verify.sh` checks the POST-conditions rather than the steps, on
+the local tree AND on the live site:
+
+- `/releases` has this version as its **top row** and the "Which version, and
+  where" table **recommends it** -- "the string appears somewhere" is vacuous
+  on a page that lists every past version, and that weak check let the table
+  keep recommending 0.9.4 after 0.10.0 shipped;
+- the **avatar badge** states the Chromium major this release carries. It is
+  the most visible number on the site and was hand-edited, so it sat at 154
+  while 156 was live. `release-web-update.sh` now derives it from
+  `Cefrium.CHROMIUM_VERSION`;
+- quickstart coordinates, the upstream page, both doc sets, every referenced
+  asset exists, download links return 200;
+- then **cefrium.com itself**. Checking only the local checkout is how this
+  script once reported "consistent" while the site served the previous
+  release. A live mismatch is a WARNING when the tree is correct and pushed
+  (Pages caches for 600s and edges disagree meanwhile) and a FAILURE when the
+  repo has unpushed commits.
 
 ## Check what is actually published
 
