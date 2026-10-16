@@ -366,7 +366,7 @@ A release has three parts that stay in sync: the **Maven artifacts** (the
 canonical channel Gradle resolves), a **formal signed Codeberg release** (the
 parity/security record [cefrium.com/releases](https://cefrium.com/releases/)
 links to), and the cefrium.com/releases row linking them.
-`cef/cefrium_sdk/publish-maven.sh <version>` (token at `~/.registry-token`,
+`cef/cefrium_sdk/publish-maven.sh <version>` (token file named by `CEFRIUM_REGISTRY_TOKEN`,
 package scope) uploads the SDK variants, `cefrium-compose` and the Gradle plugin;
 it verifies each upload (magic-byte check) and runs a DEP-8-style consumer smoke
 test (`test-published-release.sh`) that resolves and builds from the registry, so
