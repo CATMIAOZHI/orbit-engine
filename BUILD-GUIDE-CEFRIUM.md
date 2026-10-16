@@ -191,7 +191,7 @@ stale build dir (see "After an engine bump" in CLAUDE.md / RELEASING-CEFRIUM.md)
 ### 7.2 Publish to the Codeberg Maven registry
 
 **Token:** Codeberg → Settings → Applications → Generate Token (package scope),
-then `echo "your-token" > ~/.registry-token`.
+then point `CEFRIUM_REGISTRY_TOKEN` at a file holding it.
 
 ```bash
 cef/cefrium_sdk/build-all-variants.sh all codecs   # embeds V8 snapshot (multi-ABI ready)
@@ -216,7 +216,7 @@ POMs), aborting the release on corruption.
 **Versions are immutable** (registry returns `409`). To re-publish the *same*
 version, delete it first:
 ```bash
-TOKEN=$(cat ~/.registry-token)
+TOKEN=$(cat "$CEFRIUM_REGISTRY_TOKEN")
 for n in cefrium-sdk cefrium-sdk-libre cefrium-compose cefrium-gradle-plugin com.cefrium.gradle.plugin; do
   curl -s -X DELETE -H "Authorization: token $TOKEN" \
     "https://codeberg.org/api/v1/packages/cefrium/maven/com.cefrium%3A$n/0.3.0"
