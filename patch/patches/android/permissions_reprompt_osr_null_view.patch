@@ -1,0 +1,15 @@
+diff --git components/permissions/android/android_permission_util.cc components/permissions/android/android_permission_util.cc
+index adc2bdefe15a7f58025fb946dd539e7ea663890f..f94d07fe47dd4a6daf688d0eda06e7fd74ef4911 100644
+--- components/permissions/android/android_permission_util.cc
++++ components/permissions/android/android_permission_util.cc
+@@ -83,7 +83,9 @@ bool HasRequiredAndroidPermissionsForContentSetting(
+ PermissionRepromptState ShouldRepromptUserForPermissions(
+     content::WebContents* web_contents,
+     const std::vector<ContentSettingsType>& content_settings_types) {
+-  if (!web_contents) {
++  // A WebContents with no view attached has no native view, so dereferencing it
++  // crashes. That is the steady state for off-screen rendering.
++  if (!web_contents || !web_contents->GetNativeView()) {
+     return PermissionRepromptState::kCannotShow;
+   }
+ 
