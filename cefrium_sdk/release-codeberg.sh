@@ -5,7 +5,7 @@
 # Usage: cef/cefrium_sdk/release-codeberg.sh <version> [flagship.apk]
 # Inputs:
 #   - Merged AARs in out/release/{cefrium-sdk,cefrium-sdk-libre}.aar + the compose AAR
-#   - ~/.registry-token (repo scope)
+#   - CEFRIUM_REGISTRY_TOKEN -> a file holding a repo-scope token
 #   - GPG key on the hardware signing key (signs SHA256SUMS; prompts for PIN/touch)
 set -euo pipefail
 
@@ -22,7 +22,7 @@ GPG_KEY="2A840ED00DE669F4219B8B3302A79E3B82151695"
 ENGINE="$(grep -oE 'CHROMIUM_VERSION = "[0-9.]+"' "$SCRIPT_DIR/java/src/com/cefrium/Cefrium.java" | grep -oE '[0-9.]+')"
 [ -n "$ENGINE" ] || { echo "ERROR: cannot read CHROMIUM_VERSION from Cefrium.java"; exit 2; }
 API="https://codeberg.org/api/v1/repos/cefrium/cef-android"
-TOKEN="$(cat "$HOME/.registry-token")"
+TOKEN="$(cat "${CEFRIUM_REGISTRY_TOKEN:?set CEFRIUM_REGISTRY_TOKEN to the file holding your registry token (see your local setup notes)}")"
 # Keep the token OUT of argv (`ps`): pass the auth header via a 0600 curl config
 # file (`curl -K`) instead of putting it on the command line. Removed on exit.
 CURL_AUTH_CFG="$(mktemp "${TMPDIR:-/tmp}/cefrium-curl-auth.XXXXXX")"

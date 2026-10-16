@@ -31,10 +31,10 @@ PKGAPI="https://codeberg.org/api/v1/packages/cefrium"
 
 # Auth only helps the package LISTING; the artifacts themselves are public.
 CURL_AUTH_CFG=""
-if [ -f "$HOME/.registry-token" ]; then
+if [ -n "${CEFRIUM_REGISTRY_TOKEN:-}" ] && [ -f "$CEFRIUM_REGISTRY_TOKEN" ]; then
   CURL_AUTH_CFG="$(mktemp "${TMPDIR:-/tmp}/cefrium-status-auth.XXXXXX")"
   chmod 600 "$CURL_AUTH_CFG"
-  printf 'header = "Authorization: token %s"\n' "$(cat "$HOME/.registry-token")" > "$CURL_AUTH_CFG"
+  printf 'header = "Authorization: token %s"\n' "$(cat "$CEFRIUM_REGISTRY_TOKEN")" > "$CURL_AUTH_CFG"
   trap 'rm -f "$CURL_AUTH_CFG"' EXIT
 fi
 auth() { [ -n "$CURL_AUTH_CFG" ] && printf -- '-K\n%s\n' "$CURL_AUTH_CFG"; }
