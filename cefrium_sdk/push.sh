@@ -96,6 +96,24 @@ if [ -f .git/shallow ]; then
   fi
 fi
 
+# ---- nothing machine-specific goes out --------------------------------
+# The pre-commit hook catches this at commit time, but a hook is per-clone and
+# skippable, and the commits that leaked `/home/<user>/` paths and the signing
+# hardware's name went in before it existed. Push is the last point where it
+# can still be stopped. --require-private because a run without the private
+# needle list only checks the generic classes and must not pass for one.
+LEAKS="$SCRIPT_DIR/check-no-local-leaks.sh"   # absolute: we have already cd'd
+if [ -x "$LEAKS" ]; then
+  say "scanning for machine-specific content"
+  if ! OUT="$("$LEAKS" --require-private 2>&1)"; then
+    printf '%s\n' "$OUT" >&2
+    die "refusing to push: see the FAIL lines above"
+  fi
+  printf '%s\n' "$OUT" | tail -2 | sed 's/^/    /'
+else
+  say "WARNING: no leak gate at $LEAKS -- pushing unscanned"
+fi
+
 # ---- what are we about to do? -----------------------------------------
 say "fetching $SLUG"
 git fetch codeberg --quiet
