@@ -17,6 +17,30 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-10-16
+
+Engine: **Chromium 156.0.8078.17 / CEF branch 8078** (unchanged from 0.10.0).
+
+### Fixed
+
+- **Off-screen browsers no longer crash when a page that was granted
+  geolocation is reloaded** (issue #12). Chromium's
+  `permissions::ShouldRepromptUserForPermissions()` dereferenced
+  `web_contents->GetNativeView()->GetWindowAndroid()` while null-checking the
+  `WebContents` and the `WindowAndroid` but not the native view in between --
+  and an off-screen `WebContents` has none, so the browser process died with a
+  SIGSEGV. Patch `android/permissions_reprompt_osr_null_view`; the guard uses
+  the same idiom two other functions in that file already use.
+  Decision: fixed in Chromium rather than worked around in the SDK, and parked
+  for upstream submission, because the null check belongs where the
+  dereference is.
+  It took two visits to show, which is why it read as intermittent: the call
+  sits behind `status == GRANTED`, so the first request short-circuits past it
+  and only a later one reaches the crash.
+  **The same function serves camera and microphone**, so a second
+  `getUserMedia()` after a grant crashed identically; that is fixed by the same
+  guard.
+
 ## [0.10.0] - 2026-10-15
 
 Engine: **Chromium 156.0.8078.17 / CEF branch 8078** (was 154.0.8037.98 / 8037).
