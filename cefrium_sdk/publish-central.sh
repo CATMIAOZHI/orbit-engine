@@ -29,7 +29,8 @@
 #   1. Namespace com.cefrium verified in the Central Portal via a DNS TXT record on
 #      cefrium.com (Portal -> Namespaces -> Add -> follow the TXT instructions).
 #   2. A Portal user token: Portal -> Account -> Generate User Token. Store the
-#      "username:password" pair on ONE line in ~/.publish-token (chmod 600).
+#      "username:password" pair on ONE line in the file CEFRIUM_CENTRAL_TOKEN
+#      points at (chmod 600). Not hardcoded: see your local setup notes.
 #   3. The publishing GPG key's PUBLIC half distributed to a keyserver Central
 #      checks (keys.openpgp.org): gpg --send-keys <fpr>. Central verifies every .asc.
 #   4. hardware signing key PIN primed so batch signing does not hang (your key-priming script).
@@ -59,7 +60,7 @@ done
 # and the deployment ids. DEPLOY_URL was declared for this and never wired up.
 if [ "$MODE" = "release" ]; then
   [ "${#RELEASE_IDS[@]}" -gt 0 ] || { echo "usage: $0 <version> --release <deployment-id>..." >&2; exit 2; }
-TOKEN_FILE="$HOME/.publish-token"
+TOKEN_FILE="${CEFRIUM_CENTRAL_TOKEN:?set CEFRIUM_CENTRAL_TOKEN to the file holding your Maven Central token (see your local setup notes)}"
   [ -f "$TOKEN_FILE" ] || { echo "ERROR: $TOKEN_FILE missing" >&2; exit 2; }
   AUTH="Bearer $(tr -d '\n' < "$TOKEN_FILE" | base64 | tr -d '\n')"
   CFG="$(mktemp "${TMPDIR:-/tmp}/cefrium-central-rel.XXXXXX")"; chmod 600 "$CFG"
@@ -111,7 +112,7 @@ CHROMIUM_VERSION="$(grep -oE 'CHROMIUM_VERSION = "[0-9.]+"' \
 [ -n "$CHROMIUM_VERSION" ] || { echo "ERROR: cannot read CHROMIUM_VERSION" >&2; exit 2; }
 
 
-TOKEN_FILE="$HOME/.publish-token"
+TOKEN_FILE="${CEFRIUM_CENTRAL_TOKEN:?set CEFRIUM_CENTRAL_TOKEN to the file holding your Maven Central token (see your local setup notes)}"
 GPG_KEY="${CEFRIUM_GPG_KEY:-2A840ED00DE669F4219B8B3302A79E3B82151695}"
 UPLOAD_URL="https://central.sonatype.com/api/v1/publisher/upload"
 STATUS_URL="https://central.sonatype.com/api/v1/publisher/status"

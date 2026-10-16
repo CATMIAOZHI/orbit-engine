@@ -78,6 +78,15 @@ echo "Web update: $PREV -> $NEW (CEF $BRANCH, Chromium $CHROMIUM, $DATE)"
 apply "$QS" "s{(com\\.cefrium['\"]\\)? version ['\"])[0-9]+\\.[0-9]+\\.[0-9]+(['\"])}{\${1}$NEW\${2}}g; s{(com\\.cefrium:cefrium-(?:sdk|compose)[^:\"]*:)[0-9]+\\.[0-9]+\\.[0-9]+}{\${1}$NEW}g" \
   "$NEW" "quickstart version"
 
+# 1a. The "Which version, and where" table on /releases -- the one line on the
+# whole site that tells an adopter what to depend on. No script touched it, so
+# after 0.10.0 shipped it still recommended 0.9.4 and still explained a Central
+# gap from months earlier. A stale row here is worse than a stale page: it is
+# actively wrong advice.
+apply "$REL" \
+  "s{(<td><strong>)[0-9]+\\.[0-9]+\\.[0-9]+(</strong></td>\\s*\\n\\s*<td>Chromium )[0-9.]+(<br><span class=\"note\">CEF branch )[0-9]+}{\${1}$NEW\${2}$CHROMIUM\${3}$BRANCH}s" \
+  "<strong>$NEW</strong>" "releases recommendation table"
+
 # 1b. Upstream page -- it states which SDK the patch counts are for. No script
 # touched it, so it silently aged: it still said 0.9.4 while 0.10.0 shipped.
 apply "$WEB/upstream/index.html" \

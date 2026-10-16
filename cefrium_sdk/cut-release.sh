@@ -87,6 +87,27 @@ gate() { # human confirmation for an irreversible step
 
 cd "$SRC"
 
+# Credential preflight. The token PATHS are no longer hardcoded (a public repo
+# should not say where this machine keeps its credentials), so they come from
+# the environment -- and a missing variable must surface now, not six hours in
+# at the publish phase with four variants already built. Only checked for the
+# phases that actually need them.
+if run publish || run central || run release || run prune; then
+  MISSING=""
+  for v in CEFRIUM_REGISTRY_TOKEN CEFRIUM_CENTRAL_TOKEN; do
+    eval "p=\${$v:-}"
+    [ -n "$p" ] && [ -f "$p" ] || MISSING="$MISSING $v"
+  done
+  if [ -n "$MISSING" ]; then
+    echo "ERROR: missing credential(s):$MISSING"
+    echo "       Each must name a readable file holding the token. Export them"
+    echo "       before the cut; the real paths are in your local setup notes,"
+    echo "       deliberately not in this repository."
+    exit 1
+  fi
+  echo ">>> credentials: both token files present"
+fi
+
 if run patches; then hdr "patches + touch"
   # Keep the SDK version constant in lockstep with the release so the built AAR
   # reports the right Cefrium.getVersion(). Idempotent; runs every cut so the
@@ -275,8 +296,9 @@ if run central; then hdr "publish to Maven Central (the channel adopters pin)"
   # The gate on the Codeberg publish is the human checkpoint for both.
   # A Central release is immutable. To upload without releasing, run
   # publish-central.sh <ver> by hand, then release later with --release <id>...
-  if [ ! -f "$HOME/.publish-token" ]; then
-    echo "ERROR: ~/.publish-token is missing, so this release would reach Codeberg"
+  if [ -z "${CEFRIUM_CENTRAL_TOKEN:-}" ] || [ ! -f "$CEFRIUM_CENTRAL_TOKEN" ]; then
+    echo "ERROR: CEFRIUM_CENTRAL_TOKEN is unset or its file is missing, so this"
+    echo "       release would reach Codeberg"
     echo "       but NOT Maven Central -- which is the channel adopters pin to."
     echo "       Create a Portal user token (Portal -> Account -> Generate User"
     echo "       Token), store 'username:password' on one line, chmod 600, re-run:"
@@ -403,6 +425,38 @@ if run play;    then hdr "Google Play (rebuild consumers, upload the apps)"
   fi
 fi
 
-echo; echo "Release $VERSION cut. Remaining manual: commit/push web + cef, regenerate Javadoc/Dokka if API changed, remove any 'releasing shortly' notices."
+if run web; then
+  # Updating a page and verifying it updated are different claims, and the gap
+  # between them already shipped: the published Javadoc sat at 0.9.2 while
+  # 0.9.4 was the release. The anchored regex updates above fail SOFT on
+  # purpose (a reworded anchor must not corrupt a page), so something has to
+  # check the post-condition.
+  hdr "verify cefrium.com matches $VERSION"
+  if cef/cefrium_sdk/release-web-verify.sh "$VERSION" "$PREV"; then
+    WEB_VERIFY_STATE="consistent"
+  else
+    WEB_VERIFY_STATE="INCONSISTENT -- see the FAIL lines; fix the pages, then: cef/cefrium_sdk/release-web-verify.sh $VERSION $PREV"
+  fi
+
+  # The web + docs trees are committed and pushed by release-publish-docs.sh in
+  # the web phase. The cef repo is not, and a published release whose source is
+  # only on this disk is not reproducible by anyone. Fast-forward only: a
+  # diverged branch means something happened that a release script must not
+  # paper over, so report it and let a human run push.sh --force.
+  hdr "push the cef repo"
+  if cef/cefrium_sdk/push.sh cef; then
+    CEF_PUSH_STATE="pushed"
+  else
+    CEF_PUSH_STATE="FAILED -- run: cef/cefrium_sdk/push.sh cef [--force]"
+  fi
+fi
+
+echo; echo "Release $VERSION cut."
 echo "Registry prune: $PRUNE_STATE"
 echo "Google Play:    ${PLAY_STATE:-not run}"
+echo "cef repo push:  ${CEF_PUSH_STATE:-not run}"
+echo "cefrium.com:    ${WEB_VERIFY_STATE:-not checked}"
+echo
+echo "Remaining manual: remove any 'releasing shortly' notices."
+echo "(Docs ARE regenerated and published by the web phase -- this line used to"
+echo " say otherwise, and a stale list of manual steps teaches you to ignore it.)"

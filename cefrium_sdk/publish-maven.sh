@@ -5,14 +5,16 @@
 # Example: ./publish-maven.sh 0.1.0
 #
 # Prerequisites:
-#   - Token in ~/.registry-token
+#   - CEFRIUM_REGISTRY_TOKEN -> a file holding the registry token (package
+#     scope). The path is not hardcoded: a public repo should not say where
+#     this machine keeps its credentials. Keep it in your local notes.
 #   - AARs in out/release/ (built by build-all-variants.sh)
 #   - cefrium-compose AAR built separately
 
 set -e
 
 VERSION="${1:?Usage: $0 <version>}"
-TOKEN_FILE="$HOME/.registry-token"
+TOKEN_FILE="${CEFRIUM_REGISTRY_TOKEN:?set CEFRIUM_REGISTRY_TOKEN to the file holding your registry token (see your local setup notes)}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RELEASE_DIR="$(cd "$SCRIPT_DIR/../../out/release" && pwd)"
 # Compose AAR is built by the self-contained module at cef/cefrium_compose
