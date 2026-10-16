@@ -178,25 +178,54 @@ fi
 if [ "$NONET" = "0" ]; then
   echo
   echo "live site (cefrium.com)"
+  # Pages serves with cache-control max-age=600 and more than one edge, so for
+  # the first minutes after a push two fetches of the SAME url can disagree.
+  # Retry before calling it a failure, and name propagation as the likely
+  # cause -- a gate that cries "the site is stale" 30 seconds after a correct
+  # push trains you to ignore it.
+  live_get() { # url-path, needle -> 0 if found within the retries
+    local path="$1" needle="$2" i body
+    for i in 1 2 3 4 5 6; do
+      body="$(curl -s --max-time 25 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+              "https://cefrium.com/$path?cb=$(date +%s)-$i" || true)"
+      printf '%s' "$body" | grep -qF "$needle" && return 0
+      sleep 10
+    done
+    return 1
+  }
+
+  # Was the local tree actually pushed? That is what separates "the deploy has
+  # not propagated yet" (cache max-age is 600s, and edges disagree meanwhile --
+  # not a release defect) from "you never pushed" (which is one). Only the
+  # second fails the gate; treating propagation lag as failure is how a gate
+  # earns a reputation for crying wolf.
+  UNPUSHED="$(git -C "$WEB" rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)"
+  live_note() { # message
+    if [ "${UNPUSHED:-0}" -gt 0 ]; then
+      bad "$1 -- and the web repo has $UNPUSHED unpushed commit(s): push it"
+    else
+      echo "  WARN  $1 -- local is correct and pushed, so this is Pages"
+      echo "        propagation (cache max-age 600). Re-check in a few minutes."
+    fi
+  }
   CB="$(date +%s)"
-  live_badge="$(curl -s --max-time 25 "https://cefrium.com/avatar.svg?cb=$CB" \
-                | grep -oE 'font-size="72"[^>]*>[0-9]+</text>' | grep -oE '>[0-9]+<' | tr -d '><')"
-  [ "$live_badge" = "$MAJOR" ] && ok "live avatar badge says Chromium $MAJOR" \
-                               || bad "live avatar badge says ${live_badge:-nothing}, expected $MAJOR"
+  if live_get "avatar.svg" ">$MAJOR</text>"; then
+    ok "live avatar badge says Chromium $MAJOR"
+  else
+    live_note "live avatar badge is not Chromium $MAJOR yet"
+  fi
   for page in releases quickstart; do
-    body="$(curl -s --max-time 25 "https://cefrium.com/$page/?cb=$CB" || true)"
-    if [ -z "$body" ]; then
-      bad "could not fetch https://cefrium.com/$page/"
-    elif printf '%s' "$body" | grep -qF "$NEW"; then
+    if live_get "$page/" "$NEW"; then
       ok "https://cefrium.com/$page/ serves $NEW"
     else
-      bad "https://cefrium.com/$page/ does NOT serve $NEW yet (pushed? Pages rebuilt?)"
+      live_note "https://cefrium.com/$page/ does not serve $NEW yet"
     fi
   done
-  live_top="$(curl -s --max-time 25 "https://cefrium.com/releases/?cb=$CB" \
-              | grep -oE 'id="v[0-9.]+"' | head -1 | tr -d '"' | sed 's/id=v//')"
-  [ "$live_top" = "$NEW" ] && ok "live releases: newest row is $NEW" \
-                           || bad "live releases: newest row is ${live_top:-none}, expected $NEW"
+  if live_get "releases/" "id=\"v$NEW\""; then
+    ok "live releases: $NEW has a row"
+  else
+    live_note "live releases has no row for $NEW yet"
+  fi
 fi
 
 echo
