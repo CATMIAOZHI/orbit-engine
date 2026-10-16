@@ -124,6 +124,22 @@ for s in $SAMPLES; do
   if [ "${after:-0}" -gt "${before:-0}" ] || [ "${fatal:-0}" -gt 0 ]; then
     sig="$("$ADB" logcat -d 2>/dev/null | grep -E 'FATAL|NoSuchMethod' | head -1 | tr -s ' ' | cut -c1-90)"
     echo "  $s ($pkg): CRASH -- ${sig:-main-process reason=4/5/6 (native/ANR) in exit-info}"
+    # KEEP THE EVIDENCE. This used to print one 90-character line and nothing
+    # else, so by the time anyone looked the logcat ring had rotated and the
+    # cause was gone -- a gate that blocks a release without saying why costs
+    # more than it saves. Dump the whole crash block to a file and name it.
+    CRASHLOG="$ROOT/tmp/smoke-crash-$s-$(date +%Y%m%d-%H%M%S).log"
+    mkdir -p "$(dirname "$CRASHLOG")"
+    {
+      echo "=== $s ($pkg) -- crash captured by smoke-samples.sh ==="
+      echo "--- exit-info ---"
+      "$ADB" shell dumpsys activity exit-info "$pkg" 2>/dev/null | head -20
+      echo "--- crash buffer ---"
+      "$ADB" logcat -b crash -d 2>/dev/null | tail -80
+      echo "--- main log, last 200 lines ---"
+      "$ADB" logcat -d 2>/dev/null | tail -200
+    } > "$CRASHLOG" 2>&1
+    echo "      evidence: $CRASHLOG"
     fails=$((fails+1))
   else
     echo "  $s ($pkg): OK"
