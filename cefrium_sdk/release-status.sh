@@ -66,12 +66,17 @@ done
 echo
 echo "Codeberg release v$VERSION"
 rel=$(curl -s $(auth) "$RELAPI/v$VERSION")
-if printf '%s' "$rel" | grep -q '"tag_name"'; then
+# Shell matches, not `printf ... | grep -q`: under pipefail that pipeline
+# reports failure on a SUCCESSFUL match once the body exceeds the pipe buffer
+# (grep -q exits at the match, printf takes SIGPIPE, pipefail returns its 141).
+# The same construct made release-web-verify.sh report an 85 KB page as stale.
+# This body grows with every release asset, so it is one asset away from it.
+if [[ "$rel" == *'"tag_name"'* ]]; then
   printf '%s' "$rel" | grep -oE '"name":"[^"]+"' | cut -d'"' -f4 | sort -u \
     | grep -vE "^(v$VERSION|Cefrium)" | sed 's/^/  asset: /'
   for want in "SHA256SUMS-$VERSION" "SHA256SUMS-$VERSION.asc" \
               "cefrium-sdk-$VERSION.spdx.json" "cefrium-sdk-$VERSION-NOTICE.txt"; do
-    printf '%s' "$rel" | grep -qF "\"name\":\"$want\"" \
+    [[ "$rel" == *"\"name\":\"$want\""* ]] \
       || { echo "  MISSING: $want"; fail=1; }
   done
 else
