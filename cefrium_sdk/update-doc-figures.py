@@ -206,6 +206,12 @@ FIGURES = [
      'engine + branch, "Relationship to upstream CEF"'),
     (README, r"Chromium ([0-9]+) -> branch ([0-9]+)", [milestone, branch],
      'branch-number rule, "Sources"'),
+    # The upstream branch a CONTRIBUTOR is told to diff against. It said 7871
+    # while the port tracked 8078, so the command produced six milestones of
+    # unrelated churn. Found by sweeping for version-SHAPED tokens no anchor
+    # covered, not by reading: a figure with no anchor reports nothing at all.
+    (README, r"git format-patch origin/([0-9]+)\.\.android-port", [branch],
+     "CEF branch, the contributor's format-patch command"),
     (QUICK, r"ships Chromium ([0-9]+)'s Java-([0-9]+) bytecode", [milestone, jdk],
      "engine + JDK, build-tooling note"),
     # The engine tag the build guide tells the reader to CHECK OUT. It sat at
