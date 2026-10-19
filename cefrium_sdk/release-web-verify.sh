@@ -65,6 +65,19 @@ else
   bad "avatar badge does not say Chromium $MAJOR (engine is $ENGINE)"
 fi
 
+# The /upstream "divergence" panel. Four numbers an evaluator checks in a minute,
+# and all four were stale (engine 154 and 33 patches while 156/34 shipped) because
+# nothing derived them. release-web-update.sh derives them now; this asserts it ran.
+if [ -f upstream/index.html ]; then
+  WANT_P=$(find "$SCRIPT_DIR/../patch/patches/android" -maxdepth 1 -name '*.patch' | wc -l | tr -d ' ')
+  GOT_E=$(grep -oE '<div class="n">[^<]*</div><div class="k">Chromium tracked' upstream/index.html | grep -oE '>[0-9.]+<' | tr -d '><')
+  GOT_P=$(grep -oE '<div class="n">[^<]*</div><div class="k">patches carried' upstream/index.html | grep -oE '>[0-9]+<' | tr -d '><')
+  [ "$GOT_E" = "$ENGINE" ] && ok "upstream panel: engine $ENGINE" \
+                           || bad "upstream panel says engine ${GOT_E:-none}, expected $ENGINE"
+  [ "$GOT_P" = "$WANT_P" ] && ok "upstream panel: $WANT_P patches" \
+                           || bad "upstream panel says ${GOT_P:-none} patches, expected $WANT_P"
+fi
+
 # Pages that state the engine Cefrium ships RIGHT NOW must state this one.
 # This is an explicit list, not a sweep, because most engine numbers on the site
 # are historical and correct: /benchmarks reports what was measured on 0.5.2
