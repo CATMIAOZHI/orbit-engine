@@ -88,20 +88,39 @@ Individual phases, runnable on their own:
 | Publish to Codeberg Maven | `cef/cefrium_sdk/publish-maven.sh <version>` |
 | Publish to Maven Central | `cef/cefrium_sdk/publish-central.sh <version>` |
 | Codeberg release + GPG sums | `cef/cefrium_sdk/release-codeberg.sh <version> <apk>` |
-| Derive the README figures | `cef/cefrium_sdk/update-readme-figures.sh [--check]` |
+| Derive the repo-doc figures | `cef/cefrium_sdk/update-doc-figures.py [--check]` |
 | Update cefrium.com + docs | `cef/cefrium_sdk/release-web-update.sh <version> <prev>` |
 | Verify cefrium.com matches | `cef/cefrium_sdk/release-web-verify.sh <version> [prev]` |
 | Google Play (apps) | `cef/cefrium_sdk/release-play.sh <version> [track]` |
 | Drop superseded versions | `cef/cefrium_sdk/prune-old-versions.sh <version> --yes` |
 
-`update-readme-figures.sh` is the only writer of the figures in
-`cef/README.md` -- the patch counts, the engine tag, the CEF branch -- all
-derived from `patch/patches/android/` and `Cefrium.CHROMIUM_VERSION`, the same
-source the site is derived from. `--check` asserts them, and it runs in CI, in
-the `stats` phase AFTER the commit, and in `engine-bump.sh`'s `pin`. A sentence
-that stops matching FAILS the script. The earlier version warned and carried on,
-which is how four sentences said 21 patches against 34 on disk and the engine
-line sat six Chromium milestones behind under "Security updates".
+`update-doc-figures.py` is the only writer of the figures in `cef/README.md`
+and `cef/QUICKSTART-CEFRIUM.md`. Each is derived from the file that defines it:
+
+| Figure | Derived from |
+|---|---|
+| Patch count (5 sentences) | `patch/patches/android/*.patch` |
+| Engine tag, Chromium milestone, CEF branch | `Cefrium.CHROMIUM_VERSION` (cross-checked against `CHROMIUM_BUILD_COMPATIBILITY.txt`) |
+| SDK version in every coordinate, plugin block, URL and file name | `Cefrium.VERSION` |
+| Render-process slots (`NUM_SANDBOXED_SERVICES`, privileged) | `cefrium_sdk/AndroidManifest.xml`, cross-checked against the services it ships |
+| `compileSdk` / `minSdk` / `targetSdk` | `cefrium_compose/build.gradle` |
+| AGP and Gradle floors | the same file and its `gradle-wrapper.properties` |
+
+`--check` asserts all of them and runs in three places: CI, the `stats` phase
+AFTER its commit, and the `web` phase before the site is published. It is also
+the first thing `engine-bump.sh`'s `pin` does after writing the new engine.
+
+A figure whose sentence stops matching FAILS the script. The version it replaced
+warned and carried on, which is how four README sentences said 21 patches
+against 34 on disk, the engine line sat six Chromium milestones behind under
+"Security updates", and the quickstart told the reader they would see "full
+Chromium 152" six milestones later. It also replaces `release-bump-docs.sh`,
+which was given the PREVIOUS version and only failed when that exact version
+survived -- a coordinate carrying some third version passed it.
+
+Only the capture group inside a sentence is rewritten, so the prose around a
+figure is never touched and one anchor can cover several artifacts
+(`cefrium-sdk:X` and `cefrium-compose:X`) against one derived value.
 
 `release-web-verify.sh` checks the POST-conditions rather than the steps, on
 the local tree AND on the live site:

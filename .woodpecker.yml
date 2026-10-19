@@ -24,12 +24,12 @@ steps:
       # 2. patch.cfg must be a valid Python literal (patcher.py reads it).
       - python3 -c "import ast; ast.parse(open('patch/patch.cfg').read()); print('patch.cfg parses OK')"
 
-      # 3. Every figure the README states must match reality: the patch count,
-      #    the engine tag, the CEF branch. One assertion, run by the script that
-      #    owns those sentences, so CI cannot check a different set of them than
-      #    the release writes. This step used to grep for one of the six by hand,
-      #    and the other five went stale under it.
-      - bash cefrium_sdk/update-readme-figures.sh --check
+      # 3. Every figure the consumer docs state must match reality: patch count,
+      #    engine, CEF branch, SDK version, service slots, Android/Gradle floors.
+      #    One assertion, run by the script that owns those sentences, so CI
+      #    cannot check a different set of them than the release writes. This
+      #    step used to grep for one figure by hand; the rest went stale under it.
+      - python3 cefrium_sdk/update-doc-figures.py --check
 
       # 4. Every android patch must be registered in patch.cfg (none applied
       #    only by an ad-hoc script -- see the apply_all_patches.sh cleanup).

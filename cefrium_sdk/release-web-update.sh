@@ -106,7 +106,7 @@ apply "$WEB/upstream/index.html" \
 # 1b-bis. The /upstream page's "divergence" panel: four hand-maintained numbers
 # that an evaluator can check in one minute, and all four had gone stale -- it
 # claimed engine 154.0.8037.98 and 33 patches while 156.0.8078.17 and 34 were
-# published. update-readme-figures.sh owns the README figures and nothing else,
+# published. update-doc-figures.py owns the repo docs' figures and nothing else,
 # so nothing owned these. Derive all four from the patches themselves.
 UP="$WEB/upstream/index.html"
 if [ -f "$UP" ]; then

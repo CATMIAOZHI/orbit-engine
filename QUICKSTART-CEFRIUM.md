@@ -8,11 +8,11 @@ From zero to rendering a web page in 5 minutes.
 > The dependency AAR is multi-ABI (~240 MB); publish an **Android App Bundle**
 > (or use ABI splits) so each user downloads only their architecture (~150 MB).
 
-> **Build tooling (0.8.0+).** The SDK ships Chromium 152's Java-25 bytecode, so
+> **Build tooling (0.8.0+).** The SDK ships Chromium 156's Java-25 bytecode, so
 > your app must build with **AGP 9.4+**, **Gradle 9.7.1+**, **JDK 25**, and
 > **compileSdk 37**. JDK 25 is a hard floor, not a preference: Chromium 152 and
-> newer compile their own Java at `--release 25`, and 31,106 of the 42,646
-> classes in the AAR are class-file 69. Only 83 of them are ours, so lowering our
+> newer compile their own Java at `--release 25`, so nearly every class in the
+> AAR is class-file 69 and only a few dozen of them are ours -- lowering our own
 > compiler target would not move the floor. The `com.cefrium` Gradle plugin is
 > built for Java 17 and applies on an older JDK -- it is NOT the cause of a
 > class-69 error, which is the wrong diagnosis three integrators reached. On AGP 9 use built-in Kotlin (do not apply
@@ -267,7 +267,7 @@ public class MainActivity extends Activity {
 ## 6. Run
 
 Build and run on an arm64 device (most modern Android phones).
-You should see `example.com` rendered with full Chromium 152.
+You should see `example.com` rendered with full Chromium 156.
 
 ## Beyond the basics -- full feature guide
 
@@ -312,8 +312,8 @@ provides them; declaring your own caps the render-process pool and crashes
 multi-browser apps (see step 4).
 
 **Crash opening many pages ("isolated not needed"):** Your app manifest declares
-its own `SandboxedProcessService0..N` with `NUM_SANDBOXED_SERVICES=5`, capping the
-pool. Remove that block; the merged APK manifest should read
+its own `SandboxedProcessService0..N` with a lower service count (5, say),
+capping the pool. Remove that block; the merged APK manifest should read
 `NUM_SANDBOXED_SERVICES=40`. See the
 [Memory & process model guide](https://cefrium.com/guides/memory-and-processes/).
 
