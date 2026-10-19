@@ -6,6 +6,88 @@ in a few minutes; this document covers everything beyond that basic setup.
 Migrating an existing WebView app? See
 [MIGRATION-CEFRIUM.md](MIGRATION-CEFRIUM.md). Full API: [cefrium.com/docs](https://cefrium.com/docs).
 
+## Capability status
+
+What is implemented and validated today. Every entry reads `Done`
+unless it says otherwise; the sections after this one show how to use
+the ones that need more than calling a method.
+
+| Capability | Status |
+|---|---|
+| `libcef.so` links for Android arm64 and x86_64 | Done |
+| `CefInitialize` + `CreateBrowser` | Done |
+| OnPaint off-screen rendering (pixel buffer) | Done |
+| On-screen rendering (Bitmap + ImageView) | Done |
+| Touch, scroll, pinch-zoom | Done |
+| Multi-process (renderer as Android Service) | Done |
+| `is_official_build=true` (LTO + R8) | Done |
+| CEF C API fully available | Done |
+| SDK AAR for Gradle integration | Done |
+| Web Speech API (text-to-speech) | Done |
+| Scroll-driven CSS animations | Done |
+| Mobile viewport (device scale factor) | Done |
+| Ad blocking (network-level request interception) | Done |
+| User-Agent derived from the engine version (Chrome/NNN Cefrium/1.0) | Done |
+| H.264/AAC video (proprietary codecs build) | Done |
+| **Video playback (Surface rendering)** | **Done** |
+| **Audio output** | **Done** |
+| Surface rendering via ContentViewRenderView | Done |
+| Context menu (long press - CEF API) | Done |
+| Find in page (CefBrowserHost::Find) | Done |
+| File dialog (`<input type=file>`) | Done |
+| Downloads (CefDownloadHandler) | Done |
+| Dark mode (CefRequestContext::SetChromeColorScheme) | Done |
+| Unified Callback interface | Done |
+| Lifecycle pause/resume | Done |
+| Jetpack Compose wrapper (CefriumWebView) | Done |
+| Idiomatic Compose API (CefriumView / state hoisting + keep-alive) | Done |
+| evaluateJavaScript (CefFrame::ExecuteJavaScript) | Done |
+| JavaScript <-> native bridge (window.cefriumQuery, CefMessageRouter) | Done |
+| Cookie management (CefCookieManager: get/set/delete/flush) | Done |
+| Dynamic WebSettings (runtime User-Agent, JavaScript on/off, zoom) | Done |
+| Navigation: loadHtml / postUrl / stopLoading | Done |
+| Request interceptor (programmatic block, CefResourceRequestHandler) | Done |
+| JS dialogs (alert / confirm / prompt, CefJSDialogHandler) | Done |
+| Popups (window.open / target=_blank, OnBeforePopup) | Done |
+| Cache control (clearCache) | Done |
+| Print to PDF (CefBrowserHost::PrintToPDF, URL/page -> PDF) | Done |
+| Web permissions (geolocation; CefPermissionHandler -> app decision) | Done |
+| Web Notifications (service-worker showNotification -> Android shade) | Done |
+| Per-origin content settings (setContentSetting - pre-grant a permission) | Done |
+| WebRTC getUserMedia (camera + mic capture) | Done |
+| WebGL + WebGPU (hardware-accelerated) | Done |
+| HTML5 fullscreen video (OnFullscreenModeChange) | Done |
+| Document Picture-in-Picture (documentPictureInPicture) | Done |
+| Video Picture-in-Picture (requestPictureInPicture) | Crash-safe; no float window (no Tab) |
+| System media controls (lock-screen / shade, `setMediaSessionEnabled`) | Done |
+| Nested scroll interop (browser inside a scrollable parent) | Done |
+| arm64 + x86_64 validated on device + emulator | Done |
+| Published on Codeberg Packages (Maven) | Done |
+| Android Accessibility (TalkBack) | Done |
+| Android Autofill (Proton Pass, Google) | Done |
+| Widevine DRM (Netflix, Disney+, Spotify) | Done |
+| Web Bluetooth / WebUSB / Web Serial device chooser (CefDeviceChooserHandler) | Done (0.5.0) |
+| WebAuthn / passkeys (navigator.credentials via Android Credential Manager) | Done (0.5.0) |
+| Web Share (navigator.share -> Android share sheet) | Done (0.5.0) |
+| Clipboard (navigator.clipboard read/write) | Done (0.5.0) |
+| Payment Request / Google Pay (navigator PaymentRequest -> Android payment apps) | Done (0.5.0) |
+| Contact Picker (navigator.contacts.select) | Done (0.5.0) |
+| File System Access (showOpenFilePicker / showSaveFilePicker / showDirectoryPicker) | Done (0.5.0) |
+| File upload (`<input type=file>`) + camera/gallery capture | Done (0.5.0) |
+| WebOTP (navigator.credentials OTPCredential - SMS one-time-code autofill) | Done (0.5.0) |
+| Web Speech recognition (SpeechRecognition - voice to text) | Done (0.5.0) |
+| Screen capture (getDisplayMedia -> MediaProjection) | Done (0.5.0) |
+| Web NFC (NDEFReader read/write) | Done (validated on device) |
+| Generic Sensors (Accelerometer, Gyroscope, Orientation, Gravity, ...) | Done (0.5.0) |
+| MediaRecorder / ImageCapture / WebCodecs / MediaCapabilities | Done (0.5.0) |
+| Shape Detection - BarcodeDetector (QR / EAN / Code128 / ...) | Done (0.5.0) |
+| WebRTC peer connections + data channels (RTCPeerConnection) | Done (0.5.0) |
+| Origin Private File System (navigator.storage.getDirectory) | Done (0.5.0) |
+| Idle Detection, Battery, Network Info, Vibration, Gamepad, Cookie Store, Web Locks | Done (0.5.0) |
+| Verified: Cefrium exposes essentially the full modern Chromium web platform | Done (0.5.0) |
+| Page snapshot to Bitmap (captureBitmap; OSR + Surface) | Done (0.5.0) |
+| Proxy configuration (CefRequestContext; setProxy/clearProxy) | Done (0.5.0) |
+
 ## Jetpack Compose
 
 Add `com.cefrium:cefrium-compose` and use the idiomatic state-hoisting API:
