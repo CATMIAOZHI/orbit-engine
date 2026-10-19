@@ -106,19 +106,13 @@ if run pin; then hdr "pin new version (config only, non-destructive)"
   echo "  pinned .gclient + CHROMIUM_BUILD_COMPATIBILITY + Cefrium.CHROMIUM_VERSION -> $CTAG"
   echo "  (backups at *.bak; .gclient is local config and is not committed)"
 
-  # The README states the engine under "Security updates", where an evaluator
-  # reads it. Nothing owned that line, so it still said 150.0.7871.46 while 156
-  # shipped. Derive it here, like every other pin.
-  README_MD="$CEF/README.md"
-  cp "$README_MD" "$README_MD.bak"
-  perl -0777 -i -pe "s{(Currently pinned to )[0-9][0-9.]*}{\${1}$CTAG}" "$README_MD"
-  if grep -qF "Currently pinned to $CTAG" "$README_MD"; then
-    rm -f "$README_MD.bak"
-    echo "  README engine line -> $CTAG"
-  else
-    echo "  WARN: README 'Currently pinned to' anchor not matched -- prose reworded?"
-    echo "        original kept at README.md.bak"
-  fi
+  # The README states the engine in four places, one of them under "Security
+  # updates" where an evaluator reads it. They are not pinned here: they are
+  # DERIVED from Cefrium.CHROMIUM_VERSION, which the line above just wrote, by
+  # the one script that owns every figure in that file. It fails this phase if a
+  # sentence stopped matching, which is what a WARN here failed to do while the
+  # README sat at 150.0.7871.46 and 156 shipped.
+  "$CEF/cefrium_sdk/update-readme-figures.sh"
 
   # Commit the TRACKED pins here, named paths only. A pin that lives in the
   # working tree does not reach anyone: it survives a green push.sh, which

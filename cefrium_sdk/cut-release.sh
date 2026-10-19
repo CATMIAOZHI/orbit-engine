@@ -292,12 +292,24 @@ if run plugin;  then hdr "plugin jar check"
     echo "WARN: $src is NEWER than the jar -- the jar does not match this source."
   fi
 fi
-if run stats;   then hdr "patch stats"
-  # Rewrites the counts in cef/README.md and in the cefrium.com landing page.
+if run stats;   then hdr "README figures"
+  # One owner for every figure cef/README.md states -- patch counts, the engine
+  # tag, the CEF branch -- derived from the patch dir and from
+  # Cefrium.CHROMIUM_VERSION, the same source release-web-update.sh derives the
+  # site from. It exits non-zero on a figure that is stale or whose sentence was
+  # reworded, and that MUST stop the cut: this call used to end in `|| true`, so
+  # a cut could not fail here, and the published README sat six Chromium
+  # milestones behind under its own "Security updates" heading while four
+  # sentences said 21 patches against 34 on disk.
+  #
   # The web tree is committed later by release-publish-docs.sh; the README is
   # ours to commit here, or the publish phase trips the pinned-source guard.
-  cef/cefrium_sdk/update-patch-stats.sh || true
-  pin_commit "Update the patch counts for $VERSION" README.md
+  cef/cefrium_sdk/update-readme-figures.sh
+  pin_commit "Update the derived README figures for $VERSION" README.md
+  # Assert what is COMMITTED, not what was written. pin_commit is a no-op on an
+  # already-clean tree, so on a --from stats re-run this is the only line that
+  # proves the README in git carries this release's figures.
+  cef/cefrium_sdk/update-readme-figures.sh --check
 fi
 if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   cp out/release/cefrium-sdk.aar "$ROOT/cefrium-sample/push-demo/app/libs/cefrium-sdk.aar"
