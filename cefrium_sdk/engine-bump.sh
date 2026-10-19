@@ -106,9 +106,10 @@ if run pin; then hdr "pin new version (config only, non-destructive)"
   echo "  pinned .gclient + CHROMIUM_BUILD_COMPATIBILITY + Cefrium.CHROMIUM_VERSION -> $CTAG"
   echo "  (backups at *.bak; .gclient is local config and is not committed)"
 
-  # The consumer docs state the engine in six places, one of them under
-  # "Security updates" where an evaluator reads it, and one in the quickstart's
-  # "you should see ... full Chromium NNN". They are not pinned here: they are
+  # The consumer docs state the engine in several places -- one under
+  # "Security updates" where an evaluator reads it, one in the quickstart's
+  # "you should see ... full Chromium NNN", one in the migration guide's
+  # WebView comparison table. They are not pinned here: they are
   # DERIVED from Cefrium.CHROMIUM_VERSION, which the line above just wrote, by
   # the one script that owns every figure in those files. It fails this phase if
   # a sentence stopped matching, which is what a WARN here failed to do while
@@ -121,8 +122,16 @@ if run pin; then hdr "pin new version (config only, non-destructive)"
   # previous engine. This is the same miss that shipped 0.10.1 with
   # Cefrium.VERSION reading 0.10.0. The preflight above already asserts the cef
   # tree is clean, so these paths hold nothing but this bump.
-  if [ -n "$(git -C "$CEF" status --porcelain -- CHROMIUM_BUILD_COMPATIBILITY.txt cefrium_sdk/java/src/com/cefrium/Cefrium.java README.md QUICKSTART-CEFRIUM.md)" ]; then
-    git -C "$CEF" add -- CHROMIUM_BUILD_COMPATIBILITY.txt cefrium_sdk/java/src/com/cefrium/Cefrium.java README.md QUICKSTART-CEFRIUM.md
+  # Every doc update-doc-figures.py rewrites must be listed, or the bump leaves
+  # a derived figure in the working tree and the next release tags a doc that
+  # still states the previous engine.
+  PINS="CHROMIUM_BUILD_COMPATIBILITY.txt
+cefrium_sdk/java/src/com/cefrium/Cefrium.java
+README.md
+QUICKSTART-CEFRIUM.md
+MIGRATION-CEFRIUM.md"
+  if [ -n "$(git -C "$CEF" status --porcelain -- $PINS)" ]; then
+    git -C "$CEF" add -- $PINS
     git -C "$CEF" commit -q -m "Pin Chromium $CTAG (CEF branch $CEFBR)" \
       || { echo "  ERROR: could not commit the engine pin in $CEF"; exit 1; }
     echo "  committed $(git -C "$CEF" log -1 --format=%h): Pin Chromium $CTAG (CEF branch $CEFBR)"

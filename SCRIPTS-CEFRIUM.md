@@ -94,8 +94,9 @@ Individual phases, runnable on their own:
 | Google Play (apps) | `cef/cefrium_sdk/release-play.sh <version> [track]` |
 | Drop superseded versions | `cef/cefrium_sdk/prune-old-versions.sh <version> --yes` |
 
-`update-doc-figures.py` is the only writer of the figures in `cef/README.md`
-and `cef/QUICKSTART-CEFRIUM.md`. Each is derived from the file that defines it:
+`update-doc-figures.py` is the only writer of the figures in `cef/README.md`,
+`cef/QUICKSTART-CEFRIUM.md` and `cef/MIGRATION-CEFRIUM.md`. Each is derived from
+the file that defines it:
 
 | Figure | Derived from |
 |---|---|
@@ -122,12 +123,18 @@ Only the capture group inside a sentence is rewritten, so the prose around a
 figure is never touched and one anchor can cover several artifacts
 (`cefrium-sdk:X` and `cefrium-compose:X`) against one derived value.
 
-The same run also ASSERTS, in those two files and in `FEATURES-CEFRIUM.md`, the
-references a reader follows:
+The same run also ASSERTS, in those three files and in `FEATURES-CEFRIUM.md`,
+the references a reader follows:
 
 - every `Cefrium.`, `CefriumBrowser.`, `browser.` and `state.` name in the prose
   must still be declared in `cefrium_sdk/java/src/com/cefrium/` or
   `cefrium_compose/java/`;
+- every `Cefrium*` type and `rememberCefrium*` composable the prose names must
+  be declared somewhere in the repo's own sources. These carry no dot, so the
+  receiver scan above cannot see them, and every Compose entry point the guides
+  tell a reader to call -- `CefriumWebView`, `CefriumView`,
+  `rememberCefriumViewState`, `rememberCefriumNavigator`,
+  `rememberCefriumBrowserPool` -- went unchecked until this was added;
 - every link to another document in the repo must resolve, including its
   `#heading` anchor.
 
@@ -137,7 +144,20 @@ measurement taken on that build, and deriving it would claim a measurement
 nobody made. What rots in a feature guide is the API names in its examples, and
 no script can derive the right name -- so a missing one fails the release and a
 human fixes the prose. `navigator.` is not checked, because the Compose
-navigator shares that name with the web platform's own.
+navigator shares that name with the web platform's own. `webView.` is not
+checked either: half of `MIGRATION-CEFRIUM.md` quotes Android WebView's API so
+a reader can compare it to ours, those names are Google's to change, and the
+comparison is worthless if one side is dropped for being undeclarable.
+
+`MIGRATION-CEFRIUM.md` owns one figure, the pinned Chromium milestone in its
+"What Cefrium adds over WebView" table, which read 149 while 156 shipped. Its
+other numbers are not ours: `(0.5.0+)` marks the release a feature arrived in,
+`API 33+` and `Android 14+` are WebView's and Credential Manager's floors. Its
+ad-blocking row claimed "EasyList 61K rules" and now names
+`Cefrium.loadAdBlockList` instead -- the repo bundles no list at all, the
+consumer supplies the path or `downloadAndLoadEasyList` fetches easylist.to and
+refreshes it daily, so the count changes with no commit here and can have no
+owner. A figure with no possible owner is removed, not faked.
 
 `release-web-verify.sh` checks the POST-conditions rather than the steps, on
 the local tree AND on the live site:
