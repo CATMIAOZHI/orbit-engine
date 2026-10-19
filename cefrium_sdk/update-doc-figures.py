@@ -74,6 +74,12 @@ QUICK = "QUICKSTART-CEFRIUM.md"
 MIGRATION = "MIGRATION-CEFRIUM.md"
 BUILD = "BUILD-GUIDE-CEFRIUM.md"
 FEATURES = "FEATURES-CEFRIUM.md"
+# The brand logo is a periodic-table tile whose atomic number IS the Chromium
+# milestone, so it is a figure-bearing artifact, not decoration. cefrium-web
+# keeps its own copy of this file, owned by release-web-update.sh -- which it
+# had to be, because that badge sat at 154 while 156 was live. One owner per
+# file, so each repo's copy is written by the script that lives with it.
+LOGO = "assets/cefrium-logo.svg"
 
 
 def die(msg):
@@ -230,6 +236,17 @@ FIGURES = [
      "SDK version, download file name"),
     (README, r"/com/cefrium/cefrium-(?:sdk|compose)/([0-9]+\.[0-9]+\.[0-9]+)/",
      [version], "SDK version, registry URL path"),
+    # -- the shields.io badge row. A badge is a figure like any other: the value
+    # lives inside the image URL, so it is spliced there exactly as in prose.
+    (README, r"badge/SDK-([0-9]+\.[0-9]+\.[0-9]+)-", [version],
+     "SDK version, README badge"),
+    (README, r"badge/Chromium-([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)-", [ctag],
+     "engine, README badge"),
+    (README, r"badge/Android%20patches-([0-9]+)-", [count],
+     "patch count, README badge"),
+    (README, r"badge/min%20API-([0-9]+)-", [min_sdk], "minSdk, README badge"),
+    # The only numeric text element in the logo: the tile's atomic number.
+    (LOGO, r">([0-9]+)</text>", [milestone], "Chromium milestone, brand logo"),
     # -- render-process slots
     (QUICK, r"\(([0-9]+) sandboxed \+ ([0-9]+) privileged\)",
      [slots["Sandboxed"], slots["Privileged"]], "service slots, step 4"),
@@ -295,6 +312,9 @@ FIGURES = [
 # The docs this script REWRITES, because every figure in them has an owner
 # above. FEATURES-CEFRIUM.md is checked but never rewritten.
 OWNED = (README, QUICK, MIGRATION, BUILD)
+# Rewritten: the docs plus the logo. DOCS below stays prose-only, so the API,
+# type, script and link checks are not run against an SVG.
+REWRITTEN = OWNED + (LOGO,)
 
 
 def figures_for(path):
@@ -307,7 +327,7 @@ def figures_for(path):
 def report(texts):
     """Print one line per figure. True when every figure is current."""
     ok = True
-    for path in OWNED:
+    for path in REWRITTEN:
         print("  %s" % path)
         for pattern, want, where in figures_for(path):
             found = list(re.finditer(pattern, texts[path]))
@@ -508,7 +528,7 @@ def check_references(texts):
     return ok
 
 
-texts = {p: read(p) for p in DOCS}
+texts = {p: read(p) for p in DOCS + (LOGO,)}
 
 if "--list" in sys.argv[1:]:
     # The figure table as data: <file> TAB <regex> TAB <wanted group values>.
@@ -534,7 +554,7 @@ if "--check" in sys.argv[1:]:
 
 # FEATURES-CEFRIUM.md is not rewritten: it states no derived figure, and its one
 # version dates a measurement (see the module docstring).
-for p in OWNED:
+for p in REWRITTEN:
     full = os.path.join(CEF, p)
     shutil.copyfile(full, full + ".bak")          # never edit in place (hard rule)
     new = rewrite(texts[p], p)
@@ -546,7 +566,7 @@ figures_ok = report(texts)
 print("  references")
 refs_ok = check_references(texts)
 if figures_ok and refs_ok:
-    for p in OWNED:
+    for p in REWRITTEN:
         full = os.path.join(CEF, p)
         changed = open(full + ".bak", encoding="utf-8").read() != texts[p]
         os.remove(full + ".bak")                  # kept only when it is needed
@@ -556,7 +576,7 @@ if figures_ok and refs_ok:
 if not refs_ok:
     print("\nFAIL: a doc names an API or a document that does not exist.")
     print("      Nothing can derive the right name, so fix the prose.")
-    for p in OWNED:
+    for p in REWRITTEN:
         os.remove(os.path.join(CEF, p + ".bak"))
     sys.exit(1)
 
@@ -564,5 +584,5 @@ print("\nFAIL: a figure is still wrong after the rewrite.")
 print("      Fix the FIGURES table in cef/cefrium_sdk/%s -- do not hand-edit"
       % os.path.basename(__file__))
 print("      the docs, or the next release overwrites them.")
-print("      The originals are at %s" % ", ".join(p + ".bak" for p in OWNED))
+print("      The originals are at %s" % ", ".join(p + ".bak" for p in REWRITTEN))
 sys.exit(1)

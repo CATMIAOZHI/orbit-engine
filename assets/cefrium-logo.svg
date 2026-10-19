@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Copyright (c) 2026 Juan Manuel Mendez Rey. Cefrium brand logo. -->
+  <rect width="512" height="512" rx="48" fill="#0a3d2e" stroke="#22d3ee" stroke-width="6"/>
+  
+  <!-- Electron orbits -->
+  <ellipse cx="256" cy="260" rx="200" ry="80" fill="none" stroke="#22d3ee" stroke-width="1.5" opacity="0.2" transform="rotate(-30 256 260)"/>
+  <ellipse cx="256" cy="260" rx="200" ry="80" fill="none" stroke="#22d3ee" stroke-width="1.5" opacity="0.2" transform="rotate(30 256 260)"/>
+  <ellipse cx="256" cy="260" rx="200" ry="80" fill="none" stroke="#22d3ee" stroke-width="1.5" opacity="0.2" transform="rotate(90 256 260)"/>
+  
+  <!-- Electrons (small dots on orbits) -->
+  <circle cx="456" cy="260" r="6" fill="#22d3ee" opacity="0.4"/>
+  <circle cx="156" cy="130" r="6" fill="#22d3ee" opacity="0.4"/>
+  <circle cx="356" cy="390" r="6" fill="#22d3ee" opacity="0.4"/>
+  
+  <!-- Text -->
+  <text x="256" y="130" font-family="system-ui,sans-serif" font-size="72" font-weight="400" fill="#94a3b8" text-anchor="middle">156</text>
+  <text x="256" y="310" font-family="system-ui,sans-serif" font-size="220" font-weight="800" fill="#22d3ee" text-anchor="middle">Ce</text>
+  <text x="256" y="420" font-family="system-ui,sans-serif" font-size="68" font-weight="400" fill="#94a3b8" text-anchor="middle">Cefrium</text>
+</svg>

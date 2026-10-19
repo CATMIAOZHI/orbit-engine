@@ -1,4 +1,21 @@
+<div align="center">
+
+<img src="assets/cefrium-logo.svg" width="128" alt="Cefrium">
+
 # Cefrium - CEF for Android
+
+**The full Chromium engine in your Android app, through the CEF C API.**
+
+[![SDK](https://img.shields.io/badge/SDK-0.10.1-22d3ee)](https://codeberg.org/cefrium/cef-android/releases)
+[![Chromium](https://img.shields.io/badge/Chromium-156.0.8078.17-4285f4)](https://cefrium.com/upstream/)
+[![Android patches](https://img.shields.io/badge/Android%20patches-34-6b7280)](patch/patches/android)
+[![Maven Central](https://img.shields.io/badge/Maven%20Central-com.cefrium-1f6feb)](https://central.sonatype.com/namespace/com.cefrium)
+[![Min API](https://img.shields.io/badge/min%20API-29-3ddc84)](QUICKSTART-CEFRIUM.md)
+[![License](https://img.shields.io/badge/license-LGPL--3.0--or--later-green)](LICENSE-CEFRIUM.md)
+
+[![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/cefrium/donate)
+
+</div>
 
 The first working port of [Chromium Embedded Framework](https://github.com/chromiumembedded/cef)
 to native Android (`aarch64-linux-android`, bionic libc, Android NDK).
@@ -19,7 +36,7 @@ that gap.
 > downloads only their architecture (~150 MB), not all ABIs - the same approach
 > GeckoView, Flutter, and other engine-bundling SDKs use.
 
-**[Quick Start](QUICKSTART-CEFRIUM.md)** | [API Docs](https://cefrium.com/docs) | [Compose API](https://cefrium.com/docs/compose) | [Migration from WebView](MIGRATION-CEFRIUM.md) | [Build from Source](BUILD-GUIDE-CEFRIUM.md) | [Samples](https://codeberg.org/cefrium/cefrium-sample) | [Sponsor](https://liberapay.com/cefrium/)
+**[Quick Start](QUICKSTART-CEFRIUM.md)** | [API Docs](https://cefrium.com/docs) | [Compose API](https://cefrium.com/docs/compose) | [Migration from WebView](MIGRATION-CEFRIUM.md) | [Build from Source](BUILD-GUIDE-CEFRIUM.md) | [Samples](https://codeberg.org/cefrium/cefrium-sample) | [Sponsor](https://liberapay.com/cefrium/donate)
 
 ## What works
 
