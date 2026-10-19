@@ -10,7 +10,7 @@ Complete instructions for building the Cefrium SDK from Chromium source.
 - **Disk:** ~400 GB (Chromium source + build artifacts)
 - **RAM:** 64 GB recommended (32 GB minimum, will be slower)
 - **CPU:** Multi-core (build uses all cores)
-- **JDK:** 21 (Android Studio JBR recommended)
+- **JDK:** 25 (Chromium's own bundled Temurin, NOT the Android Studio JBR)
 
 ## 1. Get the source
 
@@ -23,7 +23,7 @@ export PATH="$PWD/depot_tools:$PATH"
 mkdir chromium && cd chromium
 fetch --nohooks android
 cd src
-git checkout 150.0.7871.46
+git checkout 156.0.8078.17
 gclient sync --with_branch_heads --with_tags
 
 # Clone CEF android-port branch
@@ -98,7 +98,7 @@ depot_tools/gn gen out/Official_android_arm64 --args='
 # Build libcef.so + AAR
 ninja -C out/Official_android_arm64 cef:libcef cef/cefrium_sdk:cefrium_aar
 
-# Generate slim AAR (346 MB → 150 MB)
+# Generate slim AAR (346 MB -> 150 MB)
 python3 cef/cefrium_sdk/slim_aar.py \
   --input out/Official_android_arm64/cefrium-raw.aar \
   --output out/Official_android_arm64/cefrium-sdk.aar
@@ -137,9 +137,9 @@ cd cefrium-browser/cefrium-browser
 
 A Cefrium release has three parts that must stay in sync:
 
-1. **Maven artifacts** on the Codeberg registry — the canonical distribution
+1. **Maven artifacts** on the Codeberg registry -- the canonical distribution
    channel (what Gradle resolves).
-2. **A formal Codeberg release** (a signed tag + notes) — the parity/security
+2. **A formal Codeberg release** (a signed tag + notes) -- the parity/security
    record that [cefrium.com/releases](https://cefrium.com/releases/) links to.
 3. **The cefrium.com/releases row** linking the two.
 
@@ -184,32 +184,32 @@ stale build dir (see "After an engine bump" in CLAUDE.md / RELEASING-CEFRIUM.md)
    cd chromium/src/cef/cefrium_compose
    cp ../../out/Official_android_arm64/cefrium-sdk.aar libs/   # compileOnly
    ./gradlew assembleRelease --no-daemon
-   # → build/outputs/aar/cefrium-compose-release.aar
+   # -> build/outputs/aar/cefrium-compose-release.aar
    ```
-3. **Gradle Plugin JAR** — `cef/cefrium_sdk/gradle-plugin/build/libs/gradle-plugin.jar`.
+3. **Gradle Plugin JAR** -- `cef/cefrium_sdk/gradle-plugin/build/libs/gradle-plugin.jar`.
 
 ### 7.2 Publish to the Codeberg Maven registry
 
-**Token:** Codeberg → Settings → Applications → Generate Token (package scope),
+**Token:** Codeberg -> Settings -> Applications -> Generate Token (package scope),
 then point `CEFRIUM_REGISTRY_TOKEN` at a file holding it.
 
 ```bash
 cef/cefrium_sdk/build-all-variants.sh all codecs   # embeds V8 snapshot (multi-ABI ready)
 cef/cefrium_sdk/merge-multiabi.sh codecs           # -> out/release/cefrium-sdk.aar (arm64+x64)
 # (repeat the two lines with `libre` for cefrium-sdk-libre)
-cef/cefrium_sdk/publish-maven.sh 0.3.0
+cef/cefrium_sdk/publish-maven.sh <version>
 ```
 
 `publish-maven.sh` uploads `cefrium-sdk`, `cefrium-sdk-libre`, `cefrium-compose`,
 `cefrium-gradle-plugin` and the plugin marker POM, each with a generated POM.
 
-**CRITICAL — raw PUT, never multipart.** The Codeberg Maven API expects the raw
+**CRITICAL -- raw PUT, never multipart.** The Codeberg Maven API expects the raw
 file body on a `PUT` (`curl --upload-file`). Using `curl -F`/`--form` sends
 `multipart/form-data`, which bakes the MIME envelope (boundary + headers) into
-the stored file — every POM/AAR/JAR then starts with `------…` instead of `PK`
+the stored file -- every POM/AAR/JAR then starts with `------...` instead of `PK`
 /`<?xml` and **no consumer can resolve them**. This silently broke 0.3.0's first
 publish (the local-AAR samples never caught it). `publish-maven.sh` now uses
-`--upload-file` and runs `verify_artifact()` after every upload — it re-fetches
+`--upload-file` and runs `verify_artifact()` after every upload -- it re-fetches
 the artifact and checks the magic bytes (`PK` for AAR/JAR, an XML element for
 POMs), aborting the release on corruption.
 
@@ -219,28 +219,28 @@ version, delete it first:
 TOKEN=$(cat "$CEFRIUM_REGISTRY_TOKEN")
 for n in cefrium-sdk cefrium-sdk-libre cefrium-compose cefrium-gradle-plugin com.cefrium.gradle.plugin; do
   curl -s -X DELETE -H "Authorization: token $TOKEN" \
-    "https://codeberg.org/api/v1/packages/cefrium/maven/com.cefrium%3A$n/0.3.0"
+    "https://codeberg.org/api/v1/packages/cefrium/maven/com.cefrium%3A$n/$VERSION"
 done
 ```
 Otherwise bump the version.
 
-### 7.3 Gate — prove it is consumable (DEP-8 style)
+### 7.3 Gate -- prove it is consumable (DEP-8 style)
 
 The samples, the instrumentation harness and the test APK all use a **local**
-AAR (`implementation files('libs/...')`), so they never exercise the registry —
+AAR (`implementation files('libs/...')`), so they never exercise the registry --
 a broken publish is invisible to them. Before announcing, build a throwaway
 consumer that resolves the plugin + SDK **from the registry**, like the
 quickstart:
 
 ```bash
-JAVA_HOME=<JBR-21> ANDROID_HOME=<android-sdk> \
+JAVA_HOME=<jdk-25> ANDROID_HOME=<android-sdk> \
 GRADLE=/path/to/any/sample/gradlew \
-  cef/cefrium_sdk/test-published-release.sh 0.3.0
+  cef/cefrium_sdk/test-published-release.sh <version>
 ```
 
 `publish-maven.sh` runs this automatically at the end (skip with
 `CEFRIUM_SKIP_SMOKE_TEST=1` when Gradle/SDK are unavailable on the publishing
-host). A non-zero exit means the release is **not consumable — do not announce
+host). A non-zero exit means the release is **not consumable -- do not announce
 it**.
 
 ### 7.4 Create the formal Codeberg release
@@ -248,21 +248,21 @@ it**.
 Tag the exact commit the artifacts were built from, **signed and annotated**:
 
 ```bash
-git tag -s v0.3.0 <build-commit> -m "Cefrium 0.3.0"   # -s = GPG-signed
-git push codeberg v0.3.0
+git tag -s v<version> <build-commit> -m "Cefrium <version>"   # -s = GPG-signed
+git push codeberg v<version>
 ```
 
-Then create the release (Codeberg → Releases → *New release*, or the API) with
+Then create the release (Codeberg -> Releases -> *New release*, or the API) with
 notes following this template:
 
 ```
-CEF branch 7871, Chromium 150.0.7871.46.
+CEF branch 8078, Chromium 156.0.8078.17.
 
 <one paragraph: what changed in this version>
 
 Published to the Codeberg Maven registry on <YYYY-MM-DD>.
 
-Includes Chromium security fixes through 150.0.7871.46.
+Includes Chromium security fixes through 156.0.8078.17.
 ```
 
 - The **exact Chromium version** is `chrome/VERSION` in the checkout (the Debian
@@ -273,7 +273,7 @@ Includes Chromium security fixes through 150.0.7871.46.
 **Asset policy.** The Maven registry is the canonical channel. A Codeberg
 release carries the auto-generated source archive plus, optionally, a
 checksummed and GPG-signed demo APK + `SHA256SUMS` for verification/archival.
-Do **not** attach the ~240 MB AARs by default — they live on the registry. When
+Do **not** attach the ~240 MB AARs by default -- they live on the registry. When
 assets are attached, state in the notes: *"Artifacts are consumed via the
 Codeberg Maven registry; attached files are for verification and archival."*
 

@@ -4,15 +4,18 @@
     cef/cefrium_sdk/update-doc-figures.py            # rewrite the docs
     cef/cefrium_sdk/update-doc-figures.py --check    # assert only, exit 1 if wrong
 
-Owns README.md, QUICKSTART-CEFRIUM.md and MIGRATION-CEFRIUM.md. Every figure in
-them that states something this repo already knows -- the patch count, the
-engine, the SDK version, the service-slot count, the Android and Gradle floors
--- is derived from the file that defines it, never typed into prose twice.
+Owns README.md, QUICKSTART-CEFRIUM.md, MIGRATION-CEFRIUM.md and
+BUILD-GUIDE-CEFRIUM.md. Every figure in them that states something this repo
+already knows -- the patch count, the engine, the SDK version, the service-slot
+count, the Android/Gradle/JDK floors -- is derived from the file that defines
+it, never typed into prose twice.
 
-It also CHECKS, in those three and in FEATURES-CEFRIUM.md, the references a
-reader follows: every Cefrium API the prose names must still be declared in the
-SDK source, every Cefrium type and composable it names must still exist, and
-every link to another document in the repo must resolve, anchor included.
+It also CHECKS, in those four and in FEATURES-CEFRIUM.md, SCRIPTS-CEFRIUM.md,
+RELEASING-CEFRIUM.md and PATCHING-CEFRIUM.md, the references a reader follows:
+every Cefrium API the prose names must still be declared in the SDK source,
+every Cefrium type and composable it names must still exist, every script path
+it tells a reader to run must exist, and every link to another document in the
+repo must resolve, anchor included.
 FEATURES-CEFRIUM.md states no derived figure on purpose -- its one version,
 "Cefrium 0.9.2 / Chromium 152", dates a sensor measurement taken on that build,
 and rewriting it would claim a measurement nobody made. What rots in a feature
@@ -42,8 +45,13 @@ against 34 on disk, the engine line sat six Chromium milestones behind under
 "full Chromium 152" while 156 shipped.
 
 Figures deliberately NOT owned here, because nothing in the repo defines them:
-the JDK floor and the class-file major it implies (set by Chromium's bundled
-JDK, which a bare clone does not have), and the ~MB artifact sizes.
+the ~MB artifact sizes, the host's disk and RAM, the depot_tools GN revision
+(depot_tools is not this repo), and the build-times table, which is a
+measurement on one named machine, like the sensor row in FEATURES.
+
+The JDK floor has no in-tree source either -- Chromium's bundled JDK sets it --
+but the two consumer docs state it in a dozen places, so it is PROPAGATED from
+the one sentence that states it rather than left to drift. See `jdk` below.
 
 A figure with no possible owner is removed from the prose, not faked. The
 migration guide advertised "EasyList 61K rules"; the repo bundles no list at
@@ -60,6 +68,12 @@ import shutil
 import sys
 
 CEF = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+README = "README.md"
+QUICK = "QUICKSTART-CEFRIUM.md"
+MIGRATION = "MIGRATION-CEFRIUM.md"
+BUILD = "BUILD-GUIDE-CEFRIUM.md"
+FEATURES = "FEATURES-CEFRIUM.md"
 
 
 def die(msg):
@@ -139,6 +153,25 @@ agp = ".".join(agp_full.split(".")[:2])
 gradle = one("cefrium_compose/gradle/wrapper/gradle-wrapper.properties",
              r"gradle-([0-9]+\.[0-9]+\.[0-9]+)-bin\.zip")
 
+# The Gradle plugin's own Java target. A DIFFERENT number from the JDK floor
+# below, and the docs say so three times, because reading them as the same is
+# the wrong diagnosis three integrators reached for a class-69 error.
+plugin_java = one("cefrium_sdk/gradle-plugin/build.gradle",
+                  r"sourceCompatibility = JavaVersion\.VERSION_([0-9]+)")
+
+# The JDK floor is the one consumer-facing figure with NO in-tree source:
+# Chromium's bundled JDK sets it, and --check must work in a bare clone with no
+# Chromium tree. So it is not DERIVED, it is PROPAGATED from the single sentence
+# that states it for consumers, and every other copy is rewritten from that one.
+# Without this, the build guide listed "JDK: 21" under System requirements while
+# its own export line twenty lines later said "JDK 25 REQUIRED", and sent the
+# reader to a <JBR-21> that RELEASING-CEFRIUM.md warns against by name.
+# To move the floor, edit that sentence; the rest follow.
+jdk = one(QUICK, r"JDK ([0-9]+) is a hard floor")
+# Fixed by the JVM spec: class-file major = Java release + 44 (21 -> 65,
+# 25 -> 69). Stated in three docs as the error a consumer actually sees.
+class_major = str(int(jdk) + 44)
+
 # On stderr, so that --list prints the figure table and nothing else.
 print("derived: %s Android patches | engine %s (Chromium %s, CEF branch %s) | "
       "SDK %s" % (count, ctag, milestone, branch, version), file=sys.stderr)
@@ -149,9 +182,6 @@ print("         %s sandboxed + %s privileged slots | compileSdk %s, minSdk %s, "
 
 # ---- the figures ------------------------------------------------------------
 # (file, regex, [expected value per capture group], where it reads)
-README = "README.md"
-QUICK = "QUICKSTART-CEFRIUM.md"
-MIGRATION = "MIGRATION-CEFRIUM.md"
 BOTH = (README, QUICK)
 
 FIGURES = [
@@ -170,8 +200,17 @@ FIGURES = [
      'engine + branch, "Relationship to upstream CEF"'),
     (README, r"Chromium ([0-9]+) -> branch ([0-9]+)", [milestone, branch],
      'branch-number rule, "Sources"'),
-    (QUICK, r"ships Chromium ([0-9]+)'s Java-25 bytecode", [milestone],
-     "engine, build-tooling note"),
+    (QUICK, r"ships Chromium ([0-9]+)'s Java-([0-9]+) bytecode", [milestone, jdk],
+     "engine + JDK, build-tooling note"),
+    # The engine tag the build guide tells the reader to CHECK OUT. It sat at
+    # 150.0.7871.46 while 156.0.8078.17 shipped, so anyone following the guide
+    # built a different engine from the one the same guide documents.
+    (BUILD, r"git checkout ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)", [ctag],
+     "engine, step 1 (the tag the reader checks out)"),
+    (BUILD, r"CEF branch ([0-9]+), Chromium ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)",
+     [branch, ctag], "engine + branch, release-notes template"),
+    (BUILD, r"security fixes through ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)", [ctag],
+     "engine, release-notes template (the CVE-coverage line)"),
     (QUICK, r"rendered with full Chromium ([0-9]+)", [milestone],
      'engine, step 6 "Run"'),
     # Anchored on the whole table cell. The migration guide's other numbers are
@@ -209,7 +248,10 @@ FIGURES = [
      "AGP + Gradle floor, build-tooling note"),
     (QUICK, r"sibling subproject on AGP ([0-9]+\.[0-9]+)", [agp],
      "AGP, multi-module note"),
-    (QUICK, r"\(Gradle ([0-9]+\.[0-9]+\.[0-9]+) / AGP ([0-9]+\.[0-9]+)\)",
+    # One anchor, three occurrences, two files: the build guide writes the pair
+    # with no spaces around the slash and the quickstart with them.
+    ((QUICK, BUILD),
+     r"\(Gradle ([0-9]+\.[0-9]+\.[0-9]+)\s*/\s*AGP ([0-9]+\.[0-9]+)\)",
      [gradle, agp], "Gradle + AGP, JDK-error entry"),
     (QUICK, r"AGP ([0-9]+\.[0-9]+)\+ is a\s+whole", [agp],
      "AGP, multi-module troubleshooting"),
@@ -219,12 +261,40 @@ FIGURES = [
      "Gradle, multi-module note"),
     (QUICK, r"wrapper pinned to ([0-9]+\.[0-9]+\.[0-9]+)\+", [gradle],
      "Gradle, multi-module troubleshooting"),
+    # -- the JDK floor, propagated from the quickstart's hard-floor sentence.
+    # Every anchor carries left context the HISTORICAL lines do not use, so
+    # "(0.7.x and earlier used JDK 21 / Gradle 8.9.)" is left alone.
+    (QUICK, r"\*\*JDK ([0-9]+)\*\*, and", [jdk], "JDK floor, build-tooling note"),
+    (QUICK, r"compile their own Java at `--release ([0-9]+)`", [jdk],
+     "JDK floor, why it cannot move"),
+    (QUICK, r"For 0\.8\.0\+ use \*\*JDK ([0-9]+)\*\*", [jdk],
+     "JDK floor, JDK-error entry"),
+    (BUILD, r"\*\*JDK:\*\* ([0-9]+)", [jdk], "JDK floor, system requirements"),
+    (BUILD, r"jdk-([0-9]+)\s+# JDK ([0-9]+) REQUIRED", [jdk, jdk],
+     "JDK floor, step 5 export line"),
+    (BUILD, r"JAVA_HOME=<jdk-([0-9]+)>", [jdk], "JDK floor, the gate invocation"),
+    (BUILD, r"requires JDK ([0-9]+) \(Gradle", [jdk],
+     "JDK floor, troubleshooting"),
+    ((QUICK, BUILD), r"is older than ([0-9]+) and cannot read", [jdk],
+     "JDK floor, the error a consumer sees"),
+    ((QUICK, BUILD), r"SDK's Java-([0-9]+) bytecode", [jdk],
+     "JDK floor, the bytecode it implies"),
+    # Derived FROM the floor by the JVM spec, not typed next to it.
+    (QUICK, r"class-file ([0-9]+)", [class_major],
+     "class-file major, why the floor cannot move"),
+    ((QUICK, BUILD), r"class file major version ([0-9]+)", [class_major],
+     "class-file major, the error text"),
+    # The plugin's own target, which is NOT the floor. Derived from its build file.
+    (QUICK, r"built for Java ([0-9]+) and applies on an older JDK", [plugin_java],
+     "Gradle-plugin Java target, build-tooling note"),
+    (QUICK, r"compiled for Java ([0-9]+) on purpose", [plugin_java],
+     "Gradle-plugin Java target, JDK-error entry"),
 ]
 
 
 # The docs this script REWRITES, because every figure in them has an owner
 # above. FEATURES-CEFRIUM.md is checked but never rewritten.
-OWNED = (README, QUICK, MIGRATION)
+OWNED = (README, QUICK, MIGRATION, BUILD)
 
 
 def figures_for(path):
@@ -279,8 +349,14 @@ def rewrite(text, path):
 # ---- references: APIs and links a reader follows -----------------------------
 # Not figures: nothing can be derived, because the right text is a name, not a
 # value. They are asserted instead, in every doc including the feature guide.
-FEATURES = "FEATURES-CEFRIUM.md"
-DOCS = OWNED + (FEATURES,)
+# Checked, never rewritten. FEATURES states no derived figure; the three
+# maintainer docs state no consumer-facing one. All four name APIs, types,
+# documents and SCRIPT PATHS a reader is told to run, and those must resolve.
+# SCRIPTS-CEFRIUM.md is the index of every script, so it is where a deleted one
+# lingers: three were deleted in one afternoon and nothing checked the docs.
+CHECKED_ONLY = (FEATURES, "SCRIPTS-CEFRIUM.md", "RELEASING-CEFRIUM.md",
+                "PATCHING-CEFRIUM.md")
+DOCS = OWNED + CHECKED_ONLY
 
 JAVA_DECL = r"(?:public|protected)[\w\s<>\[\],.?@]*?\b%s\s*(?:\(|=|;|\{|,|\))"
 KT_DECL = r"\b(?:fun|val|var|class|object|interface)\s+%s\b"
@@ -305,10 +381,20 @@ RECEIVERS = [
 # "rememberCefriumViewState", a `CefriumViewState` in backticks. The receiver
 # scan above cannot see any of them -- there is no dot -- so every Compose entry
 # point the guides tell a reader to call went unchecked until this was added.
-TYPE_USE = r"\b((?:Cefrium[A-Z]|rememberCefrium)\w*)\b"
+# \w+ after the prefix, not \w*, or prose ABOUT the pattern ("every
+# rememberCefrium* composable") is read as a use of a type called
+# "rememberCefrium".
+TYPE_USE = r"\b((?:Cefrium[A-Z]\w*|rememberCefrium\w+))\b"
 TYPE_DECL = r"\b(?:class|interface|enum|fun|object)\s+%s\b"
 # An apk_name, for the test APK the README tells the reader to install.
 GN_DECL = r'apk_name\s*=\s*"%s"'
+
+# Every script path the docs tell a reader to RUN. This is the build guide's own
+# rot class: its figures are the engine and the toolchain, but what a reader
+# actually types is a path. Anchored on the "cef/" prefix the docs use, so
+# "./dev-build.sh" and "./gradlew" -- which live in other repos -- are not
+# claimed to be ours.
+SCRIPT_USE = r"(?<![\w/.-])cef/([A-Za-z0-9_./-]+\.(?:sh|py))"
 
 
 def sdk_sources():
@@ -361,6 +447,20 @@ def slug(heading):
     return re.sub(r"-+", "-", out.replace(" ", "-"))
 
 
+# A FILE NAME is not a method call. The lookbehind in RECEIVERS stops
+# "assets/cefrium-browser.png", but not a header in backticks: RELEASING names
+# Chromium's `browser.h`, which read as a one-letter member of our browser.
+#
+# A deny-list, not a pattern, because no pattern separates `browser.h` from
+# `state.isLoading` -- both are a dotted name in backticks with no parentheses.
+# An extension that is NOT listed therefore fails, loudly, and a human adds it.
+# That is the right side to err on here: the opposite default would wave through
+# a genuinely renamed API, which is the whole thing this file exists to catch.
+FILE_EXT = {"h", "cc", "cpp", "py", "sh", "md", "kt", "java", "xml", "gn",
+            "gni", "png", "svg", "txt", "json", "jar", "aar", "apk", "so",
+            "properties", "gradle", "patch", "html", "yml", "zip"}
+
+
 def check_references(texts):
     java, kt = sdk_sources()
     symbols = declared_symbols()
@@ -378,9 +478,14 @@ def check_references(texts):
                 doc)))
             body = java.get(source) if source else kt
             for name in used:
+                if name in FILE_EXT:
+                    continue
                 if not re.search(decl % re.escape(name), body):
                     problems.append("API %s%s is not declared in %s"
                                     % (receiver, name, source or "cefrium_compose"))
+        for rel in sorted(set(re.findall(SCRIPT_USE, doc))):
+            if not os.path.exists(os.path.join(CEF, rel)):
+                problems.append("script cef/%s does not exist" % rel)
         for target, anchor in re.findall(r"\]\(([A-Za-z0-9_./-]+\.md)(#[^)]*)?\)", doc):
             full = os.path.join(CEF, target)
             if not os.path.exists(full):
@@ -399,7 +504,7 @@ def check_references(texts):
             for p in problems:
                 print("             %s" % p)
         else:
-            print("    OK       %s: API names, types and doc links resolve" % path)
+            print("    OK       %s: API names, types, scripts and doc links resolve" % path)
     return ok
 
 
