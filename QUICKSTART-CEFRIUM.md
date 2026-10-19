@@ -10,7 +10,12 @@ From zero to rendering a web page in 5 minutes.
 
 > **Build tooling (0.8.0+).** The SDK ships Chromium 152's Java-25 bytecode, so
 > your app must build with **AGP 9.4+**, **Gradle 9.7.1+**, **JDK 25**, and
-> **compileSdk 37**. On AGP 9 use built-in Kotlin (do not apply
+> **compileSdk 37**. JDK 25 is a hard floor, not a preference: Chromium 152 and
+> newer compile their own Java at `--release 25`, and 31,106 of the 42,646
+> classes in the AAR are class-file 69. Only 83 of them are ours, so lowering our
+> compiler target would not move the floor. The `com.cefrium` Gradle plugin is
+> built for Java 17 and applies on an older JDK -- it is NOT the cause of a
+> class-69 error, which is the wrong diagnosis three integrators reached. On AGP 9 use built-in Kotlin (do not apply
 > `org.jetbrains.kotlin.android`; for Compose apply
 > `org.jetbrains.kotlin.plugin.compose`), and enable legacy native-lib packaging
 > (`packaging { jniLibs { useLegacyPackaging = true } }`) since Chromium reads
@@ -316,8 +321,11 @@ pool. Remove that block; the merged APK manifest should read
 connect WebContents to the rendering pipeline. This is normal.
 
 **JDK error:** For 0.8.0+ use **JDK 25** (Gradle 9.7.1 / AGP 9.4). A `cannot
-access CefriumBrowser` compile error means javac is older than 25 and cannot read
-the SDK's Java-25 bytecode. (0.7.x and earlier used JDK 21 / Gradle 8.9.)
+access CefriumBrowser` or `Unsupported class file major version 69` error means
+javac is older than 25 and cannot read the SDK's Java-25 bytecode. The Gradle
+plugin is not the cause: it is compiled for Java 17 on purpose. Why the floor
+cannot move is explained at the top of this file.
+(0.7.x and earlier used JDK 21 / Gradle 8.9.)
 
 **Adding Cefrium to one module of an existing multi-module app:** AGP 9.4+ is a
 whole-*build* requirement, not a per-module one -- Gradle resolves one version per
