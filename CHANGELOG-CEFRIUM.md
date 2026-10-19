@@ -574,7 +574,7 @@ Chromium **151.0.7922.71** (CEF branch **7922**). Engine bump for CVE parity wit
 Debian's chromium 151.0.7922.71-1~deb13u1.
 
 ### Changed
-- **Engine: Chromium 150.0.7871.114 -> 151.0.7922.71** (CEF 7871 -> 7922). Tracks the
+- **Engine: **Chromium 150.0.7871.114 -> 151.0.7922.71** (CEF 7871 -> 7922). Tracks the
   Debian Chromium security release. `Cefrium.CHROMIUM_VERSION` now reports 151.0.7922.71.
   The 150->151 cross-branch bump rebased the Android port onto CEF 7922; the API surface
   is unchanged for SDK consumers. Internal adaptations: `OverscrollRefreshHandler.release`
