@@ -292,24 +292,28 @@ if run plugin;  then hdr "plugin jar check"
     echo "WARN: $src is NEWER than the jar -- the jar does not match this source."
   fi
 fi
-if run stats;   then hdr "README figures"
-  # One owner for every figure cef/README.md states -- patch counts, the engine
-  # tag, the CEF branch -- derived from the patch dir and from
-  # Cefrium.CHROMIUM_VERSION, the same source release-web-update.sh derives the
-  # site from. It exits non-zero on a figure that is stale or whose sentence was
-  # reworded, and that MUST stop the cut: this call used to end in `|| true`, so
-  # a cut could not fail here, and the published README sat six Chromium
-  # milestones behind under its own "Security updates" heading while four
-  # sentences said 21 patches against 34 on disk.
+if run stats;   then hdr "consumer-doc figures"
+  # One owner for every figure README.md and QUICKSTART-CEFRIUM.md state: patch
+  # counts, engine, CEF branch, SDK version, render-process slots, and the
+  # Android/Gradle/AGP floors. Each is derived from the file that defines it --
+  # the patch dir, Cefrium.java, the SDK manifest, the compose module's Gradle
+  # build -- so a doc cannot disagree with the SDK it documents.
   #
-  # The web tree is committed later by release-publish-docs.sh; the README is
-  # ours to commit here, or the publish phase trips the pinned-source guard.
-  cef/cefrium_sdk/update-readme-figures.sh
-  pin_commit "Update the derived README figures for $VERSION" README.md
+  # It exits non-zero on a figure that is stale or whose sentence was reworded,
+  # and that MUST stop the cut. This call used to end in `|| true`, so a cut
+  # could not fail here: the README sat six Chromium milestones behind under its
+  # own "Security updates" heading, four sentences said 21 patches against 34 on
+  # disk, and the quickstart promised the reader "full Chromium 152".
+  #
+  # This phase runs AFTER `patches` pinned Cefrium.VERSION, so the SDK version in
+  # the docs is derived here too -- that is why there is no release-bump-docs.sh
+  # call in the web phase any more.
+  cef/cefrium_sdk/update-doc-figures.py
+  pin_commit "Update the derived doc figures for $VERSION" README.md QUICKSTART-CEFRIUM.md
   # Assert what is COMMITTED, not what was written. pin_commit is a no-op on an
   # already-clean tree, so on a --from stats re-run this is the only line that
-  # proves the README in git carries this release's figures.
-  cef/cefrium_sdk/update-readme-figures.sh --check
+  # proves the docs in git carry this release's figures.
+  cef/cefrium_sdk/update-doc-figures.py --check
 fi
 if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   cp out/release/cefrium-sdk.aar "$ROOT/cefrium-sample/push-demo/app/libs/cefrium-sdk.aar"
@@ -459,10 +463,12 @@ if run release; then hdr "Codeberg release (tag + GPG-signed SHA256SUMS + assets
 fi
 if run web;     then hdr "update cefrium.com pages + committed repo docs"
   cef/cefrium_sdk/release-web-update.sh "$VERSION" "$PREV" "$(date +%F)" "$NOTES"
-  # Bump the committed cef/ consumer docs too (QUICKSTART-CEFRIUM.md, README coordinates +
-  # download URLs). release-web-update.sh only touches the cefrium.com web tree, so
-  # without this the repo docs go stale (they sat at 0.3.1 through 0.4.1).
-  cef/cefrium_sdk/release-bump-docs.sh "$VERSION" "$PREV"
+  # The committed cef/ docs (README, QUICKSTART-CEFRIUM.md) were rewritten in the
+  # `stats` phase, which derives their coordinates from Cefrium.VERSION. Assert
+  # it here rather than rewrite again: a cut resumed with --from publish never
+  # ran `stats`, and this is the last point before the site claims a version the
+  # repo docs do not. They sat at 0.3.1 through 0.4.1 when nothing checked.
+  cef/cefrium_sdk/update-doc-figures.py --check
 
   # Regenerate the API reference, and REFUSE to continue if it is incomplete.
   # Both generators fail silently (javadoc leaves the old tree when it aborts;

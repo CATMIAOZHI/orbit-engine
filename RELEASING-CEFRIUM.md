@@ -16,13 +16,13 @@ One script runs all of it. The phases, in order, and what each one is for:
 | 3 | `merge` | Fuse arm64 + x86_64 into the published fat AARs | `merge-multiabi.sh` |
 | 4 | `compose` | The Compose wrapper AAR | (gradle, in `cefrium_compose`) |
 | 5 | `plugin` | Check the Gradle plugin jar | - |
-| 6 | `stats` | Derive every figure the README states (patch counts, engine, CEF branch), commit it, then assert the committed file | `update-readme-figures.sh` |
+| 6 | `stats` | Derive every figure README.md and QUICKSTART-CEFRIUM.md state (patch counts, engine, SDK version, service slots, toolchain floors), commit them, then assert what was committed | `update-doc-figures.py` |
 | 7 | `sanity` | Build a REAL consumer against the fresh AAR, before anything immutable | - |
 | 8 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
 | 9 | `central` | Upload to Maven Central, the channel adopters actually pin | `publish-central.sh` |
 | 10 | `flagship` | Build the browser APK against this exact SDK | - |
 | 11 | `release` | Codeberg release: tag, assets, GPG-signed `SHA256SUMS` | `release-codeberg.sh` |
-| 12 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, then VERIFY | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
+| 12 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, re-assert the repo docs, then VERIFY | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
 | 13 | `prune` | Drop superseded versions from the latest-only Codeberg mirror | `prune-old-versions.sh` |
 | 14 | `play` | Pin + version-bump the apps, rebuild every sample, upload to Play | `release-play.sh` |
 
