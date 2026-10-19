@@ -108,6 +108,59 @@ if run publish || run central || run release || run prune; then
   echo ">>> credentials: both token files present"
 fi
 
+# ---- release-pinned sources -------------------------------------------------
+# Tracked files in the cef repo that a cut REWRITES. Every one of them has to
+# end up committed, and that is not housekeeping: the Codeberg release tags
+# HEAD, Maven versions are immutable, and a published artifact must be
+# reproducible from committed source by someone who is not us.
+#
+# 0.10.1 shipped with Cefrium.VERSION still reading 0.10.0 in git. The pin was
+# written to the working tree and never committed, and the cut's own final
+# push.sh printed "uncommitted changes -- these are NOT pushed" as a note that
+# is easy to read past. So the cut now commits each pin at the phase that
+# writes it, and refuses to reach an irreversible step with any of them dirty.
+#
+# Add a path here the moment a phase starts rewriting one.
+PINNED="cefrium_sdk/java/src/com/cefrium/Cefrium.java
+CHANGELOG-CEFRIUM.md
+README.md
+QUICKSTART-CEFRIUM.md"
+
+cefgit() { git -C "$SRC/cef" "$@"; }
+
+# Commit the named pinned paths if this cut changed them. A no-op on a clean
+# tree, so --from re-runs stay safe. Named paths only, never `git add -A`: the
+# cut runs in a tree that also holds local scratch.
+pin_commit() { # pin_commit "<subject>" <path-relative-to-cef>...
+  local msg="$1"; shift
+  local have=() p
+  for p in "$@"; do [ -e "$SRC/cef/$p" ] && have+=("$p"); done
+  [ ${#have[@]} -gt 0 ] || return 0
+  if cefgit diff --quiet -- "${have[@]}" && cefgit diff --cached --quiet -- "${have[@]}"; then
+    return 0
+  fi
+  cefgit add -- "${have[@]}"
+  cefgit commit -q -m "$msg" || { echo "ERROR: could not commit ${have[*]} in $SRC/cef"; exit 1; }
+  echo ">>> pinned source committed: $(cefgit log -1 --format=%h) $msg"
+}
+
+pins_dirty() { cefgit status --porcelain -- $PINNED 2>/dev/null || true; }
+
+# Hard stop before anything irreversible. Generic on purpose: it catches the
+# next file someone starts rewriting, not only the one that bit us.
+assert_pins_committed() { # assert_pins_committed "<what is about to happen>"
+  local dirty; dirty="$(pins_dirty)"
+  if [ -z "$dirty" ]; then echo ">>> release-pinned sources: all committed"; return 0; fi
+  echo
+  echo "ERROR: a release-pinned source is modified but not committed, so"
+  echo "       $1 would record source that exists only on this disk."
+  echo "$dirty" | sed 's/^/    /'
+  echo
+  echo "       Commit each one in $SRC/cef under its own subject, then resume:"
+  echo "         cef/cefrium_sdk/cut-release.sh $VERSION $PREV --from <phase>"
+  exit 1
+}
+
 if run patches; then hdr "patches + touch"
   # Keep the SDK version constant in lockstep with the release so the built AAR
   # reports the right Cefrium.getVersion(). Idempotent; runs every cut so the
@@ -120,6 +173,24 @@ if run patches; then hdr "patches + touch"
     && echo ">>> Cefrium.VERSION -> $VERSION" \
     || { echo "ERROR: could not set Cefrium.VERSION in $CEFJAVA"; exit 1; }
   touch "$CEFJAVA"
+  # Refuse to swallow unrelated work into the release commit. If the only
+  # change to Cefrium.java is the version line, it is ours to commit. If there
+  # is more, the maintainer has in-flight API work in that file, and it has to
+  # land under its own subject before a cut, not inside "Cefrium <version>".
+  other=$(cefgit diff -U0 -- cefrium_sdk/java/src/com/cefrium/Cefrium.java \
+          | awk '/^[-+]/ && !/^(\+\+\+|---)/ && !/String VERSION = /' | wc -l)
+  if [ "$other" -gt 0 ]; then
+    echo "ERROR: Cefrium.java carries $other changed line(s) besides the version pin."
+    echo "       Commit that work under its own subject first, then re-run the cut:"
+    cefgit diff --stat -- cefrium_sdk/java/src/com/cefrium/Cefrium.java | sed 's/^/    /'
+    exit 1
+  fi
+  # Commit the pin NOW, before anything is built from it. The build has to come
+  # from committed source, and the release phase tags HEAD.
+  pin_commit "Cefrium $VERSION" cefrium_sdk/java/src/com/cefrium/Cefrium.java
+  # The changelog is hand-written before a cut and used to be hand-committed
+  # too, which is the same hazard one file over.
+  pin_commit "Changelog for $VERSION" CHANGELOG-CEFRIUM.md
   # Gate: every stored patch must be -p0 / no-prefix (patcher applies with -p0).
   # A git-default a/b-prefixed patch fails on a clean apply -- invisible on an
   # incremental tree. Fail before applying. See cef/PATCHING-CEFRIUM.md.
@@ -221,7 +292,13 @@ if run plugin;  then hdr "plugin jar check"
     echo "WARN: $src is NEWER than the jar -- the jar does not match this source."
   fi
 fi
-if run stats;   then hdr "patch stats"; cef/cefrium_sdk/update-patch-stats.sh || true; fi
+if run stats;   then hdr "patch stats"
+  # Rewrites the counts in cef/README.md and in the cefrium.com landing page.
+  # The web tree is committed later by release-publish-docs.sh; the README is
+  # ours to commit here, or the publish phase trips the pinned-source guard.
+  cef/cefrium_sdk/update-patch-stats.sh || true
+  pin_commit "Update the patch counts for $VERSION" README.md
+fi
 if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   cp out/release/cefrium-sdk.aar "$ROOT/cefrium-sample/push-demo/app/libs/cefrium-sdk.aar"
   ( cd "$ROOT/cefrium-sample/push-demo" && ./gradlew clean assembleDebug --no-daemon )
@@ -276,6 +353,9 @@ if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
 fi
 
 if run publish; then hdr "publish to Maven (IMMUTABLE)"
+  # Immutable means there is no second chance to make the bytes match the
+  # source. Check before, not after.
+  assert_pins_committed "publishing $VERSION to Maven"
   # Refuse to publish an incomplete variant matrix. This is a hard stop, not a
   # warning, because the damage is invisible at publish time and unfixable after:
   # the version is immutable, x86_64 ships INSIDE cefrium-sdk.aar (so emulator
@@ -359,6 +439,9 @@ if run flagship; then hdr "flagship APK on $VERSION"
     echo "ERROR: the flagship APK does not match $VERSION -- refusing to continue."; exit 1; }
 fi
 if run release; then hdr "Codeberg release (tag + GPG-signed SHA256SUMS + assets)"
+  # The tag is annotated at HEAD, so a dirty pin would tag the previous
+  # version's source under this version's name.
+  assert_pins_committed "tagging $VERSION at HEAD"
   cef/cefrium_sdk/release-codeberg.sh "$VERSION" \
     "$ROOT/cefrium-browser/cefrium-browser/app/build/outputs/apk/debug/app-debug.apk"
 fi
@@ -476,12 +559,22 @@ if run web; then
   else
     CEF_PUSH_STATE="FAILED -- run: cef/cefrium_sdk/push.sh cef [--force]"
   fi
+  # push.sh moves COMMITS, so a pin left in the working tree survives a green
+  # push and reaches nobody. Report it in the summary rather than failing a cut
+  # that is otherwise complete, because the remedy is one commit.
+  LEFTOVER="$(pins_dirty)"
+  if [ -z "$LEFTOVER" ]; then
+    PIN_STATE="all committed and pushed"
+  else
+    PIN_STATE="STILL UNCOMMITTED -- $(echo "$LEFTOVER" | awk '{print $2}' | tr '\n' ' ')"
+  fi
 fi
 
 echo; echo "Release $VERSION cut."
 echo "Registry prune: $PRUNE_STATE"
 echo "Google Play:    ${PLAY_STATE:-not run}"
 echo "cef repo push:  ${CEF_PUSH_STATE:-not run}"
+echo "pinned sources: ${PIN_STATE:-not checked}"
 echo "cefrium.com:    ${WEB_VERIFY_STATE:-not checked}"
 echo
 echo "Remaining manual: remove any 'releasing shortly' notices."

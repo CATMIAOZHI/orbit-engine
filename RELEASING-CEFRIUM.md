@@ -11,12 +11,12 @@ One script runs all of it. The phases, in order, and what each one is for:
 
 | # | Phase | What it does | Script |
 |---|-------|--------------|--------|
-| 1 | `patches` | Set `Cefrium.VERSION`, apply the CEF patches, touch their targets so ninja rebuilds | `apply-patches.py` |
+| 1 | `patches` | Set `Cefrium.VERSION` **and commit it**, apply the CEF patches, touch their targets so ninja rebuilds | `apply-patches.py` |
 | 2 | `build` | The 4 variants: codecs/libre x arm64/x86_64 (~6.5 h cold on 24c/62G) | `build-all-variants.sh` |
 | 3 | `merge` | Fuse arm64 + x86_64 into the published fat AARs | `merge-multiabi.sh` |
 | 4 | `compose` | The Compose wrapper AAR | (gradle, in `cefrium_compose`) |
 | 5 | `plugin` | Check the Gradle plugin jar | - |
-| 6 | `stats` | Refresh the patch counts quoted on the site and README | `update-patch-stats.sh` |
+| 6 | `stats` | Refresh the patch counts quoted on the site and README, and commit the README | `update-patch-stats.sh` |
 | 7 | `sanity` | Build a REAL consumer against the fresh AAR, before anything immutable | - |
 | 8 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
 | 9 | `central` | Upload to Maven Central, the channel adopters actually pin | `publish-central.sh` |
@@ -45,7 +45,7 @@ confirmation before the two irreversible steps (immutable publish, destructive
 prune):
 
 ```bash
-# Bump Cefrium.java VERSION first, then:
+# The cut sets Cefrium.VERSION itself, and commits it:
 cef/cefrium_sdk/cut-release.sh <version> <prev-version> --notes "<releases-row HTML>"
 # Resume after a long build:  --from publish   (phases: patches build merge
 #   compose plugin stats sanity publish central flagship release web prune play)
@@ -143,7 +143,10 @@ Phases: `preflight pin sync rebase apply report brand`.
   current vs target, confirm the tag is on the remote.
 - **pin** - set the new version in the three sources of truth: `.gclient`
   (`@refs/tags/<tag>`), `cef/CHROMIUM_BUILD_COMPATIBILITY.txt`, and
-  `Cefrium.CHROMIUM_VERSION`. Config-only, with `.bak` backups.
+  `Cefrium.CHROMIUM_VERSION`. Config-only, with `.bak` backups. The two tracked
+  files are committed here as `Pin Chromium <tag> (CEF branch <br>)`; `.gclient`
+  is local config and stays out of git. Only those two paths are staged, so
+  in-flight work elsewhere is untouched.
 - **sync** *(gated, destructive)* - checkout the new Chromium tag + `gclient sync`.
   Resets `chromium/src`; the port's patches live in `cef/patch/` so nothing is
   lost - they get re-applied onto the new tree.
@@ -342,6 +345,19 @@ These are the ones that have actually cost a release:
   done
   ```
 
+- **A pin that is not committed reaches nobody.** The cut rewrites tracked
+  files -- `Cefrium.VERSION`, the changelog, the README patch counts, the
+  consumer docs -- and `push.sh` moves commits, not working trees. 0.10.1
+  published with `Cefrium.VERSION` still reading 0.10.0 in git: the cut's final
+  push printed `uncommitted changes -- these are NOT pushed` and that note is
+  easy to read past. The tag is annotated at HEAD and Maven is immutable, so
+  neither could be corrected afterwards. The cut now commits each pin in the
+  phase that writes it, and `assert_pins_committed` stops it before the
+  immutable publish and before the tag if any pinned path is still dirty. The
+  pinned set lives in one place, `PINNED` in `cut-release.sh` -- extend it the
+  moment a phase starts rewriting another tracked file. The same applies to an
+  engine bump: `engine-bump.sh` commits `CHROMIUM_BUILD_COMPATIBILITY.txt` and
+  `Cefrium.CHROMIUM_VERSION` in its `pin` phase.
 - **A phase that "ran" is not a phase that worked.** Both doc generators fail
   silently, so `regen-docs.sh` asserts every public symbol has a page, and
   `release-web-verify.sh` asserts the site actually shows the new version and
