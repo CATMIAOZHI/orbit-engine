@@ -27,18 +27,28 @@ that gap.
 
 ### The same page, the same device, two engines
 
-<img src="assets/screenshots/engine-compare-webview.webp" width="420" alt="Engine capability report running in the system WebView: 20 of 30, with Payment Request, WebOTP and Presentation API reported as missing">
-<img src="assets/screenshots/engine-compare-cefrium.webp" width="420" alt="The same report running in Cefrium on the same device: 24 of 30">
+One page that detects what the engine can actually do, run twice on the same
+tablet.
 
-*One page that detects what the engine can actually do, run twice on one
-tablet. Left: the system WebView. Right: Cefrium.*
+<img src="assets/screenshots/engine-compare-cefrium.webp" width="560" alt="Engine capability report running in Cefrium: 24 of 30, on a pinned Chromium 152.0.7977.82">
 
-Read the version lines, not just the scores. On that device the **system
-WebView was on a newer Chromium than Cefrium's pinned engine** -- 153 against
-152 -- and still could not do Payment Request, WebOTP or the Presentation API.
-The difference is not engine age. It is what the embedder exposes, and those
-three are exactly a checkout, an SMS one-time code, and a customer-facing
-second screen.
+**Cefrium: 24 of 30**, on the Chromium 152 pinned inside the app.
+
+<img src="assets/screenshots/engine-compare-webview.webp" width="560" alt="The same report running in the system WebView on the same tablet: 20 of 30 on Chromium 153, with Payment Request, WebOTP and Presentation API reported as missing">
+
+**The system WebView on that same tablet: 20 of 30** -- on Chromium **153**,
+a *newer* engine than the one Cefrium had pinned, and still without Payment
+Request, WebOTP or the Presentation API.
+
+So the difference is not engine age. It is what the embedder exposes, and
+those three are exactly a checkout, an SMS one-time code, and a
+customer-facing second screen.
+
+The two captures were taken in different screen orientations, so the page
+lays itself out differently in each and they are not a pixel-for-pixel pair.
+The report is a live page: run it on your own device at
+[cefrium.com/kiosk](https://cefrium.com/kiosk/) and it will measure whatever
+engine you point at it.
 
 > **App size.** Cefrium bundles the Chromium engine, so it adds ~150 MB of native
 > code per ABI to your app. The dependency AAR is multi-ABI (~240 MB); publish an
@@ -146,6 +156,12 @@ without JavaScript injection.
 screenshots, PDF generation, or headless processing? WebView has no API
 for this. Cefrium's `OnPaint` delivers BGRA frames to your code - no
 Activity, no UI, no Surface required.
+
+<img src="assets/screenshots/headless-render.png" width="260" alt="A sample app reporting the file path of a PNG it rendered off-screen from a URL, with the rendered page shown below">
+
+*Of the three, this is the only one that is not a matter of degree: a sample
+app renders a URL straight to a PNG on disk, which WebView has no API to do
+at all.*
 
 | Capability | Cefrium | Android WebView |
 |------------|---------|-----------------|
@@ -262,84 +278,19 @@ Engine-version tracking and how to upgrade it (e.g. 148 -> 149) are in
 Prerequisites: a Chromium source tree at the pinned tag (see **Sources** above --
 currently `156.0.8078.17`), ~400 GB disk, 64 GB RAM.
 
-> **Modifying the Chromium tree?** All port changes to Chromium files are stored
-> as patches under `cef/patch/patches/` and re-applied on every build -- the tree
-> is never committed to. Before adding or regenerating a patch, read
-> **[PATCHING-CEFRIUM.md](PATCHING-CEFRIUM.md)**: the storage format (`-p0`, no `a/`/`b/` prefix),
-> `patch.cfg` registration, one-file-one-patch ownership, and the workdir
-> regeneration method are strict, and a clean `apply-patches.py` must report
-> `0 failed`. A format guard (`check-patch-format.sh`) enforces this in the
-> release gate.
-
 ```bash
-# 1. Apply CEF patches (core + Android-specific). The Android patches are gated
-#    on the condition key 'target_os=="android"', which is not a legal env var
-#    name (it has '=' and '"'); neither `export` nor `env` can set it (both split
-#    on the first '='). apply-patches.py sets it correctly and runs patcher.py.
 cd chromium/src
-python3 cef/cefrium_sdk/apply-patches.py
-
-# 2. Generate build files
-depot_tools/gn gen out/Official_android_arm64 --args='
-  target_os = "android"
-  target_cpu = "arm64"
-  is_official_build = true
-  is_debug = false
-  is_component_build = false
-  android_non_final_r_java = true
-  proprietary_codecs = true
-  ffmpeg_branding = "Chrome"
-'
-# Omit proprietary_codecs and ffmpeg_branding for the libre variant.
-
-# 3. Build test APK (standalone, all-in-one - for validation)
-ninja -C out/Official_android_arm64 cef/tests/cef_android_test:cefrium_test_apk
-
-# 4. Build SDK AAR (for Gradle consumers)
+python3 cef/cefrium_sdk/apply-patches.py                     # never patcher.py directly
+depot_tools/gn gen out/Official_android_arm64 --args='target_os="android" target_cpu="arm64" is_official_build=true is_component_build=false'
 ninja -C out/Official_android_arm64 cef/cefrium_sdk:cefrium_sdk
 ```
 
-## Running the test APK
-
-The test APK is a standalone app that bundles everything - useful for
-validating that CEF works on a device/emulator before packaging as AAR.
-
-```bash
-# Start emulator
-third_party/android_sdk/public/emulator/emulator -avd cefrium_x64 &
-
-# Wait for boot, install, launch
-adb wait-for-device
-adb install out/Official_android_x64/apks/CefriumTest.apk
-adb shell am start -n org.cefrium.test/.CefriumTestActivity
-
-# Check logs
-adb logcat -s "chromium:*" "CefriumTest:*"
-```
-
-## Instrumented tests
-
-The authoritative on-device test suite is `cefrium_instrumentation_test/` - a
-self-contained Gradle module (not part of the GN/ninja build) that exercises the
-public SDK exactly as a consumer would, covering both the Java SDK
-(`com.cefrium`) and the Compose wrapper (`com.cefrium.compose`): **16 test
-classes / 38 `@Test` methods** (core + hardening + JS bridge, navigation /
-cookies / settings / request interceptor, permissions / PDF / media /
-media-session / popups / JS-dialogs / nested-scroll, and SSL / HTTP-auth). When a
-feature ships, its test joins this suite, so it gates releases.
-
-```bash
-cd cefrium_instrumentation_test
-cp ../../out/<dir>/cefrium-sdk.aar app/libs/                 # stage the AAR under test
-cp ../cefrium_compose/build/outputs/aar/cefrium-compose-release.aar app/libs/cefrium-compose.aar
-./gradlew connectedDebugAndroidTest --no-daemon              # whole suite on a connected device
-```
-
-See [`cefrium_instrumentation_test/README.md`](cefrium_instrumentation_test/README.md)
-for the full coverage table, and [`RELEASING-CEFRIUM.md`](RELEASING-CEFRIUM.md) for the
-registry-only consumer smoke test that gates each release. The
-[cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) repo runs a
-Woodpecker CI that builds every sample and compiles the test APK on each push.
+The full GN argument list, the libre variant, the test APK and the device run
+are in **[BUILD-GUIDE-CEFRIUM.md](BUILD-GUIDE-CEFRIUM.md)**. Before adding or
+regenerating a Chromium patch read **[PATCHING-CEFRIUM.md](PATCHING-CEFRIUM.md)**:
+the storage format (`-p0`, no `a/`/`b/` prefix), `patch.cfg` registration and
+one-file-one-patch ownership are strict, and a clean `apply-patches.py` must
+report `0 failed`.
 
 ## SDK releases
 
@@ -349,47 +300,23 @@ Pre-built AARs are published on
 
 ### Gradle integration
 
-Cefrium is published to **two Maven sources**: **Maven Central** (recommended --
-`mavenCentral()` resolves it with no extra repository line, and every version is
-permanent) and the **Codeberg Maven registry** (a mirror; latest version only). The
-settings below list both, so either resolves the plugin and the SDK; if you rely on
-Maven Central you can drop the `maven { url 'https://codeberg.org/api/packages/cefrium/maven' }`
-lines entirely.
-
-```groovy
-// settings.gradle
-pluginManagement {
-    repositories {
-        maven { url 'https://codeberg.org/api/packages/cefrium/maven' }
-        google()
-        mavenCentral()
-    }
-}
-dependencyResolutionManagement {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url 'https://codeberg.org/api/packages/cefrium/maven' }
-    }
-}
-```
+Published to **Maven Central** (recommended -- `mavenCentral()` resolves it with
+no extra repository line, and every version stays available permanently) and
+mirrored on the **Codeberg Maven registry**, which serves the latest version
+only. For the mirror, add
+`maven { url 'https://codeberg.org/api/packages/cefrium/maven' }` to both
+`pluginManagement` and `dependencyResolutionManagement` in `settings.gradle`.
 
 ```groovy
 // app/build.gradle
 plugins {
     id 'com.android.application'
-    id 'com.cefrium' version '0.10.1'  // Generates R.java for Chromium packages
+    id 'com.cefrium' version '0.10.1'  // generates R.java for Chromium packages
 }
 
 dependencies {
-    // Cefrium SDK from Codeberg Packages - single multi-ABI artifact
-    // (arm64-v8a + x86_64); your APK/App Bundle ships only the device's ABI.
-    implementation 'com.cefrium:cefrium-sdk:0.10.1'
-
-    // Optional: Jetpack Compose wrapper
-    implementation 'com.cefrium:cefrium-compose:0.10.1'
-
-    // Required runtime dependencies
+    implementation 'com.cefrium:cefrium-sdk:0.10.1'      // multi-ABI; your APK ships one
+    implementation 'com.cefrium:cefrium-compose:0.10.1'  // optional, Jetpack Compose
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.mediarouter:mediarouter:1.7.0'
     implementation 'androidx.core:core:1.16.0'
@@ -397,7 +324,9 @@ dependencies {
 }
 ```
 
-(App size: see the note at the top and [APK size optimization](#apk-size-optimization).)
+The Application class, the manifest entries and the first Activity are set out
+step by step in **[QUICKSTART-CEFRIUM.md](QUICKSTART-CEFRIUM.md)**, which also
+covers app size, ABI splits, ProGuard/R8 and the build errors that come up most.
 
 ### Direct download
 
@@ -432,62 +361,9 @@ complete working examples.
 
 ### Cutting a release (maintainers)
 
-A release has three parts that stay in sync: the **Maven artifacts** (the
-canonical channel Gradle resolves), a **formal signed Codeberg release** (the
-parity/security record [cefrium.com/releases](https://cefrium.com/releases/)
-links to), and the cefrium.com/releases row linking them.
-`cef/cefrium_sdk/publish-maven.sh <version>` (token file named by `CEFRIUM_REGISTRY_TOKEN`,
-package scope) uploads the SDK variants, `cefrium-compose` and the Gradle plugin;
-it verifies each upload (magic-byte check) and runs a DEP-8-style consumer smoke
-test (`test-published-release.sh`) that resolves and builds from the registry, so
-a corrupt or unconsumable publish fails *before* it is announced. Versions are
-immutable - bump, or delete first to re-publish. Full step-by-step (build ->
-publish -> smoke test -> signed tag + release notes template -> site row) in
-[BUILD-GUIDE-CEFRIUM.md - section 7 Cut a release](BUILD-GUIDE-CEFRIUM.md#7-cut-a-release).
-
-### APK size optimization
-
-The SDK AAR is multi-ABI (~240 MB, both `arm64-v8a` and `x86_64`). Each consumer
-APK/App Bundle ships only one ABI, so the per-architecture footprint is ~150 MB.
-The final APK size then depends on your app's configuration. To minimize it:
-
-```groovy
-// app/build.gradle
-android {
-    buildTypes {
-        release {
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
-                          'proguard-rules.pro'
-        }
-    }
-
-    // Ship only the architecture your users need
-    splits {
-        abi {
-            enable true
-            reset()
-            include 'arm64-v8a'  // or 'x86_64' for emulator-only
-            universalApk false
-        }
-    }
-}
-```
-
-R8/ProGuard automatically strips unused Java classes from the final APK.
-Cefrium's `proguard.txt` includes the necessary keep rules for Chromium's
-JNI and reflection usage.
-
-| Configuration | Approximate APK size |
-|--------------|---------------------|
-| Debug (single arch) | ~250 MB |
-| Release + R8 (single arch) | ~150 MB |
-| Release + R8 + ABI split | ~150 MB per arch |
-| AAB (Play Store) | ~100 MB download |
-
-For smallest download size, use Android App Bundle (AAB) format which
-delivers only the needed architecture to each device.
+One command: `cef/cefrium_sdk/cut-release.sh <version> <prev>`. What each phase
+does, and the facts that bite, are in
+**[RELEASING-CEFRIUM.md](RELEASING-CEFRIUM.md)**.
 
 ## Project structure
 
@@ -505,20 +381,30 @@ cef/
 
 ## Testing
 
-`cefrium_instrumentation_test/` is the authoritative on-device test harness for
-the SDK - a self-contained Gradle module (consumes the built AARs) so a clone of
-this repo is self-verifying, independent of the samples repo. It covers the Java
-SDK (core, hardening, the `window.cefriumQuery` JS bridge) and the Compose API
-(`CefriumView` tab keep-alive, `CefriumNavigator` evaluateJavaScript -> `onQuery`).
+The authoritative on-device suite is `cefrium_instrumentation_test/`, a
+self-contained Gradle module (not part of the GN/ninja build) that consumes the
+built AARs and exercises the public SDK exactly as a consumer would, so a clone
+of this repo is self-verifying, independent of the samples repo: **23 test
+classes, 46 `@Test` methods** across the Java SDK (core, hardening, the
+`window.cefriumQuery` JS bridge, navigation, cookies, settings, the request
+interceptor, permissions, PDF, media, popups, JS dialogs, nested scroll, SSL
+and HTTP auth) and the Compose API (`CefriumView` tab keep-alive,
+`CefriumNavigator` evaluateJavaScript -> `onQuery`). When a feature ships, its
+test joins this suite, so it gates releases.
 
 ```bash
 cd cefrium_instrumentation_test
-cp ../../out/<dir>/cefrium-sdk.aar app/libs/cefrium-sdk.aar
+cp ../../out/<dir>/cefrium-sdk.aar app/libs/                 # stage the AAR under test
 cp ../cefrium_compose/build/outputs/aar/cefrium-compose-release.aar app/libs/cefrium-compose.aar
-./gradlew connectedDebugAndroidTest --no-daemon
+./gradlew connectedDebugAndroidTest --no-daemon              # whole suite on a connected device
 ```
 
-See `cefrium_instrumentation_test/README.md` for details.
+The full coverage table is in
+[`cefrium_instrumentation_test/README.md`](cefrium_instrumentation_test/README.md),
+and the registry-only consumer smoke test that gates each release is in
+[RELEASING-CEFRIUM.md](RELEASING-CEFRIUM.md). The
+[cefrium-sample](https://codeberg.org/cefrium/cefrium-sample) repo runs a
+Woodpecker CI that builds every sample and compiles the test APK on each push.
 
 ## Relationship to upstream CEF
 
@@ -593,8 +479,8 @@ are auditable in `patch/patches/android/`.
 **What you should know:**
 - **APK size:** ~150 MB per architecture (comparable to Chrome itself; the
   multi-ABI AAR is ~240 MB but each device ships only one ABI).
-  Use R8/ProGuard, ABI splits, and AAB format to optimize delivery.
-  See [APK size optimization](#apk-size-optimization).
+  Use R8/ProGuard, ABI splits, and AAB format to optimize delivery -- see
+  [QUICKSTART-CEFRIUM.md](QUICKSTART-CEFRIUM.md#proguard-r8-and-apk-size).
 - **Security updates:** Cefrium tracks Debian Chromium releases for
   CVE patches. Currently pinned to 156.0.8078.17.
 - **Not a WebView replacement:** Cefrium bundles its own Chromium.

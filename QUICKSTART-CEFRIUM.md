@@ -299,10 +299,49 @@ The Cefrium Gradle Plugin (`id 'com.cefrium'`) handles R.java
 generation for Chromium's resource packages automatically.
 No manual resource configuration needed.
 
-## ProGuard / R8
+## ProGuard, R8 and APK size
 
-The SDK AAR includes ProGuard rules. No additional configuration needed
-for release builds.
+The SDK AAR includes ProGuard rules, so release builds need no extra
+configuration: Cefrium's `proguard.txt` already carries the keep rules for
+Chromium's JNI and reflection use, and R8 strips the unused Java classes.
+
+What does move the number is which ABIs you ship. The AAR is multi-ABI (~240 MB,
+`arm64-v8a` and `x86_64`); a consumer APK or App Bundle carries only one, so the
+per-architecture footprint is ~150 MB.
+
+```groovy
+// app/build.gradle
+android {
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                          'proguard-rules.pro'
+        }
+    }
+
+    // Ship only the architecture your users need
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a'  // or 'x86_64' for emulator-only
+            universalApk false
+        }
+    }
+}
+```
+
+| Configuration | Approximate APK size |
+|--------------|---------------------|
+| Debug (single arch) | ~250 MB |
+| Release + R8 (single arch) | ~150 MB |
+| Release + R8 + ABI split | ~150 MB per arch |
+| AAB (Play Store) | ~100 MB download |
+
+An Android App Bundle gives the smallest download, because Play delivers only
+the architecture each device needs.
 
 ## Troubleshooting
 
