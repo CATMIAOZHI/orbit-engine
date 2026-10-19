@@ -79,6 +79,20 @@ SHAPES = [
     ("Gradle",             r"\bGradle ([0-9]+\.[0-9]+\.[0-9]+)\b", 1),
     ("JDK floor",          r"\bJDK ([0-9]{2})\b", 1),
 ]
+
+# Shapes above need the figure's NAME beside the number ("Chromium 156"), which
+# is how "Cefrium pins to a specific Chromium version\n(currently 149)" and
+# "| Pinned (149) |" stayed invisible through four passes: the word is on the
+# previous line, or absent. So also sweep for the VALUES this port has ever
+# shipped, harvested from the changelog, wherever they stand alone.
+past = read("CHANGELOG-CEFRIUM.md")
+EVER = set(re.findall(r"\b[0-9]{2,3}\.0\.[0-9]{4}\.[0-9]+\b", past))
+EVER |= {t.split(".")[0] for t in EVER}          # milestones
+EVER |= {t.split(".")[2] for t in EVER if t.count(".") == 3}   # CEF branches
+for v in sorted(EVER):
+    kind = ("engine tag" if v.count(".") == 3
+            else "Chromium milestone" if len(v) == 3 else "CEF branch")
+    SHAPES.append((kind, r"(?<![0-9.])(" + re.escape(v) + r")(?![0-9.])", 1))
 # Documented markers of a HISTORICAL or EXAMPLE context, matched on the line.
 HIST = re.compile(r"e\.g\.|was |were |used |unchanged from|obsolete|silently|"
                   r"^## \[|and earlier|-> |since |first publish|root cause|"
@@ -111,8 +125,11 @@ for d in DOCS:
         for mm in re.finditer(shape, body):
             s0, e0 = (mm.start(grp), mm.end(grp)) if grp else (mm.start(), mm.end())
             val = body[s0:e0]
-            anchored = bool(set(range(s0, e0)) & spans[d])
-            if anchored:
+            if set(range(s0, e0)) & spans[d]:
+                continue
+            # "~150 MB" is an artifact size, not Chromium 150. The value sweep
+            # cannot tell them apart by shape, so exclude the size context.
+            if re.match(r"\s*MB", body[e0:e0 + 4]) or body[max(0, s0 - 1):s0] == "~":
                 continue
             ln = body[:s0].count("\n") + 1
             line = lines[ln - 1].strip()

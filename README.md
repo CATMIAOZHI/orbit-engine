@@ -25,10 +25,20 @@ considered out of scope due to its fundamentally different process model
 and UI stack. This project builds on CEF's solid foundation to close
 that gap.
 
-<img src="assets/screenshots/cefrium-browser.png" width="300" alt="Cefrium Browser on Android">
-<img src="assets/screenshots/headless-render.png" width="300" alt="Headless rendering - URL to PNG">
+### The same page, the same device, two engines
 
-*Left: Cefrium Browser with URL bar, navigation, video+audio. Right: Headless render - URL to PNG via OSR mode.*
+<img src="assets/screenshots/engine-compare-webview.webp" width="420" alt="Engine capability report running in the system WebView: 20 of 30, with Payment Request, WebOTP and Presentation API reported as missing">
+<img src="assets/screenshots/engine-compare-cefrium.webp" width="420" alt="The same report running in Cefrium on the same device: 24 of 30">
+
+*One page that detects what the engine can actually do, run twice on one
+tablet. Left: the system WebView. Right: Cefrium.*
+
+Read the version lines, not just the scores. On that device the **system
+WebView was on a newer Chromium than Cefrium's pinned engine** -- 153 against
+152 -- and still could not do Payment Request, WebOTP or the Presentation API.
+The difference is not engine age. It is what the embedder exposes, and those
+three are exactly a checkout, an SMS one-time code, and a customer-facing
+second screen.
 
 > **App size.** Cefrium bundles the Chromium engine, so it adds ~150 MB of native
 > code per ABI to your app. The dependency AAR is multi-ABI (~240 MB); publish an
@@ -123,7 +133,7 @@ may be outdated, broken by manufacturer customization, or missing features
 your app depends on. Cefrium solves three problems that WebView cannot:
 
 **1. Version consistency.** Cefrium pins to a specific Chromium version
-(currently 149). Your web code runs identically on every device, regardless
+(currently 156). Your web code runs identically on every device, regardless
 of the system WebView version. No more "works on Pixel, breaks on Samsung."
 
 **2. Full network control.** WebView's `shouldInterceptRequest` is limited
@@ -139,7 +149,7 @@ Activity, no UI, no Surface required.
 
 | Capability | Cefrium | Android WebView |
 |------------|---------|-----------------|
-| Chromium version control | Pinned (149) | Varies by device |
+| Chromium version control | Pinned (156) | Varies by device |
 | Off-screen rendering (pixel buffer) | Yes (OnPaint) | No |
 | Network-level ad blocking | Yes (CefRequestHandler) | Limited (shouldInterceptRequest) |
 | Multi-process control | Yes | No |
@@ -155,6 +165,49 @@ Activity, no UI, no Surface required.
 | Contact Picker (navigator.contacts.select) | Yes (app-drawn) | No |
 | File System Access (open/save/directory pickers) | Yes | No |
 | WebOTP (SMS one-time-code autofill) | Yes | No |
+
+### What that buys, on real hardware
+
+<img src="assets/screenshots/kiosk-pos-checkout.webp" width="300" alt="Self-checkout running in Cefrium: product grid, basket, total, Pay button">
+<img src="assets/screenshots/kiosk-attestation.webp" width="300" alt="Compliance view listing the endpoints the engine contacts and the ones audited as not sent">
+
+**Self-checkout and point of sale.** The whole interface is a web app the
+engine renders; the Pay button is the platform payment sheet through Payment
+Request, which the WebView on the same device did not have. **Compliance.** On
+dedicated hardware "what does this engine talk to?" is an audit question, and
+it can be answered here because the engine ships inside the APK -- two
+endpoints that send, the rest inert, both switchable from the SDK
+(`Cefrium.setComponentUpdatesEnabled`, `Cefrium.setNetworkTimeQueriesEnabled`).
+
+<img src="assets/screenshots/kiosk-car-head-unit.webp" width="620" alt="An obsolete tablet reused as a car head unit: tilt from DeviceMotionEvent, parked/driving mode, offline trip note">
+
+**Reused hardware.** An obsolete tablet as a head unit: live tilt from
+`DeviceMotionEvent`, a driving mode that strips the screen down, speech
+synthesis for hands-free, and notes written to on-device storage so it keeps
+working with no coverage. The engine is the same one the fleet was tested
+against, because it is pinned in the app rather than updated under it.
+
+These are screenshots of a running demo, taken on Chromium 152; the engine
+has moved on since, and the system WebView's version moves on its own, per
+device, which is the point. The demo and its measurements are at
+[cefrium.com/kiosk](https://cefrium.com/kiosk/).
+
+### Shipping this on a fleet?
+
+The three questions a dedicated-hardware project asks before committing to an
+engine are answered in writing rather than on request: which Chromium each
+release carries and when it moves
+([releases](https://cefrium.com/releases/)), what the engine contacts on a
+device you cannot inspect (the compliance view above), and what you are allowed
+to do with the code (LGPL-3.0-or-later, or commercial terms without those
+obligations).
+
+Priority support, a security-response commitment, alternative licence terms and
+sponsored engineering are arranged per case:
+[cefrium.com/commercial](https://cefrium.com/commercial/), or
+**cefrium@proton.me**. Cefrium is pre-1.0 and the public API still moves
+between minor releases -- say what you are building and you get a straight
+answer about whether it is ready for it, including when it is not.
 
 ### What is CEF?
 
@@ -472,6 +525,12 @@ See `cefrium_instrumentation_test/README.md` for details.
 Fork of CEF branch 8078, tracking Chromium 156.0.8078.17.
 Branch `android-port` contains all Android changes.
 
+Upstream CEF's own README is kept verbatim in
+[README-CEF.md](README-CEF.md). It describes CEF on Windows, Linux and macOS
+and says nothing about Android; its donation link goes to upstream CEF, not to
+Cefrium. What this port adds, and what it deliberately keeps downstream, is set
+out at [cefrium.com/upstream](https://cefrium.com/upstream/).
+
 ### Contributing upstream
 
 All Android changes are isolated and reviewable:
@@ -552,16 +611,21 @@ use, and extend.
 
 ## Supporting Cefrium
 
-Cefrium is maintained by one person. Recurring donations are what keep the
-release cadence sustainable: tracking Chromium stable, re-validating every
-carried patch against each new engine, keeping parity with upstream security
-fixes, and testing on real devices across the Android OEM matrix.
+Cefrium is maintained by one person. What recurring donations pay for is the
+part nobody sees: every Chromium release moves the ground under the 34
+Android-specific patches this port carries, and each one has to be
+re-validated, regenerated where it conflicts, and re-tested on real devices
+before an engine bump can ship. That work is what keeps a pinned engine
+current with upstream security fixes instead of frozen at whatever it shipped
+with.
 
-- **Donate:** https://liberapay.com/cefrium/
+[![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/cefrium/donate)
 
-Priority support, a security-response commitment, alternative license terms and
-sponsored engineering are arranged per case and described at
-https://cefrium.com/commercial/ - inquiries to **cefrium@proton.me**
+If you are shipping a product on Cefrium, a support or licence arrangement
+funds the same work at a scale donations cannot, and gives you a commitment in
+return rather than goodwill:
+[cefrium.com/commercial](https://cefrium.com/commercial/),
+**cefrium@proton.me**.
 
 ## License
 
@@ -576,93 +640,3 @@ are **dual-licensed - choose one:**
 
 The underlying **CEF and Chromium** code is **BSD** (inherited upstream) and is
 unaffected by the above.
-
----
-
-# Upstream CEF README
-
-The Chromium Embedded Framework (CEF) is a simple framework for embedding Chromium-based browsers in other applications.
-
-# Quick Links
-
-* Project Page - https://github.com/chromiumembedded/cef
-* Documentation - https://chromiumembedded.github.io/cef/
-* Tutorial - https://chromiumembedded.github.io/cef/tutorial
-* General Usage - https://chromiumembedded.github.io/cef/general_usage
-* Master Build Quick-Start - https://chromiumembedded.github.io/cef/master_build_quick_start
-* Branches and Building - https://chromiumembedded.github.io/cef/branches_and_building
-* Announcements - https://groups.google.com/forum/#!forum/cef-announce
-* Support Forum - http://www.magpcss.org/ceforum/
-* Issue Tracker - https://github.com/chromiumembedded/cef/issues
-* C++ API Docs - [Stable release docs](https://cef-builds.spotifycdn.com/docs/stable.html) / [Beta release docs](https://cef-builds.spotifycdn.com/docs/beta.html)
-* Downloads - https://cef-builds.spotifycdn.com/index.html
-* Donations - http://www.magpcss.org/ceforum/donate.php
-
-# Introduction
-
-CEF is a BSD-licensed open source project founded by Marshall Greenblatt in 2008 and based on the [Google Chromium](http://www.chromium.org/Home) project. Unlike the Chromium project itself, which focuses mainly on Google Chrome application development, CEF focuses on facilitating embedded browser use cases in third-party applications. CEF insulates the user from the underlying Chromium and Blink code complexity by offering production-quality stable APIs, release branches tracking specific Chromium releases, and binary distributions. Most features in CEF have default implementations that provide rich functionality while requiring little or no integration work from the user. There are currently over 100 million installed instances of CEF around the world embedded in products from a wide range of companies and industries. A partial list of companies and products using CEF is available on the [CEF Wikipedia page](http://en.wikipedia.org/wiki/Chromium_Embedded_Framework#Applications_using_CEF). Some use cases for CEF include:
-
-* Embedding an HTML5-compliant Web browser control in an existing native application.
-* Creating a light-weight native "shell" application that hosts a user interface developed primarily using Web technologies.
-* Rendering Web content "off-screen" in applications that have their own custom drawing frameworks.
-* Acting as a host for automated testing of existing Web properties and applications.
-
-CEF supports a wide range of programming languages and operating systems and can be easily integrated into both new and existing applications. It was designed from the ground up with both performance and ease of use in mind. The base framework includes C and C++ programming interfaces exposed via native libraries that insulate the host application from Chromium and Blink implementation details. It provides close integration between the browser and the host application including support for custom plugins, protocols, JavaScript objects and JavaScript extensions. The host application can optionally control resource loading, navigation, context menus, printing and more, while taking advantage of the same performance and HTML5 technologies available in the Google Chrome Web browser.
-
-Numerous individuals and organizations contribute time and resources to support CEF development, but more involvement from the community is always welcome. This includes support for both the core CEF project and external projects that integrate CEF with additional programming languages and frameworks (see the "External Projects" section below). If you are interested in donating time to help with CEF development please see the "Helping Out" section below. If you are interested in donating money to support general CEF development and infrastructure efforts please visit the [CEF Donations](http://www.magpcss.org/ceforum/donate.php) page.
-
-# Getting Started
-
-Users new to CEF development should start by reading the [Tutorial](https://chromiumembedded.github.io/cef/tutorial) for an overview of CEF usage and then proceed to the [General Usage](https://chromiumembedded.github.io/cef/general_usage) page for a more in-depth discussion of architectural and usage issues. Complete API documentation is available [here](https://cef-builds.spotifycdn.com/docs/stable.html). CEF support and related discussion is available on the [CEF Forum](http://www.magpcss.org/ceforum/).
-
-# Binary Distributions
-
-Binary distributions, which include all files necessary to build a CEF-based application, are available on the [Downloads](https://cef-builds.spotifycdn.com/index.html) page. Binary distributions are stand-alone and do not require the download of CEF or Chromium source code. Symbol files for debugging binary distributions of libcef can also be downloaded from the above links.
-
-# Source Distributions
-
-The CEF project is an extension of the Chromium project. CEF maintains development and release branches that track Chromium branches. CEF source code can be downloaded, built and packaged manually or with automated tools. Visit the [Branches and Building](https://chromiumembedded.github.io/cef/branches_and_building) page for more information.
-
-# External Projects
-
-The base CEF framework includes support for the C and C++ programming languages. Thanks to the hard work of external maintainers CEF can integrate with a number of other programming languages and frameworks. These external projects are not maintained by CEF so please contact the respective project maintainer if you have any questions or issues.
-
-* .Net (CEF3) - https://github.com/cefsharp/CefSharp
-* .Net (CEF1) - https://bitbucket.org/fddima/cefglue
-* .Net/Mono (CEF3) - https://gitlab.com/xiliumhq/chromiumembedded/cefglue
-* Delphi - https://github.com/hgourvest/dcef3
-* Delphi - https://github.com/salvadordf/CEF4Delphi
-* Go - https://github.com/CzarekTomczak/cef2go
-* Go - https://github.com/energye/energy
-* Java - https://github.com/chromiumembedded/java-cef
-* Python - http://code.google.com/p/cefpython/
-
-If you're the maintainer of a project not listed above and would like your project listed here please either post to the [CEF Forum](http://www.magpcss.org/ceforum/) or contact Marshall directly.
-
-# Helping Out
-
-CEF is still very much a work in progress. Some ways that you can help out:
-
-\- Vote for issues in the [CEF issue tracker](https://github.com/chromiumembedded/cef/issues) that are important to you. This helps with development prioritization.
-
-\- Report any bugs that you find or feature requests that are important to you. Make sure to first search for existing issues before creating new ones. Please use the [CEF Forum](http://magpcss.org/ceforum) and not the issue tracker for usage questions. Each CEF issue should:
-
-* Include the CEF revision or binary distribution version.
-* Include information about your OS and compiler version.
-* If the issue is a bug please provide detailed reproduction information.
-* If the issue is a feature please describe why the feature is beneficial.
-
-\- Write unit tests for new or existing functionality.
-
-\- Pull requests and patches are welcome. View open issues in the [CEF issue tracker](https://github.com/chromiumembedded/cef/issues) or search for TODO(cef) in the source code for ideas.
-
-If you would like to contribute source code changes to CEF please follow the below guidelines:
-
-\- Create or find an appropriate issue for each distinct bug, feature or change. 
-
-\- Submit a [pull request](https://chromiumembedded.github.io/cef/contributing_with_git) or create a patch with your changes and attach it to the CEF issue. Changes should:
-
-* Be submitted against the current [CEF master branch](https://github.com/chromiumembedded/cef/tree/master) unless explicitly fixing a bug in a CEF release branch.
-* Follow the style of existing CEF source files. In general CEF uses the [Chromium C++ style guide](https://chromium.googlesource.com/chromium/src/+/master/styleguide/c++/c++.md).
-* Include new or modified unit tests as appropriate to the functionality.
-* Not include unnecessary or unrelated changes.
