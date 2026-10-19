@@ -129,6 +129,24 @@ if [ -f "$UP" ]; then
   apply "$UP" \
     "s{(<div class=\"n\">)[^<]*(</div><div class=\"k\">lines changed)}{\${1}+$P_ADD / -$P_DEL\${2}}" \
     "+$P_ADD / -$P_DEL" "upstream panel: lines changed"
+
+  # The same page states the count twice more in PROSE and lists a per-area file
+  # breakdown, and all three were stale as well: "33 patches" twice, and
+  # "components (11)" after that area had reached 12. Fixing only the panel
+  # leaves an evaluator reading two different counts on one page, so derive
+  # these from the same patches. The breakdown also has to add up to the
+  # files-touched number in the panel, which is why one script generates it and
+  # release-web-verify.sh asserts the published string.
+  apply "$UP" \
+    "s{(the )\\d+( above are the ones Cefrium adds)}{\${1}$P_COUNT\${2}}" \
+    "the $P_COUNT above are the ones Cefrium adds" "upstream prose: count in the note"
+  apply "$UP" \
+    "s{(Most of the )\\d+( patches are therefore not features)}{\${1}$P_COUNT\${2}}" \
+    "Most of the $P_COUNT patches are therefore not features" "upstream prose: count in the guards paragraph"
+  AREAS="$("$SCRIPT_DIR/patch-area-breakdown.sh")"
+  apply "$UP" \
+    "s{(the areas touched are)\\s.*?(\\. Every patch is in the)}{\${1}\n  $AREAS\${2}}s" \
+    "$AREAS" "upstream prose: per-area file breakdown"
 fi
 
 # 1c. The modern-web demo page names the Chromium major four times, in prose, in
