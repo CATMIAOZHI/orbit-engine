@@ -109,6 +109,8 @@ Individual phases, runnable on their own:
 | Gradle-plugin Java target | `cefrium_sdk/gradle-plugin/build.gradle` |
 | JDK floor (a dozen statements) | PROPAGATED from the quickstart's "JDK N is a hard floor" sentence -- Chromium's bundled JDK sets it and a bare clone has no Chromium tree, so there is nothing to derive it from |
 | Class-file major | the JDK floor + 44, fixed by the JVM spec |
+| README badge row (SDK, Chromium, patches, min API) | the same sources -- the value lives inside the shields.io URL and is spliced there like any other figure |
+| The `156` inside `assets/cefrium-logo.svg` | `Cefrium.CHROMIUM_VERSION`. The brand logo is a periodic-table tile whose atomic number is the Chromium milestone, so it is a figure, not decoration. cefrium-web holds its own copy, owned by `release-web-update.sh`: one owner per file, each next to the repo it serves |
 
 `--check` asserts all of them and runs in three places: CI, the `stats` phase
 AFTER its commit, and the `web` phase before the site is published. It is also
