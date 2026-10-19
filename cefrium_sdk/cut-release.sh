@@ -191,8 +191,35 @@ if run compose; then hdr "compose AAR"
 fi
 if run plugin;  then hdr "plugin jar check"
   jar=cef/cefrium_sdk/gradle-plugin/build/libs/gradle-plugin.jar
-  unzip -p "$jar" 'com/cefrium/CefriumPlugin*.class' | strings | grep -q gms.common \
-    && echo "plugin jar current" || echo "WARN: plugin jar may be stale -- rebuild it"
+  src=cef/cefrium_sdk/gradle-plugin/src/main/groovy/com/cefrium/CefriumPlugin.groovy
+  [ -f "$jar" ] || { echo "FAIL: no plugin jar at $jar"; exit 1; }
+
+  # Check the property consumers actually depend on, not a string inside the
+  # class. Three evaluators reported "Unsupported class file major version 69"
+  # and blamed this plugin; it has been class 61 since 49cea91c4, which is what
+  # lets `plugins { id 'com.cefrium' }` be applied on a JDK 17 Gradle instead of
+  # dragging every integrator onto JDK 25. Nothing guarded that, so a build-JDK
+  # change could silently take it away again. 61 = Java 17.
+  CLS="$(mktemp -d)"; unzip -qo "$jar" 'com/cefrium/CefriumPlugin.class' -d "$CLS"
+  maj=$(od -An -tu1 -j6 -N2 "$CLS/com/cefrium/CefriumPlugin.class" | awk '{print $1*256+$2}')
+  rm -rf "$CLS"
+  if [ "${maj:-0}" -gt 61 ]; then
+    echo "FAIL: plugin bytecode is class-file major $maj (> 61 = Java 17)."
+    echo "      That forces every consumer onto a newer JDK just to APPLY the"
+    echo "      plugin. Restore sourceCompatibility/targetCompatibility = 17 in"
+    echo "      cefrium_sdk/gradle-plugin/build.gradle and rebuild the jar."
+    exit 1
+  fi
+  echo "plugin bytecode OK (class-file major $maj, applies on JDK 17+)"
+
+  # Staleness by timestamp, not by grepping for a symbol. Nothing in the release
+  # rebuilds this jar, so the same file is republished under each new version
+  # (see ROADMAP "Adoption friction" 1a). Rebuilding it here needs a Gradle
+  # wrapper this module does not have -- borrow one from a sample, the way the
+  # instrumentation test does -- so for now this only reports the gap.
+  if [ -f "$src" ] && [ "$src" -nt "$jar" ]; then
+    echo "WARN: $src is NEWER than the jar -- the jar does not match this source."
+  fi
 fi
 if run stats;   then hdr "patch stats"; cef/cefrium_sdk/update-patch-stats.sh || true; fi
 if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
