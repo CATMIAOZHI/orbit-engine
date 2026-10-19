@@ -125,7 +125,8 @@ PINNED="cefrium_sdk/java/src/com/cefrium/Cefrium.java
 CHANGELOG-CEFRIUM.md
 README.md
 QUICKSTART-CEFRIUM.md
-MIGRATION-CEFRIUM.md"
+MIGRATION-CEFRIUM.md
+BUILD-GUIDE-CEFRIUM.md"
 
 cefgit() { git -C "$SRC/cef" "$@"; }
 
@@ -312,7 +313,7 @@ if run stats;   then hdr "consumer-doc figures"
   # call in the web phase any more.
   cef/cefrium_sdk/update-doc-figures.py
   pin_commit "Update the derived doc figures for $VERSION" \
-    README.md QUICKSTART-CEFRIUM.md MIGRATION-CEFRIUM.md
+    README.md QUICKSTART-CEFRIUM.md MIGRATION-CEFRIUM.md BUILD-GUIDE-CEFRIUM.md
   # Assert what is COMMITTED, not what was written. pin_commit is a no-op on an
   # already-clean tree, so on a --from stats re-run this is the only line that
   # proves the docs in git carry this release's figures.

@@ -109,7 +109,9 @@ if run pin; then hdr "pin new version (config only, non-destructive)"
   # The consumer docs state the engine in several places -- one under
   # "Security updates" where an evaluator reads it, one in the quickstart's
   # "you should see ... full Chromium NNN", one in the migration guide's
-  # WebView comparison table. They are not pinned here: they are
+  # WebView comparison table, and one in the build guide's `git checkout` -- a
+  # reader following that line built a DIFFERENT engine from the one the same
+  # guide documents. They are not pinned here: they are
   # DERIVED from Cefrium.CHROMIUM_VERSION, which the line above just wrote, by
   # the one script that owns every figure in those files. It fails this phase if
   # a sentence stopped matching, which is what a WARN here failed to do while
@@ -129,7 +131,8 @@ if run pin; then hdr "pin new version (config only, non-destructive)"
 cefrium_sdk/java/src/com/cefrium/Cefrium.java
 README.md
 QUICKSTART-CEFRIUM.md
-MIGRATION-CEFRIUM.md"
+MIGRATION-CEFRIUM.md
+BUILD-GUIDE-CEFRIUM.md"
   if [ -n "$(git -C "$CEF" status --porcelain -- $PINS)" ]; then
     git -C "$CEF" add -- $PINS
     git -C "$CEF" commit -q -m "Pin Chromium $CTAG (CEF branch $CEFBR)" \

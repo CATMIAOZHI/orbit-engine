@@ -95,8 +95,8 @@ Individual phases, runnable on their own:
 | Drop superseded versions | `cef/cefrium_sdk/prune-old-versions.sh <version> --yes` |
 
 `update-doc-figures.py` is the only writer of the figures in `cef/README.md`,
-`cef/QUICKSTART-CEFRIUM.md` and `cef/MIGRATION-CEFRIUM.md`. Each is derived from
-the file that defines it:
+`cef/QUICKSTART-CEFRIUM.md`, `cef/MIGRATION-CEFRIUM.md` and
+`cef/BUILD-GUIDE-CEFRIUM.md`. Each is derived from the file that defines it:
 
 | Figure | Derived from |
 |---|---|
@@ -106,6 +106,9 @@ the file that defines it:
 | Render-process slots (`NUM_SANDBOXED_SERVICES`, privileged) | `cefrium_sdk/AndroidManifest.xml`, cross-checked against the services it ships |
 | `compileSdk` / `minSdk` / `targetSdk` | `cefrium_compose/build.gradle` |
 | AGP and Gradle floors | the same file and its `gradle-wrapper.properties` |
+| Gradle-plugin Java target | `cefrium_sdk/gradle-plugin/build.gradle` |
+| JDK floor (a dozen statements) | PROPAGATED from the quickstart's "JDK N is a hard floor" sentence -- Chromium's bundled JDK sets it and a bare clone has no Chromium tree, so there is nothing to derive it from |
+| Class-file major | the JDK floor + 44, fixed by the JVM spec |
 
 `--check` asserts all of them and runs in three places: CI, the `stats` phase
 AFTER its commit, and the `web` phase before the site is published. It is also
@@ -123,8 +126,9 @@ Only the capture group inside a sentence is rewritten, so the prose around a
 figure is never touched and one anchor can cover several artifacts
 (`cefrium-sdk:X` and `cefrium-compose:X`) against one derived value.
 
-The same run also ASSERTS, in those three files and in `FEATURES-CEFRIUM.md`,
-the references a reader follows:
+The same run also ASSERTS, in those four files and in `FEATURES-CEFRIUM.md`,
+`SCRIPTS-CEFRIUM.md`, `RELEASING-CEFRIUM.md` and `PATCHING-CEFRIUM.md`, the
+references a reader follows:
 
 - every `Cefrium.`, `CefriumBrowser.`, `browser.` and `state.` name in the prose
   must still be declared in `cefrium_sdk/java/src/com/cefrium/` or
@@ -135,6 +139,12 @@ the references a reader follows:
   tell a reader to call -- `CefriumWebView`, `CefriumView`,
   `rememberCefriumViewState`, `rememberCefriumNavigator`,
   `rememberCefriumBrowserPool` -- went unchecked until this was added;
+- every `cef/...` script path the prose tells a reader to RUN must exist. This
+  is the build guide's own rot class -- what a reader types there is a path, not
+  a symbol -- and this file is the index of every script, so it is where a
+  deleted one lingers. Three were deleted in one afternoon with nothing
+  checking the docs. `./dev-build.sh` and `./gradlew` are not checked: they
+  live in other repos;
 - every link to another document in the repo must resolve, including its
   `#heading` anchor.
 
@@ -148,6 +158,18 @@ navigator shares that name with the web platform's own. `webView.` is not
 checked either: half of `MIGRATION-CEFRIUM.md` quotes Android WebView's API so
 a reader can compare it to ours, those names are Google's to change, and the
 comparison is worthless if one side is dropped for being undeclarable.
+
+`BUILD-GUIDE-CEFRIUM.md` owns the engine in three places, including the
+`git checkout` of step 1: it said 150.0.7871.46 while 156.0.8078.17 shipped, so
+anyone following the guide built a different engine from the one the same guide
+documents. It also listed **JDK 21** under System requirements while its own
+export line twenty lines down said "JDK 25 REQUIRED", and sent the reader to a
+`<JBR-21>` that this file warns against by name. Its unowned figures stay
+unowned: host disk and RAM, the `~MB` artifact sizes, the GN revision
+(depot_tools is not this repo) and the build-times table, which is a measurement
+on one named machine. Its `0.3.0` command examples became `<version>`
+placeholders, matching the idiom the same document already used for
+`cut-release.sh <version> <prev-version>`.
 
 `MIGRATION-CEFRIUM.md` owns one figure, the pinned Chromium milestone in its
 "What Cefrium adds over WebView" table, which read 149 while 156 shipped. Its
