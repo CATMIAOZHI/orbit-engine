@@ -103,6 +103,34 @@ apply "$WEB/upstream/index.html" \
   "s{(Counts for Cefrium SDK )[0-9]+\\.[0-9]+\\.[0-9]+}{\${1}$NEW}g" \
   "$NEW" "upstream page version"
 
+# 1b-bis. The /upstream page's "divergence" panel: four hand-maintained numbers
+# that an evaluator can check in one minute, and all four had gone stale -- it
+# claimed engine 154.0.8037.98 and 33 patches while 156.0.8078.17 and 34 were
+# published. update-patch-stats.sh only ever touched the landing page and the
+# README, so nothing owned these. Derive all four from the patches themselves.
+UP="$WEB/upstream/index.html"
+if [ -f "$UP" ]; then
+  APD="$CEF_DIR/patch/patches/android"
+  P_COUNT=$(find "$APD" -maxdepth 1 -name '*.patch' | wc -l | tr -d ' ')
+  P_FILES=$(grep -h '^--- ' "$APD"/*.patch | grep -v '/dev/null' \
+            | sed 's/^--- //; s/\t.*//' | sort -u | wc -l | tr -d ' ')
+  P_ADD=$(cat "$APD"/*.patch | grep -E '^\+' | grep -v '^+++' | wc -l | tr -d ' ')
+  P_DEL=$(cat "$APD"/*.patch | grep -E '^-' | grep -v '^---' | wc -l | tr -d ' ')
+  echo "  upstream panel: engine $CHROMIUM, $P_COUNT patches, $P_FILES files, +$P_ADD/-$P_DEL lines"
+  apply "$UP" \
+    "s{(<div class=\"n\">)[^<]*(</div><div class=\"k\">Chromium tracked)}{\${1}$CHROMIUM\${2}}" \
+    ">$CHROMIUM<" "upstream panel: engine"
+  apply "$UP" \
+    "s{(<div class=\"n\">)[^<]*(</div><div class=\"k\">patches carried)}{\${1}$P_COUNT\${2}}" \
+    ">$P_COUNT<" "upstream panel: patch count"
+  apply "$UP" \
+    "s{(<div class=\"n\">)[^<]*(</div><div class=\"k\">Chromium files touched)}{\${1}$P_FILES\${2}}" \
+    ">$P_FILES<" "upstream panel: files touched"
+  apply "$UP" \
+    "s{(<div class=\"n\">)[^<]*(</div><div class=\"k\">lines changed)}{\${1}+$P_ADD / -$P_DEL\${2}}" \
+    "+$P_ADD / -$P_DEL" "upstream panel: lines changed"
+fi
+
 # 1c. The modern-web demo page names the Chromium major four times, in prose, in
 # a parallax layer and in a view-transition label. Hand-maintained, so it sat at
 # 154 with 156 published -- on the one page whose entire argument is "you ship a
