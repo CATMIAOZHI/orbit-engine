@@ -183,6 +183,17 @@ test_methods = str(sum(
     len(re.findall(r"@Test\b", open(f, encoding="utf-8", errors="replace").read()))
     for f in test_files))
 
+# The capability count the README advertises, counted in the table that holds
+# it. FEATURES is never rewritten, so the table is the source and the README
+# the only place the number is stated.
+cap_rows = re.search(r"^## Capability status$(.*?)^## ",
+                     read(FEATURES), re.M | re.S)
+if not cap_rows:
+    die("FEATURES-CEFRIUM.md: no '## Capability status' section to count")
+capabilities = str(len([l for l in cap_rows.group(1).split("\n")
+                        if l.startswith("| ") and not l.startswith("| Capability")
+                        and not l.startswith("|---")]))
+
 # The Gradle plugin's own Java target. A DIFFERENT number from the JDK floor
 # below, and the docs say so three times, because reading them as the same is
 # the wrong diagnosis three integrators reached for a class-69 error.
@@ -345,6 +356,8 @@ FIGURES = [
      "Gradle-plugin Java target, build-tooling note"),
     (QUICK, r"compiled for Java ([0-9]+) on purpose", [plugin_java],
      "Gradle-plugin Java target, JDK-error entry"),
+    (README, r"All ([0-9]+) capabilities", [capabilities],
+     'capability count, "What works"'),
     (README, r"\*\*([0-9]+)\s+test\s+classes, ([0-9]+) `@Test` methods\*\*",
      [test_classes, test_methods], "instrumentation coverage, \"Testing\""),
     # The runbook's own export. "NOT the Android Studio JBR 21" and "javac 21"
