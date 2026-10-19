@@ -122,6 +122,23 @@ Only the capture group inside a sentence is rewritten, so the prose around a
 figure is never touched and one anchor can cover several artifacts
 (`cefrium-sdk:X` and `cefrium-compose:X`) against one derived value.
 
+The same run also ASSERTS, in those two files and in `FEATURES-CEFRIUM.md`, the
+references a reader follows:
+
+- every `Cefrium.`, `CefriumBrowser.`, `browser.` and `state.` name in the prose
+  must still be declared in `cefrium_sdk/java/src/com/cefrium/` or
+  `cefrium_compose/java/`;
+- every link to another document in the repo must resolve, including its
+  `#heading` anchor.
+
+`FEATURES-CEFRIUM.md` has no derived figure and is never rewritten. That is
+deliberate: its one version, "Cefrium 0.9.2 / Chromium 152", dates a sensor
+measurement taken on that build, and deriving it would claim a measurement
+nobody made. What rots in a feature guide is the API names in its examples, and
+no script can derive the right name -- so a missing one fails the release and a
+human fixes the prose. `navigator.` is not checked, because the Compose
+navigator shares that name with the web platform's own.
+
 `release-web-verify.sh` checks the POST-conditions rather than the steps, on
 the local tree AND on the live site:
 
