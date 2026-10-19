@@ -73,6 +73,11 @@ README = "README.md"
 QUICK = "QUICKSTART-CEFRIUM.md"
 MIGRATION = "MIGRATION-CEFRIUM.md"
 BUILD = "BUILD-GUIDE-CEFRIUM.md"
+RELEASING = "RELEASING-CEFRIUM.md"
+# RELEASING is a runbook with LIVE commands: its Prerequisites block tells the
+# maintainer which JDK to export, so that figure must follow the floor. Its
+# other versions are history (past incidents, "since 0.8.0" markers) and no
+# anchor touches them.
 FEATURES = "FEATURES-CEFRIUM.md"
 # The brand logo is a periodic-table tile whose atomic number IS the Chromium
 # milestone, so it is a figure-bearing artifact, not decoration. cefrium-web
@@ -313,12 +318,19 @@ FIGURES = [
      "Gradle-plugin Java target, build-tooling note"),
     (QUICK, r"compiled for Java ([0-9]+) on purpose", [plugin_java],
      "Gradle-plugin Java target, JDK-error entry"),
+    # The runbook's own export. "NOT the Android Studio JBR 21" and "javac 21"
+    # on the next line are HISTORY -- the JDK that stopped working at 0.8.0 --
+    # so the anchors carry wording those do not use.
+    (RELEASING, r"JDK ([0-9]+) -- Chromium's bundled Temurin", [jdk],
+     "JDK floor, release prerequisites"),
+    (RELEASING, r"ships Java-([0-9]+) \(class-([0-9]+)\)", [jdk, class_major],
+     "JDK floor + class-file major, release prerequisites"),
 ]
 
 
 # The docs this script REWRITES, because every figure in them has an owner
 # above. FEATURES-CEFRIUM.md is checked but never rewritten.
-OWNED = (README, QUICK, MIGRATION, BUILD)
+OWNED = (README, QUICK, MIGRATION, BUILD, RELEASING)
 # Rewritten: the docs plus the logo. DOCS below stays prose-only, so the API,
 # type, script and link checks are not run against an SVG.
 REWRITTEN = OWNED + (LOGO,)
@@ -382,7 +394,7 @@ def rewrite(text, path):
 # SCRIPTS-CEFRIUM.md is the index of every script, so it is where a deleted one
 # lingers: three were deleted in one afternoon and nothing checked the docs.
 CHECKED_ONLY = (FEATURES, CHANGELOG, "SCRIPTS-CEFRIUM.md",
-                "RELEASING-CEFRIUM.md", "PATCHING-CEFRIUM.md")
+                "PATCHING-CEFRIUM.md", "VERSIONING-CEFRIUM.md")
 DOCS = OWNED + CHECKED_ONLY
 
 JAVA_DECL = r"(?:public|protected)[\w\s<>\[\],.?@]*?\b%s\s*(?:\(|=|;|\{|,|\))"

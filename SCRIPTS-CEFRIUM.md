@@ -89,6 +89,7 @@ Individual phases, runnable on their own:
 | Publish to Maven Central | `cef/cefrium_sdk/publish-central.sh <version>` |
 | Codeberg release + GPG sums | `cef/cefrium_sdk/release-codeberg.sh <version> <apk>` |
 | Derive the repo-doc figures | `cef/cefrium_sdk/update-doc-figures.py [--check]` |
+| Find a figure that has no owner | `cef/cefrium_sdk/sweep-doc-figures.py` |
 | Update cefrium.com + docs | `cef/cefrium_sdk/release-web-update.sh <version> <prev>` |
 | Verify cefrium.com matches | `cef/cefrium_sdk/release-web-verify.sh <version> [prev]` |
 | Google Play (apps) | `cef/cefrium_sdk/release-play.sh <version> [track]` |
@@ -128,17 +129,35 @@ Only the capture group inside a sentence is rewritten, so the prose around a
 figure is never touched and one anchor can cover several artifacts
 (`cefrium-sdk:X` and `cefrium-compose:X`) against one derived value.
 
-**To find a figure the script cannot see, sweep by SHAPE, not by value.** A
-missing anchor reports nothing at all -- not `STALE`, not `MISSING` -- so
-reading the output proves nothing about what is absent from the table. List the
-character spans the anchors cover, then look for version-shaped tokens outside
-them. That is what found `git format-patch origin/7871..android-port` in the
-contributing section, six milestones behind, after four passes over this file
-had read straight past it. Searching for the CURRENT values finds only the
-correct-but-unanchored ones; the shape sweep finds the stale ones too. Expect
-about thirty legitimate hits -- `(0.5.0)` "since" markers, `0.8.0+` floors, the
-`0.3.0` publish incident, `Chromium 152` as the milestone the bytecode floor
-moved -- so it is a review tool, not a gate.
+**To find a figure the script cannot see, sweep by SHAPE, not by value:**
+`cef/cefrium_sdk/sweep-doc-figures.py`. A missing anchor reports nothing at all
+-- not `STALE`, not `MISSING` -- so reading `--check` proves nothing about what
+is absent from the table. The sweep asks the owner which character spans its
+anchors cover, then classifies every version-shaped token outside them:
+
+| Bucket | Meaning |
+|---|---|
+| `TIME BOMB` | equals today's derived value with no anchor: correct now, wrong after the next bump. **Act on these.** |
+| `STALE?` | differs from today's value with no historical marker. Read each; most are "since 0.5.0" markers and records of past incidents. |
+| `SOURCE` | the JDK floor's own sentence, held by hand on purpose |
+| `history` | a record or an illustration, correct as written. Counted only. |
+
+It discovers the docs by globbing rather than from a list, because a doc added
+to the repo and forgotten by `update-doc-figures.py` is otherwise invisible to
+BOTH tools -- which is how `VERSIONING-CEFRIUM.md` turned out to be unchecked
+while the changelog pointed readers at it.
+
+It is **not a gate**, deliberately: around forty hits are legitimate history
+whose phrasing no keyword list will enumerate, and a check whose exception list
+outgrows its findings is the thing this script exists to abolish. Run it when
+adding a figure to a doc, and after an engine bump.
+
+Two real defects so far: `git format-patch origin/7871..android-port` in the
+README contributing section, six milestones behind, after four passes over this
+file had read past it; and the release runbook's own Prerequisites telling the
+maintainer to export a JDK whose version was typed by hand. Searching for the
+CURRENT values finds only the correct-but-unanchored ones, so the shape sweep is
+what finds the stale ones.
 
 The same run also ASSERTS, in those four files and in `FEATURES-CEFRIUM.md`,
 `SCRIPTS-CEFRIUM.md`, `RELEASING-CEFRIUM.md` and `PATCHING-CEFRIUM.md`, the
@@ -211,11 +230,13 @@ a reader can compare it to ours, those names are Google's to change, and the
 comparison is worthless if one side is dropped for being undeclarable.
 
 `BUILD-GUIDE-CEFRIUM.md` owns the engine in three places, including the
-`git checkout` of step 1: it said 150.0.7871.46 while 156.0.8078.17 shipped, so
-anyone following the guide built a different engine from the one the same guide
-documents. It also listed **JDK 21** under System requirements while its own
-export line twenty lines down said "JDK 25 REQUIRED", and sent the reader to a
-`<JBR-21>` that this file warns against by name. Its unowned figures stay
+`git checkout` of step 1: it said 150.0.7871.46, six Chromium milestones behind
+the engine the same guide documents, so anyone following it built something
+else. It also listed one JDK under System requirements while its own export
+line twenty lines down required another, and sent the reader to a `<JBR-21>`
+that this file warns against by name. (Neither sentence names the current
+engine or the current floor on purpose: prose that quotes a live figure rots
+exactly like the figure, and this one is not worth an anchor.) Its unowned figures stay
 unowned: host disk and RAM, the `~MB` artifact sizes, the GN revision
 (depot_tools is not this repo) and the build-times table, which is a measurement
 on one named machine. Its `0.3.0` command examples became `<version>`
