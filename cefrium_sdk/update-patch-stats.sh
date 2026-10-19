@@ -1,6 +1,6 @@
 #!/bin/bash
-# Recompute the Android Chromium patch count + changed-line total and update the
-# figure cited in the "Fully auditable" copy of the SDK README. Run this as part
+# Recompute the Android Chromium patch count + changed-line total and update
+# every figure in the SDK README that states it. Run this as part
 # of cutting a release so the number never goes stale (mirrors
 # regenerate-icons.sh: derive from source, never hand-maintain).
 #
@@ -33,15 +33,33 @@ approx=$(( (lines + 25) / 50 * 50 ))
 
 echo "Android patches: $count   changed diff lines: $lines (cite as ~$approx)"
 
-# The pattern the README uses: "All <N> Chromium patches". Keep it in sync if
-# the prose is reworded -- the verification below fails loud when it is not.
+# The README states this count in TWO sentence forms: "All <N> Chromium patches"
+# in the About section, and "<N> Android-specific" in the architecture, sources,
+# tree-layout and patch-methodology sections. Both are listed here because the
+# first version of this script owned only the first form, and the README then
+# carried 21 in four places while the site said 34. One count, one owner, every
+# sentence that states it. Keep these in sync if the prose is reworded -- the
+# verification below fails loud when an anchor stops matching.
 readme_re='All ([0-9]+) Chromium patches'
 want_readme="All $count Chromium patches"
+android_re='([0-9]+) Android-specific'
+want_android="$count Android-specific"
+
+# Print the distinct values the README currently states, when any differs from
+# what it should state. Empty output means the figure is current everywhere.
+stale() { # stale <regex> <wanted>
+  local cur
+  cur=$(grep -oE "$1" "$README" 2>/dev/null | sort -u | tr '\n' ' ' | sed 's/ $//')
+  [ "$cur" = "$2" ] || echo "$cur"
+}
 
 if [ "$CHECK" -eq 1 ]; then
-  cur_readme=$(grep -oE "$readme_re" "$README" 2>/dev/null | head -1 || true)
-  if [ "$cur_readme" = "$want_readme" ]; then echo "  figures current"; exit 0; fi
-  echo "  STALE README: '$cur_readme' != '$want_readme'"
+  bad=0
+  for pair in "$readme_re|$want_readme" "$android_re|$want_android"; do
+    cur="$(stale "${pair%%|*}" "${pair##*|}")"
+    if [ -n "$cur" ]; then echo "  STALE README: '$cur' != '${pair##*|}'"; bad=1; fi
+  done
+  if [ "$bad" -eq 0 ]; then echo "  figures current"; exit 0; fi
   exit 1
 fi
 
@@ -49,6 +67,7 @@ fi
 before=$(cat "$README")
 cp "$README" "$README.bak"                               # backup first (hard rule)
 perl -0777 -i -pe "s/$readme_re/$want_readme/g" "$README"
+perl -0777 -i -pe "s/$android_re/$want_android/g" "$README"
 if [ "$before" = "$(cat "$README")" ]; then
   echo "  README: already current"
 else
@@ -60,10 +79,11 @@ fi
 # wanted in exactly one case: the anchor did not match and the original is what
 # you need back. Kept unconditionally it is untracked residue that shows up in
 # every push for weeks, which is what README.md.bak did.
-if grep -qF "$want_readme" "$README"; then
-  echo "  verified README -> $count"
+if grep -qF "$want_readme" "$README" && grep -qF "$want_android" "$README" \
+   && [ -z "$(stale "$android_re" "$want_android")" ]; then
+  echo "  verified README -> $count (both sentence forms)"
   rm -f "$README.bak"
 else
-  echo "  WARN: README anchor not matched -- prose reworded? update readme_re"
-  echo "        original kept at $(basename "$README").bak"
+  echo "  WARN: a README anchor did not match -- prose reworded?"
+  echo "        update readme_re / android_re; original kept at $(basename "$README").bak"
 fi
