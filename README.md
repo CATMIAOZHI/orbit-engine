@@ -479,7 +479,7 @@ All Android changes are isolated and reviewable:
 - **CEF changes** (`libcef/browser/android/`, `cefrium_sdk/`): on the
   `android-port` branch. Generate patches with:
   ```bash
-  git format-patch origin/7871..android-port -- \
+  git format-patch origin/8078..android-port -- \
     ':!README.md' ':!assets/screenshots'
   ```
 - **Chromium patches** (`patch/patches/android/`): 34 Android-specific patches

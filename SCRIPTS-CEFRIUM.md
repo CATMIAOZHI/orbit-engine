@@ -128,6 +128,18 @@ Only the capture group inside a sentence is rewritten, so the prose around a
 figure is never touched and one anchor can cover several artifacts
 (`cefrium-sdk:X` and `cefrium-compose:X`) against one derived value.
 
+**To find a figure the script cannot see, sweep by SHAPE, not by value.** A
+missing anchor reports nothing at all -- not `STALE`, not `MISSING` -- so
+reading the output proves nothing about what is absent from the table. List the
+character spans the anchors cover, then look for version-shaped tokens outside
+them. That is what found `git format-patch origin/7871..android-port` in the
+contributing section, six milestones behind, after four passes over this file
+had read straight past it. Searching for the CURRENT values finds only the
+correct-but-unanchored ones; the shape sweep finds the stale ones too. Expect
+about thirty legitimate hits -- `(0.5.0)` "since" markers, `0.8.0+` floors, the
+`0.3.0` publish incident, `Chromium 152` as the milestone the bytecode floor
+moved -- so it is a review tool, not a gate.
+
 The same run also ASSERTS, in those four files and in `FEATURES-CEFRIUM.md`,
 `SCRIPTS-CEFRIUM.md`, `RELEASING-CEFRIUM.md` and `PATCHING-CEFRIUM.md`, the
 references a reader follows:
