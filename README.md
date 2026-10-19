@@ -166,16 +166,16 @@ Cefrium is built from three deliberately-tracked source inputs:
 - **Chromium** - upstream Google source,
   `https://chromium.googlesource.com/chromium/src.git`, via depot_tools/gclient.
   Pinned (in `.gclient`) to the **exact tag Debian packages**
-  (`apt-cache policy chromium`; currently `150.0.7871.46`) for **CVE parity** - we
+  (`apt-cache policy chromium`; currently `156.0.8078.17`) for **CVE parity** - we
   inherit the security fixes in that upstream release. The bytes are **vanilla
   upstream**, not Debian's patched source: we use Chromium's bundled deps + the
   Android NDK toolchain, *not* Debian's system libraries. (The sibling
   [Debian CEF package](https://salsa.debian.org/mendezr/chromium-embedded-framework),
   same maintainer, takes the other path - Debian's Chromium tarball + Debian
   patches via Multiple Upstream Tarballs, system `gn`/`ninja`, no depot_tools.)
-- **CEF** - `cef/`, the `android-port` branch forked from upstream CEF's branch
-  matching Chromium's build number (the 3rd version component: Chromium 148 ->
-  branch 7778, 149 -> 7827, 150 -> 7871; see `cef/CHROMIUM_BUILD_COMPATIBILITY.txt`). Hosted at
+- **CEF** - `cef/`, the `android-port` branch forked from the upstream CEF branch
+  that matches Chromium's build number, the 3rd version component:
+  Chromium 156 -> branch 8078 (see `cef/CHROMIUM_BUILD_COMPATIBILITY.txt`). Hosted at
   [codeberg.org/cefrium/cef-android](https://codeberg.org/cefrium/cef-android).
 - **Patches** - applied to the Chromium tree by `cef/cefrium_sdk/apply-patches.py`
   (a patcher.py wrapper that activates the android condition): CEF's own
@@ -190,7 +190,7 @@ Engine-version tracking and how to upgrade it (e.g. 148 -> 149) are in
 ## Building from source
 
 Prerequisites: a Chromium source tree at the pinned tag (see **Sources** above --
-currently `150.0.7871.46`), ~400 GB disk, 64 GB RAM.
+currently `156.0.8078.17`), ~400 GB disk, 64 GB RAM.
 
 > **Modifying the Chromium tree?** All port changes to Chromium files are stored
 > as patches under `cef/patch/patches/` and re-applied on every build -- the tree
@@ -452,7 +452,7 @@ See `cefrium_instrumentation_test/README.md` for details.
 
 ## Relationship to upstream CEF
 
-Fork of CEF branch 7871, tracking Chromium 150.0.7871.46.
+Fork of CEF branch 8078, tracking Chromium 156.0.8078.17.
 Branch `android-port` contains all Android changes.
 
 ### Contributing upstream

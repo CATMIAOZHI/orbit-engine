@@ -72,7 +72,7 @@ irreversible gates -- needed for an unattended run), `CEFRIUM_NO_PRUNE=1`,
 behind the phase order: `RELEASING-CEFRIUM.md`.
 
 The cut commits the tracked files it rewrites, each in the phase that writes it:
-`Cefrium.VERSION` and the changelog in `patches`, the README patch counts in
+`Cefrium.VERSION` and the changelog in `patches`, the derived README figures in
 `stats`, the consumer docs in `web`. It then refuses to publish to Maven or to
 tag the release while any of them is still dirty. Do not bump
 `Cefrium.VERSION` by hand before a cut, and if the cut stops on a pinned source,
@@ -88,10 +88,20 @@ Individual phases, runnable on their own:
 | Publish to Codeberg Maven | `cef/cefrium_sdk/publish-maven.sh <version>` |
 | Publish to Maven Central | `cef/cefrium_sdk/publish-central.sh <version>` |
 | Codeberg release + GPG sums | `cef/cefrium_sdk/release-codeberg.sh <version> <apk>` |
+| Derive the README figures | `cef/cefrium_sdk/update-readme-figures.sh [--check]` |
 | Update cefrium.com + docs | `cef/cefrium_sdk/release-web-update.sh <version> <prev>` |
 | Verify cefrium.com matches | `cef/cefrium_sdk/release-web-verify.sh <version> [prev]` |
 | Google Play (apps) | `cef/cefrium_sdk/release-play.sh <version> [track]` |
 | Drop superseded versions | `cef/cefrium_sdk/prune-old-versions.sh <version> --yes` |
+
+`update-readme-figures.sh` is the only writer of the figures in
+`cef/README.md` -- the patch counts, the engine tag, the CEF branch -- all
+derived from `patch/patches/android/` and `Cefrium.CHROMIUM_VERSION`, the same
+source the site is derived from. `--check` asserts them, and it runs in CI, in
+the `stats` phase AFTER the commit, and in `engine-bump.sh`'s `pin`. A sentence
+that stops matching FAILS the script. The earlier version warned and carried on,
+which is how four sentences said 21 patches against 34 on disk and the engine
+line sat six Chromium milestones behind under "Security updates".
 
 `release-web-verify.sh` checks the POST-conditions rather than the steps, on
 the local tree AND on the live site:

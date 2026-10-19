@@ -16,7 +16,7 @@ One script runs all of it. The phases, in order, and what each one is for:
 | 3 | `merge` | Fuse arm64 + x86_64 into the published fat AARs | `merge-multiabi.sh` |
 | 4 | `compose` | The Compose wrapper AAR | (gradle, in `cefrium_compose`) |
 | 5 | `plugin` | Check the Gradle plugin jar | - |
-| 6 | `stats` | Refresh the patch counts quoted on the site and README, and commit the README | `update-patch-stats.sh` |
+| 6 | `stats` | Derive every figure the README states (patch counts, engine, CEF branch), commit it, then assert the committed file | `update-readme-figures.sh` |
 | 7 | `sanity` | Build a REAL consumer against the fresh AAR, before anything immutable | - |
 | 8 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
 | 9 | `central` | Upload to Maven Central, the channel adopters actually pin | `publish-central.sh` |
