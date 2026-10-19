@@ -1,0 +1,11 @@
+# Funding for the Cefrium port of CEF to native Android.
+#
+# Forgejo reads this file from .forgejo, then .github, then the repository root,
+# and uses the first one it finds. It lives in .forgejo because
+# .github/FUNDING.yml is upstream CEF's own file and points at the CEF
+# maintainer's account. Overriding it here instead of editing it keeps this
+# branch free of a divergence that every rebase onto upstream would carry.
+#
+# Recurring support only. Commercial support, license terms and feature
+# sponsorship are arranged by email: https://cefrium.com/commercial/
+liberapay: cefrium
