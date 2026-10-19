@@ -19,7 +19,7 @@ that gap.
 > downloads only their architecture (~150 MB), not all ABIs - the same approach
 > GeckoView, Flutter, and other engine-bundling SDKs use.
 
-**[Quick Start](QUICKSTART-CEFRIUM.md)** | [API Docs](https://cefrium.com/docs) | [Compose API](https://cefrium.com/docs/compose) | [Migration from WebView](MIGRATION-CEFRIUM.md) | [Build from Source](BUILD-GUIDE-CEFRIUM.md) | [Samples](https://codeberg.org/cefrium/cefrium-sample)
+**[Quick Start](QUICKSTART-CEFRIUM.md)** | [API Docs](https://cefrium.com/docs) | [Compose API](https://cefrium.com/docs/compose) | [Migration from WebView](MIGRATION-CEFRIUM.md) | [Build from Source](BUILD-GUIDE-CEFRIUM.md) | [Samples](https://codeberg.org/cefrium/cefrium-sample) | [Sponsor](https://liberapay.com/cefrium/)
 
 ## What works
 
@@ -532,6 +532,19 @@ and are interested in co-maintaining: cefrium@proton.me
 
 Published as open source (LGPL-3.0) for the community to evaluate,
 use, and extend.
+
+## Supporting Cefrium
+
+Cefrium is maintained by one person. Recurring donations are what keep the
+release cadence sustainable: tracking Chromium stable, re-validating every
+carried patch against each new engine, keeping parity with upstream security
+fixes, and testing on real devices across the Android OEM matrix.
+
+- **Donate:** https://liberapay.com/cefrium/
+
+Priority support, a security-response commitment, alternative license terms and
+sponsored engineering are arranged per case and described at
+https://cefrium.com/commercial/ - inquiries to **cefrium@proton.me**
 
 ## License
 
