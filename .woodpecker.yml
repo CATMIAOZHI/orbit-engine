@@ -1,9 +1,9 @@
-# Cefrium SDK (cef-android) — quality gate.
+# Cefrium SDK (cef-android) -- quality gate.
 # Fast, no-build checks that catch release-tooling and patch-set regressions on
 # every push/PR. The heavy on-device instrumented suite + the multi-ABI build run
 # on the maintainer's workstation / the cefrium-sample CI, not here.
 
-# Runs on pull requests only — not on every push — to keep CI minutes for review
+# Runs on pull requests only -- not on every push -- to keep CI minutes for review
 # gates, not routine commits.
 when:
   - event: pull_request
@@ -24,17 +24,15 @@ steps:
       # 2. patch.cfg must be a valid Python literal (patcher.py reads it).
       - python3 -c "import ast; ast.parse(open('patch/patch.cfg').read()); print('patch.cfg parses OK')"
 
-      # 3. The 'auditable' patch count must match reality (the figure on the
-      #    landing/README is derived by update-patch-stats.sh — keep it honest).
-      - |
-        N=$(ls patch/patches/android/*.patch | wc -l | tr -d ' ')
-        echo "  android patches: $N"
-        grep -q "All $N Chromium patches" README.md \
-          || { echo "FAIL: README says a different patch count than $N (run update-patch-stats.sh)"; exit 1; }
-        echo "  README patch count consistent ($N)"
+      # 3. Every figure the README states must match reality: the patch count,
+      #    the engine tag, the CEF branch. One assertion, run by the script that
+      #    owns those sentences, so CI cannot check a different set of them than
+      #    the release writes. This step used to grep for one of the six by hand,
+      #    and the other five went stale under it.
+      - bash cefrium_sdk/update-readme-figures.sh --check
 
       # 4. Every android patch must be registered in patch.cfg (none applied
-      #    only by an ad-hoc script — see the apply_all_patches.sh cleanup).
+      #    only by an ad-hoc script -- see the apply_all_patches.sh cleanup).
       - |
         miss=0
         for p in patch/patches/android/*.patch; do
