@@ -76,6 +76,25 @@ if [ -f upstream/index.html ]; then
                            || bad "upstream panel says engine ${GOT_E:-none}, expected $ENGINE"
   [ "$GOT_P" = "$WANT_P" ] && ok "upstream panel: $WANT_P patches" \
                            || bad "upstream panel says ${GOT_P:-none} patches, expected $WANT_P"
+
+  # The panel was not the only hand-maintained figure on that page: the count
+  # appears twice in prose and the per-area breakdown has to add up to the
+  # files-touched number. An evaluator reading two different counts on one page
+  # learns not to trust either.
+  WANT_F=$("$SCRIPT_DIR/patch-area-breakdown.sh" --files)
+  GOT_F=$(grep -oE '<div class="n">[^<]*</div><div class="k">Chromium files touched' upstream/index.html | grep -oE '>[0-9]+<' | tr -d '><')
+  [ "$GOT_F" = "$WANT_F" ] && ok "upstream panel: $WANT_F files touched" \
+                           || bad "upstream panel says ${GOT_F:-none} files touched, expected $WANT_F"
+  grep -qF "the $WANT_P above are the ones Cefrium adds" upstream/index.html \
+    && ok "upstream prose: the note says $WANT_P" \
+    || bad "upstream prose: the note does not say $WANT_P patches"
+  grep -qF "Most of the $WANT_P patches are therefore not features" upstream/index.html \
+    && ok "upstream prose: the guards paragraph says $WANT_P" \
+    || bad "upstream prose: the guards paragraph does not say $WANT_P patches"
+  WANT_AREAS=$("$SCRIPT_DIR/patch-area-breakdown.sh")
+  grep -qF "$WANT_AREAS" upstream/index.html \
+    && ok "upstream prose: the per-area breakdown matches the patch set" \
+    || bad "upstream prose: per-area breakdown is stale, expected: $WANT_AREAS"
 fi
 
 # Pages that state the engine Cefrium ships RIGHT NOW must state this one.
