@@ -68,7 +68,7 @@ browser.setCallback(new CefriumBrowser.Callback() {
 
 ## Request interception
 
-### WebView (limited — GET only, no POST body)
+### WebView (limited -- GET only, no POST body)
 ```java
 webView.setWebViewClient(new WebViewClient() {
     @Override
@@ -80,7 +80,7 @@ webView.setWebViewClient(new WebViewClient() {
 });
 ```
 
-### Cefrium (full access — all methods, all headers)
+### Cefrium (full access -- all methods, all headers)
 ```java
 browser.setOnRequestInterceptedListener((url, method, blocked) -> {
     // Every request: GET, POST, PUT, etc.
@@ -163,10 +163,10 @@ CefriumWebView(
 | Feature | WebView | Cefrium |
 |---------|---------|---------|
 | Off-screen rendering | No | Yes (OnPaint pixel buffer) |
-| Pinned Chromium version | No (system) | Yes (149) |
+| Pinned Chromium version | No (system) | Yes (156) |
 | Multi-process control | No | Yes |
 | Network request interception (full) | Partial (GET) | Yes (all) |
-| Built-in ad blocking | No | Yes (EasyList 61K rules) |
+| Built-in ad blocking | No | Yes (engine-level filter, `Cefrium.loadAdBlockList`) |
 | Find in page API | Yes (findAllAsync) | Yes (CefBrowserHost::Find) |
 | Context menu API | Limited | Full (CEF API) |
 | File dialog | Yes | Yes |

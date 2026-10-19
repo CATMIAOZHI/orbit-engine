@@ -4,20 +4,20 @@
     cef/cefrium_sdk/update-doc-figures.py            # rewrite the docs
     cef/cefrium_sdk/update-doc-figures.py --check    # assert only, exit 1 if wrong
 
-Owns README.md and QUICKSTART-CEFRIUM.md. Every figure in them that states
-something this repo already knows -- the patch count, the engine, the SDK
-version, the service-slot count, the Android and Gradle floors -- is derived
-from the file that defines it, never typed into prose twice.
+Owns README.md, QUICKSTART-CEFRIUM.md and MIGRATION-CEFRIUM.md. Every figure in
+them that states something this repo already knows -- the patch count, the
+engine, the SDK version, the service-slot count, the Android and Gradle floors
+-- is derived from the file that defines it, never typed into prose twice.
 
-It also CHECKS, in those two and in FEATURES-CEFRIUM.md, the references a
+It also CHECKS, in those three and in FEATURES-CEFRIUM.md, the references a
 reader follows: every Cefrium API the prose names must still be declared in the
-SDK source, and every link to another document in the repo must resolve, anchor
-included. FEATURES-CEFRIUM.md states no derived figure on purpose -- its one
-version, "Cefrium 0.9.2 / Chromium 152", dates a sensor measurement taken on
-that build, and rewriting it would claim a measurement nobody made. What rots
-in a feature guide is not its numbers, it is the API names in its examples.
-Those cannot be auto-repaired, so a missing one FAILS and a human fixes the
-prose.
+SDK source, every Cefrium type and composable it names must still exist, and
+every link to another document in the repo must resolve, anchor included.
+FEATURES-CEFRIUM.md states no derived figure on purpose -- its one version,
+"Cefrium 0.9.2 / Chromium 152", dates a sensor measurement taken on that build,
+and rewriting it would claim a measurement nobody made. What rots in a feature
+guide is not its numbers, it is the API names in its examples. Those cannot be
+auto-repaired, so a missing one FAILS and a human fixes the prose.
 
 Sources, all in the repo, so --check works in a bare clone (CI has no built
 AAR and no Chromium tree):
@@ -44,6 +44,14 @@ against 34 on disk, the engine line sat six Chromium milestones behind under
 Figures deliberately NOT owned here, because nothing in the repo defines them:
 the JDK floor and the class-file major it implies (set by Chromium's bundled
 JDK, which a bare clone does not have), and the ~MB artifact sizes.
+
+A figure with no possible owner is removed from the prose, not faked. The
+migration guide advertised "EasyList 61K rules"; the repo bundles no list at
+all. Cefrium.loadAdBlockList takes a path the consumer supplies, and
+Cefrium.downloadAndLoadEasyList fetches easylist.to and refreshes it every 24
+hours, so the rule count is whatever that site serves today and changes with no
+commit here. The row now states the mechanism and names the API, which IS
+checked.
 """
 
 import os
@@ -143,6 +151,7 @@ print("         %s sandboxed + %s privileged slots | compileSdk %s, minSdk %s, "
 # (file, regex, [expected value per capture group], where it reads)
 README = "README.md"
 QUICK = "QUICKSTART-CEFRIUM.md"
+MIGRATION = "MIGRATION-CEFRIUM.md"
 BOTH = (README, QUICK)
 
 FIGURES = [
@@ -165,6 +174,11 @@ FIGURES = [
      "engine, build-tooling note"),
     (QUICK, r"rendered with full Chromium ([0-9]+)", [milestone],
      'engine, step 6 "Run"'),
+    # Anchored on the whole table cell. The migration guide's other numbers are
+    # NOT ours to rewrite: "(0.5.0+)" marks the release a feature arrived in,
+    # "API 33+" and "Android 14+" are WebView's and Credential Manager's floors.
+    (MIGRATION, r"Pinned Chromium version \| No \(system\) \| Yes \(([0-9]+)\)",
+     [milestone], 'engine, "What Cefrium adds over WebView"'),
     # -- SDK version. Was release-bump-docs.sh, which knew the PREVIOUS version
     # and only failed when that one survived: a coordinate carrying some third
     # version passed it. Derived from Cefrium.VERSION, no argument needed.
@@ -208,6 +222,11 @@ FIGURES = [
 ]
 
 
+# The docs this script REWRITES, because every figure in them has an owner
+# above. FEATURES-CEFRIUM.md is checked but never rewritten.
+OWNED = (README, QUICK, MIGRATION)
+
+
 def figures_for(path):
     for spec in FIGURES:
         files = spec[0] if isinstance(spec[0], tuple) else (spec[0],)
@@ -218,7 +237,7 @@ def figures_for(path):
 def report(texts):
     """Print one line per figure. True when every figure is current."""
     ok = True
-    for path in (README, QUICK):
+    for path in OWNED:
         print("  %s" % path)
         for pattern, want, where in figures_for(path):
             found = list(re.finditer(pattern, texts[path]))
@@ -261,7 +280,7 @@ def rewrite(text, path):
 # Not figures: nothing can be derived, because the right text is a name, not a
 # value. They are asserted instead, in every doc including the feature guide.
 FEATURES = "FEATURES-CEFRIUM.md"
-DOCS = (README, QUICK, FEATURES)
+DOCS = OWNED + (FEATURES,)
 
 JAVA_DECL = r"(?:public|protected)[\w\s<>\[\],.?@]*?\b%s\s*(?:\(|=|;|\{|,|\))"
 KT_DECL = r"\b(?:fun|val|var|class|object|interface)\s+%s\b"
@@ -277,6 +296,19 @@ RECEIVERS = [
 # Deliberately not checked: "navigator.". The Compose navigator shares the name
 # with the web platform's own navigator, so navigator.usb and navigator.loadUrl
 # are indistinguishable here, and checking it would reject the web API.
+# Also not checked: "webView.". Half of MIGRATION-CEFRIUM.md is Android
+# WebView's own API, quoted so a reader can compare it to ours. Those names are
+# Google's to change, this repo declares none of them, and the comparison is
+# worthless if one side is dropped for being undeclarable.
+
+# Types and composables the docs name WITHOUT a receiver: "CefriumWebView(",
+# "rememberCefriumViewState", a `CefriumViewState` in backticks. The receiver
+# scan above cannot see any of them -- there is no dot -- so every Compose entry
+# point the guides tell a reader to call went unchecked until this was added.
+TYPE_USE = r"\b((?:Cefrium[A-Z]|rememberCefrium)\w*)\b"
+TYPE_DECL = r"\b(?:class|interface|enum|fun|object)\s+%s\b"
+# An apk_name, for the test APK the README tells the reader to install.
+GN_DECL = r'apk_name\s*=\s*"%s"'
 
 
 def sdk_sources():
@@ -300,6 +332,29 @@ def sdk_sources():
     return java, kt
 
 
+def declared_symbols():
+    """Every Java/Kotlin source a doc may legitimately name, as one blob.
+
+    Wider than sdk_sources() on purpose: a type is resolved against the whole
+    repo, not one file, because the docs name Compose entry points from five
+    different .kt files and the test APK's own activity.
+    """
+    blob = []
+    for rel in ("cefrium_sdk/java/src/com/cefrium",
+                "cefrium_compose/java/src/com/cefrium/compose",
+                "tests/cef_android_test/apk/src/org/cefrium/test"):
+        d = os.path.join(CEF, rel)
+        if not os.path.isdir(d):
+            die("source dir not found: %s" % rel)
+        for name in sorted(os.listdir(d)):
+            if name.endswith((".java", ".kt")):
+                with open(os.path.join(d, name), encoding="utf-8",
+                          errors="replace") as fh:
+                    blob.append(fh.read())
+    blob.append(read("tests/cef_android_test/BUILD.gn"))
+    return "\n".join(blob)
+
+
 def slug(heading):
     """The anchor a Markdown renderer gives a heading."""
     out = re.sub(r"[^a-z0-9 -]", "", heading.strip().lower())
@@ -308,10 +363,15 @@ def slug(heading):
 
 def check_references(texts):
     java, kt = sdk_sources()
+    symbols = declared_symbols()
     ok = True
     for path in DOCS:
         doc = texts[path]
         problems = []
+        for name in sorted(set(re.findall(TYPE_USE, doc))):
+            if not (re.search(TYPE_DECL % re.escape(name), symbols)
+                    or re.search(GN_DECL % re.escape(name), symbols)):
+                problems.append("type %s is declared nowhere in the repo" % name)
         for receiver, source, decl in RECEIVERS:
             used = sorted(set(re.findall(
                 r"(?<![\w/.-])" + re.escape(receiver) + r"([A-Za-z_][A-Za-z0-9_]*)",
@@ -339,7 +399,7 @@ def check_references(texts):
             for p in problems:
                 print("             %s" % p)
         else:
-            print("    OK       %s: API names and doc links resolve" % path)
+            print("    OK       %s: API names, types and doc links resolve" % path)
     return ok
 
 
@@ -369,7 +429,7 @@ if "--check" in sys.argv[1:]:
 
 # FEATURES-CEFRIUM.md is not rewritten: it states no derived figure, and its one
 # version dates a measurement (see the module docstring).
-for p in (README, QUICK):
+for p in OWNED:
     full = os.path.join(CEF, p)
     shutil.copyfile(full, full + ".bak")          # never edit in place (hard rule)
     new = rewrite(texts[p], p)
@@ -381,7 +441,7 @@ figures_ok = report(texts)
 print("  references")
 refs_ok = check_references(texts)
 if figures_ok and refs_ok:
-    for p in (README, QUICK):
+    for p in OWNED:
         full = os.path.join(CEF, p)
         changed = open(full + ".bak", encoding="utf-8").read() != texts[p]
         os.remove(full + ".bak")                  # kept only when it is needed
@@ -391,7 +451,7 @@ if figures_ok and refs_ok:
 if not refs_ok:
     print("\nFAIL: a doc names an API or a document that does not exist.")
     print("      Nothing can derive the right name, so fix the prose.")
-    for p in (README, QUICK):
+    for p in OWNED:
         os.remove(os.path.join(CEF, p + ".bak"))
     sys.exit(1)
 
@@ -399,5 +459,5 @@ print("\nFAIL: a figure is still wrong after the rewrite.")
 print("      Fix the FIGURES table in cef/cefrium_sdk/%s -- do not hand-edit"
       % os.path.basename(__file__))
 print("      the docs, or the next release overwrites them.")
-print("      The originals are at README.md.bak / QUICKSTART-CEFRIUM.md.bak")
+print("      The originals are at %s" % ", ".join(p + ".bak" for p in OWNED))
 sys.exit(1)
