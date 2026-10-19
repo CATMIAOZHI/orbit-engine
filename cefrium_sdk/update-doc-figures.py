@@ -200,7 +200,7 @@ FIGURES = [
     # -- patch count, README only
     (README, r"All ([0-9]+) Chromium patches", [count],
      'patch count, "About Cefrium"'),
-    (README, r"([0-9]+) Android-specific", [count],
+    (README, r"([0-9]+)\s+Android-specific", [count],
      "patch count, architecture + sources + tree + methodology"),
     # -- engine
     (README, r"currently `([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)`", [ctag],
@@ -218,6 +218,15 @@ FIGURES = [
     # covered, not by reading: a figure with no anchor reports nothing at all.
     (README, r"git format-patch origin/([0-9]+)\.\.android-port", [branch],
      "CEF branch, the contributor's format-patch command"),
+    # The WebView comparison, which is the section an evaluator reads first. It
+    # said 149 -- seven milestones adrift -- in the one place the whole argument
+    # rests on: that Cefrium pins an engine and WebView does not. The shape
+    # sweep missed both because it required the word "Chromium" beside the
+    # number, and here the sentence wraps across the line break.
+    (README, r"\(currently ([0-9]+)\)", [milestone],
+     'engine milestone, "Why Cefrium, not WebView?" prose'),
+    (README, r"Chromium version control \| Pinned \(([0-9]+)\)", [milestone],
+     'engine milestone, the WebView comparison table'),
     (QUICK, r"ships Chromium ([0-9]+)'s Java-([0-9]+) bytecode", [milestone, jdk],
      "engine + JDK, build-tooling note"),
     # The engine tag the build guide tells the reader to CHECK OUT. It sat at
