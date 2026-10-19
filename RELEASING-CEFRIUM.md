@@ -16,7 +16,7 @@ One script runs all of it. The phases, in order, and what each one is for:
 | 3 | `merge` | Fuse arm64 + x86_64 into the published fat AARs | `merge-multiabi.sh` |
 | 4 | `compose` | The Compose wrapper AAR | (gradle, in `cefrium_compose`) |
 | 5 | `plugin` | Check the Gradle plugin jar | - |
-| 6 | `stats` | Derive every figure README.md and QUICKSTART-CEFRIUM.md state (patch counts, engine, SDK version, service slots, toolchain floors), commit them, then assert what was committed | `update-doc-figures.py` |
+| 6 | `stats` | Derive every figure README.md and QUICKSTART-CEFRIUM.md state (patch counts, engine, SDK version, service slots, toolchain floors), commit them, then assert what was committed; also assert that every API name and doc link in those two and in FEATURES-CEFRIUM.md still resolves | `update-doc-figures.py` |
 | 7 | `sanity` | Build a REAL consumer against the fresh AAR, before anything immutable | - |
 | 8 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
 | 9 | `central` | Upload to Maven Central, the channel adopters actually pin | `publish-central.sh` |
