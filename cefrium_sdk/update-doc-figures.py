@@ -165,6 +165,24 @@ agp = ".".join(agp_full.split(".")[:2])
 gradle = one("cefrium_compose/gradle/wrapper/gradle-wrapper.properties",
              r"gradle-([0-9]+\.[0-9]+\.[0-9]+)-bin\.zip")
 
+# Test coverage, which a README states as a credibility figure and nobody
+# recounts. It read "16 test classes / 38 @Test methods" against 23 and 46 on
+# disk -- stale in the direction that UNDERSELLS the suite.
+tdir = os.path.join(CEF, "cefrium_instrumentation_test")
+if not os.path.isdir(tdir):
+    die("cefrium_instrumentation_test/ not found -- cannot derive the test counts")
+test_files = []
+for root, dirs, names in os.walk(tdir):
+    dirs[:] = [d for d in dirs if d != "build"]
+    test_files += [os.path.join(root, n) for n in names
+                   if n.endswith(("Test.java", "Test.kt"))]
+if not test_files:
+    die("no *Test.java/*Test.kt under cefrium_instrumentation_test/")
+test_classes = str(len(test_files))
+test_methods = str(sum(
+    len(re.findall(r"@Test\b", open(f, encoding="utf-8", errors="replace").read()))
+    for f in test_files))
+
 # The Gradle plugin's own Java target. A DIFFERENT number from the JDK floor
 # below, and the docs say so three times, because reading them as the same is
 # the wrong diagnosis three integrators reached for a class-69 error.
@@ -327,6 +345,8 @@ FIGURES = [
      "Gradle-plugin Java target, build-tooling note"),
     (QUICK, r"compiled for Java ([0-9]+) on purpose", [plugin_java],
      "Gradle-plugin Java target, JDK-error entry"),
+    (README, r"\*\*([0-9]+)\s+test\s+classes, ([0-9]+) `@Test` methods\*\*",
+     [test_classes, test_methods], "instrumentation coverage, \"Testing\""),
     # The runbook's own export. "NOT the Android Studio JBR 21" and "javac 21"
     # on the next line are HISTORY -- the JDK that stopped working at 0.8.0 --
     # so the anchors carry wording those do not use.
@@ -584,6 +604,14 @@ def check_references(texts):
         for rel in sorted(set(re.findall(SCRIPT_USE, doc))):
             if not os.path.exists(os.path.join(CEF, rel)):
                 problems.append("script cef/%s does not exist" % rel)
+        # In-page links, "](#heading)". Not covered by the .md check below, and
+        # moving a section leaves one dangling in silence -- which is exactly
+        # what happened when the APK-size section moved to the quickstart.
+        own_heads = {slug(h) for h in re.findall(r"^#+\s+(.*)$", doc, re.M)}
+        for anchor in re.findall(r"\]\((#[A-Za-z0-9_-]+)\)", doc):
+            if anchor[1:] not in own_heads:
+                problems.append("in-page link %s names no heading in this file"
+                                % anchor)
         for target, anchor in re.findall(r"\]\(([A-Za-z0-9_./-]+\.md)(#[^)]*)?\)", doc):
             full = os.path.join(CEF, target)
             if not os.path.exists(full):
