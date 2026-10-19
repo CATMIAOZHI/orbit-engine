@@ -71,6 +71,13 @@ irreversible gates -- needed for an unattended run), `CEFRIUM_NO_PRUNE=1`,
 `CEFRIUM_NO_PLAY=1`, `CEFRIUM_PLAY_TRACK=internal`. Details and the reasoning
 behind the phase order: `RELEASING-CEFRIUM.md`.
 
+The cut commits the tracked files it rewrites, each in the phase that writes it:
+`Cefrium.VERSION` and the changelog in `patches`, the README patch counts in
+`stats`, the consumer docs in `web`. It then refuses to publish to Maven or to
+tag the release while any of them is still dirty. Do not bump
+`Cefrium.VERSION` by hand before a cut, and if the cut stops on a pinned source,
+commit it under its own subject and resume with `--from <phase>`.
+
 Individual phases, runnable on their own:
 
 | Task | Command |

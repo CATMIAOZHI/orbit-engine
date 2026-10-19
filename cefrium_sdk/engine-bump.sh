@@ -104,7 +104,22 @@ if run pin; then hdr "pin new version (config only, non-destructive)"
   perl -0777 -i -pe "s{(refs/tags/)[0-9.]+}{\${1}$CTAG}" "$COMPAT"
   perl -0777 -i -pe "s{(CHROMIUM_VERSION = \")[0-9.]+(\")}{\${1}$CTAG\${2}}" "$CEFJAVA"
   echo "  pinned .gclient + CHROMIUM_BUILD_COMPATIBILITY + Cefrium.CHROMIUM_VERSION -> $CTAG"
-  echo "  (review: git -C $CEF diff; backups at *.bak)"
+  echo "  (backups at *.bak; .gclient is local config and is not committed)"
+
+  # Commit the two TRACKED pins here, named paths only. A pin that lives in the
+  # working tree does not reach anyone: it survives a green push.sh, which
+  # moves commits, and the next release then tags source that still carries the
+  # previous engine. This is the same miss that shipped 0.10.1 with
+  # Cefrium.VERSION reading 0.10.0. The preflight above already asserts the cef
+  # tree is clean, so these two paths hold nothing but this bump.
+  if [ -n "$(git -C "$CEF" status --porcelain -- CHROMIUM_BUILD_COMPATIBILITY.txt cefrium_sdk/java/src/com/cefrium/Cefrium.java)" ]; then
+    git -C "$CEF" add -- CHROMIUM_BUILD_COMPATIBILITY.txt cefrium_sdk/java/src/com/cefrium/Cefrium.java
+    git -C "$CEF" commit -q -m "Pin Chromium $CTAG (CEF branch $CEFBR)" \
+      || { echo "  ERROR: could not commit the engine pin in $CEF"; exit 1; }
+    echo "  committed $(git -C "$CEF" log -1 --format=%h): Pin Chromium $CTAG (CEF branch $CEFBR)"
+  else
+    echo "  engine pin already committed ($CTAG)"
+  fi
 fi
 
 if run sync; then hdr "gclient sync to $CTAG (DESTRUCTIVE: resets chromium/src working tree)"
