@@ -124,7 +124,8 @@ fi
 PINNED="cefrium_sdk/java/src/com/cefrium/Cefrium.java
 CHANGELOG-CEFRIUM.md
 README.md
-QUICKSTART-CEFRIUM.md"
+QUICKSTART-CEFRIUM.md
+MIGRATION-CEFRIUM.md"
 
 cefgit() { git -C "$SRC/cef" "$@"; }
 
@@ -293,8 +294,9 @@ if run plugin;  then hdr "plugin jar check"
   fi
 fi
 if run stats;   then hdr "consumer-doc figures"
-  # One owner for every figure README.md and QUICKSTART-CEFRIUM.md state: patch
-  # counts, engine, CEF branch, SDK version, render-process slots, and the
+  # One owner for every figure README.md, QUICKSTART-CEFRIUM.md and
+  # MIGRATION-CEFRIUM.md state: patch counts, engine, CEF branch, SDK version,
+  # render-process slots, and the
   # Android/Gradle/AGP floors. Each is derived from the file that defines it --
   # the patch dir, Cefrium.java, the SDK manifest, the compose module's Gradle
   # build -- so a doc cannot disagree with the SDK it documents.
@@ -309,7 +311,8 @@ if run stats;   then hdr "consumer-doc figures"
   # the docs is derived here too -- that is why there is no release-bump-docs.sh
   # call in the web phase any more.
   cef/cefrium_sdk/update-doc-figures.py
-  pin_commit "Update the derived doc figures for $VERSION" README.md QUICKSTART-CEFRIUM.md
+  pin_commit "Update the derived doc figures for $VERSION" \
+    README.md QUICKSTART-CEFRIUM.md MIGRATION-CEFRIUM.md
   # Assert what is COMMITTED, not what was written. pin_commit is a no-op on an
   # already-clean tree, so on a --from stats re-run this is the only line that
   # proves the docs in git carry this release's figures.
@@ -463,7 +466,7 @@ if run release; then hdr "Codeberg release (tag + GPG-signed SHA256SUMS + assets
 fi
 if run web;     then hdr "update cefrium.com pages + committed repo docs"
   cef/cefrium_sdk/release-web-update.sh "$VERSION" "$PREV" "$(date +%F)" "$NOTES"
-  # The committed cef/ docs (README, QUICKSTART-CEFRIUM.md) were rewritten in the
+  # The committed cef/ docs (README, QUICKSTART, MIGRATION) were rewritten in the
   # `stats` phase, which derives their coordinates from Cefrium.VERSION. Assert
   # it here rather than rewrite again: a cut resumed with --from publish never
   # ran `stats`, and this is the last point before the site claims a version the
