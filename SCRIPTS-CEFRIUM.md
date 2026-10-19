@@ -162,6 +162,43 @@ references a reader follows:
 - every link to another document in the repo must resolve, including its
   `#heading` anchor.
 
+`CHANGELOG-CEFRIUM.md` and `PATCHING-CEFRIUM.md` own no figure either, and the
+reason is worth stating because it looks like an omission. The changelog holds
+**49 distinct SDK versions and 10 distinct engine tags**: "Engine: Chromium
+154.0.8037.98 / CEF branch 8037" under `[0.9.4]` states what 0.9.4 shipped, so
+deriving it would rewrite the past, and the release notes and the /releases row
+are generated from these sections. The patching guide's versions are teaching
+examples, marked `e.g.`: a same-branch respin needs TWO tags on one branch
+(`149.0.7827.53 -> .102`) and a milestone bump needs two branches
+(`7778 -> 7827`), so replacing either with today's single engine destroys the
+thing being illustrated. Its `20 android patches silently failed` is a past
+incident, and `android/my_new_guard` is a tutorial placeholder.
+
+So the changelog is ASSERTED, never rewritten, and only on what holds at every
+moment:
+
+- `Cefrium.VERSION` must have a section, and it must be the newest released
+  one. This caught a live gap: `release-web-update.sh` derives the /releases
+  note from that section and merely **warned** when it was absent, falling back
+  to "New release." -- the same shape as the `|| true` that let the README sit
+  six milestones behind. It now refuses, with passing the notes as arg 4 as the
+  explicit escape hatch.
+- every `Chromium A.B.C.D / CEF branch E` line must have `E == C`, the build
+  number, which is the branch rule. A typo'd branch is caught without asserting
+  any value against today's engine.
+
+What is deliberately NOT asserted: that the newest entry names the CURRENT
+engine. Between an engine bump and the next cut those differ on purpose, and
+`engine-bump.sh` runs this script, so asserting it would fail every bump.
+
+A patch-NAME check was considered and rejected. Of the seven `android/...` names
+the docs mention, three are legitimately absent from disk: the tutorial
+placeholder, `android/glic_android_jni_headers_dep` (upstream adopted the fix
+independently, so the patch was deleted and the changelog records that), and a
+`cef-android/releases` URL that merely looks like one. An exception list longer
+than the findings is the kind of hand-maintained list this script exists to
+abolish; `patch.cfg` and `check-patches-applied.sh` already own that question.
+
 `FEATURES-CEFRIUM.md` has no derived figure and is never rewritten. That is
 deliberate: its one version, "Cefrium 0.9.2 / Chromium 152", dates a sensor
 measurement taken on that build, and deriving it would claim a measurement
