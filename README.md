@@ -38,7 +38,7 @@ that gap.
 | Scroll-driven CSS animations | Done |
 | Mobile viewport (device scale factor) | Done |
 | Ad blocking (network-level request interception) | Done |
-| User-Agent: Chrome/149 Cefrium/1.0 (derived from engine version) | Done |
+| User-Agent derived from the engine version (Chrome/NNN Cefrium/1.0) | Done |
 | H.264/AAC video (proprietary codecs build) | Done |
 | **Video playback (Surface rendering)** | **Done** |
 | **Audio output** | **Done** |
@@ -154,7 +154,7 @@ Android.
   framework, no X11, no Wayland
 - **Multi-process** with renderer running as an Android `Service`,
   replacing Unix `fork()`/`execve()`
-- **21 Android-specific Chromium patches** for Android adaptations, managed via
+- **34 Android-specific Chromium patches** for Android adaptations, managed via
   CEF's existing patch infrastructure (`cef/patch/patches/android/`)
 - **Gradle Plugin** generates R.java for Chromium packages in consumer
   projects, solving the multi-package resource ID problem
@@ -179,7 +179,7 @@ Cefrium is built from three deliberately-tracked source inputs:
   [codeberg.org/cefrium/cef-android](https://codeberg.org/cefrium/cef-android).
 - **Patches** - applied to the Chromium tree by `cef/cefrium_sdk/apply-patches.py`
   (a patcher.py wrapper that activates the android condition): CEF's own
-  Chromium patches plus **21 Android-specific** patches
+  Chromium patches plus **34 Android-specific** patches
   (`cef/patch/patches/android/`, all registered in `patch/patch.cfg`). **No Debian
   Chromium patches** - only CEF + Android adaptations.
 
@@ -430,7 +430,7 @@ cef/
 |-- cefrium_compose/               # Jetpack Compose wrapper (cefrium-compose.aar)
 |-- cefrium_instrumentation_test/  # On-device instrumented test harness (SDK + Compose)
 |-- tests/cef_android_test/        # Test APK
-`-- patch/patches/android/         # 21 Android-specific Chromium patches
+`-- patch/patches/android/         # 34 Android-specific Chromium patches
 ```
 
 ## Testing
@@ -465,7 +465,7 @@ All Android changes are isolated and reviewable:
   git format-patch origin/7871..android-port -- \
     ':!README.md' ':!assets/screenshots'
   ```
-- **Chromium patches** (`patch/patches/android/`): 21 Android-specific patches
+- **Chromium patches** (`patch/patches/android/`): 34 Android-specific patches
   applied via `apply-patches.py` (CEF's `patcher.py`, `-p0`). Each addresses a
   specific incompatibility between Chromium's assumptions and the Android
   embedding environment. Format, registration and regeneration are documented in
@@ -520,7 +520,7 @@ are auditable in `patch/patches/android/`.
   Use R8/ProGuard, ABI splits, and AAB format to optimize delivery.
   See [APK size optimization](#apk-size-optimization).
 - **Security updates:** Cefrium tracks Debian Chromium releases for
-  CVE patches. Currently pinned to 150.0.7871.46.
+  CVE patches. Currently pinned to 156.0.8078.17.
 - **Not a WebView replacement:** Cefrium bundles its own Chromium.
   It does not reuse the system WebView. This is by design - it's what
   gives you version control and full API access.

@@ -106,14 +106,28 @@ if run pin; then hdr "pin new version (config only, non-destructive)"
   echo "  pinned .gclient + CHROMIUM_BUILD_COMPATIBILITY + Cefrium.CHROMIUM_VERSION -> $CTAG"
   echo "  (backups at *.bak; .gclient is local config and is not committed)"
 
-  # Commit the two TRACKED pins here, named paths only. A pin that lives in the
+  # The README states the engine under "Security updates", where an evaluator
+  # reads it. Nothing owned that line, so it still said 150.0.7871.46 while 156
+  # shipped. Derive it here, like every other pin.
+  README_MD="$CEF/README.md"
+  cp "$README_MD" "$README_MD.bak"
+  perl -0777 -i -pe "s{(Currently pinned to )[0-9][0-9.]*}{\${1}$CTAG}" "$README_MD"
+  if grep -qF "Currently pinned to $CTAG" "$README_MD"; then
+    rm -f "$README_MD.bak"
+    echo "  README engine line -> $CTAG"
+  else
+    echo "  WARN: README 'Currently pinned to' anchor not matched -- prose reworded?"
+    echo "        original kept at README.md.bak"
+  fi
+
+  # Commit the TRACKED pins here, named paths only. A pin that lives in the
   # working tree does not reach anyone: it survives a green push.sh, which
   # moves commits, and the next release then tags source that still carries the
   # previous engine. This is the same miss that shipped 0.10.1 with
   # Cefrium.VERSION reading 0.10.0. The preflight above already asserts the cef
-  # tree is clean, so these two paths hold nothing but this bump.
-  if [ -n "$(git -C "$CEF" status --porcelain -- CHROMIUM_BUILD_COMPATIBILITY.txt cefrium_sdk/java/src/com/cefrium/Cefrium.java)" ]; then
-    git -C "$CEF" add -- CHROMIUM_BUILD_COMPATIBILITY.txt cefrium_sdk/java/src/com/cefrium/Cefrium.java
+  # tree is clean, so these paths hold nothing but this bump.
+  if [ -n "$(git -C "$CEF" status --porcelain -- CHROMIUM_BUILD_COMPATIBILITY.txt cefrium_sdk/java/src/com/cefrium/Cefrium.java README.md)" ]; then
+    git -C "$CEF" add -- CHROMIUM_BUILD_COMPATIBILITY.txt cefrium_sdk/java/src/com/cefrium/Cefrium.java README.md
     git -C "$CEF" commit -q -m "Pin Chromium $CTAG (CEF branch $CEFBR)" \
       || { echo "  ERROR: could not commit the engine pin in $CEF"; exit 1; }
     echo "  committed $(git -C "$CEF" log -1 --format=%h): Pin Chromium $CTAG (CEF branch $CEFBR)"
