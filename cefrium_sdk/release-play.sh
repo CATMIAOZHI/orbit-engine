@@ -31,6 +31,13 @@
 # Usage:  release-play.sh <version> [track]
 #           track = internal (default) | alpha | beta | production
 #         CEFRIUM_PLAY_MODULES="cefrium-browser compose-browser"   (override)
+#                       Default is the flagship ALONE. compose-browser is not on
+#                       Play: com.cefrium.composebrowser returns 404 from the API,
+#                       and Play requires the FIRST bundle of a new app to be
+#                       uploaded by hand. With it in the default, this phase pinned
+#                       and bumped BOTH modules and then died on the second upload,
+#                       which is why the phase could not be run unattended. Add it
+#                       back once the app exists and has its own service account.
 #         CEFRIUM_PLAY_SKIP_SAMPLES=1   skip step 3 (only when just re-uploading)
 #         CEFRIUM_VERSION_NAME=0.2.0    set the browser versionName explicitly
 #         CEFRIUM_YES=1                 pre-authorize the upload gate
@@ -55,7 +62,7 @@ ROOT="$(cd "$SRC/../.." && pwd)"                    # cef-dev
 BROWSER_REPO="$ROOT/cefrium-browser"
 SAMPLE_REPO="$ROOT/cefrium-sample"
 FAT_AAR="$SRC/out/release/cefrium-sdk.aar"
-MODULES="${CEFRIUM_PLAY_MODULES:-cefrium-browser compose-browser}"
+MODULES="${CEFRIUM_PLAY_MODULES:-cefrium-browser}"
 
 export JAVA_HOME="${JAVA_HOME:-$SRC/third_party/jdk/current}"
 export ANDROID_HOME="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}"
