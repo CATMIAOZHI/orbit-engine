@@ -86,6 +86,15 @@ publish "$WEB" "cefrium/pages" "pages" \
   "Publish $VERSION: site, quickstart, releases and regenerated API docs" \
   quickstart releases docs index.html assets
 
+# Backstop for the release-pinned sources. cut-release.sh commits these at the
+# phase that writes them, so this is normally a no-op -- it exists so that a
+# release step run by hand gets the same protection. A pin left in the working
+# tree reaches no registry, no tag and no consumer: 0.10.1 published with
+# Cefrium.VERSION still reading 0.10.0 in git for exactly that reason.
+publish "$CEF_DIR" "cefrium/cef-android" "android-port" \
+  "Cefrium $VERSION" \
+  cefrium_sdk/java/src/com/cefrium/Cefrium.java CHANGELOG-CEFRIUM.md
+
 publish "$CEF_DIR" "cefrium/cef-android" "android-port" \
   "Update consumer docs for $VERSION" \
   QUICKSTART-CEFRIUM.md README.md
