@@ -80,6 +80,7 @@ FEATURES = "FEATURES-CEFRIUM.md"
 # had to be, because that badge sat at 154 while 156 was live. One owner per
 # file, so each repo's copy is written by the script that lives with it.
 LOGO = "assets/cefrium-logo.svg"
+CHANGELOG = "CHANGELOG-CEFRIUM.md"
 
 
 def die(msg):
@@ -380,8 +381,8 @@ def rewrite(text, path):
 # documents and SCRIPT PATHS a reader is told to run, and those must resolve.
 # SCRIPTS-CEFRIUM.md is the index of every script, so it is where a deleted one
 # lingers: three were deleted in one afternoon and nothing checked the docs.
-CHECKED_ONLY = (FEATURES, "SCRIPTS-CEFRIUM.md", "RELEASING-CEFRIUM.md",
-                "PATCHING-CEFRIUM.md")
+CHECKED_ONLY = (FEATURES, CHANGELOG, "SCRIPTS-CEFRIUM.md",
+                "RELEASING-CEFRIUM.md", "PATCHING-CEFRIUM.md")
 DOCS = OWNED + CHECKED_ONLY
 
 JAVA_DECL = r"(?:public|protected)[\w\s<>\[\],.?@]*?\b%s\s*(?:\(|=|;|\{|,|\))"
@@ -487,6 +488,51 @@ FILE_EXT = {"h", "cc", "cpp", "py", "sh", "md", "kt", "java", "xml", "gn",
             "properties", "gradle", "patch", "html", "yml", "zip"}
 
 
+def check_changelog(text):
+    """Assert the record. A changelog is never rewritten: its figures ARE history.
+
+    "Engine: Chromium 154.0.8037.98 / CEF branch 8037" under [0.9.4] states what
+    0.9.4 shipped. Deriving that to the current engine would rewrite the past,
+    and the release notes and the /releases page are generated from these
+    sections. So only two things are checked, and both hold at every moment:
+
+      - Cefrium.VERSION has a section, and it is the newest released one. This
+        catches the version pinned with the entry never written, which is live:
+        release-web-update.sh only WARNED and fell back to "New release.".
+      - every "Chromium A.B.C.D / CEF branch E" line has E == C, the build
+        number. That is the branch rule, so a typo'd branch is caught without
+        asserting any value against today's engine.
+
+    What is NOT asserted: that the newest entry names the CURRENT engine. After
+    an engine bump and before the next cut those differ on purpose, and
+    engine-bump.sh runs this script, so asserting it would fail every bump.
+    """
+    problems = []
+    heads = re.findall(r"^## \[([^\]]+)\]", text, re.M)
+    released = [h for h in heads if re.match(r"^[0-9]+\.[0-9]+\.[0-9]+$", h)]
+    if not released:
+        problems.append("no released section at all")
+    elif released[0] != version:
+        problems.append(
+            "newest released section is [%s] but Cefrium.VERSION is %s -- "
+            "write the [%s] entry before cutting" % (released[0], version, version))
+    for full, build, br in re.findall(
+            r"Chromium ([0-9]+\.[0-9]+\.([0-9]+)\.[0-9]+) / CEF branch ([0-9]+)",
+            text):
+        if build != br:
+            problems.append("engine line 'Chromium %s / CEF branch %s': the CEF "
+                            "branch is the build number, so it must be %s"
+                            % (full, br, build))
+    if problems:
+        print("    BROKEN   %s" % CHANGELOG)
+        for p in problems:
+            print("             %s" % p)
+        return False
+    print("    OK       %s: [%s] is the newest entry, engine lines consistent"
+          % (CHANGELOG, version))
+    return True
+
+
 def check_references(texts):
     java, kt = sdk_sources()
     symbols = declared_symbols()
@@ -499,9 +545,14 @@ def check_references(texts):
                     or re.search(GN_DECL % re.escape(name), symbols)):
                 problems.append("type %s is declared nowhere in the repo" % name)
         for receiver, source, decl in RECEIVERS:
+            # (?![\w*]) because prose names a FAMILY with a wildcard: the
+            # changelog says `CefriumBrowser.TERMINATION_*`, and the four real
+            # constants are TERMINATION_ABNORMAL/KILLED/CRASHED/OOM. The class
+            # must exclude \w too, or the greedy name backtracks off the "_" and
+            # captures a "TERMINATION" that is equally undeclared.
             used = sorted(set(re.findall(
-                r"(?<![\w/.-])" + re.escape(receiver) + r"([A-Za-z_][A-Za-z0-9_]*)",
-                doc)))
+                r"(?<![\w/.-])" + re.escape(receiver)
+                + r"([A-Za-z_][A-Za-z0-9_]*)(?![\w*])", doc)))
             body = java.get(source) if source else kt
             for name in used:
                 if name in FILE_EXT:
@@ -549,7 +600,7 @@ if "--list" in sys.argv[1:]:
 if "--check" in sys.argv[1:]:
     figures_ok = report(texts)
     print("  references")
-    refs_ok = check_references(texts)
+    refs_ok = check_references(texts) and check_changelog(texts[CHANGELOG])
     if figures_ok and refs_ok:
         print("  doc figures current, references resolve")
         sys.exit(0)
@@ -570,7 +621,7 @@ for p in REWRITTEN:
 
 figures_ok = report(texts)
 print("  references")
-refs_ok = check_references(texts)
+refs_ok = check_references(texts) and check_changelog(texts[CHANGELOG])
 if figures_ok and refs_ok:
     for p in REWRITTEN:
         full = os.path.join(CEF, p)

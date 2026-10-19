@@ -42,14 +42,20 @@ elif [ -f "$CHANGELOG" ]; then
   if [ -n "$NOTES" ]; then
     echo "  notes: derived from CHANGELOG-CEFRIUM.md [$NEW] ($(printf %s "$NOTES" | wc -c) chars)"
   else
-    NOTES="New release."
-    echo "  !! WARN: CHANGELOG-CEFRIUM.md has NO '## [$NEW]' section -- the /releases"
-    echo "  !! entry will read 'New release.' with no description. Add the [$NEW]"
-    echo "  !! section to CHANGELOG-CEFRIUM.md (or pass notes as arg 4) and re-run."
+    # This used to WARN and fall back to "New release.", which means this step
+    # could not fail: the sentence scrolls past in a long cut and the release
+    # row ships with no description. Same shape as the `|| true` that let the
+    # README sit six Chromium milestones behind. There IS an explicit escape
+    # hatch -- pass the notes as arg 4 -- so refusing costs nothing.
+    echo "ERROR: CHANGELOG-CEFRIUM.md has no '## [$NEW]' section." >&2
+    echo "       The /releases note is derived from it, so there is nothing to" >&2
+    echo "       publish. Write the [$NEW] entry, or pass the notes as arg 4." >&2
+    exit 1
   fi
 else
-  NOTES="New release."
-  echo "  !! WARN: CHANGELOG-CEFRIUM.md not found -- /releases note falls back to 'New release.'"
+  echo "ERROR: CHANGELOG-CEFRIUM.md not found at $CHANGELOG." >&2
+  echo "       Pass the release notes as arg 4 to publish without it." >&2
+  exit 1
 fi
 
 # CEF branch + Chromium version from the SDK source of truth.
@@ -67,14 +73,14 @@ apply() { # file, perl-expr, must-contain-after, label
     if cmp -s "$file" "$file.bak"; then echo "  $label: already current"; else echo "  $label: updated"; fi
     rm -f "$file.bak"
   else
-    echo "  WARN: $label: anchor did not match — file restored, edit manually."
+    echo "  WARN: $label: anchor did not match -- file restored, edit manually."
     mv "$file.bak" "$file"
   fi
 }
 
 echo "Web update: $PREV -> $NEW (CEF $BRANCH, Chromium $CHROMIUM, $DATE)"
 
-# 1. Quickstart — bump the cefrium plugin + dependency coordinates.
+# 1. Quickstart -- bump the cefrium plugin + dependency coordinates.
 apply "$QS" "s{(com\\.cefrium['\"]\\)? version ['\"])[0-9]+\\.[0-9]+\\.[0-9]+(['\"])}{\${1}$NEW\${2}}g; s{(com\\.cefrium:cefrium-(?:sdk|compose)[^:\"]*:)[0-9]+\\.[0-9]+\\.[0-9]+}{\${1}$NEW}g" \
   "$NEW" "quickstart version"
 
@@ -170,7 +176,7 @@ apply "$WEB/modern-web/index.html" \
 if [ ! -f "$REL" ]; then
   echo "  WARN: releases: $REL not found"
 elif grep -qF "id=\"v$NEW\"" "$REL"; then
-  echo "  releases: v$NEW entry already present (re-cut) — skipping insert"
+  echo "  releases: v$NEW entry already present (re-cut) -- skipping insert"
 else
   CATS="$(awk -v ver="$NEW" '
     function esc(s){ gsub(/&/,"\\&amp;",s); gsub(/</,"\\&lt;",s); gsub(/>/,"\\&gt;",s); return s }
@@ -237,7 +243,7 @@ $CATS
   if grep -qF "id=\"v$NEW\"" "$REL"; then
     echo "  releases: inserted v$NEW entry (prev v$PREV -> superseded)"; rm -f "$REL.bak"
   else
-    echo "  WARN: releases: insert anchor did not match — file restored, edit manually."; mv "$REL.bak" "$REL"
+    echo "  WARN: releases: insert anchor did not match -- file restored, edit manually."; mv "$REL.bak" "$REL"
   fi
 fi
 
