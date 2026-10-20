@@ -53,11 +53,13 @@ What is NOT reached, stated because a reader will measure it:
 
 - **The system WebView's renderer carries one more filter layer than ours**, 3
   or 4 against our 2, because its children fork from a hardened app zygote.
-  Declaring `android:useAppZygote` on our sandboxed service reaches the same
-  number, and it breaks mouse and touch input to a surface-backed browser:
-  two instrumentation tests that pass in 3 seconds time out at 30. It is
-  therefore deliberately absent, with a comment in the SDK manifest saying so.
-  Reliability first, and the gap is known rather than hidden.
+  Declaring `android:useAppZygote` on our sandboxed services reaches the same
+  number, and the on-device suite then fails: mouse and touch stop reaching a
+  windowed renderer once other browsers have run in the same process, and the
+  two tests that cover that time out at 30 seconds instead of passing in 3.
+  The attribute is therefore deliberately absent, with the measurements in the
+  SDK manifest beside it. Reliability first, and the gap is stated rather than
+  hidden. It is an open item, not a closed one.
 - **`Seccomp:` in `/proc/<pid>/status` proves nothing on Android**, for us or
   for anyone else: every app process inherits the zygote's filter. The filter
   count and `NoNewPrivs` are the signal.

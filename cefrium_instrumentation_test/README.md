@@ -57,7 +57,18 @@ cp ../cefrium_compose/build/outputs/aar/cefrium-compose-release.aar \
 # Single class:
 ./gradlew connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.class=com.cefrium.itest.sdk.CefriumBridgeTest
+
+# A whole package, which is the only way to run a SUBSET larger than one class:
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.package=com.cefrium.itest.sdk
 ```
+
+**A comma-separated `class` list silently runs only the first one.** Through
+this Gradle and AGP path, `...class=A,B` runs A, reports BUILD SUCCESSFUL and
+never mentions B. That reads as "A and B both pass" and it is the empty-pass
+trap in a different costume: the result file is the only place the truth shows,
+as a test count lower than the number of classes asked for. Use `package=` for
+a subset, or one class per run.
 
 ## Notes
 
