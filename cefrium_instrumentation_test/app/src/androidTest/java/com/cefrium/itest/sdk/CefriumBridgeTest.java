@@ -207,4 +207,29 @@ public class CefriumBridgeTest {
                 CefriumBrowser.QueryOriginPolicy.anyOrigin(), allowed));
         Assert.assertEquals(1, allowed.get());
     }
+
+    /** SC-rc-13: a data: document is opaque under exactly(), admitted by anyOrigin(). */
+    @Test
+    public void dataUrlIsDeniedByExactlyAndAdmittedByAny() throws Exception {
+        String dataUrl = "data:text/html,<html><body>d</body></html>";
+        AtomicInteger denied = new AtomicInteger();
+        Assert.assertEquals("denied:" + CefriumBrowser.QUERY_ERROR_ORIGIN_DENIED
+                + ":origin not allowed", probeUnder(dataUrl,
+                CefriumBrowser.QueryOriginPolicy.exactly("https://allowed.example"), denied));
+        Assert.assertEquals(0, denied.get());
+
+        final AtomicReference<String> seen = new AtomicReference<>();
+        AtomicInteger calls = new AtomicInteger();
+        CefriumBrowser.QueryOriginPolicy any = CefriumBrowser.QueryOriginPolicy.anyOrigin();
+        CefriumBrowser.QueryOriginPolicy recording = url -> { seen.set(url); return any.allows(url); };
+        Assert.assertEquals("ok:handled", probeUnder(dataUrl, recording, calls));
+        Assert.assertTrue("the policy must see the frame URL, got " + seen.get(),
+                seen.get() != null && seen.get().startsWith("data:"));
+    }
+
+    /** exactly() refuses an entry that could never match, instead of denying silently. */
+    @Test(expected = IllegalArgumentException.class)
+    public void exactlyRejectsAnEntryWithoutScheme() {
+        CefriumBrowser.QueryOriginPolicy.exactly("cefrium.com");
+    }
 }

@@ -636,15 +636,35 @@ public class CefriumBrowser {
      * {@code data:}, {@code about:} (including {@code about:blank} and
      * {@code srcdoc} iframes a page of yours creates) and unparsable frames are
      * opaque: only {@link #anyOrigin()} or your own predicate accepts them.
-     * A custom predicate sees the raw URL.</p>
+     * A custom predicate sees the raw URL: compare
+     * {@link #originOf(String) originOf(url)} or the parsed host, never a
+     * string prefix, because {@code https://example.com.evil.com/} starts with
+     * {@code https://example.com}.</p>
      */
     public interface QueryOriginPolicy {
         boolean allows(String frameUrl);
 
+        /**
+         * The origin of a frame URL, {@code scheme://host[:port]} with the
+         * default port dropped, or {@code "null"} for an opaque origin. The
+         * same normalization the built-in policies use.
+         */
+        static String originOf(String frameUrl) {
+            return normalizeOrigin(frameUrl);
+        }
+
         /** Only these origins, e.g. {@code exactly("https://example.com")}. */
         static QueryOriginPolicy exactly(String... origins) {
             final java.util.Set<String> allowed = new java.util.HashSet<>();
-            for (String o : origins) allowed.add(normalizeOrigin(o));
+            for (String o : origins) {
+                String n = normalizeOrigin(o);
+                if ("null".equals(n)) {
+                    throw new IllegalArgumentException("QueryOriginPolicy.exactly: \""
+                            + o + "\" is not an http(s) origin such as "
+                            + "https://example.com; it could never match");
+                }
+                allowed.add(n);
+            }
             return url -> {
                 String o = normalizeOrigin(url);
                 return !"null".equals(o) && allowed.contains(o);
@@ -662,7 +682,9 @@ public class CefriumBrowser {
 
         /**
          * http and https on 127.0.0.1 or localhost, any port: the pattern for
-         * content served by a local server inside your app.
+         * content served by a local server inside your app. Any port includes
+         * other apps' local servers; when your server's port is known, prefer
+         * {@code exactly("http://127.0.0.1:" + port)}.
          */
         static QueryOriginPolicy loopback() {
             return url -> {
@@ -743,7 +765,7 @@ public class CefriumBrowser {
                     "setQueryHandler needs a QueryOriginPolicy; pass "
                     + "QueryOriginPolicy.anyOrigin() to accept every origin");
         }
-        if (policy == ANY_ORIGIN) {
+        if (handler != null && policy == ANY_ORIGIN) {
             android.util.Log.w(TAG, "window.cefriumQuery is reachable from every "
                     + "origin (QueryOriginPolicy.anyOrigin())");
         }
@@ -754,7 +776,17 @@ public class CefriumBrowser {
     private void onJsQuery(final long queryId, String request, String origin) {
         final QueryRegistration reg = mQuery;
         final QueryHandler handler = reg == null ? null : reg.handler;
-        if (handler != null && !reg.policy.allows(origin)) {
+        boolean allowed = false;
+        if (handler != null) {
+            try {
+                allowed = reg.policy.allows(origin);
+            } catch (RuntimeException e) {
+                // Fail closed: an exception here would otherwise escape into
+                // the native caller and leave the query pending.
+                android.util.Log.w(TAG, "QueryOriginPolicy threw; denying", e);
+            }
+        }
+        if (handler != null && !allowed) {
             // Log the origin, never the full URL: a URL can carry tokens.
             android.util.Log.w(TAG, "window.cefriumQuery denied for origin "
                     + normalizeOrigin(origin));
