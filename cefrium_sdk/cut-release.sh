@@ -49,7 +49,7 @@ export JAVA_HOME="${JAVA_HOME:-$ROOT/android-studio/android-studio/jbr}"
 export ANDROID_HOME="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}"
 export PATH="$ROOT/depot_tools:$PATH"
 export CEFRIUM_NINJA_JOBS="${CEFRIUM_NINJA_JOBS:-16}"
-PHASES="patches build merge compose plugin stats sanity publish central flagship release web prune play"
+PHASES="patches build merge compose plugin stats sanity suite publish central flagship release web prune play"
 # Variant scope. Default "all" = the 4 published variants (codecs/libre x arm64/x64).
 # CEFRIUM_VARIANTS="arm64:codecs" narrows to one variant. The 4-variant build
 # relinks libcef.so per variant and is the biggest time sink (~4x), which is why it
@@ -201,6 +201,17 @@ if run patches; then hdr "patches + touch"
   # apply-patches.py sets the illegal 'target_os=="android"' condition key the
   # shell cannot (see its header); plain patcher.py would skip the Android set.
   python3 cef/cefrium_sdk/apply-patches.py || true   # known-fuzz core patches report "failed" already-applied; benign
+  # That `|| true` is unavoidable -- apply-patches.py reports "failed to apply"
+  # for an already-applied patch and for a genuinely missing one alike -- but it
+  # leaves the QUESTION unanswered, and the answer decides whether this build is
+  # correct. The 0.10.2 cut printed "ERROR: 3 patches failed to apply. Your build
+  # will not be correct." and built anyway; all three were already applied, and
+  # nothing in the cut knew that. Judge it by CONTENT, which is the one test that
+  # survived everything else (see check-patches-applied.sh).
+  cef/cefrium_sdk/check-patches-applied.sh || {
+    echo "ERROR: patch content is MISSING from the tree -- refusing to build a"
+    echo "       release from it. The lines above name the patch and the file."
+    exit 1; }
   for p in cef/patch/patches/android/*.patch; do
     for f in $(grep '^+++ ' "$p" | grep -v /dev/null | sed 's/^+++ [ab]\///;s/\t.*//'); do
       [ -f "$f" ] && touch "$f"; done; done
@@ -374,6 +385,25 @@ if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   fi
 fi
 
+if run suite; then hdr "instrumentation suite on device"
+  # The last gate before anything becomes immutable, and the only one that uses
+  # the SDK the way a consumer does. The sanity phase above launches one sample
+  # and asks whether it came up; this asks whether the API still behaves.
+  #
+  # It is here because a cut used to ship on compile success plus that one
+  # launch. The gap is not theoretical: a process-model change passed the
+  # sandbox battery with touch input dead, and only this suite noticed, because
+  # the battery measured isolation and filters and never tapped anything.
+  #
+  # No version argument: the versioned copies are made later, by
+  # release-codeberg.sh. The unversioned AARs here are the bytes
+  # verify-release-artifacts.sh asserted in the merge phase.
+  cef/cefrium_sdk/run-instrumentation-suite.sh || {
+    echo "ERROR: the instrumentation suite did not pass. Nothing is published."
+    echo "       Re-run it alone: cef/cefrium_sdk/run-instrumentation-suite.sh"
+    exit 1; }
+fi
+
 if run publish; then hdr "publish to Maven (IMMUTABLE)"
   # Immutable means there is no second chance to make the bytes match the
   # source. Check before, not after.
@@ -502,6 +532,49 @@ if run web;     then hdr "update cefrium.com pages + committed repo docs"
   fi
 fi
 PRUNE_STATE="not reached"
+if run web; then
+  # ORDER MATTERS, and it was wrong. This block used to sit AFTER prune and
+  # play, though PHASES declares web before both. The prune phase exits 1 when
+  # the release is incomplete, so on the 0.10.2 cut -- where "incomplete" only
+  # meant Central had not propagated yet, six minutes as it turned out -- the
+  # exit took this block with it. The source of a published release went
+  # unpushed: the tag was on Codeberg and the branch was seven commits behind.
+  # Pushing the source cannot depend on a cleanup step succeeding.
+  #
+  # Updating a page and verifying it updated are different claims, and the gap
+  # between them already shipped: the published Javadoc sat at 0.9.2 while
+  # 0.9.4 was the release. The anchored regex updates above fail SOFT on
+  # purpose (a reworded anchor must not corrupt a page), so something has to
+  # check the post-condition.
+  hdr "verify cefrium.com matches $VERSION"
+  if cef/cefrium_sdk/release-web-verify.sh "$VERSION" "$PREV"; then
+    WEB_VERIFY_STATE="consistent"
+  else
+    WEB_VERIFY_STATE="INCONSISTENT -- see the FAIL lines; fix the pages, then: cef/cefrium_sdk/release-web-verify.sh $VERSION $PREV"
+  fi
+
+  # The web + docs trees are committed and pushed by release-publish-docs.sh in
+  # the web phase. The cef repo is not, and a published release whose source is
+  # only on this disk is not reproducible by anyone. Fast-forward only: a
+  # diverged branch means something happened that a release script must not
+  # paper over, so report it and let a human run push.sh --force.
+  hdr "push the cef repo"
+  if cef/cefrium_sdk/push.sh cef; then
+    CEF_PUSH_STATE="pushed"
+  else
+    CEF_PUSH_STATE="FAILED -- run: cef/cefrium_sdk/push.sh cef [--force]"
+  fi
+  # push.sh moves COMMITS, so a pin left in the working tree survives a green
+  # push and reaches nobody. Report it in the summary rather than failing a cut
+  # that is otherwise complete, because the remedy is one commit.
+  LEFTOVER="$(pins_dirty)"
+  if [ -z "$LEFTOVER" ]; then
+    PIN_STATE="all committed and pushed"
+  else
+    PIN_STATE="STILL UNCOMMITTED -- $(echo "$LEFTOVER" | awk '{print $2}' | tr '\n' ' ')"
+  fi
+fi
+
 if run prune;   then hdr "prune previous versions (latest-only retention)"
   # Final verdict on the release as ADOPTERS see it: both registries, the
   # release record, and the engine/ABIs inside the PUBLISHED bytes. This used to
@@ -556,41 +629,6 @@ if run play;    then hdr "Google Play (rebuild consumers, upload the apps)"
     # fine, only the app rollout did not happen. Say so instead of implying
     # the whole cut failed.
     PLAY_STATE="FAILED -- rerun: cef/cefrium_sdk/release-play.sh $VERSION ${CEFRIUM_PLAY_TRACK:-internal}"
-  fi
-fi
-
-if run web; then
-  # Updating a page and verifying it updated are different claims, and the gap
-  # between them already shipped: the published Javadoc sat at 0.9.2 while
-  # 0.9.4 was the release. The anchored regex updates above fail SOFT on
-  # purpose (a reworded anchor must not corrupt a page), so something has to
-  # check the post-condition.
-  hdr "verify cefrium.com matches $VERSION"
-  if cef/cefrium_sdk/release-web-verify.sh "$VERSION" "$PREV"; then
-    WEB_VERIFY_STATE="consistent"
-  else
-    WEB_VERIFY_STATE="INCONSISTENT -- see the FAIL lines; fix the pages, then: cef/cefrium_sdk/release-web-verify.sh $VERSION $PREV"
-  fi
-
-  # The web + docs trees are committed and pushed by release-publish-docs.sh in
-  # the web phase. The cef repo is not, and a published release whose source is
-  # only on this disk is not reproducible by anyone. Fast-forward only: a
-  # diverged branch means something happened that a release script must not
-  # paper over, so report it and let a human run push.sh --force.
-  hdr "push the cef repo"
-  if cef/cefrium_sdk/push.sh cef; then
-    CEF_PUSH_STATE="pushed"
-  else
-    CEF_PUSH_STATE="FAILED -- run: cef/cefrium_sdk/push.sh cef [--force]"
-  fi
-  # push.sh moves COMMITS, so a pin left in the working tree survives a green
-  # push and reaches nobody. Report it in the summary rather than failing a cut
-  # that is otherwise complete, because the remedy is one commit.
-  LEFTOVER="$(pins_dirty)"
-  if [ -z "$LEFTOVER" ]; then
-    PIN_STATE="all committed and pushed"
-  else
-    PIN_STATE="STILL UNCOMMITTED -- $(echo "$LEFTOVER" | awk '{print $2}' | tr '\n' ' ')"
   fi
 fi
 

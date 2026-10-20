@@ -18,13 +18,20 @@ One script runs all of it. The phases, in order, and what each one is for:
 | 5 | `plugin` | Check the Gradle plugin jar | - |
 | 6 | `stats` | Derive every figure README.md, QUICKSTART-CEFRIUM.md, MIGRATION-CEFRIUM.md and BUILD-GUIDE-CEFRIUM.md state (patch counts, engine, SDK version, service slots, toolchain and JDK floors), commit them, then assert what was committed; also assert that every API name, Cefrium type, script path and doc link in those four and in FEATURES/CHANGELOG/SCRIPTS/RELEASING/PATCHING still resolves; also assert the changelog has this version's section as its newest entry | `update-doc-figures.py` |
 | 7 | `sanity` | Build a REAL consumer against the fresh AAR, before anything immutable | - |
-| 8 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
-| 9 | `central` | Upload to Maven Central, the channel adopters actually pin | `publish-central.sh` |
-| 10 | `flagship` | Build the browser APK against this exact SDK | - |
-| 11 | `release` | Codeberg release: tag, assets, GPG-signed `SHA256SUMS` | `release-codeberg.sh` |
-| 12 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, re-assert the repo docs, then VERIFY | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
-| 13 | `prune` | Drop superseded versions from the latest-only Codeberg mirror | `prune-old-versions.sh` |
-| 14 | `play` | Pin + version-bump the apps, rebuild every sample, upload to Play | `release-play.sh` |
+| 8 | `suite` | The 46-test on-device suite, read from the result files, not from Gradle's exit status | `run-instrumentation-suite.sh` |
+| 9 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
+| 10 | `central` | Upload to Maven Central, the channel adopters actually pin | `publish-central.sh` |
+| 11 | `flagship` | Build the browser APK against this exact SDK | - |
+| 12 | `release` | Codeberg release: tag, assets, GPG-signed `SHA256SUMS` | `release-codeberg.sh` |
+| 13 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, re-assert the repo docs, then VERIFY and push the cef repo | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
+| 14 | `prune` | Drop superseded versions from the latest-only Codeberg mirror | `prune-old-versions.sh` |
+| 15 | `play` | Pin + version-bump the apps, rebuild every sample, upload to Play | `release-play.sh` |
+
+The order of 13 and 14 is deliberate and was learned the hard way. `prune`
+exits 1 when the release looks incomplete, and on the 0.10.2 cut "incomplete"
+only meant Maven Central had not propagated yet, which took six minutes. That
+exit used to happen before the push, so the source of a published release sat
+unpushed: the tag was on Codeberg and the branch was seven commits behind.
 
 Two things need a human and are not automated:
 
@@ -48,7 +55,8 @@ prune):
 # The cut sets Cefrium.VERSION itself, and commits it:
 cef/cefrium_sdk/cut-release.sh <version> <prev-version> --notes "<releases-row HTML>"
 # Resume after a long build:  --from publish   (phases: patches build merge
-#   compose plugin stats sanity publish central flagship release web prune play)
+#   compose plugin stats sanity suite publish central flagship release web
+#   prune play)
 ```
 
 Useful flags: `CEFRIUM_INCREMENTAL=1` reuses the out dirs (note the `patches`
