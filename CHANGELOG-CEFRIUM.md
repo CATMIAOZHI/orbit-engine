@@ -17,6 +17,38 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+### Added
+
+- **`Cefrium.setGpuProcessEnabled(boolean)`**, to run the GPU in its own
+  process instead of inside the browser process. Off by default, which is what
+  the SDK has always done, except that until now it was not a decision: the
+  `--in-process-gpu` switch had been there since the first SDK commit with no
+  reason recorded. GL command buffers and the vendor's graphics driver
+  therefore share a process with the embedder's code and data, which is a
+  weaker boundary than desktop Chrome, where the GPU is its own process.
+  Enabling it moves the GPU into `:privileged_process0`. Measured on a
+  1920x1200 kiosk tablet showing one page, total PSS across the app's
+  processes: 591 MB in-process against 715 MB out, about 21% more, plus one
+  more process for Android's low-memory killer to choose from. The on-device
+  suite is green in both modes.
+  Decision: opt-in rather than default, because most of this SDK's deployments
+  are dedicated hardware with 4 GB or less, and a 21% memory increase there is
+  a real regression. The security argument wins when the device has memory to
+  spare and the content is not fully under the embedder's control.
+
+### Fixed
+
+- **Documented where the engine settings must actually be called from.**
+  `setComponentUpdatesEnabled`, `setNetworkTimeQueriesEnabled` and the new
+  `setGpuProcessEnabled` all said "before `initialize()`", which is true and
+  not enough: the SDK initializes from a `ContentProvider`, and Android creates
+  providers after `Application.attachBaseContext` but before
+  `Application.onCreate`. A setter called from `onCreate` is already too late,
+  logs a warning and does nothing. The javadoc now names
+  `attachBaseContext`, and the kiosk-pos sample shows the shape. This affected
+  the network opt-outs shipped in 0.9.3, so an embedder who disabled component
+  updates from `onCreate` was not getting what they asked for.
+
 ## [0.10.2] - 2026-10-20
 
 Engine: **Chromium 156.0.8078.17 / CEF branch 8078** (unchanged from 0.10.1).
