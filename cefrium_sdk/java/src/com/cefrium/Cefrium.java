@@ -6,7 +6,9 @@ package com.cefrium;
 
 import android.app.Application;
 import android.content.Context;
+import android.content.pm.PackageInfo;
 
+import org.chromium.base.ApkInfo;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
@@ -25,11 +27,17 @@ import org.chromium.ui.base.ResourceBundle;
  *
  * <pre>
  * Mozilla/5.0 (Linux; Android ...) AppleWebKit/537.36 (KHTML, like Gecko)
- *     Chrome/149.0.7827.102 Cefrium/1.0 Mobile Safari/537.36
+ *     Chrome/&lt;engine version&gt; Cefrium/1.0 Mobile Safari/537.36
  * </pre>
  *
- * <p>This ensures full site compatibility while transparently identifying
- * the client. The User-Agent is configured via {@code CefSettings.user_agent_product}
+ * <p>The Chrome token carries the bundled engine version, a build constant of
+ * the SDK -- see {@link #getChromiumVersion()}. It is not your app's
+ * {@code android:versionName}. The {@code Cefrium/1.0} token identifies the
+ * embedder and does not track the SDK version; read {@link #getVersion()} for
+ * that.</p>
+ *
+ * <p>Sites therefore serve what they serve to Chrome. The User-Agent is
+ * configured via {@code CefSettings.user_agent_product}
  * in the native layer. To customize it, use the {@code --user-agent-product}
  * command-line switch before calling {@link #initialize}:</p>
  *
@@ -220,6 +228,7 @@ public final class Cefrium {
 
         Context appContext = context.getApplicationContext();
         ContextUtils.initApplicationContext(appContext);
+        declareEngineVersionToApkInfo(appContext);
         ResourceBundle.setAvailablePakLocales(new String[] {"en-US"});
         LibraryLoader.getInstance()
                 .setLibraryProcessType(LibraryProcessType.PROCESS_BROWSER);
@@ -228,6 +237,41 @@ public final class Cefrium {
             ApplicationStatus.initialize((Application) appContext);
         }
         sProcessSetUp = true;
+    }
+
+    /**
+     * Tell Chromium which version the ENGINE is, as opposed to the host app.
+     *
+     * Since Chromium 156, version_info::GetVersionNumber() on Android returns
+     * ApkInfo's package_version_name, which defaults to the host APK's
+     * android:versionName. The user-agent string no longer goes through it --
+     * that is a build constant now -- but the client hints still do:
+     * user_agent_utils.cc builds Sec-CH-UA and navigator.userAgentData from
+     * version_info directly, bypassing user_agent_product. Measured on device
+     * before this call existed, with the UA already correct:
+     *     uaFullVersion: 0.1.0      (the sample app's versionName)
+     *     brands: [..., {"brand":"Chromium","version":"0"}]
+     *
+     * setBrowserPackageInfo is the mechanism Chromium provides for an engine
+     * whose host APK is not the engine; production WebView calls it the same
+     * way, right after the application context exists.
+     *
+     * Only versionName is ours. packageName, applicationInfo and versionCode
+     * stay the host's real values: they are passed to child processes on the
+     * command line and checked against the child's sourceDir, so a synthetic
+     * package here would break child launching.
+     */
+    private static void declareEngineVersionToApkInfo(Context appContext) {
+        try {
+            PackageInfo info = appContext.getPackageManager()
+                    .getPackageInfo(appContext.getPackageName(), 0);
+            info.versionName = CHROMIUM_VERSION;
+            ApkInfo.setBrowserPackageInfo(info);
+        } catch (Throwable t) {
+            // Non-fatal by design. The UA string is correct either way; only the
+            // client hints would stay wrong, and that must not stop startup.
+            android.util.Log.w("Cefrium", "could not declare the engine version: " + t);
+        }
     }
 
     /**
