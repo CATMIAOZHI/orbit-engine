@@ -85,6 +85,10 @@ FEATURES = "FEATURES-CEFRIUM.md"
 # had to be, because that badge sat at 154 while 156 was live. One owner per
 # file, so each repo's copy is written by the script that lives with it.
 LOGO = "assets/cefrium-logo.svg"
+# The harness documents its own size, and nothing owned it: it advertised 16
+# classes and 38 methods against 23 and 46 on disk, which is the direction that
+# undersells the suite a release now depends on.
+ITEST = "cefrium_instrumentation_test/README.md"
 CHANGELOG = "CHANGELOG-CEFRIUM.md"
 
 
@@ -358,8 +362,10 @@ FIGURES = [
      "Gradle-plugin Java target, JDK-error entry"),
     (README, r"All ([0-9]+) capabilities", [capabilities],
      'capability count, "What works"'),
-    (README, r"\*\*([0-9]+)\s+test\s+classes, ([0-9]+) `@Test` methods\*\*",
+    ((README, ITEST), r"\*\*([0-9]+)\s+test\s+classes, ([0-9]+) `@Test` methods\*\*",
      [test_classes, test_methods], "instrumentation coverage, \"Testing\""),
+    (ITEST, r"JDK ([0-9]+) is a hard floor", [jdk],
+     "JDK floor, the harness export line"),
     # The runbook's own export. "NOT the Android Studio JBR 21" and "javac 21"
     # on the next line are HISTORY -- the JDK that stopped working at 0.8.0 --
     # so the anchors carry wording those do not use.
@@ -372,7 +378,7 @@ FIGURES = [
 
 # The docs this script REWRITES, because every figure in them has an owner
 # above. FEATURES-CEFRIUM.md is checked but never rewritten.
-OWNED = (README, QUICK, MIGRATION, BUILD, RELEASING)
+OWNED = (README, QUICK, MIGRATION, BUILD, RELEASING, ITEST)
 # Rewritten: the docs plus the logo. DOCS below stays prose-only, so the API,
 # type, script and link checks are not run against an SVG.
 REWRITTEN = OWNED + (LOGO,)
@@ -509,15 +515,20 @@ def declared_symbols():
     blob = []
     for rel in ("cefrium_sdk/java/src/com/cefrium",
                 "cefrium_compose/java/src/com/cefrium/compose",
-                "tests/cef_android_test/apk/src/org/cefrium/test"):
+                "tests/cef_android_test/apk/src/org/cefrium/test",
+                # The harness README names its own test classes, and they live
+                # two directories deep (sdk/, compose/), so this one is walked.
+                "cefrium_instrumentation_test/app/src/androidTest"):
         d = os.path.join(CEF, rel)
         if not os.path.isdir(d):
             die("source dir not found: %s" % rel)
-        for name in sorted(os.listdir(d)):
-            if name.endswith((".java", ".kt")):
-                with open(os.path.join(d, name), encoding="utf-8",
-                          errors="replace") as fh:
-                    blob.append(fh.read())
+        for root, dirs, names in os.walk(d):
+            dirs[:] = [x for x in dirs if x != "build"]
+            for name in sorted(names):
+                if name.endswith((".java", ".kt")):
+                    with open(os.path.join(root, name), encoding="utf-8",
+                              errors="replace") as fh:
+                        blob.append(fh.read())
     blob.append(read("tests/cef_android_test/BUILD.gn"))
     return "\n".join(blob)
 

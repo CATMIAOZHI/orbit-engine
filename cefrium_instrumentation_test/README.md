@@ -5,8 +5,9 @@ in the SDK repo (not the samples) so a clone of `cef-android` is self-verifying
 and CI can gate releases on it. It covers both the **Java SDK** (`com.cefrium`)
 and the **Compose wrapper** (`com.cefrium.compose`).
 
-**Coverage - 16 test classes, 38 `@Test` methods** (run them all with
-`connectedDebugAndroidTest`):
+**23 test classes, 46 `@Test` methods**, and a release cannot be cut without
+them: `cut-release.sh` runs this suite as its `suite` phase, before anything
+becomes immutable.
 
 | Area | Classes |
 |------|---------|
@@ -26,9 +27,24 @@ GN/ninja build. It consumes the built AARs from `app/libs/` (gitignored).
 
 ## Run
 
+One command, from `chromium/src`. It stages the artifacts, runs the suite, and
+reads the result files rather than trusting Gradle's exit status:
+
 ```bash
-export JAVA_HOME=/path/to/android-studio/jbr        # JDK 21
-export ANDROID_HOME=/path/to/android-sdk
+cef/cefrium_sdk/run-instrumentation-suite.sh            # what a cut runs
+cef/cefrium_sdk/run-instrumentation-suite.sh 0.10.2     # a published version
+```
+
+It fails on a failure, on a skip, and on a case that took 0.000s, because a
+suite that cannot tell "nothing happened" from "nothing ran" signs empty
+passes. That is not hypothetical here: a result file once read tests=46
+failures=0 with every duration zero.
+
+By hand, if you are iterating on one class:
+
+```bash
+export JAVA_HOME=../../third_party/jdk/current       # JDK 25 is a hard floor
+export ANDROID_HOME=../../third_party/android_sdk/public
 
 # 1. Stage the freshly built artifacts under test (libs/ is gitignored):
 cp ../../out/<dir>/cefrium-sdk.aar app/libs/cefrium-sdk.aar

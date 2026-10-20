@@ -347,11 +347,20 @@ handler is never consulted). `--skip-build` for sample-only edits.
 
 | Task | Command |
 |---|---|
+| Run the instrumentation suite as a gate | `cef/cefrium_sdk/run-instrumentation-suite.sh [<version>]` |
 | Smoke the published artifact | `cef/cefrium_sdk/smoke-samples.sh --registry <version>` |
 | Test a published release e2e | `cef/cefrium_sdk/test-published-release.sh <version>` |
 | Verify an artifact's engine/ABIs | `cef/cefrium_sdk/verify-release-artifacts.sh <version>` |
 | Audit the engine's network calls | `cef/cefrium_sdk/audit-engine-network.sh` |
 | Did it crash, and of what? | `cef/cefrium_sdk/why-died.sh [package]` |
+
+`run-instrumentation-suite.sh` stages the AARs into the harness, runs
+`connectedDebugAndroidTest`, and then reads the result files instead of
+trusting Gradle's exit status. It fails on a failure, on a skipped test, and on
+a case whose duration is 0.000s: a result file reading `tests=46 failures=0`
+with every time zero is a suite that did not run, and it looks exactly like a
+pass in the build output. `cut-release.sh` runs it as the `suite` phase, the
+last gate before anything becomes immutable.
 
 `why-died.sh` is read-only and answers the question that is most often got
 wrong here: it reads `dumpsys activity exit-info` and classifies the reason
