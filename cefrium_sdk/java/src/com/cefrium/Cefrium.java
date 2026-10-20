@@ -80,6 +80,7 @@ public final class Cefrium {
     // here deliberately.
     private static boolean sComponentUpdatesEnabled = true;
     private static boolean sNetworkTimeQueriesEnabled = false;
+    private static boolean sGpuProcessEnabled = false;
 
     private Cefrium() {}
 
@@ -88,6 +89,11 @@ public final class Cefrium {
      * network. Enabled by default. Must be called <b>before</b> the engine
      * initializes, i.e. before {@link #initialize(Context)} and before the first
      * browser is created; afterwards it has no effect and logs a warning.
+     *
+     * <p><b>Call it from {@code Application.attachBaseContext}</b>, not from
+     * {@code onCreate}. The SDK initializes the engine from a
+     * {@code ContentProvider}, and Android creates providers between those two
+     * callbacks, so a setter called in {@code onCreate} is already too late.</p>
      *
      * <p>When enabled (the default), Chromium's component updater contacts
      * {@code update.googleapis.com} and downloads data files the engine relies on:
@@ -132,12 +138,66 @@ public final class Cefrium {
     }
 
     /**
+     * Run the GPU in its own process instead of inside the browser process.
+     * Disabled by default. Must be called <b>before</b> {@link #initialize(Context)}
+     * and before the first browser is created; afterwards it has no effect and logs
+     * a warning. Call it from {@code Application.attachBaseContext}, not from
+     * {@code onCreate}: the SDK initializes from a {@code ContentProvider}, which
+     * Android creates between those two callbacks. The kiosk-pos sample shows the
+     * shape.
+     *
+     * <p>By default Cefrium passes Chromium's {@code --in-process-gpu}, so GL
+     * command buffers and the vendor's graphics driver run in the same process as
+     * your application code and its data. That is a weaker boundary than desktop
+     * Chrome, where the GPU is a separate process: a graphics-driver bug reached
+     * from a compromised renderer lands in the process holding your app's
+     * permissions.</p>
+     *
+     * <p>Enabling this moves the GPU into an Android service of its own
+     * ({@code :privileged_process0}). The renderer then has to cross two process
+     * boundaries to reach your code, and a driver crash no longer takes the
+     * browser process with it. The GPU service is privileged rather than isolated,
+     * because it needs the driver and the surface, so it shares your app's UID: it
+     * is separated from the renderer, not from your app's files.</p>
+     *
+     * <p><b>It costs memory, which is why it is not the default.</b> Measured on a
+     * 1920x1200 kiosk tablet with one browser showing a page, total PSS across the
+     * app's processes: 591 MB in-process against 715 MB with the GPU out, about
+     * 21% more, and one more process for Android's low-memory killer to choose
+     * from. On dedicated hardware with 4 GB or less that matters, which is most
+     * kiosk and signage deployments.</p>
+     *
+     * <p>Turn it on when the device has memory to spare and the content is not
+     * fully under your control: a browser, a portal, anything rendering pages from
+     * the open web. Leave it off for a fixed-content kiosk on constrained
+     * hardware. The engine behaves identically either way; the full on-device
+     * suite passes in both modes.</p>
+     *
+     * @param enabled true to run the GPU in a separate process.
+     */
+    public static synchronized void setGpuProcessEnabled(boolean enabled) {
+        if (sInitialized) {
+            android.util.Log.w(TAG, "setGpuProcessEnabled() ignored: the engine is "
+                    + "already initialized. Call it before the first browser is created.");
+            return;
+        }
+        sGpuProcessEnabled = enabled;
+    }
+
+    /** @return whether the GPU runs in its own process (default false). */
+    public static synchronized boolean isGpuProcessEnabled() {
+        return sGpuProcessEnabled;
+    }
+
+    /**
      * Control whether the engine queries Google's time service.
      * <b>Disabled by default in Cefrium</b>, which is a deliberate divergence from
      * Chromium, where the feature is enabled by default on Android. Must be called
      * <b>before</b> the engine initializes, i.e. before {@link #initialize(Context)}
      * and before the first browser is created; afterwards it has no effect and logs
-     * a warning.
+     * a warning. Call it from {@code Application.attachBaseContext}, not from
+     * {@code onCreate}: the SDK initializes from a {@code ContentProvider}, which
+     * Android creates between those two callbacks.
      *
      * <p>When enabled, the engine performs an occasional request to
      * {@code http://clients2.google.com/time/1/current} (roughly daily by design) to
@@ -319,7 +379,17 @@ public final class Cefrium {
         if (!CommandLine.isInitialized()) {
             CommandLine.init(null);
         }
-        CommandLine.getInstance().appendSwitch("in-process-gpu");
+        // The GPU runs inside the browser process unless the embedder asks
+        // otherwise. This switch had been here since the first SDK commit with no
+        // reason recorded, which is how a bring-up expedient becomes a security
+        // property nobody chose: GL command buffers and the vendor driver share a
+        // process with the app's code and data. Out-of-process works -- suite
+        // green, GPU service running, page rendering -- and costs about 21% more
+        // memory, so it is an opt-in rather than a default. See
+        // setGpuProcessEnabled.
+        if (!sGpuProcessEnabled) {
+            CommandLine.getInstance().appendSwitch("in-process-gpu");
+        }
         // No "no-sandbox" switch. Renderers are isolated either way on Android,
         // but the switch stops renderer_main from installing Chromium's
         // seccomp-BPF policy, so children ran with the zygote baseline only.
