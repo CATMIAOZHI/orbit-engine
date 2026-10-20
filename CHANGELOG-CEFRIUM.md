@@ -17,6 +17,64 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-10-20
+
+Engine: **Chromium 156.0.8078.17 / CEF branch 8078** (unchanged from 0.10.1).
+
+No API change. Both items below are fixes to what the SDK already shipped.
+
+### Security
+
+- **Renderer processes now install Chromium's seccomp-BPF policy.** Every
+  Cefrium entry point set `--no-sandbox` (six sites: the SDK, the JNI bridge and
+  the test APK). On Android that switch never changed where a child process
+  runs. Renderers always land in an `isolatedProcess` `SandboxedProcessService`,
+  under a per-process isolated UID and SELinux `isolated_app`, and the platform
+  grants that whatever the command line says. What the switch did remove is the
+  layer inside the renderer: it stops `renderer_main` from calling
+  `EnableSandbox()`, so the process kept only the Android zygote's baseline
+  filter. Measured on a device from `/proc/<renderer pid>/status`, 0.10.1 then
+  0.10.2: `NoNewPrivs` 0 -> 1, `Seccomp_filters` 1 -> 2.
+  Note for anyone auditing this themselves: the `Seccomp:` field proves nothing
+  on Android, because every app process inherits the zygote filter. The filter
+  count and `NoNewPrivs` are the signal.
+  Decision: removed rather than made configurable. A sandbox switch that an
+  embedder can turn off is a sandbox that ships off.
+  Found by a third-party audit of 0.9.4
+  (`linkalls/velocity-browser` PR #9), which reported the three visible sites.
+
+### Fixed
+
+- **The User-Agent reported the host app's version as the Chrome version.** An
+  app whose `android:versionName` was `0.1.0` sent `Chrome/0.1.0`, and the
+  client hints agreed with it (`Sec-CH-UA` brand `Chromium` version `"0"`,
+  `uaFullVersion` `0.1.0`). Chromium 156 changed
+  `version_info::GetVersionNumber()` on Android to return the host APK's
+  `versionName` (upstream `7cb5ec9c41e7f`), and both the UA and the hints read
+  it. Sites that branch on the Chrome version therefore served fallback content.
+  The fix has two layers, because the client hints do not go through
+  `CefSettings.user_agent_product`: the UA token now comes from CEF's build
+  constants, and `Cefrium.setupProcess()` declares the engine version to
+  `ApkInfo.setBrowserPackageInfo()`, which is the mechanism Chromium provides
+  for an engine whose host APK is not the engine. Measured after the fix, with
+  the host app still at `versionName 0.1.0`: `Chrome/156.0.8078.17`, brand
+  version `"156"`, `uaFullVersion 156.0.8078.17`.
+  Only `versionName` is replaced. `packageName`, `applicationInfo` and
+  `versionCode` stay the host's real values, because child processes receive
+  them and check them against their own `sourceDir`.
+  The `Cefrium/1.0` token is unchanged and does not track the SDK version. See
+  VERSIONING-CEFRIUM.md.
+- **A change to the SDK's `AndroidManifest.xml` did not rebuild the AAR.**
+  Chromium's `dist_aar` template passes `android_manifest` to the packaging
+  script as an argument but never adds it to `inputs`, while `native_libraries`
+  and `proguard_configs` on the same template do. ninja therefore never learned
+  the manifest was an input, and a manifest edit could silently not ship. Fixed
+  in the Chromium tree by patch `android/dist_aar_manifest_input`, one line,
+  matching the `native_libraries` branch above it.
+  Decision: fixed upstream-style rather than worked around by deleting the AAR,
+  and parked for submission. The bug affects anyone who ships an AAR from a
+  Chromium tree.
+
 ## [0.10.1] - 2026-10-16
 
 Engine: **Chromium 156.0.8078.17 / CEF branch 8078** (unchanged from 0.10.0).
