@@ -65,6 +65,25 @@ else
   bad "avatar badge does not say Chromium $MAJOR (engine is $ENGINE)"
 fi
 
+# avatar.png is the raster twin used where an SVG is not accepted, and no page
+# references it -- so the asset check below cannot see it and it would rot
+# unwatched. release-web-update.sh renders it from the SVG; assert that it did,
+# by rendering again and comparing pixels.
+if [ ! -f avatar.png ]; then
+  bad "avatar.png is missing (release-web-update.sh renders it from avatar.svg)"
+elif ! command -v rsvg-convert >/dev/null 2>&1; then
+  bad "rsvg-convert not found, so avatar.png cannot be checked against avatar.svg"
+else
+  _png="$(mktemp --suffix=.png)"
+  rsvg-convert -w 512 -h 512 -o "$_png" avatar.svg 2>/dev/null
+  if cmp -s "$_png" avatar.png; then
+    ok "avatar.png matches a fresh render of avatar.svg"
+  else
+    bad "avatar.png differs from avatar.svg -- re-run release-web-update.sh"
+  fi
+  rm -f "$_png"
+fi
+
 # The /upstream "divergence" panel. Four numbers an evaluator checks in a minute,
 # and all four were stale (engine 154 and 33 patches while 156/34 shipped) because
 # nothing derived them. release-web-update.sh derives them now; this asserts it ran.
