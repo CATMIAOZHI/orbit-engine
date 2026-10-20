@@ -85,11 +85,19 @@
                    android:value="40"/>
         <!-- NO android:useAppZygote here, though upstream Chrome sets it on
              service 0. It does raise the child's seccomp set to parity with the
-             system WebView (filters 2 -> 4, measured on a W90), but it BREAKS
-             input to a surface-backed browser: injected mouse and touch never
-             reach the windowed renderer, and both instrumentation tests time
-             out at 30 s instead of passing in 3 s. Reliability first. See
-             FEATURE-069 before trying again. -->
+             system WebView (filters 2 to 4, measured on a W90), and it is out
+             because the instrumentation suite then fails: injected mouse and
+             touch stop reaching a windowed renderer, and those two tests time
+             out at 30 s instead of passing in 3 s.
+
+             Measured on both shapes, service 0 alone and all 40, with the same
+             result, so it is not a mixed-children effect. And NOT categorical:
+             run either test on its own against a zygote build and it passes in
+             3 to 4 s. The failure needs earlier browsers in the same process,
+             and reproduces inside package com.cefrium.itest.sdk. Root-cause
+             that before trying again, and re-run the SUITE: the sandbox
+             battery said PASS on a build whose touch was dead. See
+             FEATURE-069. -->
         <service android:name="org.chromium.content.app.SandboxedProcessService0"
                  android:process=":sandboxed_process0"
                  android:isolatedProcess="true"
