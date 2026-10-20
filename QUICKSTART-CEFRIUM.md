@@ -359,6 +359,31 @@ capping the pool. Remove that block; the merged APK manifest should read
 **White screen:** The browser needs ~2 seconds after `loadUrl` to
 connect WebContents to the rendering pipeline. This is normal.
 
+**Blank page in a package that also uses the system WebView:** do not load the
+system WebView anywhere in a package that hosts Cefrium, not even in a separate
+process of that package. Both engines are Chromium and both bind
+`org.chromium.content.app.SandboxedProcessService0` with instance name `"0"`.
+WebView binds its renderer as an *external* service, which Android registers
+under the calling package's component name, so whichever engine starts first
+takes the slot and the other attaches to a child that belongs to the wrong APK.
+The symptom is a page that never paints, and the proof is one line:
+
+```
+adb logcat | grep cr_ChildProcessConn
+  Child process's classpath doesn't match, but main process's package hasn't
+  changed; the child is likely to be broken!
+```
+
+`adb shell dumpsys activity services <your.package>` confirms it: the
+`SandboxedProcessService0:0` record will show `processName=com.google.android
+.webview:sandboxed_process0` with your app among its clients.
+
+There is no setting that fixes this. The service class name is where Chromium's
+allocator derives the instance name, so two Chromiums in one package always
+collide. Put the WebView side in its own package, in a separate APK. (A
+separate *process* is not enough, which is the part that surprises people: the
+collision is per package, not per process.)
+
 **JDK error:** For 0.8.0+ use **JDK 25** (Gradle 9.7.1 / AGP 9.4). A `cannot
 access CefriumBrowser` or `Unsupported class file major version 69` error means
 javac is older than 25 and cannot read the SDK's Java-25 bytecode. The Gradle
