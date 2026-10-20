@@ -36,6 +36,17 @@ OWNER = os.path.join(CEF, "cefrium_sdk/update-doc-figures.py")
 DOCS = sorted(f for f in os.listdir(CEF)
               if f == "README.md" or (f.endswith("-CEFRIUM.md")
                                       and not f.startswith("LICENSE")))
+DOCS += ["SECURITY.md", "cefrium_instrumentation_test/README.md"]
+
+# Source files are swept too, because a figure in a javadoc comment is
+# published: Cefrium.java's class javadoc carried "Chrome/149.0.7827.102" as
+# the example user agent, seven engine versions stale, and it is served at
+# cefrium.com/docs. The checker owns Markdown; nothing looked here.
+SRC = ["cefrium_sdk/java/src/com/cefrium/Cefrium.java",
+       "cefrium_sdk/java/src/com/cefrium/CefriumBrowser.java",
+       "cefrium_compose/java/src/com/cefrium/compose/CefriumView.kt",
+       "libcef/browser/android/cefrium_sdk_jni.cc"]
+SRC = [p for p in SRC if os.path.exists(os.path.join(CEF, p))]
 
 def read(rel):
     return open(os.path.join(CEF, rel), encoding="utf-8", errors="replace").read()
@@ -56,7 +67,7 @@ CUR = {"engine tag": ctag, "CEF branch": branch, "Chromium milestone": milestone
        "Gradle": gradle, "JDK floor": jdk}
 
 # ---- spans the anchors cover -------------------------------------------------
-spans = {d: set() for d in DOCS}
+spans = {d: set() for d in DOCS + SRC}
 for row in run.stdout.strip().split("\n"):
     p, pattern = row.split("\t")[0], row.split("\t")[1]
     if p not in spans:
@@ -116,9 +127,14 @@ def in_release_section(doc, pos, body):
     heads = [m.start() for m in re.finditer(r"^## \[[0-9]", body, re.M)]
     return bool(heads) and pos > heads[0]
 
+# The SDK's own version constants are the source every doc figure derives
+# from, so a match on those lines is the truth, not a copy of it.
+CONSTANT = re.compile(r"(?:String )?(?:VERSION|CHROMIUM_VERSION)\s*=|"
+                      r"CHROME_VERSION_(?:MAJOR|MINOR|BUILD|PATCH)")
+
 buckets = {"TIME BOMB": [], "SOURCE (by design)": [], "STALE?": [],
            "history/example": []}
-for d in DOCS:
+for d in DOCS + SRC:
     body = read(d)
     lines = body.split("\n")
     for name, shape, grp in SHAPES:
@@ -135,7 +151,7 @@ for d in DOCS:
             line = lines[ln - 1].strip()
             cur = CUR.get(name)
             rec = (name, d, ln, val, line[:100])
-            if set(range(s0, e0)) & src_spans.get(d, set()):
+            if set(range(s0, e0)) & src_spans.get(d, set()) or CONSTANT.search(line):
                 buckets["SOURCE (by design)"].append(rec)
             elif in_release_section(d, s0, body) or HIST.search(line):
                 buckets["history/example"].append(rec)
