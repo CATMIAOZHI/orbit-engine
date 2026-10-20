@@ -137,8 +137,8 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
            "%s/cef_frame.png", data_dir);
 
   // Multi-process mode: child processes launched as Android Services.
-  // Command-line flags (--in-process-gpu, --no-sandbox) are set in Java
-  // via CommandLine.init() before this is called.
+  // Command-line flags (--in-process-gpu) are set in Java via
+  // CommandLine.init() before this is called.
   static const char* argv[] = {"cefrium"};
   CefMainArgs main_args(1, const_cast<char**>(argv));
   // FEATURE-023 Phase 1: browser-process app deferred to Phase 2 (CefInitialize
@@ -153,7 +153,8 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   LOGI("CefExecuteProcess returned %d, continuing as browser", exit_code);
 
   CefSettings settings;
-  settings.no_sandbox = true;
+  // no_sandbox stays UNSET: see cefrium_sdk_jni.cc. It never affected child
+  // routing on Android, only whether the renderer installs seccomp-BPF.
   settings.windowless_rendering_enabled = true;
   settings.multi_threaded_message_loop = false;
   settings.log_severity = LOGSEVERITY_INFO;

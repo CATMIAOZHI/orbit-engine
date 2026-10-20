@@ -83,6 +83,13 @@
              foreground renderer ("isolated not needed"), crashing the app. -->
         <meta-data android:name="org.chromium.content.browser.NUM_SANDBOXED_SERVICES"
                    android:value="40"/>
+        <!-- NO android:useAppZygote here, though upstream Chrome sets it on
+             service 0. It does raise the child's seccomp set to parity with the
+             system WebView (filters 2 -> 4, measured on a W90), but it BREAKS
+             input to a surface-backed browser: injected mouse and touch never
+             reach the windowed renderer, and both instrumentation tests time
+             out at 30 s instead of passing in 3 s. Reliability first. See
+             FEATURE-069 before trying again. -->
         <service android:name="org.chromium.content.app.SandboxedProcessService0"
                  android:process=":sandboxed_process0"
                  android:isolatedProcess="true"

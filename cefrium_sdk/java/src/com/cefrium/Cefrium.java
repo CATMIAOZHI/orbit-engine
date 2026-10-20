@@ -276,7 +276,9 @@ public final class Cefrium {
             CommandLine.init(null);
         }
         CommandLine.getInstance().appendSwitch("in-process-gpu");
-        CommandLine.getInstance().appendSwitch("no-sandbox");
+        // No "no-sandbox" switch. Renderers are isolated either way on Android,
+        // but the switch stops renderer_main from installing Chromium's
+        // seccomp-BPF policy, so children ran with the zygote baseline only.
         // Route HTTP/proxy auth challenges (401/407) to CefRequestHandler::
         // GetAuthCredentials -> CefriumBrowser.setHttpAuthHandler. Without this,
         // ChromeContentBrowserClientCef::CreateLoginDelegate falls through to

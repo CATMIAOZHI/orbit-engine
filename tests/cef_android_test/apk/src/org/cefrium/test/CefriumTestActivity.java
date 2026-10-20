@@ -33,7 +33,8 @@ public class CefriumTestActivity extends Activity {
         }
         // Append flags after init to ensure they're always present.
         CommandLine.getInstance().appendSwitch("in-process-gpu");
-        CommandLine.getInstance().appendSwitch("no-sandbox");
+        // No "no-sandbox": the test APK must exercise the same renderer
+        // sandbox the SDK ships, or it proves nothing about it.
 
         super.onCreate(savedInstanceState);
 
