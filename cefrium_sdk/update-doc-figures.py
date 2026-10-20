@@ -89,6 +89,9 @@ LOGO = "assets/cefrium-logo.svg"
 # classes and 38 methods against 23 and 46 on disk, which is the direction that
 # undersells the suite a release now depends on.
 ITEST = "cefrium_instrumentation_test/README.md"
+# The security policy stated an engine by hand and sat seven milestones behind.
+# Of every document here, this is the one a stale engine figure damages most.
+SECURITY = "SECURITY.md"
 CHANGELOG = "CHANGELOG-CEFRIUM.md"
 
 
@@ -366,6 +369,11 @@ FIGURES = [
      [test_classes, test_methods], "instrumentation coverage, \"Testing\""),
     (ITEST, r"JDK ([0-9]+) is a hard floor", [jdk],
      "JDK floor, the harness export line"),
+    (SECURITY, r"Current engine: \*\*Chromium "
+               r"([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) / CEF branch ([0-9]+)\*\*",
+     [ctag, branch], "engine + branch, the security policy"),
+    (SECURITY, r"a ([0-9]+)-test on-device suite", [test_methods],
+     "suite size, the security policy"),
     # The runbook's own export. "NOT the Android Studio JBR 21" and "javac 21"
     # on the next line are HISTORY -- the JDK that stopped working at 0.8.0 --
     # so the anchors carry wording those do not use.
@@ -378,7 +386,7 @@ FIGURES = [
 
 # The docs this script REWRITES, because every figure in them has an owner
 # above. FEATURES-CEFRIUM.md is checked but never rewritten.
-OWNED = (README, QUICK, MIGRATION, BUILD, RELEASING, ITEST)
+OWNED = (README, QUICK, MIGRATION, BUILD, RELEASING, ITEST, SECURITY)
 # Rewritten: the docs plus the logo. DOCS below stays prose-only, so the API,
 # type, script and link checks are not run against an SVG.
 REWRITTEN = OWNED + (LOGO,)
