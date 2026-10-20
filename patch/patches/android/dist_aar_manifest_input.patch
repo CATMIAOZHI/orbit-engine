@@ -1,0 +1,12 @@
+diff --git build/config/android/rules.gni build/config/android/rules.gni
+index bba7c36..7cb24f2 100644
+--- build/config/android/rules.gni
++++ build/config/android/rules.gni
+@@ -1801,6 +1801,7 @@ if (!is_robolectric && enable_java_templates) {
+       ]
+ 
+       if (defined(invoker.android_manifest)) {
++        inputs += [ invoker.android_manifest ]
+         args += [
+           "--android-manifest",
+           rebase_path(invoker.android_manifest, root_build_dir),
