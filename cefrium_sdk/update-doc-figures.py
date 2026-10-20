@@ -569,7 +569,9 @@ def check_changelog(text):
     elif released[0] != version:
         problems.append(
             "newest released section is [%s] but Cefrium.VERSION is %s -- "
-            "write the [%s] entry before cutting" % (released[0], version, version))
+            "write the [%s] entry before cutting, or, if [%s] IS the release "
+            "being cut, this clears when cut-release.sh pins the version in "
+            "its patches phase" % (released[0], version, version, released[0]))
     for full, build, br in re.findall(
             r"Chromium ([0-9]+\.[0-9]+\.([0-9]+)\.[0-9]+) / CEF branch ([0-9]+)",
             text):
