@@ -16,7 +16,7 @@
 #include "cef/include/cef_life_span_handler.h"
 #include "cef/include/cef_load_handler.h"
 #include "cef/include/cef_render_handler.h"
-#include "components/version_info/version_info.h"
+#include "cef/include/cef_version.h"
 
 #include <android/log.h>
 
@@ -164,11 +164,13 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   std::string locales_dir = std::string(data_dir) + "/locales";
   CefString(&settings.locales_dir_path).FromASCII(locales_dir.c_str());
 
-  // Identify as Chrome Android so sites serve full-featured content. The Chrome
-  // version token is derived from the actual engine version so it never goes
-  // stale on an engine bump.
+  // Identify as Chrome Android so sites serve full-featured content. The
+  // version comes from CEF's build constants, not version_info: on Android
+  // that returns the host APP's versionName since Chromium 156. See
+  // cefrium_sdk_jni.cc for the full explanation.
   std::string ua_product =
-      "Chrome/" + std::string(version_info::GetVersionNumber()) +
+      "Chrome/" MAKE_STRING(CHROME_VERSION_MAJOR) "." MAKE_STRING(
+          CHROME_VERSION_MINOR) "." MAKE_STRING(CHROME_VERSION_BUILD) "." MAKE_STRING(CHROME_VERSION_PATCH)
       " Cefrium/1.0 Mobile";
   CefString(&settings.user_agent_product).FromASCII(ua_product.c_str());
 
