@@ -56,6 +56,26 @@ for block in cfg.split("{"):
     if n and p:
         roots[n.group(1)] = p.group(1)
 
+# Upstream sometimes RESHAPES what a patch adds instead of dropping it, and a
+# literal probe cannot see that. On 156, proto_library.gni renamed
+# generate_sources to _generate_sources AND folded our generate_library test
+# into a compound condition, so four of six probes miss while the change is
+# fully in effect. A rename table is not enough; what survives a reshape is the
+# IDENTIFIERS the change introduces.
+#
+# So one (patch, file) pair at a time, and only with a reason written down, the
+# literal test is replaced by the tokens that must still be present. This is
+# not a mute button: if those tokens go, the check still fails, and a pair that
+# needs an entry here is a patch on its way to obsolete -- the note says so on
+# every run so it cannot become background noise.
+SEMANTIC = {
+    ("chrome_browser_privacy_1119417", "third_party/protobuf/proto_library.gni"): {
+        "tokens": ["generate_library", "_generate_sources"],
+        "why": "156 renamed generate_sources and folded the generate_library "
+               "condition into a compound if; CEF regenerates this on its own bump",
+    },
+}
+
 def probes_for(path):
     """{target file: [distinctive added lines]} for one patch."""
     cur, added = None, {}
@@ -77,6 +97,7 @@ def probes_for(path):
     return added
 
 bad = []
+known = []
 for p in patches:
     name = p.split("patches/")[1][:-len(".patch")]
     root = roots.get(name.split("/")[-1], "")
@@ -88,6 +109,15 @@ for p in patches:
             bad.append((name, path, "MISSING FILE", 0, 0))
             continue
         body = open(path, errors="replace").read()
+        rule = SEMANTIC.get((name, f))
+        if rule:
+            gone = [t for t in rule["tokens"] if t not in body]
+            if gone:
+                bad.append((name, path, "RESHAPED+GONE",
+                            len(rule["tokens"]) - len(gone), len(rule["tokens"])))
+            else:
+                known.append((name, f, rule["why"]))
+            continue
         sample = lines[:6]
         hit = sum(1 for t in sample if t in body)
         if hit == len(sample):
@@ -115,5 +145,9 @@ if bad:
     print("                      and which may mean the patch is going obsolete.")
     sys.exit(1)
 
+for name, f, why in known:
+    print(f"  KNOWN RESHAPE  {name}: {f}")
+    print(f"                 content present, probes cannot match literally")
+    print(f"                 {why}")
 print(f"All {len(patches)} patches: content present in every target file.")
 PY
