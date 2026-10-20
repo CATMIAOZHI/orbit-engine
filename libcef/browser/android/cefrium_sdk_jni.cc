@@ -15,13 +15,13 @@
 #include "cef/include/cef_app.h"
 #include "cef/libcef/browser/android/cef_autofill_client_android.h"
 #include "components/android_autofill/browser/autofill_provider.h"
-#include "components/version_info/version_info.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_client.h"
 #include "cef/include/cef_cookie.h"
 #include "cef/include/cef_request.h"
 #include "cef/include/cef_request_context.h"
 #include "cef/include/cef_values.h"
+#include "cef/include/cef_version.h"
 #include "cef/include/cef_context_menu_handler.h"
 #include "cef/include/cef_device_chooser_handler.h"
 #include "cef/include/cef_display_handler.h"
@@ -3386,10 +3386,17 @@ Java_com_cefrium_Cefrium_nativeInitialize(
   CefString(&settings.root_cache_path).FromASCII(cache_dir);
 
   // Identify as Chrome Android so sites serve full-featured content. CEF IS
-  // Chromium -- accurate identification, not spoofing. The Chrome version token
-  // is derived from the actual engine version so it never goes stale on a bump.
+  // Chromium -- accurate identification, not spoofing.
+  //
+  // The version comes from CEF's build constants, NOT version_info. Since
+  // Chromium 156 (upstream 7cb5ec9c41e7f) version_info::GetVersionNumber() on
+  // Android returns apk_info::package_version_name(), i.e. the HOST APP's
+  // android:versionName -- so every consumer advertised its own app version as
+  // the Chrome version. A sample at versionName "0.1.0" shipped
+  // "Chrome/0.1.0". The engine version is a build property; read it as one.
   std::string ua_product =
-      "Chrome/" + std::string(version_info::GetVersionNumber()) +
+      "Chrome/" MAKE_STRING(CHROME_VERSION_MAJOR) "." MAKE_STRING(
+          CHROME_VERSION_MINOR) "." MAKE_STRING(CHROME_VERSION_BUILD) "." MAKE_STRING(CHROME_VERSION_PATCH)
       " Cefrium/1.0 Mobile";
   CefString(&settings.user_agent_product).FromASCII(ua_product.c_str());
 

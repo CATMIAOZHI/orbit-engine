@@ -20,6 +20,20 @@ patch and is **not** re-versioned -- 0.3.1 is published and immutable.
 Until 1.0 the public API may still change between releases; 1.0 marks the first
 stability commitment.
 
+## The User-Agent carries no SDK version
+
+The User-Agent reads `Chrome/<engine version> Cefrium/1.0 Mobile`. Two tokens,
+two meanings:
+
+- `Chrome/<engine version>` is the bundled engine, a build constant. It moves on
+  an engine bump and on nothing else. It is never the host app's
+  `android:versionName`.
+- `Cefrium/1.0` identifies the embedder and stays at 1.0 across releases, so a
+  server-side allowlist built on it survives an SDK update.
+
+Read the SDK version with `Cefrium.getVersion()` and the engine version with
+`Cefrium.getChromiumVersion()`.
+
 ## What 1.0 freezes
 
 The surface is already decided, so you can build against it before the version
