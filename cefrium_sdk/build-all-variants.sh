@@ -90,7 +90,6 @@ COMMON_ARGS='
   is_debug = false
   is_component_build = false
   clang_use_chrome_plugins = false
-  enable_nacl = false
   android_static_analysis = "off"
   symbol_level = 0
   blink_symbol_level = 0
