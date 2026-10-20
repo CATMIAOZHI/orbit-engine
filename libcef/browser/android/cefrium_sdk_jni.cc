@@ -3376,7 +3376,10 @@ Java_com_cefrium_Cefrium_nativeInitialize(
   }
 
   CefSettings settings;
-  settings.no_sandbox = true;
+  // no_sandbox stays UNSET. On Android it does not change child routing --
+  // renderers always land in an isolated SandboxedProcessService -- it only
+  // stops renderer_main from installing Chromium's seccomp-BPF policy, which
+  // left every child on the Android zygote baseline filter alone.
   settings.windowless_rendering_enabled = true;
   settings.multi_threaded_message_loop = false;
   settings.log_severity = LOGSEVERITY_INFO;
