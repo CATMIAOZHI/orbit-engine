@@ -46,8 +46,19 @@ release where all of this holds.
   calling `EnableSandbox()`. Children kept only the Android zygote's baseline
   filter. From 0.10.2 a renderer reads `NoNewPrivs 1` with 2 seccomp filters in
   `/proc/<pid>/status`.
-- **The GPU runs in-process** (`--in-process-gpu`), which is the Android
-  embedding reality for a surface-backed engine, not a hardening choice.
+- **The GPU runs in the browser process by default**, and the embedder can
+  move it to its own process with `Cefrium.setGpuProcessEnabled(true)`. In
+  process, GL command buffers and the vendor graphics driver share the process
+  that holds your app's code and data. Out of process, a driver bug reached
+  from a compromised renderer lands in `:privileged_process0` instead; that
+  service shares your app's UID, so it is separated from the renderer, not from
+  your files. It costs about 21% more memory (591 MB against 715 MB total PSS
+  on a kiosk tablet showing one page), which is why it is not the default.
+- **Page JavaScript reaches your code only from origins you allow.**
+  `window.cefriumQuery` requires an origin policy at registration; a call from
+  any other origin fails on the page with `QUERY_ERROR_ORIGIN_DENIED` and
+  never invokes your handler. Choosing every origin is a named option that
+  logs a warning.
 
 What is NOT reached, stated because a reader will measure it:
 
@@ -123,6 +134,6 @@ is a derivative, whatever it is called.
 Cefrium is pre-1.0 and the public API can still change, which is a
 compatibility statement rather than a security one. The engine is a standard
 Chromium build with the Android port's patches, validated on real devices on
-every release by a 46-test on-device suite that a release cannot skip. Use it
+every release by a 51-test on-device suite that a release cannot skip. Use it
 with the same care you would give any browser engine you embed: keep it
 updated, because that is the only way engine fixes reach your users.

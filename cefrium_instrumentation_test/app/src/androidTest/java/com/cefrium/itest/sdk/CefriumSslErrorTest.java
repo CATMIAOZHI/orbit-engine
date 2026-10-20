@@ -66,7 +66,7 @@ public class CefriumSslErrorTest {
                 seenUrl.set(url);
                 callback.proceed();
             });
-            browser.setQueryHandler((queryId, request, origin, callback) -> {
+            browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, origin, callback) -> {
                 if (request != null && request.startsWith("ssl:")) {
                     result.set(request);
                     callback.success("ack");

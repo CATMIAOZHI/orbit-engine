@@ -136,7 +136,7 @@ public class CefriumHttpAuthTest {
                 seenHost.set(host);
                 callback.proceed(USER, PASS);
             });
-            browser.setQueryHandler((queryId, request, origin, callback) -> {
+            browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, origin, callback) -> {
                 if (request != null && request.startsWith("auth:")) {
                     result.set(request);
                     callback.success("ack");

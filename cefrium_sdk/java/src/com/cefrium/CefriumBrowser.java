@@ -602,8 +602,9 @@ public class CefriumBrowser {
         /**
          * @param queryId Opaque id (also valid for async responses).
          * @param request The JS-provided request payload.
-         * @param origin URL of the frame that called window.cefriumQuery. Gate
-         *        on this to reject untrusted pages/iframes (security).
+         * @param origin URL of the frame that called window.cefriumQuery. The
+         *        {@link QueryOriginPolicy} has already allowed it; it is here
+         *        for per-request decisions and logging.
          * @param callback Resolve the query via success/failure.
          * @return true if this handler took the query.
          */
@@ -617,16 +618,150 @@ public class CefriumBrowser {
         void failure(int errorCode, String errorMessage);
     }
 
-    private QueryHandler mQueryHandler;
+    /**
+     * Error code a page's {@code onFailure} receives when the calling frame's
+     * origin is not allowed by the {@link QueryOriginPolicy} the handler was
+     * registered with. The handler is not invoked.
+     */
+    public static final int QUERY_ERROR_ORIGIN_DENIED = -403;
 
-    /** Registers the handler for {@code window.cefriumQuery} calls. */
-    public void setQueryHandler(QueryHandler handler) {
-        mQueryHandler = handler;
+    /**
+     * Decides which origins may reach a {@link QueryHandler}. Required at
+     * registration: the bridge is the one path from page content into your
+     * code, so "which pages may call it" has to be a decision, not a default.
+     *
+     * <p>{@link #allows} receives the calling frame's URL. {@link #exactly}
+     * and {@link #loopback} compare origins, {@code scheme://host[:port]} with
+     * the default port dropped; {@link #bundledAssets} compares a path prefix.
+     * {@code data:}, {@code about:} (including {@code about:blank} and
+     * {@code srcdoc} iframes a page of yours creates) and unparsable frames are
+     * opaque: only {@link #anyOrigin()} or your own predicate accepts them.
+     * A custom predicate sees the raw URL.</p>
+     */
+    public interface QueryOriginPolicy {
+        boolean allows(String frameUrl);
+
+        /** Only these origins, e.g. {@code exactly("https://example.com")}. */
+        static QueryOriginPolicy exactly(String... origins) {
+            final java.util.Set<String> allowed = new java.util.HashSet<>();
+            for (String o : origins) allowed.add(normalizeOrigin(o));
+            return url -> {
+                String o = normalizeOrigin(url);
+                return !"null".equals(o) && allowed.contains(o);
+            };
+        }
+
+        /**
+         * Pages your app ships in its own assets,
+         * {@code file:///android_asset/...}. Only those: other {@code file:}
+         * URLs are not accepted.
+         */
+        static QueryOriginPolicy bundledAssets() {
+            return url -> url != null && url.startsWith("file:///android_asset/");
+        }
+
+        /**
+         * http and https on 127.0.0.1 or localhost, any port: the pattern for
+         * content served by a local server inside your app.
+         */
+        static QueryOriginPolicy loopback() {
+            return url -> {
+                if (url == null) return false;
+                android.net.Uri u = android.net.Uri.parse(url);
+                String scheme = u.getScheme();
+                String host = u.getHost();
+                return ("http".equals(scheme) || "https".equals(scheme))
+                        && ("127.0.0.1".equals(host) || "localhost".equals(host));
+            };
+        }
+
+        /**
+         * Every origin, including opaque ones. A named choice: registering
+         * with it logs a warning, because any page this browser loads can then
+         * call your handler.
+         */
+        static QueryOriginPolicy anyOrigin() {
+            return ANY_ORIGIN;
+        }
+    }
+
+    private static final QueryOriginPolicy ANY_ORIGIN = url -> true;
+
+    /**
+     * Normalizes a frame URL to {@code scheme://host[:port]}, dropping the
+     * default port, or returns {@code "null"} for an opaque origin.
+     */
+    static String normalizeOrigin(String url) {
+        if (url == null) return "null";
+        android.net.Uri u = android.net.Uri.parse(url);
+        String scheme = u.getScheme();
+        String host = u.getHost();
+        if (scheme == null || host == null || host.isEmpty()) return "null";
+        scheme = scheme.toLowerCase(java.util.Locale.ROOT);
+        if (!"http".equals(scheme) && !"https".equals(scheme)) return "null";
+        int port = u.getPort();
+        boolean defaultPort = port == -1
+                || ("http".equals(scheme) && port == 80)
+                || ("https".equals(scheme) && port == 443);
+        String h = host.toLowerCase(java.util.Locale.ROOT);
+        return defaultPort ? scheme + "://" + h : scheme + "://" + h + ":" + port;
+    }
+
+    /**
+     * Policy and handler as one value, so a query can never observe a new
+     * handler paired with an old or missing policy while a registration from
+     * another thread is half written.
+     */
+    private static final class QueryRegistration {
+        final QueryOriginPolicy policy;
+        final QueryHandler handler;
+        QueryRegistration(QueryOriginPolicy policy, QueryHandler handler) {
+            this.policy = policy;
+            this.handler = handler;
+        }
+    }
+
+    private volatile QueryRegistration mQuery;
+
+    /**
+     * Registers the handler for {@code window.cefriumQuery} calls, and the
+     * policy that decides which origins may reach it.
+     *
+     * <p>A call from a frame whose origin the policy does not allow fails on
+     * the page with {@link #QUERY_ERROR_ORIGIN_DENIED} and never reaches the
+     * handler. Without this, any page the browser loads, including an iframe
+     * from a third party, gets a channel into your code.</p>
+     *
+     * @param policy required when handler is non-null; use
+     *        {@link QueryOriginPolicy#anyOrigin()} to accept every origin
+     *        on purpose.
+     * @param handler the handler, or null to unregister.
+     */
+    public void setQueryHandler(QueryOriginPolicy policy, QueryHandler handler) {
+        if (handler != null && policy == null) {
+            throw new IllegalArgumentException(
+                    "setQueryHandler needs a QueryOriginPolicy; pass "
+                    + "QueryOriginPolicy.anyOrigin() to accept every origin");
+        }
+        if (policy == ANY_ORIGIN) {
+            android.util.Log.w(TAG, "window.cefriumQuery is reachable from every "
+                    + "origin (QueryOriginPolicy.anyOrigin())");
+        }
+        mQuery = handler == null ? null : new QueryRegistration(policy, handler);
     }
 
     // Called from native (browser UI thread) when JS calls window.cefriumQuery.
     private void onJsQuery(final long queryId, String request, String origin) {
-        final QueryHandler handler = mQueryHandler;
+        final QueryRegistration reg = mQuery;
+        final QueryHandler handler = reg == null ? null : reg.handler;
+        if (handler != null && !reg.policy.allows(origin)) {
+            // Log the origin, never the full URL: a URL can carry tokens.
+            android.util.Log.w(TAG, "window.cefriumQuery denied for origin "
+                    + normalizeOrigin(origin));
+            nativeQueryResult(mNativePtr, queryId, false, null,
+                    QUERY_ERROR_ORIGIN_DENIED, "origin not allowed");
+            return;
+        }
         if (handler == null) {
             nativeQueryResult(mNativePtr, queryId, false, null, -1,
                     "No query handler registered");

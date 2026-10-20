@@ -107,6 +107,8 @@ class CefriumComposeViewTest {
                 state = state,
                 modifier = Modifier,
                 navigator = navigator,
+                // about:blank is an opaque origin, so only anyOrigin() admits it.
+                queryOrigins = CefriumBrowser.QueryOriginPolicy.anyOrigin(),
                 onQuery = { request, _, callback ->
                     requests.add(request)
                     callback.success("ok")
