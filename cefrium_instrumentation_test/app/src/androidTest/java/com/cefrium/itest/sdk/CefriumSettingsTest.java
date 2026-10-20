@@ -42,7 +42,7 @@ public class CefriumSettingsTest {
 
         act.runOnUiThread(() -> {
             CefriumBrowser b = CefriumBrowser.createWithSurface(act);
-            b.setQueryHandler((id, request, origin, cb) -> {
+            b.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (id, request, origin, cb) -> {
                 requests.add(request);
                 cb.success("ok");
                 got.countDown();

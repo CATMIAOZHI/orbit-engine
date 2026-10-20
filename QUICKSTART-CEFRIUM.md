@@ -281,7 +281,8 @@ the web platform -- lives in **[FEATURES-CEFRIUM.md](FEATURES-CEFRIUM.md)**.
 
 - Add navigation: `browser.goBack()`, `browser.goForward()`, `browser.reload()`
 - Run JavaScript: `browser.evaluateJavaScript("...")`
-- JS<->native bridge: `browser.setQueryHandler(...)` + `window.cefriumQuery`
+- JS<->native bridge: `browser.setQueryHandler(policy, handler)` + `window.cefriumQuery`;
+  the origin policy is required (see FEATURES-CEFRIUM.md)
 - Find in page: `browser.find("text", true, false, false)`
 - Dark mode: `browser.setDarkMode(true)`
 - Downloads: `browser.setOnDownloadListener(...)`

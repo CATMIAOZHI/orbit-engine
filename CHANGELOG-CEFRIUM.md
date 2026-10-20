@@ -36,6 +36,25 @@ in the internal FEATURE-NNN.md working docs (not published).
   a real regression. The security argument wins when the device has memory to
   spare and the content is not fully under the embedder's control.
 
+### Changed
+
+- **`window.cefriumQuery` only reaches your handler from origins you allow.**
+  `setQueryHandler(handler)` is replaced by
+  `setQueryHandler(QueryOriginPolicy policy, QueryHandler handler)`, and the
+  Compose `CefriumView` takes `queryOrigins` alongside `onQuery`. A call from an
+  origin the policy does not allow fails on the page with
+  `QUERY_ERROR_ORIGIN_DENIED` (-403, `origin not allowed`) and never reaches the
+  handler. Policies: `exactly(...)`, `loopback()`, `bundledAssets()`,
+  `anyOrigin()` (logs a warning), or your own predicate over the frame URL.
+  Migration: add the policy argument. `anyOrigin()` keeps the old behaviour
+  exactly, and is the wrong choice for anything that loads pages you do not
+  control.
+  Decision: the policy is required at compile time, not defaulted, because the
+  bridge is the one path from page content into application code. The handler
+  always received the calling frame's URL and the javadoc said to check it;
+  nothing made anyone. Our own browser app was the proof: its bridge exists
+  for an observer injected into YouTube, and any site could call it.
+
 ### Fixed
 
 - **Documented where the engine settings must actually be called from.**

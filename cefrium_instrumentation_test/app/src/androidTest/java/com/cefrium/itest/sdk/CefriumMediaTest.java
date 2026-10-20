@@ -58,7 +58,7 @@ public class CefriumMediaTest {
                 seenMask.set(seenMask.get() | permissions);
                 cb.respond(true);
             });
-            browser.setQueryHandler((queryId, request, origin, callback) -> {
+            browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, origin, callback) -> {
                 if (request != null && request.startsWith("gum:")) {
                     gum.set(request);
                     callback.success("ack");

@@ -70,7 +70,7 @@ public class CefriumContentSettingTest {
             CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
             // Pre-set the per-origin notification content setting (no prompt).
             browser.setContentSetting(origin, CefriumBrowser.PERMISSION_NOTIFICATIONS, value);
-            browser.setQueryHandler((queryId, request, reqOrigin, callback) -> {
+            browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, reqOrigin, callback) -> {
                 if (request != null && request.startsWith("perm:")) {
                     result.set(request.substring("perm:".length()));
                     callback.success("ack");
