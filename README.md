@@ -27,26 +27,19 @@ that gap.
 
 ### The same page, the same device, two engines
 
-One page that detects what the engine can actually do, run twice on the same
-tablet.
+One page that detects what the engine can actually do, rendered by both
+engines at once, side by side, in one app on one tablet.
 
-<img src="assets/screenshots/engine-compare-cefrium.webp" width="560" alt="Engine capability report running in Cefrium: 24 of 30, on a pinned Chromium 152.0.7977.82">
+<img src="assets/screenshots/engine-compare-split.webp" width="860" alt="One screen split in two: on the left Cefrium scores 24 of 30 on its pinned Chromium 156.0.8078.17, on the right the same page in the system WebView scores 20 of 30 on Chromium 155.0.8059.43">
 
-**Cefrium: 24 of 30**, on the Chromium 152 pinned inside the app.
+**Cefrium 24 of 30. The system WebView on the same tablet, at the same
+moment, 20 of 30** -- and its engine is only one milestone behind, so the
+difference is not engine age. It is what the embedder exposes. The three it
+misses are Payment Request, WebOTP and the Presentation API: a checkout, an
+SMS one-time code, and a customer-facing second screen.
 
-<img src="assets/screenshots/engine-compare-webview.webp" width="560" alt="The same report running in the system WebView on the same tablet: 20 of 30 on Chromium 153, with Payment Request, WebOTP and Presentation API reported as missing">
-
-**The system WebView on that same tablet: 20 of 30** -- on Chromium **153**,
-a *newer* engine than the one Cefrium had pinned, and still without Payment
-Request, WebOTP or the Presentation API.
-
-So the difference is not engine age. It is what the embedder exposes, and
-those three are exactly a checkout, an SMS one-time code, and a
-customer-facing second screen.
-
-The two captures were taken in different screen orientations, so the page
-lays itself out differently in each and they are not a pixel-for-pixel pair.
-The report is a live page: run it on your own device at
+One capture, one device, one instant, no cropping. The report is a live page:
+run it on your own device at
 [cefrium.com/kiosk](https://cefrium.com/kiosk/) and it will measure whatever
 engine you point at it.
 
@@ -152,9 +145,11 @@ synthesis for hands-free, and notes written to on-device storage so it keeps
 working with no coverage. The engine is the same one the fleet was tested
 against, because it is pinned in the app rather than updated under it.
 
-These are screenshots of a running demo, taken on Chromium 152; the engine
-has moved on since, and the system WebView's version moves on its own, per
-device, which is the point. The demo and its measurements are at
+These three are screenshots of a running demo, taken on Chromium 152. The
+engine has moved on since, and the system WebView's version moves on its own,
+per device, which is the point: the comparison at the top of this file was
+captured on the current release, and the WebView beside it is whatever that
+tablet happened to be carrying that day. The demo and its measurements are at
 [cefrium.com/kiosk](https://cefrium.com/kiosk/).
 
 ### Shipping this on a fleet?
