@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
   cef_settings_t settings;
   memset(&settings, 0, sizeof(settings));
   settings.size = sizeof(settings);
-  settings.no_sandbox = 1;
+  // no_sandbox left at 0: see cefrium_test_jni.cc.
   settings.windowless_rendering_enabled = 1;
   settings.multi_threaded_message_loop = 0;
   settings.log_severity = LOGSEVERITY_INFO;

@@ -53,7 +53,8 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   // Configure CEF settings.
   cef_settings_t settings = {};
   settings.size = sizeof(settings);
-  settings.no_sandbox = 1;
+  // no_sandbox left at 0: the test APK must exercise the renderer sandbox the
+  // SDK ships. See libcef/browser/android/cefrium_sdk_jni.cc.
   settings.windowless_rendering_enabled = 1;
   settings.multi_threaded_message_loop = 0;
   // external_message_pump causes null deref in first pump iteration.
