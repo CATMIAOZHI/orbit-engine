@@ -94,6 +94,22 @@ apply "$WEB/avatar.svg" \
   "s{(font-size=\"72\"[^>]*>)[0-9]+(</text>)}{\${1}$MAJOR\${2}}" \
   ">$MAJOR<" "avatar badge (Chromium major)"
 
+# 1b. The PNG twin of that avatar, for Codeberg's profile picture and anywhere
+# an SVG is not accepted. It carries the same badge, so it is RENDERED from the
+# SVG here rather than exported by hand: a hand-exported copy is a live figure
+# with no owner, and it would go stale at the next engine bump in silence --
+# which is the whole defect this script exists to close. Hard failure if the
+# renderer is missing (apt install librsvg2-bin): a WARN here would ship the
+# project's own face one engine behind.
+if ! command -v rsvg-convert >/dev/null 2>&1; then
+  echo "ERROR: rsvg-convert not found, so avatar.png cannot be rendered from" >&2
+  echo "       avatar.svg. Install librsvg2-bin and re-run this step." >&2
+  exit 1
+fi
+rsvg-convert -w 512 -h 512 -o "$WEB/avatar.png" "$WEB/avatar.svg" || {
+  echo "ERROR: could not render $WEB/avatar.png from avatar.svg." >&2; exit 1; }
+echo "  avatar.png: rendered from avatar.svg at 512x512"
+
 # 1a. The "Which version, and where" table on /releases -- the one line on the
 # whole site that tells an adopter what to depend on. No script touched it, so
 # after 0.10.0 shipped it still recommended 0.9.4 and still explained a Central
