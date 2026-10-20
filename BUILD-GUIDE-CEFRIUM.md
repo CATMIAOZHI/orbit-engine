@@ -78,31 +78,54 @@ out/release/
 
 ## 4. Build manually (without script)
 
+This is what the script does, written out. Use it to read the build or to run
+one step by hand; a release is cut with the script, so if the two ever
+disagree, the script is right.
+
 ```bash
 cd chromium/src
 
-# Generate build files
-depot_tools/gn gen out/Official_android_arm64 --args='
+# Generate build files. The dir name matters: build-all-variants.sh keys its
+# engine stamp off out/Official_android_<cpu>_<codecs|libre>.
+depot_tools/gn gen out/Official_android_arm64_codecs --args='
   target_os = "android"
   target_cpu = "arm64"
   is_official_build = true
   is_debug = false
   is_component_build = false
-  android_non_final_r_java = true
+  clang_use_chrome_plugins = false
+  android_static_analysis = "off"
+  symbol_level = 0
+  blink_symbol_level = 0
+  is_clang = true
+  enable_jni_multiplexing = false
+  use_hashed_jni_names = false
+  chrome_pgo_phase = 0
+  v8_use_external_startup_data = false
   proprietary_codecs = true
   ffmpeg_branding = "Chrome"
 '
-# Omit proprietary_codecs + ffmpeg_branding for the libre variant.
+# For the libre variant: proprietary_codecs = false, no ffmpeg_branding.
 # Use target_cpu = "x64" for emulator builds.
 
 # Build libcef.so + AAR
-ninja -C out/Official_android_arm64 cef:libcef cef/cefrium_sdk:cefrium_aar
+ninja -C out/Official_android_arm64_codecs cef:libcef cef/cefrium_sdk:cefrium_aar
 
 # Generate slim AAR (346 MB -> 150 MB)
 python3 cef/cefrium_sdk/slim_aar.py \
-  --input out/Official_android_arm64/cefrium-raw.aar \
-  --output out/Official_android_arm64/cefrium-sdk.aar
+  --input out/Official_android_arm64_codecs/cefrium-raw.aar \
+  --output out/release/cefrium-sdk-arm64-codecs.aar
 ```
+
+`android_non_final_r_java` used to be in this recipe and is gone: GN rejects it
+on 156 as an unknown build argument, so it had no effect wherever it was set.
+It was also the suspect for the test APK failing to build in a variant dir with
+`R.java:5: error: too many constants`, which it is not: adding it reproduced
+the identical failure, and the reason is now plain, since GN was discarding it
+either way. That failure is the merged R class exceeding the class-file
+constant-pool limit, and it is still open. Nothing here depends on it: the AAR,
+the suite and the samples all build. It blocks only `cefrium_test_apk` in these
+variant dirs, which is why the test-APK-first check runs in a dir of its own.
 
 ## 5. Build sample apps
 
