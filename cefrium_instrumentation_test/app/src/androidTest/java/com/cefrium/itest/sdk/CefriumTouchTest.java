@@ -57,7 +57,7 @@ public class CefriumTouchTest {
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
             activity.setContentView(browser.getSurfaceContainer());
-            browser.setQueryHandler((queryId, request, origin, callback) -> {
+            browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, origin, callback) -> {
                 if (request != null && request.contains("touchok")) {
                     callback.success("ack");
                     got.countDown();

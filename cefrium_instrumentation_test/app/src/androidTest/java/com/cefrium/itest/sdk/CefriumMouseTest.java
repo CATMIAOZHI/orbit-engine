@@ -63,7 +63,7 @@ public class CefriumMouseTest {
             // Attach the rendering surface so the windowed compositor presents
             // frames -- windowed mouse input requires a shown, sized view.
             activity.setContentView(browser.getSurfaceContainer());
-            browser.setQueryHandler((queryId, request, origin, callback) -> {
+            browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, origin, callback) -> {
                 if (request != null && request.contains("mouseok")) {
                     callback.success("ack");
                     got.countDown();

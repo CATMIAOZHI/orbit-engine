@@ -111,16 +111,32 @@ available.
 ## JavaScript <-> native bridge
 
 Page JavaScript can call your native code via `window.cefriumQuery` and get an
-async response. Register a handler (Compose: `onQuery` on `CefriumView`; raw:
-`browser.setQueryHandler(...)`). The bridge is off until you provide a handler.
+async response. Register a handler together with the origins allowed to reach
+it (Compose: `onQuery` plus `queryOrigins` on `CefriumView`; raw:
+`browser.setQueryHandler(policy, handler)`). The bridge is off until you
+provide a handler.
+
+The policy is required because the bridge is the one path from page content
+into your code: without it, any page the browser loads, including a
+third-party iframe, could call your handler. A call from an origin the policy
+does not allow fails on the page with `CefriumBrowser.QUERY_ERROR_ORIGIN_DENIED`
+(-403, `origin not allowed`) and never reaches the handler.
 
 ```kotlin
-browser.setQueryHandler { queryId, request, origin, callback ->
-    // origin = URL of the calling frame - reject untrusted pages/iframes.
+browser.setQueryHandler(QueryOriginPolicy.exactly("https://app.example.com")) {
+        queryId, request, origin, callback ->
     callback.success("native reply to: $request")   // or callback.failure(code, msg)
     true                                              // handled
 }
 ```
+
+| Policy | Allows |
+|---|---|
+| `exactly("https://a.example", ...)` | those origins only |
+| `loopback()` | http and https on 127.0.0.1 or localhost, any port |
+| `bundledAssets()` | pages under `file:///android_asset/` |
+| `anyOrigin()` | everything, including `data:` and `about:`; logs a warning |
+| your own lambda | whatever it returns true for; it receives the frame URL |
 ```js
 window.cefriumQuery({
     request: "hello",

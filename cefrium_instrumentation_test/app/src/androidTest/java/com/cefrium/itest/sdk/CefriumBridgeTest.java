@@ -1,6 +1,7 @@
 package com.cefrium.itest.sdk;
 
 import com.cefrium.itest.HostActivity;
+import com.cefrium.itest.LocalHttpServer;
 
 import android.app.Activity;
 
@@ -17,6 +18,8 @@ import org.junit.runner.RunWith;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Instrumented tests for the FEATURE-023 JavaScript &lt;-&gt; native bridge
@@ -47,7 +50,7 @@ public class CefriumBridgeTest {
 
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
-            browser.setQueryHandler((queryId, request, origin, callback) -> {
+            browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, origin, callback) -> {
                 requests.add(request);
                 origins.add(origin);
                 callback.success("pong:" + request);
@@ -92,7 +95,7 @@ public class CefriumBridgeTest {
 
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
-            browser.setQueryHandler((queryId, request, origin, callback) -> {
+            browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, origin, callback) -> {
                 if (request.equals("probe")) {
                     return false;  // refuse -> the page gets onFailure(-1)
                 }
@@ -118,5 +121,90 @@ public class CefriumBridgeTest {
 
         Assert.assertTrue("an unhandled query should trigger the page's onFailure",
                 onFailureFired.await(15, TimeUnit.SECONDS));
+    }
+
+    // ── Origin policy (SC-rc-11 to SC-rc-13) ───────────────────────────────
+    //
+    // A denied query never reaches the handler, so the bridge cannot report
+    // its own denial. The page writes the outcome into document.title and the
+    // title listener is the verdict channel.
+
+    private static final String PROBE =
+            "window.cefriumQuery({request:'probe',"
+            + "onSuccess:function(r){document.title='ok:'+r;},"
+            + "onFailure:function(c,m){document.title='denied:'+c+':'+m;}});";
+
+    /** Loads url under policy, runs PROBE, returns the title it produced. */
+    private String probeUnder(String url, CefriumBrowser.QueryOriginPolicy policy,
+                              AtomicInteger handlerCalls) throws Exception {
+        Activity activity = activityRule.getActivity();
+        final AtomicReference<String> verdict = new AtomicReference<>();
+        final CountDownLatch done = new CountDownLatch(1);
+        final boolean[] probed = {false};
+        activity.runOnUiThread(() -> {
+            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            browser.setQueryHandler(policy, (queryId, request, origin, callback) -> {
+                handlerCalls.incrementAndGet();
+                callback.success("handled");
+                return true;
+            });
+            browser.setOnTitleChangedListener(title -> {
+                if (title != null && (title.startsWith("ok:") || title.startsWith("denied:"))) {
+                    verdict.set(title);
+                    done.countDown();
+                }
+            });
+            browser.setOnLoadingStateChangedListener((loading, back, fwd) -> {
+                if (!loading && !probed[0]) {
+                    probed[0] = true;
+                    browser.evaluateJavaScript(PROBE);
+                }
+            });
+            browser.loadUrl(url);
+        });
+        Assert.assertTrue("the probe never reported a verdict for " + url,
+                done.await(20, TimeUnit.SECONDS));
+        return verdict.get();
+    }
+
+    /** SC-rc-11: a real http origin outside the policy never reaches the handler. */
+    @Test
+    public void queryFromDisallowedOriginIsRejected() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        try (LocalHttpServer server = new LocalHttpServer("<html><body>p</body></html>")) {
+            String title = probeUnder(server.url(),
+                    CefriumBrowser.QueryOriginPolicy.exactly("https://allowed.example"), calls);
+            Assert.assertEquals("denied:" + CefriumBrowser.QUERY_ERROR_ORIGIN_DENIED
+                    + ":origin not allowed", title);
+        }
+        Assert.assertEquals("a denied origin must never reach the handler", 0, calls.get());
+    }
+
+    /** SC-rc-12: an allowed loopback origin reaches the handler unchanged. */
+    @Test
+    public void loopbackOriginReachesHandler() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        try (LocalHttpServer server = new LocalHttpServer("<html><body>p</body></html>")) {
+            String title = probeUnder(server.url(),
+                    CefriumBrowser.QueryOriginPolicy.loopback(), calls);
+            Assert.assertEquals("ok:handled", title);
+        }
+        Assert.assertEquals(1, calls.get());
+    }
+
+    /** SC-rc-13: an opaque origin is denied by every policy but anyOrigin(). */
+    @Test
+    public void opaqueOriginIsDeniedUnlessAny() throws Exception {
+        AtomicInteger denied = new AtomicInteger();
+        String title = probeUnder("about:blank",
+                CefriumBrowser.QueryOriginPolicy.loopback(), denied);
+        Assert.assertEquals("denied:" + CefriumBrowser.QUERY_ERROR_ORIGIN_DENIED
+                + ":origin not allowed", title);
+        Assert.assertEquals(0, denied.get());
+
+        AtomicInteger allowed = new AtomicInteger();
+        Assert.assertEquals("ok:handled", probeUnder("about:blank",
+                CefriumBrowser.QueryOriginPolicy.anyOrigin(), allowed));
+        Assert.assertEquals(1, allowed.get());
     }
 }

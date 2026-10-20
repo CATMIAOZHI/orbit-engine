@@ -48,7 +48,7 @@ public class CefriumFrontierApiProbeTest {
 
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
-            browser.setQueryHandler((queryId, request, origin, callback) -> {
+            browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, origin, callback) -> {
                 if (request != null && request.startsWith("frontier:")) {
                     result.set(request);
                     callback.success("ack");

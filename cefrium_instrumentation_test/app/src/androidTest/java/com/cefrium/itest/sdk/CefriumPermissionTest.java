@@ -106,7 +106,7 @@ public class CefriumPermissionTest {
             CefriumBrowser browser = new CefriumBrowser(720, 1280);
             ref.set(browser);
             browser.setPermissionHandler((origin, permissions, callback) -> callback.respond(true));
-            browser.setQueryHandler((queryId, request, origin, callback) -> {
+            browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, origin, callback) -> {
                 if (request == null || !request.startsWith("geo:")) {
                     return false;
                 }
@@ -180,7 +180,7 @@ public class CefriumPermissionTest {
                 seenPermissions.set(permissions);
                 callback.respond(grant);
             });
-            browser.setQueryHandler((queryId, request, origin, callback) -> {
+            browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, origin, callback) -> {
                 if (request != null && request.startsWith("geo:")) {
                     result.set(request);
                     callback.success("ack");

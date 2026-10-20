@@ -54,6 +54,10 @@ enum class BackgroundMediaPolicy {
  * @param onQuery Handles `window.cefriumQuery` calls from page JavaScript.
  *        Return true and resolve via the callback (sync or async). Omit to keep
  *        the JS bridge disabled for this view (queries then fail with -1).
+ * @param queryOrigins Which origins may reach [onQuery]. Required whenever
+ *        [onQuery] is given: the bridge is the one path from page content into
+ *        your code. Calls from other origins fail on the page with
+ *        [CefriumBrowser.QUERY_ERROR_ORIGIN_DENIED] and never reach [onQuery].
  * @param onBrowserReady Escape hatch to the underlying [CefriumBrowser] for
  *        features not yet on the navigator (find in page, downloads, dark mode).
  * @param backgroundMediaPolicy How inline media reacts to the host lifecycle.
@@ -71,6 +75,7 @@ fun CefriumView(
     modifier: Modifier = Modifier,
     navigator: CefriumNavigator = rememberCefriumNavigator(),
     onQuery: ((request: String, origin: String, callback: CefriumBrowser.QueryCallback) -> Boolean)? = null,
+    queryOrigins: CefriumBrowser.QueryOriginPolicy? = null,
     onBrowserReady: ((CefriumBrowser) -> Unit)? = null,
     backgroundMediaPolicy: BackgroundMediaPolicy = BackgroundMediaPolicy.PAUSE_ON_STOP,
     onHostLifecycle: ((Lifecycle.Event, CefriumBrowser) -> Unit)? = null,
@@ -84,7 +89,11 @@ fun CefriumView(
             // provides onQuery. Without it, queries fail with -1 —
             // a deliberate security default (the bridge is off unless asked for).
             if (onQuery != null) {
-                b.setQueryHandler { _, request, origin, callback ->
+                requireNotNull(queryOrigins) {
+                    "CefriumView: onQuery needs queryOrigins; pass " +
+                        "CefriumBrowser.QueryOriginPolicy.anyOrigin() to accept every origin"
+                }
+                b.setQueryHandler(queryOrigins) { _, request, origin, callback ->
                     onQuery(request, origin, callback)
                 }
             }
