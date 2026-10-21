@@ -90,12 +90,13 @@
 
              It was held back once because injected mouse and touch stopped
              reaching a windowed renderer after other browsers had run. The
-             cause was not the zygote: Cefrium attached a new view to the
-             compositor only at load end, so a renderer reached by a process
-             swap got no BeginFrame, could not end paint holding, and had its
-             non-move input suppressed by Blink. The zygote only changed the
-             timing enough to expose it. Fixed by attaching at commit
-             (SdkLoadHandler::OnLoadStart). -->
+             cause was not the zygote: CefriumBrowser joined its WebContents to
+             the window on a fixed 2000 ms timer after the first loadUrl, and
+             until then no renderer got a BeginFrame, so none could end paint
+             holding and Blink suppressed their non-move input. The zygote only
+             starts renderers fast enough to run into that gap. Fixed by
+             connecting as soon as the native browser exists
+             (onNativeBrowserCreated). -->
         <service android:name="org.chromium.content.app.SandboxedProcessService0"
                  android:process=":sandboxed_process0"
                  android:isolatedProcess="true"

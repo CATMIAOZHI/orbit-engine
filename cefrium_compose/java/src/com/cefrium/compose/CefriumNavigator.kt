@@ -103,8 +103,8 @@ class CefriumNavigator {
         state?.browser?.serializeNavigationState()
 
     /**
-     * Enable pull-to-refresh (an overscroll-down at the page top reloads). Call
-     * before the page loads; the handler binds once when the WebContents connects.
+     * Enable pull-to-refresh (an overscroll-down at the page top reloads). May
+     * be called, and toggled, at any time.
      */
     fun setPullToRefreshEnabled(enabled: Boolean) {
         state?.browser?.setPullToRefreshEnabled(enabled)
