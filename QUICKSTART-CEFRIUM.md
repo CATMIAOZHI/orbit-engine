@@ -347,12 +347,12 @@ the architecture each device needs.
 ## Troubleshooting
 
 **App crashes on launch:** Check that `android:name=".MyApp"` is set in the
-manifest. Do NOT declare your own `SandboxedProcessService` entries -- the SDK
-provides them; declaring your own caps the render-process pool and crashes
-multi-browser apps (see step 4).
+manifest. Do NOT declare child-process services or `NUM_SANDBOXED_SERVICES`
+yourself -- the SDK provides them; a value of your own caps the
+render-process pool and crashes multi-browser apps (see step 4).
 
 **Crash opening many pages ("isolated not needed"):** Your app manifest declares
-its own `SandboxedProcessService0..N` with a lower service count (5, say),
+its own child-process services with a lower `NUM_SANDBOXED_SERVICES` (5, say),
 capping the pool. Remove that block; the merged APK manifest should read
 `NUM_SANDBOXED_SERVICES=40`. See the
 [Memory & process model guide](https://cefrium.com/guides/memory-and-processes/).
@@ -363,30 +363,14 @@ until then a page could neither paint nor accept input. The connection now
 happens as soon as the native browser exists. If you still see a white screen,
 it is a page or network problem, not the engine warming up.
 
-**Blank page in a package that also uses the system WebView:** do not load the
-system WebView anywhere in a package that hosts Cefrium, not even in a separate
-process of that package. Both engines are Chromium and both bind
-`org.chromium.content.app.SandboxedProcessService0` with instance name `"0"`.
-WebView binds its renderer as an *external* service, which Android registers
-under the calling package's component name, so whichever engine starts first
-takes the slot and the other attaches to a child that belongs to the wrong APK.
-The symptom is a page that never paints, and the proof is one line:
-
-```
-adb logcat | grep cr_ChildProcessConn
-  Child process's classpath doesn't match, but main process's package hasn't
-  changed; the child is likely to be broken!
-```
-
-`adb shell dumpsys activity services <your.package>` confirms it: the
-`SandboxedProcessService0:0` record will show `processName=com.google.android
-.webview:sandboxed_process0` with your app among its clients.
-
-There is no setting that fixes this. The service class name is where Chromium's
-allocator derives the instance name, so two Chromiums in one package always
-collide. Put the WebView side in its own package, in a separate APK. (A
-separate *process* is not enough, which is the part that surprises people: the
-collision is per package, not per process.)
+**The system WebView in the same package:** supported in a separate
+process (an Activity or Service declared with `android:process=":something"`).
+Cefrium's child services have their own class names since the release after
+0.10.2, so WebView's renderer service can no longer be handed to Cefrium. On
+0.10.2 and earlier the page stayed blank and logcat showed `cr_ChildProcessConn:
+Child process's classpath doesn't match`; update the SDK. WebView and Cefrium
+in the SAME process are not supported: both are Chromium, and their native
+libraries and Java classes collide.
 
 **JDK error:** For 0.8.0+ use **JDK 25** (Gradle 9.7.1 / AGP 9.4). A `cannot
 access CefriumBrowser` or `Unsupported class file major version 69` error means

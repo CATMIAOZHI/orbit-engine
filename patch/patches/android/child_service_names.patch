@@ -1,0 +1,78 @@
+diff --git content/public/android/java/src/org/chromium/content/browser/ChildProcessCreationParamsImpl.java content/public/android/java/src/org/chromium/content/browser/ChildProcessCreationParamsImpl.java
+index ecf13ea586a5057db531da73ca359340acba450c..98f616889491a8eb93d772ecb5cf802e9714e982 100644
+--- content/public/android/java/src/org/chromium/content/browser/ChildProcessCreationParamsImpl.java
++++ content/public/android/java/src/org/chromium/content/browser/ChildProcessCreationParamsImpl.java
+@@ -4,6 +4,9 @@
+ 
+ package org.chromium.content.browser;
+ 
++import android.content.Context;
++import android.content.pm.ApplicationInfo;
++import android.content.pm.PackageManager;
+ import android.os.Build;
+ import android.os.Bundle;
+ import android.os.Process;
+@@ -29,6 +32,19 @@ public class ChildProcessCreationParamsImpl {
+     private static final String NATIVE_SANDBOXED_SERVICES_NAME =
+             "org.chromium.content.app.NativeOnlySandboxedProcessService";
+ 
++    // Application meta-data that replaces the two class names above. An
++    // embedder that shares its package with the system WebView needs its own:
++    // WebView binds org.chromium.content.app.SandboxedProcessService0 under the
++    // embedding app's package, and a second binder of the same name and
++    // instance is handed WebView's process.
++    private static final String SANDBOXED_SERVICES_NAME_KEY =
++            "org.chromium.content.browser.SANDBOXED_SERVICES_NAME";
++    private static final String PRIVILEGED_SERVICES_NAME_KEY =
++            "org.chromium.content.browser.PRIVILEGED_SERVICES_NAME";
++    private static @Nullable String sManifestSandboxedServicesName;
++    private static @Nullable String sManifestPrivilegedServicesName;
++    private static boolean sManifestServicesNamesRead;
++
+     // Members should all be immutable to avoid worrying about thread safety.
+     private static @Nullable String sPackageNameForPrivilegedService;
+     private static @Nullable String sPackageNameForSandboxedService;
+@@ -103,8 +119,29 @@ public class ChildProcessCreationParamsImpl {
+         return extras.getInt(EXTRA_LIBRARY_PROCESS_TYPE, LibraryProcessType.PROCESS_CHILD);
+     }
+ 
++    private static synchronized void readManifestServicesNames() {
++        if (sManifestServicesNamesRead) return;
++        sManifestServicesNamesRead = true;
++        try {
++            Context context = ContextUtils.getApplicationContext();
++            ApplicationInfo info =
++                    context.getPackageManager()
++                            .getApplicationInfo(
++                                    context.getPackageName(), PackageManager.GET_META_DATA);
++            if (info.metaData == null) return;
++            sManifestSandboxedServicesName = info.metaData.getString(SANDBOXED_SERVICES_NAME_KEY);
++            sManifestPrivilegedServicesName =
++                    info.metaData.getString(PRIVILEGED_SERVICES_NAME_KEY);
++        } catch (PackageManager.NameNotFoundException e) {
++            // Our own package: cannot happen. Keep the defaults.
++        }
++    }
++
+     public static String getPrivilegedServicesName() {
+-        return PRIVILEGED_SERVICES_NAME;
++        readManifestServicesNames();
++        return sManifestPrivilegedServicesName != null
++                ? sManifestPrivilegedServicesName
++                : PRIVILEGED_SERVICES_NAME;
+     }
+ 
+     private static boolean isPrimaryAbi64Bit() {
+@@ -139,8 +176,10 @@ public class ChildProcessCreationParamsImpl {
+     }
+ 
+     public static String getSandboxedServicesName() {
+-        return isNativeSandboxedServiceEnabled()
+-                ? NATIVE_SANDBOXED_SERVICES_NAME
++        if (isNativeSandboxedServiceEnabled()) return NATIVE_SANDBOXED_SERVICES_NAME;
++        readManifestServicesNames();
++        return sManifestSandboxedServicesName != null
++                ? sManifestSandboxedServicesName
+                 : SANDBOXED_SERVICES_NAME;
+     }
+ }
