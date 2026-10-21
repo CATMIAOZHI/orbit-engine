@@ -8,6 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.rule.ActivityTestRule;
 
 import com.cefrium.CefriumBrowser;
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 import com.cefrium.itest.LocalHttpServer;
 
@@ -33,9 +34,12 @@ import java.util.concurrent.TimeUnit;
 @RunWith(AndroidJUnit4.class)
 public class CefriumMouseTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     private static final String PAGE =
             "<!doctype html><html><head>"
@@ -59,7 +63,7 @@ public class CefriumMouseTest {
         final Handler main = new Handler(Looper.getMainLooper());
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             // Attach the rendering surface so the windowed compositor presents
             // frames -- windowed mouse input requires a shown, sized view.
             activity.setContentView(browser.getSurfaceContainer());

@@ -1,5 +1,6 @@
 package com.cefrium.itest.sdk;
 
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 
 import android.app.Activity;
@@ -25,9 +26,12 @@ import java.util.concurrent.TimeUnit;
 @RunWith(AndroidJUnit4.class)
 public class CefriumSettingsTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     /**
      * Runtime UA override: set it, load a page, then read navigator.userAgent
@@ -41,7 +45,7 @@ public class CefriumSettingsTest {
         final boolean[] probed = {false};
 
         act.runOnUiThread(() -> {
-            CefriumBrowser b = CefriumBrowser.createWithSurface(act);
+            CefriumBrowser b = browsers.createWithSurface(act);
             b.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (id, request, origin, cb) -> {
                 requests.add(request);
                 cb.success("ok");
@@ -74,7 +78,7 @@ public class CefriumSettingsTest {
         Activity act = activityRule.getActivity();
         final CountDownLatch done = new CountDownLatch(1);
         act.runOnUiThread(() -> {
-            CefriumBrowser b = CefriumBrowser.createWithSurface(act);
+            CefriumBrowser b = browsers.createWithSurface(act);
             b.loadUrl("about:blank");
             b.setZoomLevel(2.0);
             b.setZoomLevel(0.0);

@@ -1,5 +1,6 @@
 package com.cefrium.itest.sdk;
 
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 
 import android.app.Activity;
@@ -28,9 +29,12 @@ import java.util.concurrent.atomic.AtomicReference;
 @RunWith(AndroidJUnit4.class)
 public class CefriumCookieTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     private static final String URL = "https://cefrium.test/";
 
@@ -66,7 +70,7 @@ public class CefriumCookieTest {
         final CefriumBrowser[] holder = new CefriumBrowser[1];
         final CountDownLatch created = new CountDownLatch(1);
         act.runOnUiThread(() -> {
-            holder[0] = CefriumBrowser.createWithSurface(act);
+            holder[0] = browsers.createWithSurface(act);
             holder[0].setCookie(URL, "sid", "abc123");
             created.countDown();
         });
@@ -88,7 +92,7 @@ public class CefriumCookieTest {
         final CefriumBrowser[] holder = new CefriumBrowser[1];
         final CountDownLatch created = new CountDownLatch(1);
         act.runOnUiThread(() -> {
-            holder[0] = CefriumBrowser.createWithSurface(act);
+            holder[0] = browsers.createWithSurface(act);
             holder[0].setCookie(URL, "todelete", "x");
             created.countDown();
         });
@@ -122,7 +126,7 @@ public class CefriumCookieTest {
         Activity act = activityRule.getActivity();
         final CountDownLatch done = new CountDownLatch(1);
         act.runOnUiThread(() -> {
-            CefriumBrowser b = CefriumBrowser.createWithSurface(act);
+            CefriumBrowser b = browsers.createWithSurface(act);
             b.loadUrl("about:blank");
             b.clearCache();
             done.countDown();

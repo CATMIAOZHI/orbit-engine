@@ -1,5 +1,6 @@
 package com.cefrium.itest.sdk;
 
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 
 import android.app.Activity;
@@ -27,9 +28,12 @@ import java.util.concurrent.TimeUnit;
 @RunWith(AndroidJUnit4.class)
 public class CefriumSdkTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     @Test
     public void testCefriumInitialized() {
@@ -44,7 +48,7 @@ public class CefriumSdkTest {
         final CefriumBrowser[] browserHolder = new CefriumBrowser[1];
 
         activity.runOnUiThread(() -> {
-            browserHolder[0] = CefriumBrowser.createWithSurface(activity);
+            browserHolder[0] = browsers.createWithSurface(activity);
             latch.countDown();
         });
 
@@ -60,7 +64,7 @@ public class CefriumSdkTest {
         CountDownLatch loadLatch = new CountDownLatch(1);
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.setOnLoadingStateChangedListener((isLoading, canGoBack, canGoForward) -> {
                 if (!isLoading) loadLatch.countDown();
             });
@@ -78,7 +82,7 @@ public class CefriumSdkTest {
         final boolean[] loadingCompleted = {false};
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.setCallback(new CefriumBrowser.Callback() {
                 @Override
                 public void onLoadingStateChanged(boolean isLoading,
@@ -105,7 +109,7 @@ public class CefriumSdkTest {
         final String[] receivedTitle = new String[1];
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.setCallback(new CefriumBrowser.Callback() {
                 @Override
                 public void onTitleChanged(String title) {
@@ -131,7 +135,7 @@ public class CefriumSdkTest {
         CountDownLatch loadLatch = new CountDownLatch(1);
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.setCallback(new CefriumBrowser.Callback() {
                 @Override
                 public void onUrlChanged(String url) { urlLatch.countDown(); }
@@ -161,7 +165,7 @@ public class CefriumSdkTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.close();
             // These should log warnings but not crash.
             browser.goBack();

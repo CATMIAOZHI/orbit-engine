@@ -1,5 +1,6 @@
 package com.cefrium.itest.sdk;
 
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 import com.cefrium.itest.LocalHttpServer;
 
@@ -31,9 +32,12 @@ import java.util.concurrent.atomic.AtomicReference;
 @RunWith(AndroidJUnit4.class)
 public class CefriumBridgeTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     /**
      * Full round trip: JS calls window.cefriumQuery, the native QueryHandler
@@ -50,7 +54,7 @@ public class CefriumBridgeTest {
         final boolean[] probed = {false};
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, origin, callback) -> {
                 requests.add(request);
                 origins.add(origin);
@@ -95,7 +99,7 @@ public class CefriumBridgeTest {
         final boolean[] probed = {false};
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, origin, callback) -> {
                 if (request.equals("probe")) {
                     return false;  // refuse -> the page gets onFailure(-1)
@@ -143,7 +147,7 @@ public class CefriumBridgeTest {
         final CountDownLatch done = new CountDownLatch(1);
         final boolean[] probed = {false};
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.setQueryHandler(policy, (queryId, request, origin, callback) -> {
                 handlerCalls.incrementAndGet();
                 callback.success("handled");
@@ -263,7 +267,7 @@ public class CefriumBridgeTest {
         final AtomicInteger calls = new AtomicInteger();
         try (LocalHttpServer server = new LocalHttpServer(html)) {
             activity.runOnUiThread(() -> {
-                CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+                CefriumBrowser browser = browsers.createWithSurface(activity);
                 created.set(browser);
                 browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.loopback(),
                         (queryId, request, origin, callback) -> {
@@ -312,7 +316,7 @@ public class CefriumBridgeTest {
         final AtomicInteger calls = new AtomicInteger();
         try (LocalHttpServer server = new LocalHttpServer(probe)) {
             activity.runOnUiThread(() -> {
-                CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+                CefriumBrowser browser = browsers.createWithSurface(activity);
                 created.set(browser);
                 browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.bundledAssets(),
                         (queryId, request, origin, callback) -> {
