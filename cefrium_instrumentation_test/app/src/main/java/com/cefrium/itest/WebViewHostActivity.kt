@@ -13,7 +13,8 @@ import java.io.File
  * checks that Cefrium's renderer is not handed that service's process.
  *
  * Reports through a file because the test runs in another process: the file
- * appears once the page has finished loading in the WebView.
+ * appears once the page has finished loading in the WebView, and says whether
+ * WebView's renderer runs in its own process.
  */
 class WebViewHostActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,7 +25,11 @@ class WebViewHostActivity : Activity() {
         val webView = WebView(this)
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, finishedUrl: String) {
-                if (finishedUrl == url) ready.writeText(url)
+                // Record whether WebView runs its renderer out of process: the
+                // collision needs that renderer service bound under this package.
+                if (finishedUrl == url) {
+                    ready.writeText("renderer=" + (view.webViewRenderProcess != null))
+                }
             }
         }
         setContentView(webView)

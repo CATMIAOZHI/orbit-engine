@@ -36,11 +36,14 @@
             android:name=".HostActivity"
             android:exported="false" />
 
-        <!-- The system WebView in a separate process of this package, started
-             before Cefrium by CefriumCoexistenceTest. -->
+        <!-- The system WebView in a separate process of this package, used by
+             CefriumCoexistenceTest. Its own task, so removing it after a test
+             cannot leave a record that the next test's launch brings back. -->
         <activity
             android:name=".WebViewHostActivity"
             android:process=":wv"
+            android:taskAffinity="com.cefrium.itest.wv"
+            android:excludeFromRecents="true"
             android:exported="false" />
     </application>
 </manifest>

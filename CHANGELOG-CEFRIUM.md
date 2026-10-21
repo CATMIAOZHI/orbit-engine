@@ -31,9 +31,9 @@ in the internal FEATURE-NNN.md working docs (not published).
 - **The system WebView and Cefrium work in one package**, in separate
   processes. Both bound `org.chromium.content.app.SandboxedProcessService0`,
   and Android keys an external isolated service by the calling package, class
-  and instance: whichever engine started second was handed the other's
-  renderer process, and its page never painted (`Child process's classpath
-  doesn't match`). Cefrium's child services now have their own class names,
+  and instance. Measured with WebView started first: Cefrium was handed
+  WebView's renderer process and its page never painted (`Child process's
+  classpath doesn't match`). Both start orders are now tested. Cefrium's child services now have their own class names,
   `com.cefrium.ChildServices$Sandboxed0..39` and `$Privileged0..2`, which
   Chromium reads from new manifest meta-data (patch
   `android/child_service_names`). The SDK manifest declares everything. If your
