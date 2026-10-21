@@ -112,7 +112,7 @@ available.
 
 Page JavaScript can call your native code via `window.cefriumQuery` and get an
 async response. Register a handler together with the origins allowed to reach
-it (Compose: `onQuery` plus `queryOrigins` on `CefriumView`; raw:
+it (Compose: `bridge = CefriumBridge(policy) { ... }` on `CefriumView`; raw:
 `browser.setQueryHandler(policy, handler)`). The bridge is off until you
 provide a handler.
 

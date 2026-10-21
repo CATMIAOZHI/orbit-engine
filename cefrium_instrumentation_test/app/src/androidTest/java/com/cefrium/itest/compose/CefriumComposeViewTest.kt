@@ -7,6 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 
 import com.cefrium.CefriumBrowser
 import com.cefrium.compose.CefriumNavigator
+import com.cefrium.compose.CefriumBridge
 import com.cefrium.compose.CefriumView
 import com.cefrium.compose.CefriumViewState
 
@@ -24,14 +25,14 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Instrumented tests for the idiomatic Compose API (FEATURE-022):
  * [CefriumView], [CefriumViewState] (browser ownership + tab keep-alive) and
  * [CefriumNavigator] (binding + evaluateJavaScript), plus the Compose-layer
- * wiring of the FEATURE-023 JS bridge (`onQuery`).
+ * wiring of the FEATURE-023 JS bridge (`bridge`).
  *
  * Run on a device/emulator with:
  *   ./gradlew connectedAndroidTest
  *
  * The CefriumViewState.browser field is `internal` to the compose module, so
  * these tests assert only through the public API (onBrowserReady, observable
- * state, onQuery) — the same surface a real consumer sees.
+ * state, bridge) — the same surface a real consumer sees.
  */
 @RunWith(AndroidJUnit4::class)
 class CefriumComposeViewTest {
@@ -108,8 +109,7 @@ class CefriumComposeViewTest {
                 modifier = Modifier,
                 navigator = navigator,
                 // about:blank is an opaque origin, so only anyOrigin() admits it.
-                queryOrigins = CefriumBrowser.QueryOriginPolicy.anyOrigin(),
-                onQuery = { request, _, callback ->
+                bridge = CefriumBridge(CefriumBrowser.QueryOriginPolicy.anyOrigin()) { request, _, callback ->
                     requests.add(request)
                     callback.success("ok")
                     true
@@ -137,7 +137,7 @@ class CefriumComposeViewTest {
         composeRule.waitUntil(20_000) { requests.contains("compose-ping") }
         Assert.assertTrue(
             "navigator.evaluateJavaScript -> window.cefriumQuery should reach the " +
-                "onQuery handler wired by CefriumView",
+                "bridge handler wired by CefriumView",
             requests.contains("compose-ping"),
         )
 
