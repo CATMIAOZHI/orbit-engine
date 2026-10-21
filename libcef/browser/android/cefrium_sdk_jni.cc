@@ -3172,6 +3172,10 @@ struct SdkPendingDataLoad {
 
 struct SdkBrowserData {
   CefRefPtr<CefBrowser> browser;
+  // Background of an off-screen browser, applied when it is created at the
+  // first load. A fully transparent colour makes transparent page areas come
+  // back with alpha 0 in OnPaint (measured on 156).
+  cef_color_t background_color = CefColorSetARGB(255, 255, 255, 255);
   CefRefPtr<SdkRenderHandler> render_handler;
   CefRefPtr<SdkLifeSpanHandler> life_span_handler;
   CefRefPtr<SdkClient> client;
@@ -3520,6 +3524,21 @@ Java_com_cefrium_CefriumBrowser_nativeCreate(
 
 // Actually create the browser with the URL (must have URL at creation time
 // for renderer process to spawn correctly).
+// Sets the background of an off-screen browser that does not exist yet. Returns
+// false when it is too late (already created) or not an off-screen browser.
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetBackgroundColor(JNIEnv* env,
+                                                         jclass clazz,
+                                                         jlong native_ptr,
+                                                         jint argb) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || data->browser || data->is_surface_mode) {
+    return JNI_FALSE;
+  }
+  data->background_color = static_cast<cef_color_t>(argb);
+  return JNI_TRUE;
+}
+
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeLoadUrl(
     JNIEnv* env, jobject thiz, jlong native_ptr, jstring url_jstr) {
@@ -3533,7 +3552,7 @@ Java_com_cefrium_CefriumBrowser_nativeLoadUrl(
     window_info.SetAsWindowless(0);
 
     CefBrowserSettings browser_settings;
-    browser_settings.background_color = CefColorSetARGB(255, 255, 255, 255);
+    browser_settings.background_color = data->background_color;
 
     data->pending_url = url;
     CefBrowserHost::CreateBrowser(window_info, data->client, CefString(url),
@@ -3707,7 +3726,7 @@ Java_com_cefrium_CefriumBrowser_nativeLoadDataWithBaseUrl(
     CefWindowInfo window_info;
     window_info.SetAsWindowless(0);
     CefBrowserSettings browser_settings;
-    browser_settings.background_color = CefColorSetARGB(255, 255, 255, 255);
+    browser_settings.background_color = data->background_color;
     data->pending_url = served_url;
     CefBrowserHost::CreateBrowser(window_info, data->client,
                                   CefString(served_url), browser_settings,

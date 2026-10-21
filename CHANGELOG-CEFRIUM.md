@@ -19,9 +19,11 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 Engine: **Chromium 156.0.8078.17 / CEF branch 8078** (unchanged from 0.10.2).
 
-API change: `setQueryHandler` now takes a `QueryOriginPolicy` (migration under
-Changed). New: `Cefrium.setGpuProcessEnabled`. Everything else is a fix to
-what the SDK already shipped.
+API change: `setQueryHandler` now takes a `QueryOriginPolicy`, and the
+Compose `CefriumView` takes a `CefriumBridge` instead of `onQuery` (migration
+under Changed). New: `Cefrium.setGpuProcessEnabled` and
+`CefriumBrowser.setBackgroundColor` for transparent off-screen rendering.
+Everything else is a fix to what the SDK already shipped.
 
 ### Security
 
@@ -94,6 +96,13 @@ what the SDK already shipped.
 
 ### Added
 
+- **`CefriumBrowser.setBackgroundColor(int argb)`: transparent off-screen
+  rendering.** Pass `0x00000000` before the first load of an off-screen browser,
+  and page areas the page leaves transparent arrive in `onPaint` with alpha 0,
+  for a HUD or overlay drawn over other content. Every pixel used to arrive
+  opaque, whatever the page did. The default stays opaque white. Called after
+  the first load, or on a surface browser, it throws `IllegalStateException`
+  rather than doing nothing.
 - **`Cefrium.setGpuProcessEnabled(boolean)`**, to run the GPU in its own
   process instead of inside the browser process. Off by default, which is what
   the SDK has always done, except that until now it was not a decision: the
@@ -116,7 +125,10 @@ what the SDK already shipped.
 - **`window.cefriumQuery` only reaches your handler from origins you allow.**
   `setQueryHandler(handler)` is replaced by
   `setQueryHandler(QueryOriginPolicy policy, QueryHandler handler)`, and the
-  Compose `CefriumView` takes `queryOrigins` alongside `onQuery`. A call from an
+  Compose `CefriumView` parameter `onQuery` is replaced by
+  `bridge = CefriumBridge(policy) { request, origin, callback -> ... }`. Both
+  forms fail to COMPILE without a policy; an app that forgets it does not
+  crash at launch instead. A call from an
   origin the policy does not allow fails on the page with
   `QUERY_ERROR_ORIGIN_DENIED` (-403, `origin not allowed`) and never reaches the
   handler. Policies: `exactly(...)`, `loopback()`, `bundledAssets()`,
