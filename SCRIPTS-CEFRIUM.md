@@ -64,8 +64,8 @@ cef/cefrium_sdk/cut-release.sh <version> <prev-version>      # the whole thing
 cef/cefrium_sdk/cut-release.sh <version> <prev> --from publish   # resume
 ```
 
-Phases: `patches build merge compose plugin stats sanity publish central
-flagship release web prune play`. Flags that matter:
+Phases: `patches build merge compose plugin stats sanity suite publish central
+flagship release provenance web prune play`. Flags that matter:
 `CEFRIUM_INCREMENTAL=1` (reuse out dirs), `CEFRIUM_YES=1` (pre-authorize the
 irreversible gates -- needed for an unattended run), `CEFRIUM_NO_PRUNE=1`,
 `CEFRIUM_NO_PLAY=1`, `CEFRIUM_PLAY_TRACK=internal`. Details and the reasoning
@@ -88,6 +88,7 @@ Individual phases, runnable on their own:
 | Publish to Codeberg Maven | `cef/cefrium_sdk/publish-maven.sh <version>` |
 | Publish to Maven Central | `cef/cefrium_sdk/publish-central.sh <version>` |
 | Codeberg release + GPG sums | `cef/cefrium_sdk/release-codeberg.sh <version> <apk>` |
+| Central serves the signed bytes | `cef/cefrium_sdk/verify-central-provenance.sh <version>` |
 | Derive the repo-doc figures | `cef/cefrium_sdk/update-doc-figures.py [--check]` |
 | Find a figure that has no owner | `cef/cefrium_sdk/sweep-doc-figures.py` |
 | Update cefrium.com + docs | `cef/cefrium_sdk/release-web-update.sh <version> <prev>` |

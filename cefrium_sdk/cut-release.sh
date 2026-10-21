@@ -49,7 +49,7 @@ export JAVA_HOME="${JAVA_HOME:-$ROOT/android-studio/android-studio/jbr}"
 export ANDROID_HOME="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}"
 export PATH="$ROOT/depot_tools:$PATH"
 export CEFRIUM_NINJA_JOBS="${CEFRIUM_NINJA_JOBS:-16}"
-PHASES="patches build merge compose plugin stats sanity suite publish central flagship release web prune play"
+PHASES="patches build merge compose plugin stats sanity suite publish central flagship release provenance web prune play"
 # Variant scope. Default "all" = the 4 published variants (codecs/libre x arm64/x64).
 # CEFRIUM_VARIANTS="arm64:codecs" narrows to one variant. The 4-variant build
 # relinks libcef.so per variant and is the biggest time sink (~4x), which is why it
@@ -496,6 +496,17 @@ if run release; then hdr "Codeberg release (tag + GPG-signed SHA256SUMS + assets
   assert_pins_committed "tagging $VERSION at HEAD"
   cef/cefrium_sdk/release-codeberg.sh "$VERSION" \
     "$ROOT/cefrium-browser/cefrium-browser/app/build/outputs/apk/debug/app-debug.apk"
+fi
+if run provenance; then hdr "Maven Central serves the signed bytes"
+  # Before the site announces the release: the signed SHA256SUMS is what a
+  # release claims to contain, and Central is where most consumers resolve it.
+  # Checked by hand once (0.10.2); now on every cut. Waits for propagation.
+  CEFRIUM_SCRATCH="$ROOT/tmp" cef/cefrium_sdk/verify-central-provenance.sh "$VERSION" || {
+    echo
+    echo "ERROR: Central does not serve the signed bytes for $VERSION (see above)."
+    echo "If Central was only slow, re-run: --from provenance"
+    exit 1
+  }
 fi
 if run web;     then hdr "update cefrium.com pages + committed repo docs"
   cef/cefrium_sdk/release-web-update.sh "$VERSION" "$PREV" "$(date +%F)" "$NOTES"

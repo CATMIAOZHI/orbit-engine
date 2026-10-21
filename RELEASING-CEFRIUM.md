@@ -55,8 +55,8 @@ prune):
 # The cut sets Cefrium.VERSION itself, and commits it:
 cef/cefrium_sdk/cut-release.sh <version> <prev-version> --notes "<releases-row HTML>"
 # Resume after a long build:  --from publish   (phases: patches build merge
-#   compose plugin stats sanity suite publish central flagship release web
-#   prune play)
+#   compose plugin stats sanity suite publish central flagship release
+#   provenance web prune play)
 ```
 
 Useful flags: `CEFRIUM_INCREMENTAL=1` reuses the out dirs (note the `patches`
