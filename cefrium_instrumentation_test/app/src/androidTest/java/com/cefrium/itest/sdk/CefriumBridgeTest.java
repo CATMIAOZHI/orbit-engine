@@ -347,6 +347,132 @@ public class CefriumBridgeTest {
         Assert.assertEquals("only the bundled page may reach the handler", 1, calls.get());
     }
 
+    /**
+     * SC-rc-22: a query is judged by the document that sent it. Page A (not
+     * allowed) creates an iframe to B (allowed) and keeps the cefriumQuery of
+     * the iframe's initial empty document. Chromium reuses that frame's
+     * RenderFrameHost for its first real navigation, so once B has committed,
+     * a call through the kept function arrives from a frame whose committed
+     * origin is B. It must still be denied: it was A's script, in A's document.
+     */
+    @Test
+    public void keptQueryOfAnInitialEmptyDocumentIsNotJudgedAsTheNextDocument()
+            throws Exception {
+        final String child = "<html><body>b<script>"
+                + "parent.postMessage('b-loaded','*');</script></body></html>";
+        try (LocalHttpServer b = new LocalHttpServer(child)) {
+            final String bOrigin = b.url().substring(0, b.url().length() - 1);
+            final String parentPage = "<html><body>a<script>"
+                    + "var f=document.createElement('iframe');document.body.appendChild(f);"
+                    + "var kept=f.contentWindow.cefriumQuery;"
+                    + "window.addEventListener('message',function(e){"
+                    + "if(e.data!=='b-loaded')return;"
+                    + "if(!kept){document.title='verdict:nobridge';return;}"
+                    + "try{kept({request:'probe',"
+                    + "onSuccess:function(r){document.title='verdict:ok:'+r;},"
+                    + "onFailure:function(c,m){document.title='verdict:denied:'+c;}});"
+                    + "setTimeout(function(){if(document.title.indexOf('verdict:')!==0)"
+                    + "document.title='verdict:silent';},3000);"
+                    + "}catch(x){document.title='verdict:threw';}});"
+                    + "f.src='" + b.url() + "';"
+                    + "</script></body></html>";
+            try (LocalHttpServer a = new LocalHttpServer(parentPage)) {
+                Activity activity = activityRule.getActivity();
+                final AtomicReference<String> verdict = new AtomicReference<>();
+                final CountDownLatch done = new CountDownLatch(1);
+                final AtomicInteger calls = new AtomicInteger();
+                activity.runOnUiThread(() -> {
+                    CefriumBrowser browser = browsers.createWithSurface(activity);
+                    browser.setQueryHandler(
+                            CefriumBrowser.QueryOriginPolicy.exactly(bOrigin),
+                            (queryId, request, origin, callback) -> {
+                                calls.incrementAndGet();
+                                callback.success("handled");
+                                return true;
+                            });
+                    browser.setOnTitleChangedListener(title -> {
+                        if (title != null && title.startsWith("verdict:")) {
+                            verdict.set(title);
+                            done.countDown();
+                        }
+                    });
+                    browser.loadUrl(a.url());
+                });
+                Assert.assertTrue("the page never reported", done.await(20, TimeUnit.SECONDS));
+                Assert.assertEquals("A's script reached a handler that only admits B through "
+                        + "the iframe's initial empty document; verdict=" + verdict.get(),
+                        0, calls.get());
+                // The attempt must have been made: "nobridge" would prove nothing.
+                // Measured on the W90: the renderer-side router refuses a call
+                // from a context that no longer exists ("threw"), so the query
+                // never leaves the renderer. A denial would be acceptable too.
+                String v = verdict.get();
+                Assert.assertTrue("unexpected verdict " + v, "verdict:threw".equals(v)
+                        || ("verdict:denied:" + CefriumBrowser.QUERY_ERROR_ORIGIN_DENIED).equals(v));
+            }
+        }
+    }
+
+    /**
+     * SC-rc-22, the race itself: the iframe's initial empty document (A's
+     * origin) sends a query right after its navigation to B has started.
+     * The renderer sends the query before it can commit B, and the browser
+     * must judge it as A: denied under exactly(B), never admitted.
+     */
+    @Test
+    public void queryRacingTheFirstCommitIsJudgedAsTheSender() throws Exception {
+        // The reply goes to the iframe's initial context, which B's commit
+        // destroys, so the page cannot report a verdict. The browser side can:
+        // the policy records the URL each query is judged with.
+        try (LocalHttpServer b = new LocalHttpServer("<html><body>b<script>"
+                + "parent.postMessage('b-loaded','*');</script></body></html>")) {
+            final String bOrigin = b.url().substring(0, b.url().length() - 1);
+            final String parentPage = "<html><body>a<script>"
+                    + "window.addEventListener('message',function(e){"
+                    + "if(e.data==='b-loaded')document.title='b-loaded';});"
+                    + "var f=document.createElement('iframe');document.body.appendChild(f);"
+                    + "var q=f.contentWindow.cefriumQuery;"
+                    + "f.src='" + b.url() + "';"
+                    + "if(q)for(var i=0;i<20;i++)q({request:'probe'});"
+                    + "else document.title='nobridge';"
+                    + "</script></body></html>";
+            try (LocalHttpServer a = new LocalHttpServer(parentPage)) {
+                Activity activity = activityRule.getActivity();
+                final List<String> judged = new CopyOnWriteArrayList<>();
+                final AtomicReference<String> title = new AtomicReference<>();
+                final CountDownLatch loaded = new CountDownLatch(1);
+                final AtomicInteger calls = new AtomicInteger();
+                activity.runOnUiThread(() -> {
+                    CefriumBrowser browser = browsers.createWithSurface(activity);
+                    browser.setQueryHandler(url -> {
+                                judged.add(String.valueOf(url));
+                                return url != null && url.startsWith(bOrigin);
+                            },
+                            (queryId, request, origin, callback) -> {
+                                calls.incrementAndGet();
+                                callback.success("handled");
+                                return true;
+                            });
+                    browser.setOnTitleChangedListener(t -> {
+                        title.set(t);
+                        if ("b-loaded".equals(t) || "nobridge".equals(t)) loaded.countDown();
+                    });
+                    browser.loadUrl(a.url());
+                });
+                Assert.assertTrue("B never loaded in the iframe", loaded.await(20, TimeUnit.SECONDS));
+                Assert.assertEquals("b-loaded", title.get());
+                Thread.sleep(1000);
+                Assert.assertFalse("no query reached the browser, so this proves nothing",
+                        judged.isEmpty());
+                for (String url : judged) {
+                    Assert.assertFalse("a query sent by A's iframe document was judged with B's "
+                            + "URL: " + judged, url.startsWith(bOrigin));
+                }
+                Assert.assertEquals("A's queries reached the handler", 0, calls.get());
+            }
+        }
+    }
+
     /** exactly() refuses an entry that could never match, instead of denying silently. */
     @Test(expected = IllegalArgumentException.class)
     public void exactlyRejectsAnEntryWithoutScheme() {
