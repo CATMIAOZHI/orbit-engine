@@ -638,7 +638,11 @@ public class CefriumBrowser {
      * the default port dropped; {@link #bundledAssets} compares a path prefix.
      * {@code data:}, {@code about:} (including {@code about:blank} and
      * {@code srcdoc} iframes a page of yours creates) and unparsable frames are
-     * opaque: only {@link #anyOrigin()} or your own predicate accepts them.
+     * opaque. So is a frame whose committed origin is opaque at an allowed URL:
+     * an {@code <iframe sandbox>} or a page served with
+     * {@code Content-Security-Policy: sandbox}. The bridge denies every opaque
+     * caller before consulting the policy, unless the policy is
+     * {@link #anyOrigin()} itself; a custom predicate never sees one.
      * A custom predicate sees the raw URL: compare
      * {@link #originOf(String) originOf(url)} or the parsed host, never a
      * string prefix, because {@code https://example.com.evil.com/} starts with
@@ -776,11 +780,18 @@ public class CefriumBrowser {
     }
 
     // Called from native (browser UI thread) when JS calls window.cefriumQuery.
-    private void onJsQuery(final long queryId, String request, String origin) {
+    // origin is the frame URL; committedOrigin is the frame's committed origin,
+    // serialized, "null" when opaque.
+    private void onJsQuery(final long queryId, String request, String origin,
+            String committedOrigin) {
         final QueryRegistration reg = mQuery;
         final QueryHandler handler = reg == null ? null : reg.handler;
         boolean allowed = false;
-        if (handler != null) {
+        // A sandboxed frame (sandbox attribute or CSP sandbox) has an opaque
+        // origin even at an allowed URL: the content its embedder did not
+        // trust. Only anyOrigin() admits it; no other policy is consulted.
+        boolean opaque = committedOrigin == null || "null".equals(committedOrigin);
+        if (handler != null && (!opaque || reg.policy == ANY_ORIGIN)) {
             try {
                 allowed = reg.policy.allows(origin);
             } catch (RuntimeException e) {
@@ -972,7 +983,13 @@ public class CefriumBrowser {
 
     // ─────────────── Navigation extras ───────────────
 
-    /** Loads an HTML string directly (served to the engine as a data: URL). */
+    /**
+     * Loads an HTML string directly (served to the engine as a data: URL). The
+     * document's origin is opaque, so only {@link QueryOriginPolicy#anyOrigin()}
+     * lets it reach a {@link QueryHandler}; HTML that needs the bridge should
+     * use {@link #loadHtmlWithBaseUrl} with your own origin and
+     * {@link QueryOriginPolicy#exactly} on it.
+     */
     public void loadHtml(String html) {
         if (mNativePtr == 0 || html == null) return;
         String dataUrl = "data:text/html;charset=utf-8;base64," + android.util.Base64.encodeToString(

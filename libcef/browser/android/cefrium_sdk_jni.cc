@@ -59,11 +59,13 @@
 #include "cef/libcef/browser/android/browser_surface_android.h"
 #include "cef/libcef/browser/android/cef_share_service.h"
 #include "cef/libcef/browser/browser_host_base.h"
+#include "cef/libcef/browser/frame_host_impl.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/document_service.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_entry_restore_context.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/common/referrer.h"
 #include "content/public/browser/restore_type.h"
@@ -1889,16 +1891,35 @@ class CefriumBridgeHandler : public CefMessageRouterBrowserSide::Handler {
     // The frame's URL is the origin of the query — passed to Java so the app
     // can gate which pages/iframes are allowed to use the bridge (security).
     std::string origin = frame ? frame->GetURL().ToString() : std::string();
+    // The committed origin as well: a sandboxed frame at an allowed URL has an
+    // opaque origin, and Java denies it. A detached frame counts as opaque.
+    std::string committed_origin = "null";
+    if (frame) {
+      auto* rfh = static_cast<CefFrameHostImpl*>(frame.get())
+                      ->GetRenderFrameHost();
+      if (rfh) {
+        committed_origin = rfh->GetLastCommittedOrigin().Serialize();
+      }
+    }
     jclass cls = env->GetObjectClass(java_browser_);
     jmethodID method = env->GetMethodID(
-        cls, "onJsQuery", "(JLjava/lang/String;Ljava/lang/String;)V");
+        cls, "onJsQuery",
+        "(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
     if (method) {
       jstring j_req = env->NewStringUTF(request.ToString().c_str());
       jstring j_origin = env->NewStringUTF(origin.c_str());
+      jstring j_committed = env->NewStringUTF(committed_origin.c_str());
       env->CallVoidMethod(java_browser_, method, static_cast<jlong>(query_id),
-                          j_req, j_origin);
+                          j_req, j_origin, j_committed);
       env->DeleteLocalRef(j_req);
       env->DeleteLocalRef(j_origin);
+      env->DeleteLocalRef(j_committed);
+    } else {
+      // A missing method would leave the query pending forever.
+      env->ExceptionClear();
+      pending_.erase(query_id);
+      env->DeleteLocalRef(cls);
+      return false;
     }
     env->DeleteLocalRef(cls);
     return true;
