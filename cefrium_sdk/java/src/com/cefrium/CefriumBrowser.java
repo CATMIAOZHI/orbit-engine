@@ -118,6 +118,8 @@ public class CefriumBrowser {
     // A restored tab defers its load until the surface + overscroll handler are
     // connected (connectWebContentsInternal), then triggers it once.
     private boolean mPendingRestoreLoad;
+    // The ContentView added to mSurfaceContainer at connect; removed at close.
+    private android.view.View mContentView;
 
     // Private marker constructor for factory methods — does NOT create native.
     private CefriumBrowser(boolean marker) {
@@ -1867,7 +1869,22 @@ public class CefriumBrowser {
      */
     private void onNativeBrowserClosed() {
         mNativePtr = 0;
+        // The container may stay on screen after close (an app closing the
+        // visible tab). Remove both views before destroying anything, as
+        // content_shell's removeShell does: a ContentViewRenderView left in the
+        // layout keeps its WebContents, and the next layout calls setSize on it
+        // ("Native WebContents already destroyed"), killing the app process.
+        // setCurrentWebContents(null) is not an option: its native side
+        // rejects null.
+        if (mSurfaceContainer != null) {
+            mSurfaceContainer.setWebContents(null);
+            if (mContentView != null) mSurfaceContainer.removeView(mContentView);
+        }
+        mContentView = null;
         if (mContentViewRenderView != null) {
+            if (mSurfaceContainer != null) {
+                mSurfaceContainer.removeView(mContentViewRenderView);
+            }
             mContentViewRenderView.destroy();
             mContentViewRenderView = null;
         }
@@ -2736,6 +2753,7 @@ public class CefriumBrowser {
                             this, wc, mWindowAndroid, mIncognito));
         }
 
+        mContentView = cv;
         mSurfaceContainer.addView(cv,
                 new android.widget.FrameLayout.LayoutParams(
                         android.widget.FrameLayout.LayoutParams.MATCH_PARENT,

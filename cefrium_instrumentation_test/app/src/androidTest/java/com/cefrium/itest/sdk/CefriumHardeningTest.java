@@ -7,7 +7,9 @@ import androidx.test.rule.ActivityTestRule;
 
 import com.cefrium.Cefrium;
 import com.cefrium.CefriumBrowser;
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
+import com.cefrium.itest.LocalHttpServer;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -24,9 +26,12 @@ import java.util.concurrent.TimeUnit;
 @RunWith(AndroidJUnit4.class)
 public class CefriumHardeningTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     @Test
     public void testMultipleBrowsersSequential() throws Exception {
@@ -35,7 +40,7 @@ public class CefriumHardeningTest {
         for (int i = 0; i < 3; i++) {
             CountDownLatch latch = new CountDownLatch(1);
             activity.runOnUiThread(() -> {
-                CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+                CefriumBrowser browser = browsers.createWithSurface(activity);
                 browser.loadUrl("data:text/html,<title>CefriumTest</title><h1>ok</h1>");
                 browser.close();
                 latch.countDown();
@@ -84,7 +89,7 @@ public class CefriumHardeningTest {
         activity.runOnUiThread(() -> {
             before[0] = CefriumBrowser.closedBrowserCount();
             before[1] = CefriumBrowser.liveBrowserCount();
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity, incognito);
+            CefriumBrowser browser = browsers.createWithSurface(activity, incognito);
             browser.close();
             closed.countDown();
         });
@@ -102,13 +107,63 @@ public class CefriumHardeningTest {
                 before[1], liveNow);
     }
 
+    /**
+     * Close the browser whose view is on screen, then resize that view: what an
+     * app does when it closes the visible tab and the keyboard or a rotation
+     * follows. The container kept the closed browser's WebContents, and the
+     * next layout called setSize on it: "Native WebContents already destroyed",
+     * and the app process died.
+     */
+    @Test
+    public void closeTheVisibleBrowserThenLayoutDoesNotCrash() throws Exception {
+        Activity activity = activityRule.getActivity();
+        CountDownLatch loaded = new CountDownLatch(1);
+        final CefriumBrowser[] holder = new CefriumBrowser[1];
+        try (LocalHttpServer server = new LocalHttpServer("<html><body>v</body></html>")) {
+            activity.runOnUiThread(() -> {
+                CefriumBrowser browser = browsers.createWithSurface(activity);
+                holder[0] = browser;
+                activity.setContentView(browser.getSurfaceContainer());
+                browser.setOnLoadingStateChangedListener((loading, back, fwd) -> {
+                    if (!loading) loaded.countDown();
+                });
+                browser.loadUrl(server.url());
+            });
+            Assert.assertTrue("the page never loaded", loaded.await(20, TimeUnit.SECONDS));
+        }
+        int closedBefore = CefriumBrowser.closedBrowserCount();
+        activity.runOnUiThread(() -> holder[0].close());
+        for (int i = 0; i < 100 && CefriumBrowser.closedBrowserCount() == closedBefore; i++) {
+            Thread.sleep(100);
+        }
+        Assert.assertTrue("close() never completed",
+                CefriumBrowser.closedBrowserCount() > closedBefore);
+        // Force onSizeChanged on every view in the closed browser's container.
+        CountDownLatch resized = new CountDownLatch(1);
+        activity.runOnUiThread(() -> {
+            android.view.View container = holder[0].getSurfaceContainer();
+            android.view.ViewGroup.LayoutParams lp = container.getLayoutParams();
+            lp.width = Math.max(1, container.getWidth() / 2);
+            container.setLayoutParams(lp);
+            container.post(resized::countDown);
+        });
+        Assert.assertTrue(resized.await(10, TimeUnit.SECONDS));
+        // Two more frames, so the layout pass has certainly run.
+        CountDownLatch frames = new CountDownLatch(1);
+        activity.runOnUiThread(() -> android.view.Choreographer.getInstance()
+                .postFrameCallback(t -> android.view.Choreographer.getInstance()
+                        .postFrameCallback(t2 -> frames.countDown())));
+        Assert.assertTrue("the app stopped drawing after the resize",
+                frames.await(10, TimeUnit.SECONDS));
+    }
+
     @Test
     public void testDoubleClose() throws Exception {
         Activity activity = activityRule.getActivity();
         CountDownLatch latch = new CountDownLatch(1);
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.close();
             browser.close();  // Should not crash
             latch.countDown();
@@ -123,7 +178,7 @@ public class CefriumHardeningTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.loadUrl("");  // Should not crash
             browser.loadUrl("data:text/html,<title>CefriumTest</title><h1>ok</h1>");
             browser.close();
@@ -139,7 +194,7 @@ public class CefriumHardeningTest {
         CountDownLatch loadLatch = new CountDownLatch(1);
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.setOnLoadingStateChangedListener((isLoading, back, fwd) -> {
                 if (!isLoading) loadLatch.countDown();
             });
@@ -156,7 +211,7 @@ public class CefriumHardeningTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.close();
             // All of these should log warnings but not crash
             browser.loadUrl("data:text/html,<title>CefriumTest</title><h1>ok</h1>");
@@ -180,7 +235,7 @@ public class CefriumHardeningTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.close();
             // Setting callbacks after close should not crash
             browser.setCallback(new CefriumBrowser.Callback() {
@@ -203,7 +258,7 @@ public class CefriumHardeningTest {
         CountDownLatch loadLatch = new CountDownLatch(1);
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.setOnLoadingStateChangedListener((isLoading, b, f) -> {
                 if (!isLoading) loadLatch.countDown();
             });
@@ -215,7 +270,7 @@ public class CefriumHardeningTest {
         CountDownLatch darkLatch = new CountDownLatch(1);
         activity.runOnUiThread(() -> {
             // Toggle dark mode — should not crash
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.setDarkMode(true);
             browser.setDarkMode(false);
             browser.close();
@@ -231,7 +286,7 @@ public class CefriumHardeningTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.close();
             // Context menu command after close should not crash
             browser.contextMenuCommand(1);
@@ -248,7 +303,7 @@ public class CefriumHardeningTest {
         CountDownLatch latch = new CountDownLatch(1);
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.close();
             // onActivityResult after close should not crash
             boolean handled = browser.onActivityResult(0, 0, null);
