@@ -84,6 +84,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   always received the calling frame's URL and the javadoc said to check it;
   nothing made anyone. Our own browser app was the proof: its bridge exists
   for an observer injected into YouTube, and any site could call it.
+  A frame whose committed origin is opaque is denied before any policy but
+  `anyOrigin()` runs, even at an allowed URL: an `<iframe sandbox>` or a page
+  served with `Content-Security-Policy: sandbox` is content its embedder chose
+  not to trust, and the URL alone would have let it through.
 
 ### Fixed
 
