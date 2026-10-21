@@ -1,5 +1,6 @@
 package com.cefrium.itest.sdk;
 
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 
 import android.app.Activity;
@@ -30,9 +31,12 @@ import java.util.concurrent.atomic.AtomicReference;
 @RunWith(AndroidJUnit4.class)
 public class CefriumContentSettingTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     // Distinct secure origins: notification decisions persist per-origin in the
     // shared profile, so the allow and block probes must not share an origin.
@@ -67,7 +71,7 @@ public class CefriumContentSettingTest {
         final String url = server.url();
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             // Pre-set the per-origin notification content setting (no prompt).
             browser.setContentSetting(origin, CefriumBrowser.PERMISSION_NOTIFICATIONS, value);
             browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(), (queryId, request, reqOrigin, callback) -> {

@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.rule.ActivityTestRule;
 
 import com.cefrium.CefriumBrowser;
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 import com.cefrium.itest.LocalWebSocketServer;
 
@@ -33,9 +34,12 @@ import java.util.concurrent.TimeUnit;
 @RunWith(AndroidJUnit4.class)
 public class CefriumWebSocketTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     // PUBLIC base origin: makes the document's address space more-public than the
     // loopback WS target, which is exactly what triggers the LNA WebSocket check.
@@ -59,7 +63,7 @@ public class CefriumWebSocketTest {
                 + "</script>";
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.loadHtmlWithBaseUrl(html, PUBLIC_BASE);
         });
 

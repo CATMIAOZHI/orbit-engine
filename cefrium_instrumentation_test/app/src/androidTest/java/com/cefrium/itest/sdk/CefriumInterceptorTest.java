@@ -1,5 +1,6 @@
 package com.cefrium.itest.sdk;
 
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 
 import android.app.Activity;
@@ -25,9 +26,12 @@ import java.util.concurrent.TimeUnit;
 @RunWith(AndroidJUnit4.class)
 public class CefriumInterceptorTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     /**
      * The interceptor must be consulted for subresource requests. We load an
@@ -41,7 +45,7 @@ public class CefriumInterceptorTest {
         final CountDownLatch created = new CountDownLatch(1);
 
         act.runOnUiThread(() -> {
-            CefriumBrowser b = CefriumBrowser.createWithSurface(act);
+            CefriumBrowser b = browsers.createWithSurface(act);
             b.setRequestInterceptor((url, method, isMainFrame) -> {
                 seen.add(url);
                 return url.contains("INTERCEPT");  // block the marker URL
