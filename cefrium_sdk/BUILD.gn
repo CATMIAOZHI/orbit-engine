@@ -56,6 +56,7 @@ android_library("cefrium_java") {
     "java/src/com/cefrium/CefriumCommandHandler.java",
     "java/src/com/cefrium/CefriumDialogHandler.java",
     "java/src/com/cefrium/CefriumSurfaceContainer.java",
+    "java/src/com/cefrium/ChildServices.java",
     "java/src/org/chromium/build/BuildConfig.java",
     "java/src/org/chromium/build/NativeLibraries.java",
     "java/src/org/jni_zero/GEN_JNI.java",
