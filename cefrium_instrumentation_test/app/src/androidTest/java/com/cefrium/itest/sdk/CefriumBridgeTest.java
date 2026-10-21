@@ -15,6 +15,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -291,60 +292,55 @@ public class CefriumBridgeTest {
     }
 
     /**
-     * SC-rc-20: a bundled asset page reaches the handler under bundledAssets(),
-     * and nothing else does. This also proves a file:///android_asset frame's
-     * committed origin is not opaque: the opaque check runs before any policy,
-     * so an opaque file origin would deny every asset page.
+     * SC-rc-20: in ONE view under bundledAssets(), the bundled page reaches the
+     * handler and the next page, served from loopback, is denied. This also
+     * proves a file:///android_asset frame's committed origin is not opaque:
+     * the opaque check runs before any policy, so an opaque file origin would
+     * deny every asset page.
      */
     @Test
-    public void bundledAssetReachesHandlerAndLoopbackDoesNot() throws Exception {
-        final String asset = "file:///android_asset/bridge/probe.html";
-        AtomicInteger calls = new AtomicInteger();
-        Assert.assertEquals("ok:handled", probeAsset(asset,
-                CefriumBrowser.QueryOriginPolicy.bundledAssets(), calls));
-        Assert.assertEquals(1, calls.get());
-
-        AtomicInteger denied = new AtomicInteger();
-        try (LocalHttpServer server = new LocalHttpServer("<html><body>p</body></html>")) {
-            Assert.assertEquals("denied:" + CefriumBrowser.QUERY_ERROR_ORIGIN_DENIED
-                    + ":origin not allowed", probeUnder(server.url(),
-                    CefriumBrowser.QueryOriginPolicy.bundledAssets(), denied));
-        }
-        Assert.assertEquals("a loopback page must not pass bundledAssets()", 0, denied.get());
-    }
-
-    /** Loads an asset page that calls the bridge on its own, returns its verdict. */
-    private String probeAsset(String url, CefriumBrowser.QueryOriginPolicy policy,
-                              AtomicInteger handlerCalls) throws Exception {
+    public void onlyTheBundledPageInTheSameViewReachesTheHandler() throws Exception {
+        final String probe = "<html><body>p<script>"
+                + "window.cefriumQuery({request:'probe',"
+                + "onSuccess:function(r){document.title='ok:'+r;},"
+                + "onFailure:function(c,m){document.title='denied:'+c+':'+m;}});"
+                + "</script></body></html>";
         Activity activity = activityRule.getActivity();
-        final AtomicReference<String> verdict = new AtomicReference<>();
+        final List<String> verdicts = new CopyOnWriteArrayList<>();
         final AtomicReference<CefriumBrowser> created = new AtomicReference<>();
-        final CountDownLatch done = new CountDownLatch(1);
-        try {
+        final CountDownLatch both = new CountDownLatch(2);
+        final AtomicInteger calls = new AtomicInteger();
+        try (LocalHttpServer server = new LocalHttpServer(probe)) {
             activity.runOnUiThread(() -> {
                 CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
                 created.set(browser);
-                browser.setQueryHandler(policy, (queryId, request, origin, callback) -> {
-                    handlerCalls.incrementAndGet();
-                    callback.success("handled");
-                    return true;
-                });
+                browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.bundledAssets(),
+                        (queryId, request, origin, callback) -> {
+                            calls.incrementAndGet();
+                            callback.success("handled");
+                            return true;
+                        });
                 browser.setOnTitleChangedListener(title -> {
-                    if (title != null && (title.startsWith("ok:") || title.startsWith("denied:"))) {
-                        verdict.set(title);
-                        done.countDown();
+                    if (title == null || !(title.startsWith("ok:") || title.startsWith("denied:"))) {
+                        return;
                     }
+                    verdicts.add(title);
+                    both.countDown();
+                    if (verdicts.size() == 1) browser.loadUrl(server.url());
                 });
-                browser.loadUrl(url);
+                browser.loadUrl("file:///android_asset/bridge/probe.html");
             });
-            Assert.assertTrue("the asset page never reported a verdict",
-                    done.await(20, TimeUnit.SECONDS));
-            return verdict.get();
+            Assert.assertTrue("both pages must report a verdict, got " + verdicts,
+                    both.await(30, TimeUnit.SECONDS));
         } finally {
             activity.runOnUiThread(() -> {
                 if (created.get() != null) created.get().close();
             });
         }
+        Assert.assertEquals("ok:handled", verdicts.get(0));
+        Assert.assertEquals("denied:" + CefriumBrowser.QUERY_ERROR_ORIGIN_DENIED
+                + ":origin not allowed", verdicts.get(1));
+        Assert.assertEquals("only the bundled page may reach the handler", 1, calls.get());
     }
 
     /** exactly() refuses an entry that could never match, instead of denying silently. */
