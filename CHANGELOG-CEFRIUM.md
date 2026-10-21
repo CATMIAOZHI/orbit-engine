@@ -42,6 +42,12 @@ in the internal FEATURE-NNN.md working docs (not published).
   Decision: the Java reference the notification needs is bound at creation,
   not when the embedder registers its first listener, so an app that sets no
   listener still connects.
+- **Closing the browser that is on screen no longer kills the app.** After
+  `close()`, the browser's views stayed in the container, and the next layout
+  (a rotation, the keyboard, any resize) called `setSize` on the destroyed
+  WebContents: `IllegalStateException: Native WebContents already destroyed`,
+  uncaught, on the main thread. The views now leave the container before
+  anything is destroyed, the order Chromium's own content_shell uses.
 - **`setPullToRefreshEnabled` takes effect whenever it is called**, and can be
   toggled. It used to bind its handler only if called before the WebContents
   connected; with the connect now at creation, an app enabling it after its
