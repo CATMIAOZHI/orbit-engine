@@ -290,6 +290,63 @@ public class CefriumBridgeTest {
         Assert.assertEquals("only the parent frame may reach the handler", 1, calls.get());
     }
 
+    /**
+     * SC-rc-20: a bundled asset page reaches the handler under bundledAssets(),
+     * and nothing else does. This also proves a file:///android_asset frame's
+     * committed origin is not opaque: the opaque check runs before any policy,
+     * so an opaque file origin would deny every asset page.
+     */
+    @Test
+    public void bundledAssetReachesHandlerAndLoopbackDoesNot() throws Exception {
+        final String asset = "file:///android_asset/bridge/probe.html";
+        AtomicInteger calls = new AtomicInteger();
+        Assert.assertEquals("ok:handled", probeAsset(asset,
+                CefriumBrowser.QueryOriginPolicy.bundledAssets(), calls));
+        Assert.assertEquals(1, calls.get());
+
+        AtomicInteger denied = new AtomicInteger();
+        try (LocalHttpServer server = new LocalHttpServer("<html><body>p</body></html>")) {
+            Assert.assertEquals("denied:" + CefriumBrowser.QUERY_ERROR_ORIGIN_DENIED
+                    + ":origin not allowed", probeUnder(server.url(),
+                    CefriumBrowser.QueryOriginPolicy.bundledAssets(), denied));
+        }
+        Assert.assertEquals("a loopback page must not pass bundledAssets()", 0, denied.get());
+    }
+
+    /** Loads an asset page that calls the bridge on its own, returns its verdict. */
+    private String probeAsset(String url, CefriumBrowser.QueryOriginPolicy policy,
+                              AtomicInteger handlerCalls) throws Exception {
+        Activity activity = activityRule.getActivity();
+        final AtomicReference<String> verdict = new AtomicReference<>();
+        final AtomicReference<CefriumBrowser> created = new AtomicReference<>();
+        final CountDownLatch done = new CountDownLatch(1);
+        try {
+            activity.runOnUiThread(() -> {
+                CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+                created.set(browser);
+                browser.setQueryHandler(policy, (queryId, request, origin, callback) -> {
+                    handlerCalls.incrementAndGet();
+                    callback.success("handled");
+                    return true;
+                });
+                browser.setOnTitleChangedListener(title -> {
+                    if (title != null && (title.startsWith("ok:") || title.startsWith("denied:"))) {
+                        verdict.set(title);
+                        done.countDown();
+                    }
+                });
+                browser.loadUrl(url);
+            });
+            Assert.assertTrue("the asset page never reported a verdict",
+                    done.await(20, TimeUnit.SECONDS));
+            return verdict.get();
+        } finally {
+            activity.runOnUiThread(() -> {
+                if (created.get() != null) created.get().close();
+            });
+        }
+    }
+
     /** exactly() refuses an entry that could never match, instead of denying silently. */
     @Test(expected = IllegalArgumentException.class)
     public void exactlyRejectsAnEntryWithoutScheme() {
