@@ -1,12 +1,25 @@
 package com.cefrium.itest.sdk;
 
+import android.app.Activity;
+import android.app.ActivityManager;
+import android.content.Context;
+
 import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.rule.ActivityTestRule;
 
 import com.cefrium.Cefrium;
+import com.cefrium.CefriumBrowser;
+import com.cefrium.itest.BrowserRule;
+import com.cefrium.itest.HostActivity;
+import com.cefrium.itest.LocalHttpServer;
 
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Engine settings take effect only before the engine initializes (SC-rc-08).
@@ -19,12 +32,49 @@ import org.junit.runner.RunWith;
 @RunWith(AndroidJUnit4.class)
 public class CefriumEngineSettingsTest {
 
+    @Rule(order = 0)
+    public ActivityTestRule<HostActivity> activityRule =
+            new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
+
+    /**
+     * The late setter must change neither the reported value nor where the GPU
+     * actually runs. A page is rendered after the call, so a GPU process would
+     * exist if the setting had taken effect; the process list is the evidence,
+     * the getter alone would be a proxy.
+     */
     @Test
-    public void lateGpuProcessSettingIsRefused() {
+    public void lateGpuProcessSettingIsRefused() throws Exception {
         boolean before = Cefrium.isGpuProcessEnabled();
         Cefrium.setGpuProcessEnabled(!before);
         Assert.assertEquals("setGpuProcessEnabled after initialization must not change "
                 + "the value", before, Cefrium.isGpuProcessEnabled());
+
+        Activity activity = activityRule.getActivity();
+        CountDownLatch loaded = new CountDownLatch(1);
+        try (LocalHttpServer server = new LocalHttpServer("<html><body>gpu</body></html>")) {
+            activity.runOnUiThread(() -> {
+                CefriumBrowser b = browsers.createWithSurface(activity);
+                activity.setContentView(b.getSurfaceContainer());
+                b.setOnLoadingStateChangedListener((loading, back, fwd) -> {
+                    if (!loading) loaded.countDown();
+                });
+                b.loadUrl(server.url());
+            });
+            Assert.assertTrue("the page never loaded", loaded.await(20, TimeUnit.SECONDS));
+        }
+        Thread.sleep(1000);  // a GPU process, if any, has started by now
+        // getRunningAppProcesses lists this app's own processes; the GPU process
+        // (:privileged_processN) runs under the app's UID, so it would appear.
+        boolean gpuProcess = false;
+        ActivityManager am = (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningAppProcessInfo p : am.getRunningAppProcesses()) {
+            if (p.processName.contains(":privileged_process")) gpuProcess = true;
+        }
+        Assert.assertEquals("a GPU process exists exactly when the setting in force at "
+                + "startup asked for one", before, gpuProcess);
     }
 
     @Test
