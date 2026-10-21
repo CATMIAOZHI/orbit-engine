@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * (SC-osr-01, SC-osr-02). The page paints its left half rgb(255,0,0) and leaves
  * the right half transparent; the alpha of each half is read from onPaint.
  * Before setBackgroundColor existed every pixel came back with alpha 255.
+ * It also pins the byte order the SDK documents: RGBA, not BGRA.
  */
 @RunWith(AndroidJUnit4.class)
 public class CefriumOsrTransparencyTest {
@@ -67,7 +68,13 @@ public class CefriumOsrTransparencyTest {
                             }
                         }
                     }
-                    stats.set("left " + lMin + ".." + lMax + ", right " + rMin + ".." + rMax);
+                    // Byte order of one pixel inside the red half: the page paints
+                    // rgb(255,0,0), so RGBA puts 255 first and BGRA would put it third.
+                    int at = ((height / 2) * width + width / 4) * 4;
+                    String order = (pixels.get(at) & 0xff) + "," + (pixels.get(at + 1) & 0xff)
+                            + "," + (pixels.get(at + 2) & 0xff);
+                    stats.set("left " + lMin + ".." + lMax + ", right " + rMin + ".." + rMax
+                            + ", red pixel bytes " + order);
                     measured.countDown();
                 }
             });
@@ -90,13 +97,15 @@ public class CefriumOsrTransparencyTest {
 
     @Test
     public void transparentBackgroundLeavesTransparentAreasTransparent() throws Exception {
-        Assert.assertEquals("alpha per half", "left 255..255, right 0..0",
+        Assert.assertEquals("alpha per half and the byte order of a red pixel",
+                "left 255..255, right 0..0, red pixel bytes 255,0,0",
                 alphaPerHalf(0x00000000));
     }
 
     @Test
     public void defaultBackgroundStaysOpaque() throws Exception {
-        Assert.assertEquals("alpha per half", "left 255..255, right 255..255",
+        Assert.assertEquals("alpha per half and the byte order of a red pixel",
+                "left 255..255, right 255..255, red pixel bytes 255,0,0",
                 alphaPerHalf(null));
     }
 

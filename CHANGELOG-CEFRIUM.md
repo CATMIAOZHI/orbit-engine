@@ -48,6 +48,12 @@ Everything else is a fix to what the SDK already shipped.
 
 ### Fixed
 
+- **The OSR frame byte order was documented wrong.** `onPaint` and
+  `onPopupPaint` deliver RGBA (premultiplied), not BGRA as the javadoc and
+  README said. An integrator who swapped red and blue to follow the docs got
+  the colours inverted: a red element drew blue. Code that copies the buffer
+  straight into an ARGB_8888 `Bitmap` or a `GL_RGBA` texture was already
+  right. `CefriumOsrTransparencyTest` now asserts the byte order.
 - **The system WebView and Cefrium work in one package**, in separate
   processes. Both bound `org.chromium.content.app.SandboxedProcessService0`,
   and Android keys an external isolated service by the calling package, class

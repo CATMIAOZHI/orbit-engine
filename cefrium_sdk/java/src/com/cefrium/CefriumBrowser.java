@@ -9,7 +9,7 @@ package com.cefrium;
  *
  * <p>Two rendering modes are available:</p>
  * <ul>
- *   <li><b>Off-screen (OSR)</b> — frames delivered as BGRA pixel buffers
+ *   <li><b>Off-screen (OSR)</b> — frames delivered as RGBA pixel buffers
  *       via {@link CefriumRenderHandler#onPaint}. Use for headless rendering,
  *       screenshots, or custom compositing. Create with {@link #CefriumBrowser(int, int, float)}.</li>
  *   <li><b>Surface</b> — hardware-accelerated rendering to an Android Surface
@@ -193,7 +193,7 @@ public class CefriumBrowser {
 
     /**
      * Set the render handler to receive painted frames (OSR mode only).
-     * Each frame is a BGRA pixel buffer with dimensions matching the
+     * Each frame is an RGBA (premultiplied) pixel buffer with dimensions matching the
      * viewport size set in the constructor.
      *
      * @param handler The handler to receive OnPaint callbacks, or null to stop.
