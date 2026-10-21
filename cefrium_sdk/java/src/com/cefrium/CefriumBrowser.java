@@ -801,9 +801,14 @@ public class CefriumBrowser {
             }
         }
         if (handler != null && !allowed) {
-            // Log the origin, never the full URL: a URL can carry tokens.
-            android.util.Log.w(TAG, "window.cefriumQuery denied for origin "
-                    + normalizeOrigin(origin));
+            // Log the origin, never the full URL: a URL can carry tokens. A
+            // sandboxed frame says so, or the log would show an origin the
+            // policy allows next to the word "denied".
+            String shown = normalizeOrigin(origin);
+            android.util.Log.w(TAG, opaque && !"null".equals(shown)
+                    ? "window.cefriumQuery denied for a sandboxed frame at " + shown
+                            + " (its origin is opaque)"
+                    : "window.cefriumQuery denied for origin " + shown);
             nativeQueryResult(mNativePtr, queryId, false, null,
                     QUERY_ERROR_ORIGIN_DENIED, "origin not allowed");
             return;
