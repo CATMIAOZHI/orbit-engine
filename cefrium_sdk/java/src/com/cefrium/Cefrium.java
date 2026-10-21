@@ -72,6 +72,7 @@ public final class Cefrium {
 
     private static boolean sInitialized;
     private static boolean sProcessSetUp;
+    private static boolean sEngineVersionDeclared;
 
     // Engine background-network controls. See the setters for what each one
     // costs. Component updates keep the engine's default (on) because turning
@@ -282,6 +283,10 @@ public final class Cefrium {
         // AssertionError on a second call). The application context being set is the
         // signal that the plumbing has already started.
         if (ContextUtils.getApplicationContextUnsafe() != null) {
+            // The engine version is not part of that plumbing, and an app that
+            // predates it never declares it: its client hints would carry the
+            // app's versionName. Measured: brand "1", uaFullVersion "1.0".
+            declareEngineVersionToApkInfo(ContextUtils.getApplicationContext());
             sProcessSetUp = true;
             return;
         }
@@ -322,6 +327,8 @@ public final class Cefrium {
      * package here would break child launching.
      */
     private static void declareEngineVersionToApkInfo(Context appContext) {
+        if (sEngineVersionDeclared) return;
+        sEngineVersionDeclared = true;
         try {
             PackageInfo info = appContext.getPackageManager()
                     .getPackageInfo(appContext.getPackageName(), 0);
@@ -375,6 +382,10 @@ public final class Cefrium {
         // PathUtils, ApplicationStatus). Idempotent — a no-op if CefriumInitProvider
         // already ran it at app launch.
         setupProcess(appContext);
+        // Before the native side first reads ApkInfo. A no-op if setupProcess
+        // already declared it; covers an app that initializes the engine from
+        // its own attachBaseContext, before the SDK's provider has run.
+        declareEngineVersionToApkInfo(appContext);
 
         if (!CommandLine.isInitialized()) {
             CommandLine.init(null);
