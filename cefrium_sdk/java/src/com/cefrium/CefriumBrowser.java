@@ -2509,8 +2509,10 @@ public class CefriumBrowser {
                 density, incognito);
 
         browser.mActivity = activity;
-        // Before the native OnAfterCreated can run (it is posted to this same
-        // looper), so the WebContents connects without a listener being set.
+        // Browser creation is synchronous on Android: OnAfterCreated already ran
+        // inside nativeCreateWithSurface, before any Java reference was bound,
+        // so this binding is what delivers onNativeBrowserCreated. It does not
+        // depend on the embedder setting a listener.
         nativeBindJavaBrowser(browser.mNativePtr, browser);
 
         // Issue #10: forward window focus to CefBrowserHost::SetFocus. Without
