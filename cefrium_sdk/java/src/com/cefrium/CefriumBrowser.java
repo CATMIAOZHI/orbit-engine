@@ -214,11 +214,8 @@ public class CefriumBrowser {
     public void loadUrl(String url) {
         if (!checkNative("loadUrl")) return;
         nativeLoadUrl(mNativePtr, url);
-        // In Surface mode, connect WebContents after first load.
-        if (mSurfaceContainer != null && !mWebContentsConnected) {
-            new android.os.Handler(android.os.Looper.getMainLooper())
-                    .postDelayed(this::connectWebContentsInternal, 2000);
-        }
+        // Surface mode connects the WebContents when the native browser exists
+        // (onNativeBrowserCreated), not after this load.
     }
 
     /**
@@ -501,9 +498,11 @@ public class CefriumBrowser {
             // deferred restore load once the view + overscroll handler are set up
             // -- loading earlier crashes the overscroll controller on the RFH swap.
             mPendingRestoreLoad = true;
-            if (mSurfaceContainer != null && !mWebContentsConnected) {
-                new android.os.Handler(android.os.Looper.getMainLooper())
-                        .postDelayed(this::connectWebContentsInternal, 2000);
+            // A browser that already connected triggers the restored load now;
+            // otherwise onNativeBrowserCreated connects and triggers it.
+            if (mWebContentsConnected && mSurfaceContainer != null) {
+                mPendingRestoreLoad = false;
+                nativeLoadRestoredIfNecessary(mNativePtr);
             }
         }
     }
@@ -2489,6 +2488,9 @@ public class CefriumBrowser {
                 density, incognito);
 
         browser.mActivity = activity;
+        // Before the native OnAfterCreated can run (it is posted to this same
+        // looper), so the WebContents connects without a listener being set.
+        nativeBindJavaBrowser(browser.mNativePtr, browser);
 
         // Issue #10: forward window focus to CefBrowserHost::SetFocus. Without
         // this nothing ever focused the browser and the page's document stayed
@@ -2590,14 +2592,31 @@ public class CefriumBrowser {
         }
     }
 
+    /**
+     * The native browser and its WebContents exist. Surface mode connects the
+     * WebContents to its WindowAndroid here.
+     *
+     * This used to happen 2000 ms after the first loadUrl, a fixed delay. Until
+     * the connection no renderer of this browser receives BeginFrames, so a page
+     * could not paint, could not leave paint holding, and Blink suppressed every
+     * non-move input event: injected clicks and taps in that window were lost.
+     * Measured on a W90 with the app zygote, where renderers start fast enough
+     * to wait out most of the delay. Called by native via JNI -- keep it.
+     */
+    private void onNativeBrowserCreated() {
+        if (mSurfaceContainer == null) return;
+        new android.os.Handler(android.os.Looper.getMainLooper())
+                .post(this::connectWebContentsInternal);
+    }
+
     // Internal: connect WebContents to rendering pipeline.
-    // Called after the browser has loaded its first page.
+    // Called once the native browser exists (onNativeBrowserCreated).
     // See getWebContents(): external adopters reach this via same-package access;
     // changing the signature needs a CHANGELOG-CEFRIUM.md note.
     @androidx.annotation.RestrictTo(androidx.annotation.RestrictTo.Scope.LIBRARY)
     void connectWebContentsInternal() {
-        // This runs from a 2000ms postDelayed (see loadUrl). If the browser was
-        // closed in the meantime, mNativePtr still points at the native
+        // This runs from a main-looper post (see onNativeBrowserCreated). If the
+        // browser was closed in the meantime, mNativePtr still points at the native
         // SdkBrowserData until the async OnBeforeClose lands -- dereferencing it
         // here is a use-after-free. mClosed is set synchronously in close() on
         // this same (main) looper, so it reliably short-circuits the stale callback.
@@ -3485,6 +3504,7 @@ public class CefriumBrowser {
             android.view.Surface surface, int width, int height, float scale,
             boolean incognito);
     private static native void nativeSetRenderHandler(long nativePtr, CefriumBrowser browser);
+    private static native void nativeBindJavaBrowser(long nativePtr, CefriumBrowser browser);
     private static native void nativeLoadUrl(long nativePtr, String url);
     private static native void nativeLoadDataWithBaseUrl(long nativePtr, String baseUrl,
             String data, String mimeType, String encoding, String historyUrl);

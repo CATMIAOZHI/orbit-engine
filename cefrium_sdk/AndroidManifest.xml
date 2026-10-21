@@ -83,24 +83,23 @@
              foreground renderer ("isolated not needed"), crashing the app. -->
         <meta-data android:name="org.chromium.content.browser.NUM_SANDBOXED_SERVICES"
                    android:value="40"/>
-        <!-- NO android:useAppZygote here, though upstream Chrome sets it on
-             service 0. It does raise the child's seccomp set to parity with the
-             system WebView (filters 2 to 4, measured on a W90), and it is out
-             because the instrumentation suite then fails: injected mouse and
-             touch stop reaching a windowed renderer, and those two tests time
-             out at 30 s instead of passing in 3 s.
+        <!-- android:useAppZygote on service 0, as upstream Chrome declares it.
+             Children forked from the app zygote carry the same seccomp set as
+             the system WebView's renderers: 4 filters on a W90, against 2
+             without it.
 
-             Measured on both shapes, service 0 alone and all 40, with the same
-             result, so it is not a mixed-children effect. And NOT categorical:
-             run either test on its own against a zygote build and it passes in
-             3 to 4 s. The failure needs earlier browsers in the same process,
-             and reproduces inside package com.cefrium.itest.sdk. Root-cause
-             that before trying again, and re-run the SUITE: the sandbox
-             battery said PASS on a build whose touch was dead. See
-             FEATURE-069. -->
+             It was held back once because injected mouse and touch stopped
+             reaching a windowed renderer after other browsers had run. The
+             cause was not the zygote: Cefrium attached a new view to the
+             compositor only at load end, so a renderer reached by a process
+             swap got no BeginFrame, could not end paint holding, and had its
+             non-move input suppressed by Blink. The zygote only changed the
+             timing enough to expose it. Fixed by attaching at commit
+             (SdkLoadHandler::OnLoadStart). -->
         <service android:name="org.chromium.content.app.SandboxedProcessService0"
                  android:process=":sandboxed_process0"
                  android:isolatedProcess="true"
+                 android:useAppZygote="true"
                  android:exported="false" />
         <service android:name="org.chromium.content.app.SandboxedProcessService1"
                  android:process=":sandboxed_process1"
