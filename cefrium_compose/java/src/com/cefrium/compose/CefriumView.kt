@@ -51,13 +51,9 @@ enum class BackgroundMediaPolicy {
  * @param state Hoisted state holder that owns the browser.
  * @param modifier Modifier for the browser view.
  * @param navigator Navigation controller bound to this state.
- * @param onQuery Handles `window.cefriumQuery` calls from page JavaScript.
- *        Return true and resolve via the callback (sync or async). Omit to keep
- *        the JS bridge disabled for this view (queries then fail with -1).
- * @param queryOrigins Which origins may reach [onQuery]. Required whenever
- *        [onQuery] is given: the bridge is the one path from page content into
- *        your code. Calls from other origins fail on the page with
- *        [CefriumBrowser.QUERY_ERROR_ORIGIN_DENIED] and never reach [onQuery].
+ * @param bridge Handles `window.cefriumQuery` calls from page JavaScript, for
+ *        the origins it names (see [CefriumBridge]). Omit to keep the JS bridge
+ *        disabled for this view (queries then fail with -1).
  * @param onBrowserReady Escape hatch to the underlying [CefriumBrowser] for
  *        features not yet on the navigator (find in page, downloads, dark mode).
  * @param backgroundMediaPolicy How inline media reacts to the host lifecycle.
@@ -74,8 +70,7 @@ fun CefriumView(
     state: CefriumViewState,
     modifier: Modifier = Modifier,
     navigator: CefriumNavigator = rememberCefriumNavigator(),
-    onQuery: ((request: String, origin: String, callback: CefriumBrowser.QueryCallback) -> Boolean)? = null,
-    queryOrigins: CefriumBrowser.QueryOriginPolicy? = null,
+    bridge: CefriumBridge? = null,
     onBrowserReady: ((CefriumBrowser) -> Unit)? = null,
     backgroundMediaPolicy: BackgroundMediaPolicy = BackgroundMediaPolicy.PAUSE_ON_STOP,
     onHostLifecycle: ((Lifecycle.Event, CefriumBrowser) -> Unit)? = null,
@@ -86,15 +81,11 @@ fun CefriumView(
         state.getOrCreateBrowser(activity).also { b ->
             navigator.state = state
             // JS bridge opt-in: window.cefriumQuery is handled only if the host
-            // provides onQuery. Without it, queries fail with -1 —
+            // provides a bridge. Without it, queries fail with -1 --
             // a deliberate security default (the bridge is off unless asked for).
-            if (onQuery != null) {
-                requireNotNull(queryOrigins) {
-                    "CefriumView: onQuery needs queryOrigins; pass " +
-                        "CefriumBrowser.QueryOriginPolicy.anyOrigin() to accept every origin"
-                }
-                b.setQueryHandler(queryOrigins) { _, request, origin, callback ->
-                    onQuery(request, origin, callback)
+            if (bridge != null) {
+                b.setQueryHandler(bridge.origins) { _, request, origin, callback ->
+                    bridge.onQuery(request, origin, callback)
                 }
             }
             onBrowserReady?.invoke(b)
