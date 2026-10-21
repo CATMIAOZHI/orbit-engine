@@ -10,7 +10,11 @@
 # It uses only what any consumer can fetch, never local build output:
 #   1. SHA256SUMS-<version> and its .asc from the public Codeberg release;
 #   2. the signature must be good AND made by the release key below;
-#   3. every .aar listed is downloaded from repo1.maven.org and must match.
+#   3. every .aar listed is downloaded from repo1.maven.org and must match;
+#   4. one engine everywhere (SC-rc-17): the POM property
+#      cefrium.chromium.version of every artifact, the Chromium package in the
+#      signed SPDX SBOM, Cefrium.CHROMIUM_VERSION in each SDK AAR's classes,
+#      and the Chrome/<version> literal in each AAR's libcef.so.
 # Central can take a while to serve a fresh release, so a 404 is retried for up
 # to CEFRIUM_CENTRAL_WAIT seconds (default 2700) before it counts as missing.
 #
@@ -72,5 +76,55 @@ for f in $aars; do
     echo "FAIL: $f on Central is $got, the signed manifest says $want"
     failed=1
   fi
+done
+[ "$failed" = 0 ] || exit 1
+
+# 4. One engine version everywhere.
+engine=""
+note_version() {  # what value -> fails on the first disagreement
+  if [ -z "$2" ]; then
+    echo "FAIL: $1 names no engine version"; failed=1
+  elif [ -z "$engine" ]; then
+    engine="$2"; echo "OK:   $1 = $2"
+  elif [ "$2" = "$engine" ]; then
+    echo "OK:   $1 = $2"
+  else
+    echo "FAIL: $1 = $2, but the first source said $engine"; failed=1
+  fi
+}
+for f in $aars; do
+  art="${f%-$VERSION.aar}"
+  fetch "$CENTRAL/$art/$VERSION/$art-$VERSION.pom" "$WORK/$art.pom" \
+    || { echo "FAIL: $art-$VERSION.pom not on Central"; failed=1; continue; }
+  note_version "$art POM cefrium.chromium.version" \
+    "$(sed -n 's:.*<cefrium.chromium.version>\([^<]*\)<.*:\1:p' "$WORK/$art.pom" | head -1)"
+done
+sbom="cefrium-sdk-$VERSION.spdx.json"
+if fetch "$REL_URL/$sbom" "$WORK/$sbom"; then
+  want=$(awk -v f="$sbom" '$2 == f {print $1}' "$WORK/$SUMS")
+  got=$(sha256sum "$WORK/$sbom" | cut -d' ' -f1)
+  if [ -n "$want" ] && [ "$got" = "$want" ]; then
+    note_version "signed SBOM Chromium package" "$(python3 -I -c '
+import json, sys
+for p in json.load(open(sys.argv[1])).get("packages", []):
+    if p.get("name", "").startswith("Chromium"):
+        print(p.get("versionInfo", "")); break
+' "$WORK/$sbom")"
+  else
+    echo "FAIL: $sbom is not covered by the signed $SUMS"; failed=1
+  fi
+else
+  echo "FAIL: $sbom not on the Codeberg release"; failed=1
+fi
+for f in $aars; do
+  unzip -l "$WORK/$f" 2>/dev/null | grep -q "libcef.so" || continue  # compose
+  ( cd "$WORK" && unzip -o -q "$f" classes.jar -d "x-$f" ) || { echo "FAIL: $f has no classes.jar"; failed=1; continue; }
+  const=$(unzip -p "$WORK/x-$f/classes.jar" com/cefrium/Cefrium.class 2>/dev/null \
+          | grep -aoE '[0-9]{3}\.0\.[0-9]{4,}\.[0-9]+' | head -1)
+  note_version "$f Cefrium.CHROMIUM_VERSION" "$const"
+  for so in $(unzip -l "$WORK/$f" | awk '/libcef\.so$/ {print $4}'); do
+    lit=$(unzip -p "$WORK/$f" "$so" | grep -aoE 'Chrome/[0-9]{3}\.0\.[0-9]{4,}\.[0-9]+' | head -1)
+    note_version "$f $so User-Agent literal" "${lit#Chrome/}"
+  done
 done
 exit $failed
