@@ -42,6 +42,15 @@ in the internal FEATURE-NNN.md working docs (not published).
   Decision: the Java reference the notification needs is bound at creation,
   not when the embedder registers its first listener, so an app that sets no
   listener still connects.
+- **Client hints report the engine version in every app**, not only in apps
+  that let the SDK do the process setup. An app whose own `Application` ran
+  the Chromium plumbing (the pattern documented before 0.10.2) skipped the
+  engine-version declaration, so `Sec-CH-UA` and `navigator.userAgentData`
+  carried the app's `versionName`: measured brand `1`, `uaFullVersion` `1.0`
+  in an app at `versionName "1.0"`. The declaration now runs on every
+  initialization path, once, before the engine first reads it.
+  `CefriumEngineIdentityTest` asserts the User-Agent, the brand and
+  `uaFullVersion` against `Cefrium.getChromiumVersion()`.
 - **Closing the browser that is on screen no longer kills the app.** After
   `close()`, the browser's views stayed in the container, and the next layout
   (a rotation, the keyboard, any resize) called `setSize` on the destroyed
