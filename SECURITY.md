@@ -60,17 +60,16 @@ release where all of this holds.
   never invokes your handler. Choosing every origin is a named option that
   logs a warning.
 
-What is NOT reached, stated because a reader will measure it:
+What is NOT reached, and what a measurement can mislead on:
 
-- **The system WebView's renderer carries one more filter layer than ours**, 3
-  or 4 against our 2, because its children fork from a hardened app zygote.
-  Declaring `android:useAppZygote` on our sandboxed services reaches the same
-  number, and the on-device suite then fails: mouse and touch stop reaching a
-  windowed renderer once other browsers have run in the same process, and the
-  two tests that cover that time out at 30 seconds instead of passing in 3.
-  The attribute is therefore deliberately absent, with the measurements in the
-  SDK manifest beside it. Reliability first, and the gap is stated rather than
-  hidden. It is an open item, not a closed one.
+- **Renderers fork from a hardened app zygote**, as the system WebView's do
+  (`android:useAppZygote` on the sandboxed service), from the release after
+  0.10.2. Measured side by side on the same tablet: a Cefrium renderer and a
+  system WebView renderer both read `NoNewPrivs 1` with 4 seccomp filters.
+  Parity, not an approximation of it. This was held back once because input
+  stopped reaching a windowed renderer with the zygote on; the cause was a
+  fixed 2 s delay in the SDK before a browser joined its window, not the
+  zygote, and it is fixed in the same release.
 - **`Seccomp:` in `/proc/<pid>/status` proves nothing on Android**, for us or
   for anyone else: every app process inherits the zygote's filter. The filter
   count and `NoNewPrivs` are the signal.
@@ -134,6 +133,6 @@ is a derivative, whatever it is called.
 Cefrium is pre-1.0 and the public API can still change, which is a
 compatibility statement rather than a security one. The engine is a standard
 Chromium build with the Android port's patches, validated on real devices on
-every release by a 53-test on-device suite that a release cannot skip. Use it
+every release by a 54-test on-device suite that a release cannot skip. Use it
 with the same care you would give any browser engine you embed: keep it
 updated, because that is the only way engine fixes reach your users.

@@ -364,9 +364,20 @@ class SdkLifeSpanHandler : public CefLifeSpanHandler {
     message_router_ = router;
   }
 
+  // Binding the Java browser is one of the two events (with OnAfterCreated)
+  // that complete the created notification, so every binding path notifies.
   void SetJavaBrowser(JNIEnv* env, jobject jb) {
-    if (jb) java_browser_ = env->NewGlobalRef(jb);
+    if (jb && !java_browser_) java_browser_ = env->NewGlobalRef(jb);
+    NotifyJavaBrowserCreated();
   }
+
+  // Tell Java the native browser and its WebContents exist, exactly once,
+  // whichever of OnAfterCreated and the Java binding comes second. Both run
+  // on the Android main thread (CEF's UI thread in this port), so the two
+  // flags need no lock.
+  void NotifyJavaBrowserCreated();
+  bool browser_created_ = false;
+  bool created_notified_ = false;
 
   // FEATURE-029: window.open / target=_blank. Embedded single-surface model:
   // never spawn a separate window. Ask the Java PopupHandler; if it doesn't
@@ -3248,6 +3259,45 @@ void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
       data_->pending_nav_state.clear();
     }
   }
+
+  // The WebContents exists from here on. Tell Java, so a surface-mode browser
+  // connects it to its WindowAndroid now instead of after a fixed delay: until
+  // that connection no renderer of this browser receives BeginFrames, so it
+  // cannot paint, cannot end paint holding, and Blink suppresses its input.
+  browser_created_ = true;
+  NotifyJavaBrowserCreated();
+}
+
+void SdkLifeSpanHandler::NotifyJavaBrowserCreated() {
+  if (!browser_created_ || !java_browser_ || created_notified_) {
+    return;
+  }
+  created_notified_ = true;
+  JNIEnv* env = base::android::AttachCurrentThread();
+  if (!env) {
+    return;
+  }
+  jclass cls = env->GetObjectClass(java_browser_);
+  jmethodID mid = env->GetMethodID(cls, "onNativeBrowserCreated", "()V");
+  if (mid) {
+    env->CallVoidMethod(java_browser_, mid);
+  }
+  env->DeleteLocalRef(cls);
+}
+
+// Binds the Java browser to the life-span handler right after creation, so
+// the created notification never depends on the embedder registering a
+// listener (nativeSetDisplayCallback) first.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeBindJavaBrowser(JNIEnv* env,
+                                                      jclass clazz,
+                                                      jlong native_ptr,
+                                                      jobject java_browser) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->life_span_handler) {
+    return;
+  }
+  data->life_span_handler->SetJavaBrowser(env, java_browser);
 }
 
 // Out-of-line: needs the full SdkBrowserData definition (member access on data_).

@@ -357,8 +357,11 @@ capping the pool. Remove that block; the merged APK manifest should read
 `NUM_SANDBOXED_SERVICES=40`. See the
 [Memory & process model guide](https://cefrium.com/guides/memory-and-processes/).
 
-**White screen:** The browser needs ~2 seconds after `loadUrl` to
-connect WebContents to the rendering pipeline. This is normal.
+**White screen for the first two seconds:** fixed. Earlier releases connected
+the rendering pipeline on a fixed 2 s timer after the first `loadUrl`, and
+until then a page could neither paint nor accept input. The connection now
+happens as soon as the native browser exists. If you still see a white screen,
+it is a page or network problem, not the engine warming up.
 
 **Blank page in a package that also uses the system WebView:** do not load the
 system WebView anywhere in a package that hosts Cefrium, not even in a separate
