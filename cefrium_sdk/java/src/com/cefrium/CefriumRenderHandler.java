@@ -8,7 +8,10 @@ import java.nio.ByteBuffer;
 
 /**
  * Callback interface for receiving rendered frames from a {@link CefriumBrowser}.
- * Frames are delivered as BGRA pixel buffers on the UI thread.
+ * Frames are delivered as RGBA pixel buffers on the UI thread: bytes R, G, B, A,
+ * premultiplied alpha, the order an ARGB_8888 Bitmap and GL_RGBA use, so they go
+ * into either unchanged. (Desktop CEF documents BGRA; on Android the frames are
+ * RGBA.)
  */
 public interface CefriumRenderHandler {
     /**
@@ -16,7 +19,7 @@ public interface CefriumRenderHandler {
      *
      * @param width  Frame width in pixels.
      * @param height Frame height in pixels.
-     * @param pixels Direct ByteBuffer containing BGRA pixel data
+     * @param pixels Direct ByteBuffer containing RGBA pixel data
      *               (width * height * 4 bytes). Valid only during this call.
      */
     void onPaint(int width, int height, ByteBuffer pixels);
@@ -110,14 +113,14 @@ public interface CefriumRenderHandler {
     /**
      * Paints an OSR popup widget (e.g. an HTML {@code <select>} dropdown). Draw
      * these pixels over the main view at ({@code x}, {@code y}); without this,
-     * dropdowns are invisible in off-screen mode. The buffer is BGRA, valid only
+     * dropdowns are invisible in off-screen mode. The buffer is RGBA, valid only
      * during this call.
      *
      * @param x      Popup left, in view pixels.
      * @param y      Popup top, in view pixels.
      * @param width  Popup width in pixels.
      * @param height Popup height in pixels.
-     * @param pixels BGRA pixel data ({@code width * height * 4} bytes).
+     * @param pixels RGBA pixel data ({@code width * height * 4} bytes).
      */
     default void onPopupPaint(int x, int y, int width, int height, ByteBuffer pixels) {}
 

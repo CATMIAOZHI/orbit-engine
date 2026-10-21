@@ -96,7 +96,7 @@ without JavaScript injection.
 
 **3. Off-screen rendering.** Need to render HTML to a pixel buffer for
 screenshots, PDF generation, or headless processing? WebView has no API
-for this. Cefrium's `OnPaint` delivers BGRA frames to your code - no
+for this. Cefrium's `OnPaint` delivers RGBA frames to your code - no
 Activity, no UI, no Surface required.
 
 <img src="assets/screenshots/headless-render.png" width="260" alt="A sample app reporting the file path of a PNG it rendered off-screen from a URL, with the rendered page shown below">
