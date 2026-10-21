@@ -17,6 +17,32 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+### Security
+
+- **Renderers now fork from a hardened app zygote**, reaching seccomp parity
+  with the system WebView: `NoNewPrivs 1` with 4 filters on both, measured
+  side by side on one tablet. Earlier releases read 2. Declared with
+  `android:useAppZygote="true"` on `SandboxedProcessService0`, as upstream
+  Chrome declares it. Held back once because input stopped reaching a windowed
+  renderer with it on; see the fix below, which was the actual cause.
+
+### Fixed
+
+- **A surface-mode browser no longer waits a fixed 2 seconds to join its
+  window.** `CefriumBrowser` connected its WebContents to the WindowAndroid on
+  a 2000 ms timer after the first `loadUrl`. Until that connection no renderer
+  of the browser receives BeginFrames, so a page could neither paint nor leave
+  Chromium's first-paint holding, and Blink suppresses every non-move input
+  event meanwhile: a click or tap in that window was dropped. With renderers
+  that start fast (the app zygote) the two input tests landed in that gap and
+  failed; with slow process launches the delay hid behind them. The connection
+  now happens as soon as the native browser exists, notified from
+  `OnAfterCreated`. Every browser opens about 2 s sooner; the on-device suite
+  runs in 54 s instead of 93.
+  Decision: the Java reference the notification needs is bound at creation,
+  not when the embedder registers its first listener, so an app that sets no
+  listener still connects.
+
 ### Added
 
 - **`Cefrium.setGpuProcessEnabled(boolean)`**, to run the GPU in its own
