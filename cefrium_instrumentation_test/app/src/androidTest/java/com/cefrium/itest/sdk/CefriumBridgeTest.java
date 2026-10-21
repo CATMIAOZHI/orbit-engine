@@ -218,13 +218,76 @@ public class CefriumBridgeTest {
                 CefriumBrowser.QueryOriginPolicy.exactly("https://allowed.example"), denied));
         Assert.assertEquals(0, denied.get());
 
-        final AtomicReference<String> seen = new AtomicReference<>();
         AtomicInteger calls = new AtomicInteger();
-        CefriumBrowser.QueryOriginPolicy any = CefriumBrowser.QueryOriginPolicy.anyOrigin();
-        CefriumBrowser.QueryOriginPolicy recording = url -> { seen.set(url); return any.allows(url); };
-        Assert.assertEquals("ok:handled", probeUnder(dataUrl, recording, calls));
-        Assert.assertTrue("the policy must see the frame URL, got " + seen.get(),
-                seen.get() != null && seen.get().startsWith("data:"));
+        Assert.assertEquals("ok:handled", probeUnder(dataUrl,
+                CefriumBrowser.QueryOriginPolicy.anyOrigin(), calls));
+        Assert.assertEquals(1, calls.get());
+
+        // A custom policy cannot admit an opaque origin: only anyOrigin() can.
+        AtomicInteger custom = new AtomicInteger();
+        Assert.assertEquals("denied:" + CefriumBrowser.QUERY_ERROR_ORIGIN_DENIED
+                + ":origin not allowed", probeUnder(dataUrl, url -> true, custom));
+        Assert.assertEquals(0, custom.get());
+    }
+
+    /**
+     * SC-rc-21: a sandboxed frame at an allowed URL is denied, because its
+     * committed origin is opaque. The page embeds itself as
+     * {@code <iframe sandbox="allow-scripts" src="?child">}: same URL origin as
+     * the parent, opaque by the web's rules. Both frames call the bridge; the
+     * child relays its verdict with postMessage and the parent writes both.
+     */
+    @Test
+    public void sandboxedIframeAtAllowedUrlIsDenied() throws Exception {
+        final String html = "<html><body><script>"
+                + "function ask(done){if(!window.cefriumQuery){done('nobridge');return;}"
+                + "window.cefriumQuery({request:'probe',"
+                + "onSuccess:function(r){done('ok:'+r);},"
+                + "onFailure:function(c,m){done('denied:'+c);}});}"
+                + "if(location.search==='?child'){"
+                + "ask(function(v){parent.postMessage(v,'*');});"
+                + "}else{"
+                + "var mine=null,child=null;"
+                + "function report(){if(mine&&child)document.title='parent='+mine+'|child='+child;}"
+                + "window.addEventListener('message',function(e){child=e.data;report();});"
+                + "ask(function(v){mine=v;report();});"
+                + "var f=document.createElement('iframe');"
+                + "f.setAttribute('sandbox','allow-scripts');f.src='?child';"
+                + "document.body.appendChild(f);"
+                + "}</script></body></html>";
+        Activity activity = activityRule.getActivity();
+        final AtomicReference<String> verdict = new AtomicReference<>();
+        final AtomicReference<CefriumBrowser> created = new AtomicReference<>();
+        final CountDownLatch done = new CountDownLatch(1);
+        final AtomicInteger calls = new AtomicInteger();
+        try (LocalHttpServer server = new LocalHttpServer(html)) {
+            activity.runOnUiThread(() -> {
+                CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+                created.set(browser);
+                browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.loopback(),
+                        (queryId, request, origin, callback) -> {
+                            calls.incrementAndGet();
+                            callback.success("handled");
+                            return true;
+                        });
+                browser.setOnTitleChangedListener(title -> {
+                    if (title != null && title.startsWith("parent=")) {
+                        verdict.set(title);
+                        done.countDown();
+                    }
+                });
+                browser.loadUrl(server.url());
+            });
+            Assert.assertTrue("the page never reported both verdicts",
+                    done.await(20, TimeUnit.SECONDS));
+        } finally {
+            activity.runOnUiThread(() -> {
+                if (created.get() != null) created.get().close();
+            });
+        }
+        Assert.assertEquals("parent=ok:handled|child=denied:"
+                + CefriumBrowser.QUERY_ERROR_ORIGIN_DENIED, verdict.get());
+        Assert.assertEquals("only the parent frame may reach the handler", 1, calls.get());
     }
 
     /** exactly() refuses an entry that could never match, instead of denying silently. */
