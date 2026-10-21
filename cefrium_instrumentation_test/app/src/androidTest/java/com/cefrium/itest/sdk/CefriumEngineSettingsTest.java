@@ -77,11 +77,22 @@ public class CefriumEngineSettingsTest {
                 + "startup asked for one", before, gpuProcess);
     }
 
+    /**
+     * The late setter changes neither the getter nor the engine's command line,
+     * which is what the component updater actually reads (SC-rc-15). This app
+     * never opts out, so the default is on: no --disable-component-update.
+     */
     @Test
     public void lateComponentUpdateSettingIsRefused() {
         boolean before = Cefrium.areComponentUpdatesEnabled();
         Cefrium.setComponentUpdatesEnabled(!before);
         Assert.assertEquals("setComponentUpdatesEnabled after initialization must not "
                 + "change the value", before, Cefrium.areComponentUpdatesEnabled());
+        Assert.assertTrue("this app never opts out, so updates must be on by default",
+                before);
+        Assert.assertFalse("the engine's command line carries --disable-component-update "
+                        + "although no one opted out",
+                org.chromium.base.CommandLine.getInstance()
+                        .hasSwitch("disable-component-update"));
     }
 }
