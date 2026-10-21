@@ -221,6 +221,32 @@ public class CefriumBrowser {
     }
 
     /**
+     * Sets the background colour of an off-screen browser, as ARGB. Pass
+     * {@code 0x00000000} for a transparent background: page areas the page
+     * leaves transparent then arrive in {@link CefriumRenderHandler#onPaint}
+     * with alpha 0, for overlays drawn over other content. The default is
+     * opaque white.
+     *
+     * <p>Call it before the first load: the off-screen browser is created then,
+     * and its background cannot change afterwards.
+     *
+     * @throws IllegalStateException if the browser has already loaded a page, or
+     *     if this is a surface browser ({@link #createWithSurface}), whose
+     *     background is not configurable.
+     */
+    public void setBackgroundColor(int argb) {
+        if (!checkNative("setBackgroundColor")) return;
+        if (mSurfaceContainer != null) {
+            throw new IllegalStateException(
+                    "setBackgroundColor applies to off-screen browsers only");
+        }
+        if (!nativeSetBackgroundColor(mNativePtr, argb)) {
+            throw new IllegalStateException(
+                    "setBackgroundColor must be called before the first load");
+        }
+    }
+
+    /**
      * Navigate back in history. No-op if {@link #canGoBack()} is false.
      */
     public void goBack() {
@@ -3567,6 +3593,7 @@ public class CefriumBrowser {
             boolean incognito);
     private static native void nativeSetRenderHandler(long nativePtr, CefriumBrowser browser);
     private static native void nativeBindJavaBrowser(long nativePtr, CefriumBrowser browser);
+    private static native boolean nativeSetBackgroundColor(long nativePtr, int argb);
     private static native void nativeLoadUrl(long nativePtr, String url);
     private static native void nativeLoadDataWithBaseUrl(long nativePtr, String baseUrl,
             String data, String mimeType, String encoding, String historyUrl);
