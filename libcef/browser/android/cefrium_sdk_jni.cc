@@ -3281,6 +3281,8 @@ void SdkLifeSpanHandler::NotifyJavaBrowserCreated() {
   jmethodID mid = env->GetMethodID(cls, "onNativeBrowserCreated", "()V");
   if (mid) {
     env->CallVoidMethod(java_browser_, mid);
+  } else {
+    env->ExceptionClear();
   }
   env->DeleteLocalRef(cls);
 }

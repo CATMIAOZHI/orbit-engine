@@ -42,6 +42,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   Decision: the Java reference the notification needs is bound at creation,
   not when the embedder registers its first listener, so an app that sets no
   listener still connects.
+- **`setPullToRefreshEnabled` takes effect whenever it is called**, and can be
+  toggled. It used to bind its handler only if called before the WebContents
+  connected; with the connect now at creation, an app enabling it after its
+  first navigation (as the browser app does) would have lost the feature.
 
 ### Added
 

@@ -234,19 +234,24 @@ public class CefriumBrowser {
 
     /**
      * Enable pull-to-refresh: an overscroll-down gesture at the top of the page
-     * reloads it (Chrome-style). Off by default. Call this BEFORE the page loads
-     * (the handler is bound once, when the WebContents connects); it must not be
-     * toggled on a live WebContents.
+     * reloads it (Chrome-style). Off by default. May be called, and toggled,
+     * at any time.
      */
     public void setPullToRefreshEnabled(boolean enabled) {
         mPullToRefresh = enabled;
     }
 
-    private void applyPullToRefresh(org.chromium.content_public.browser.WebContents wc) {
+    // Bound exactly once, when the WebContents connects, whatever the flag:
+    // re-setting it on a live WebContents leaves the native
+    // OverscrollControllerAndroid holding a freed handler (getRef() assert).
+    // start() reads the flag, so enabling later still works.
+    private void bindOverscrollRefreshHandler(
+            org.chromium.content_public.browser.WebContents wc) {
         wc.setOverscrollRefreshHandler(new org.chromium.ui.OverscrollRefreshHandler() {
             @Override
             public boolean start(int type, int initiatingEdge) {
-                return type == org.chromium.ui.OverscrollAction.PULL_TO_REFRESH;
+                return mPullToRefresh
+                        && type == org.chromium.ui.OverscrollAction.PULL_TO_REFRESH;
             }
             @Override public void pull(float xDelta, float yDelta) {}
             @Override public void release(int status) {
@@ -493,10 +498,9 @@ public class CefriumBrowser {
         if (state != null && state.length > 0
                 && checkNative("restoreNavigationState")) {
             nativeRestoreNavigationState(mNativePtr, state);
-            // Restored tabs don't call loadUrl, so schedule the surface connect
-            // here (same as loadUrl). connectWebContentsInternal triggers the
-            // deferred restore load once the view + overscroll handler are set up
-            // -- loading earlier crashes the overscroll controller on the RFH swap.
+            // connectWebContentsInternal triggers the deferred restore load once
+            // the view + overscroll handler are set up -- loading earlier crashes
+            // the overscroll controller on the RFH swap.
             mPendingRestoreLoad = true;
             // A browser that already connected triggers the restored load now;
             // otherwise onNativeBrowserCreated connects and triggers it.
@@ -2626,11 +2630,11 @@ public class CefriumBrowser {
         if (mWebContentsConnected) return;
         mWebContentsConnected = true;
 
-        // Pull-to-refresh: set the overscroll handler EXACTLY ONCE here. Re-setting
-        // it on a live WebContents leaves the native OverscrollControllerAndroid
-        // holding a freed handler pointer -> getRef() assert crash. So
-        // setPullToRefreshEnabled only flips the flag; the handler is bound here.
-        if (mPullToRefresh) applyPullToRefresh(wc);
+        // Pull-to-refresh: the overscroll handler is bound here, exactly once,
+        // and reads the flag on every gesture (see bindOverscrollRefreshHandler).
+        // The connect now runs before the first navigation, so binding only when
+        // the flag was already set would lose a later setPullToRefreshEnabled.
+        bindOverscrollRefreshHandler(wc);
 
         org.chromium.components.embedder_support.view.ContentView cv =
                 org.chromium.components.embedder_support.view.ContentView
