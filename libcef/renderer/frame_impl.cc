@@ -37,6 +37,7 @@
 #include "content/renderer/render_frame_impl.h"
 #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/platform/web_data.h"
+#include "third_party/blink/public/platform/web_security_origin.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_url.h"
 #include "third_party/blink/public/web/blink.h"
@@ -290,6 +291,11 @@ void CefFrameImpl::SendProcessMessage(CefProcessId target_process,
     return;
   }
 
+  // The sending document's origin, taken now: the message may be queued, and
+  // the browser may handle it after this frame has committed another document.
+  const url::Origin sender_origin =
+      frame_ ? url::Origin(frame_->GetSecurityOrigin()) : url::Origin();
+
   if (message->GetArgumentList() != nullptr) {
     // Invalidate the message object immediately by taking the argument list.
     auto argument_list =
@@ -298,10 +304,12 @@ void CefFrameImpl::SendProcessMessage(CefProcessId target_process,
         __FUNCTION__,
         base::BindOnce(
             [](const CefString& name, base::ListValue argument_list,
+               const url::Origin& sender_origin,
                const BrowserFrameType& render_frame) {
-              render_frame->SendMessage(name, std::move(argument_list));
+              render_frame->SendMessage(name, std::move(argument_list),
+                                        sender_origin);
             },
-            message->GetName(), std::move(argument_list)));
+            message->GetName(), std::move(argument_list), sender_origin));
   } else {
     auto region =
         static_cast<CefProcessMessageSMRImpl*>(message.get())->TakeRegion();
@@ -309,10 +317,12 @@ void CefFrameImpl::SendProcessMessage(CefProcessId target_process,
         __FUNCTION__,
         base::BindOnce(
             [](const CefString& name, base::WritableSharedMemoryRegion region,
+               const url::Origin& sender_origin,
                const BrowserFrameType& render_frame) {
-              render_frame->SendSharedMemoryRegion(name, std::move(region));
+              render_frame->SendSharedMemoryRegion(name, std::move(region),
+                                                   sender_origin);
             },
-            message->GetName(), std::move(region)));
+            message->GetName(), std::move(region), sender_origin));
   }
 }
 

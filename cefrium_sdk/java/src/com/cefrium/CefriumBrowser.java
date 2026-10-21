@@ -644,7 +644,10 @@ public class CefriumBrowser {
      * an {@code <iframe sandbox>} or a page served with
      * {@code Content-Security-Policy: sandbox}. The bridge denies every opaque
      * caller before consulting the policy, unless the policy is
-     * {@link #anyOrigin()} itself; a custom predicate never sees one.
+     * {@link #anyOrigin()} itself; a custom predicate never sees one. A query
+     * the browser handles after the frame has moved on to another document is
+     * denied too, before the policy runs: it is judged by the document that
+     * sent it, never by the one the frame holds now.
      * A custom predicate sees the raw URL: compare
      * {@link #originOf(String) originOf(url)} or the parsed host, never a
      * string prefix, because {@code https://example.com.evil.com/} starts with
@@ -783,11 +786,24 @@ public class CefriumBrowser {
 
     // Called from native (browser UI thread) when JS calls window.cefriumQuery.
     // origin is the frame URL; committedOrigin is the frame's committed origin,
-    // serialized, "null" when opaque.
+    // serialized, "null" when opaque; senderOrigin is the origin of the document
+    // that sent the query, stamped by the renderer when it was sent.
     private void onJsQuery(final long queryId, String request, String origin,
-            String committedOrigin) {
+            String committedOrigin, String senderOrigin) {
         final QueryRegistration reg = mQuery;
         final QueryHandler handler = reg == null ? null : reg.handler;
+        // The frame no longer holds the document that sent this query: it was
+        // handled after the frame committed another document. Judging it by
+        // the frame's current state would give the old document the new one's
+        // identity, and no reply could reach the old document anyway.
+        if (handler != null && committedOrigin != null
+                && !committedOrigin.equals(senderOrigin)) {
+            android.util.Log.w(TAG, "window.cefriumQuery denied: sent by a document "
+                    + "the frame no longer holds");
+            nativeQueryResult(mNativePtr, queryId, false, null,
+                    QUERY_ERROR_ORIGIN_DENIED, "origin not allowed");
+            return;
+        }
         boolean allowed = false;
         // A sandboxed frame (sandbox attribute or CSP sandbox) has an opaque
         // origin even at an allowed URL: the content its embedder did not

@@ -33,9 +33,12 @@ class CefBrowserFrame : public CefFrameServiceBase<cef::mojom::BrowserFrame> {
 
  private:
   // cef::mojom::BrowserFrame methods:
-  void SendMessage(const std::string& name, base::ListValue arguments) override;
+  void SendMessage(const std::string& name,
+                   base::ListValue arguments,
+                   const url::Origin& sender_origin) override;
   void SendSharedMemoryRegion(const std::string& name,
-                              base::WritableSharedMemoryRegion region) override;
+                              base::WritableSharedMemoryRegion region,
+                              const url::Origin& sender_origin) override;
   void FrameAttached(mojo::PendingRemote<cef::mojom::RenderFrame> render_frame,
                      bool reattached) override;
   void UpdateDraggableRegions(

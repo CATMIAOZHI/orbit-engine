@@ -1894,26 +1894,37 @@ class CefriumBridgeHandler : public CefMessageRouterBrowserSide::Handler {
     // The committed origin as well: a sandboxed frame at an allowed URL has an
     // opaque origin, and Java denies it. A detached frame counts as opaque.
     std::string committed_origin = "null";
+    // The origin of the document that SENT the query, stamped by the renderer
+    // at send time. The browser can handle the query after the frame has
+    // committed the next document (measured: a parent firing queries from an
+    // iframe's initial document saw them judged as the iframe's next page), so
+    // the committed origin alone does not identify the sender.
+    std::string sender_origin = "null";
     if (frame) {
-      auto* rfh = static_cast<CefFrameHostImpl*>(frame.get())
-                      ->GetRenderFrameHost();
-      if (rfh) {
+      auto* host = static_cast<CefFrameHostImpl*>(frame.get());
+      if (auto* rfh = host->GetRenderFrameHost()) {
         committed_origin = rfh->GetLastCommittedOrigin().Serialize();
+      }
+      if (const auto& sender = host->current_message_sender_origin()) {
+        sender_origin = sender->Serialize();
       }
     }
     jclass cls = env->GetObjectClass(java_browser_);
     jmethodID method = env->GetMethodID(
         cls, "onJsQuery",
-        "(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
+        "(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;"
+        "Ljava/lang/String;)V");
     if (method) {
       jstring j_req = env->NewStringUTF(request.ToString().c_str());
       jstring j_origin = env->NewStringUTF(origin.c_str());
       jstring j_committed = env->NewStringUTF(committed_origin.c_str());
+      jstring j_sender = env->NewStringUTF(sender_origin.c_str());
       env->CallVoidMethod(java_browser_, method, static_cast<jlong>(query_id),
-                          j_req, j_origin, j_committed);
+                          j_req, j_origin, j_committed, j_sender);
       env->DeleteLocalRef(j_req);
       env->DeleteLocalRef(j_origin);
       env->DeleteLocalRef(j_committed);
+      env->DeleteLocalRef(j_sender);
     } else {
       // A missing method would leave the query pending forever.
       env->ExceptionClear();

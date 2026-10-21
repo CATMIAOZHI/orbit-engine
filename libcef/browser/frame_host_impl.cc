@@ -4,6 +4,7 @@
 
 #include "cef/libcef/browser/frame_host_impl.h"
 
+#include "base/auto_reset.h"
 #include "cef/include/cef_request.h"
 #include "cef/include/cef_stream.h"
 #include "cef/include/cef_v8.h"
@@ -667,12 +668,15 @@ void CefFrameHostImpl::OnRenderFrameDisconnect() {
 }
 
 void CefFrameHostImpl::SendMessage(const std::string& name,
-                                   base::ListValue arguments) {
+                                   base::ListValue arguments,
+                                   const url::Origin& sender_origin) {
   if (auto browser = GetBrowserHostBase()) {
     if (auto client = browser->GetClient()) {
       CefRefPtr<CefProcessMessageImpl> message(
           new CefProcessMessageImpl(name, std::move(arguments),
                                     /*read_only=*/true));
+      base::AutoReset<std::optional<url::Origin>> sender(
+          &current_message_sender_origin_, sender_origin);
       browser->GetClient()->OnProcessMessageReceived(
           browser.get(), this, PID_RENDERER, message.get());
     }
@@ -681,11 +685,14 @@ void CefFrameHostImpl::SendMessage(const std::string& name,
 
 void CefFrameHostImpl::SendSharedMemoryRegion(
     const std::string& name,
-    base::WritableSharedMemoryRegion region) {
+    base::WritableSharedMemoryRegion region,
+    const url::Origin& sender_origin) {
   if (auto browser = GetBrowserHostBase()) {
     if (auto client = browser->GetClient()) {
       CefRefPtr<CefProcessMessage> message(
           new CefProcessMessageSMRImpl(name, std::move(region)));
+      base::AutoReset<std::optional<url::Origin>> sender(
+          &current_message_sender_origin_, sender_origin);
       browser->GetClient()->OnProcessMessageReceived(browser.get(), this,
                                                      PID_RENDERER, message);
     }

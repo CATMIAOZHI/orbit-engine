@@ -20,6 +20,7 @@
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "ui/base/page_transition_types.h"
+#include "url/origin.h"
 
 namespace content {
 class RenderFrameHost;
@@ -152,9 +153,20 @@ class CefFrameHostImpl : public CefFrame, public cef::mojom::BrowserFrame {
                    content::RenderFrameHost* render_frame_host);
 
   // cef::mojom::BrowserFrame methods forwarded from CefBrowserFrame.
-  void SendMessage(const std::string& name, base::ListValue arguments) override;
+  void SendMessage(const std::string& name,
+                   base::ListValue arguments,
+                   const url::Origin& sender_origin) override;
   void SendSharedMemoryRegion(const std::string& name,
-                              base::WritableSharedMemoryRegion region) override;
+                              base::WritableSharedMemoryRegion region,
+                              const url::Origin& sender_origin) override;
+
+  // The security origin of the document that sent the renderer message being
+  // delivered right now, or nullopt outside OnProcessMessageReceived. The
+  // frame may already hold the next document, so this, not the frame's
+  // committed origin, identifies the sender.
+  const std::optional<url::Origin>& current_message_sender_origin() const {
+    return current_message_sender_origin_;
+  }
   void FrameAttached(mojo::PendingRemote<cef::mojom::RenderFrame> render_frame,
                      bool reattached) override;
   void UpdateDraggableRegions(
@@ -190,6 +202,9 @@ class CefFrameHostImpl : public CefFrame, public cef::mojom::BrowserFrame {
 
   const bool is_main_frame_;
   const std::optional<content::GlobalRenderFrameHostToken> frame_token_;
+
+  // See current_message_sender_origin().
+  std::optional<url::Origin> current_message_sender_origin_;
 
   // The following members are only modified on the UI thread but may be read
   // from any thread. Any modification on the UI thread, or any access from

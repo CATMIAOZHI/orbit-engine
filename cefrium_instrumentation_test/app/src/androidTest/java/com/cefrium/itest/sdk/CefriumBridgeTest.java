@@ -421,54 +421,66 @@ public class CefriumBridgeTest {
      */
     @Test
     public void queryRacingTheFirstCommitIsJudgedAsTheSender() throws Exception {
-        // The reply goes to the iframe's initial context, which B's commit
-        // destroys, so the page cannot report a verdict. The browser side can:
-        // the policy records the URL each query is judged with.
+        // A's queries are sent through each iframe's initial document; their
+        // reply would go to a context B's commit destroys, so the browser side
+        // is the verdict channel: the handler records which requests reach it.
+        // Positive control in the same frames: each B document, once loaded,
+        // calls the bridge itself. Those 10 must reach the handler, which also
+        // proves the sender check does not deny the legitimate case.
         try (LocalHttpServer b = new LocalHttpServer("<html><body>b<script>"
-                + "parent.postMessage('b-loaded','*');</script></body></html>")) {
-            final String bOrigin = b.url().substring(0, b.url().length() - 1);
+                + "window.cefriumQuery({request:'own',"
+                + "onSuccess:function(){parent.postMessage('b-ok','*');},"
+                + "onFailure:function(c){parent.postMessage('b-denied:'+c,'*');}});"
+                + "</script></body></html>")) {
+            // 10 iframes x 20 queries: before the sender-origin stamp, 152 of
+            // 200 were judged as B on a W90.
             final String parentPage = "<html><body>a<script>"
+                    + "var ok=0,attempts=0;"
                     + "window.addEventListener('message',function(e){"
-                    + "if(e.data==='b-loaded')document.title='b-loaded';});"
+                    + "if(e.data==='b-ok'&&++ok===10)document.title='b-ok:'+attempts;"
+                    + "else if(String(e.data).indexOf('b-denied')===0)document.title=e.data;});"
+                    + "for(var n=0;n<10;n++){"
                     + "var f=document.createElement('iframe');document.body.appendChild(f);"
                     + "var q=f.contentWindow.cefriumQuery;"
-                    + "f.src='" + b.url() + "';"
-                    + "if(q)for(var i=0;i<20;i++)q({request:'probe'});"
-                    + "else document.title='nobridge';"
+                    + "f.src='" + b.url() + "?'+n;"
+                    + "if(!q){document.title='nobridge';break;}"
+                    + "for(var i=0;i<20;i++){q({request:'probe'});attempts++;}}"
                     + "</script></body></html>";
+            final String bOrigin = b.url().substring(0, b.url().length() - 1);
             try (LocalHttpServer a = new LocalHttpServer(parentPage)) {
                 Activity activity = activityRule.getActivity();
-                final List<String> judged = new CopyOnWriteArrayList<>();
+                final List<String> handled = new CopyOnWriteArrayList<>();
                 final AtomicReference<String> title = new AtomicReference<>();
-                final CountDownLatch loaded = new CountDownLatch(1);
-                final AtomicInteger calls = new AtomicInteger();
+                final CountDownLatch done = new CountDownLatch(1);
                 activity.runOnUiThread(() -> {
                     CefriumBrowser browser = browsers.createWithSurface(activity);
-                    browser.setQueryHandler(url -> {
-                                judged.add(String.valueOf(url));
-                                return url != null && url.startsWith(bOrigin);
-                            },
+                    browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.exactly(bOrigin),
                             (queryId, request, origin, callback) -> {
-                                calls.incrementAndGet();
+                                handled.add(request);
                                 callback.success("handled");
                                 return true;
                             });
                     browser.setOnTitleChangedListener(t -> {
                         title.set(t);
-                        if ("b-loaded".equals(t) || "nobridge".equals(t)) loaded.countDown();
+                        if (t != null && (t.startsWith("b-ok") || t.startsWith("b-denied")
+                                || "nobridge".equals(t))) {
+                            done.countDown();
+                        }
                     });
                     browser.loadUrl(a.url());
                 });
-                Assert.assertTrue("B never loaded in the iframe", loaded.await(20, TimeUnit.SECONDS));
-                Assert.assertEquals("b-loaded", title.get());
+                Assert.assertTrue("the 10 B documents never all reached the handler; title="
+                        + title.get(), done.await(30, TimeUnit.SECONDS));
+                Assert.assertEquals("every B document must reach the handler, and A must "
+                        + "have made all 200 attempts", "b-ok:200", title.get());
                 Thread.sleep(1000);
-                Assert.assertFalse("no query reached the browser, so this proves nothing",
-                        judged.isEmpty());
-                for (String url : judged) {
-                    Assert.assertFalse("a query sent by A's iframe document was judged with B's "
-                            + "URL: " + judged, url.startsWith(bOrigin));
+                int own = 0;
+                for (String r : handled) {
+                    Assert.assertEquals("a query sent by A through an iframe's initial "
+                            + "document reached the handler as B", "own", r);
+                    own++;
                 }
-                Assert.assertEquals("A's queries reached the handler", 0, calls.get());
+                Assert.assertEquals("positive control: one query per B document", 10, own);
             }
         }
     }
