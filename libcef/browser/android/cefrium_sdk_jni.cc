@@ -4529,8 +4529,10 @@ Java_com_cefrium_CefriumBrowser_nativeClose(
     // See SdkLifeSpanHandler::OnBeforeClose and the Android platform delegate.
     data->browser->GetHost()->CloseBrowser(true);
   } else {
-    // Browser was never created (closed before OnAfterCreated): no close will fire,
-    // so clean up synchronously here.
+    // Browser creation failed. CreateBrowser is synchronous on Android
+    // (android_stubs.cc), so a created browser always has data->browser set by
+    // the time Java can call close(); without one, OnAfterCreated will never
+    // run and no close will fire, so clean up synchronously here.
     {
       base::AutoLock lock(BridgeDataLock());
       LiveBridgeData().erase(native_ptr);

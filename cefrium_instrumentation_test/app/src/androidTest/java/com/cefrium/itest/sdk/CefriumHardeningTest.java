@@ -45,6 +45,63 @@ public class CefriumHardeningTest {
         }
     }
 
+    /**
+     * close() in the same main-looper turn as createWithSurface. The browser
+     * must actually close, not leak with its renderer: closedBrowserCount()
+     * grows by one and the live count returns to where it was. Creation is
+     * synchronous on Android, so the native browser already exists here; this
+     * guards that, because if creation ever became asynchronous, close() would
+     * find no browser and free state that OnAfterCreated would then use.
+     */
+    @Test
+    public void closeBeforeCreationStillClosesTheBrowser() throws Exception {
+        closeImmediatelyAndExpectClosed(false);
+    }
+
+    /**
+     * Same for incognito, whose close also releases the shared off-the-record
+     * context.
+     */
+    @Test
+    public void closeBeforeIncognitoCreationStillClosesTheBrowser() throws Exception {
+        closeImmediatelyAndExpectClosed(true);
+    }
+
+    private void closeImmediatelyAndExpectClosed(boolean incognito) throws Exception {
+        Activity activity = activityRule.getActivity();
+        // Earlier tests' browsers finish closing asynchronously and bump the same
+        // counter. Wait until it has been still for 3 s, or a stray close passes
+        // this test for a browser that leaked.
+        int last = CefriumBrowser.closedBrowserCount();
+        for (int still = 0; still < 30; ) {
+            Thread.sleep(100);
+            int now = CefriumBrowser.closedBrowserCount();
+            still = now == last ? still + 1 : 0;
+            last = now;
+        }
+        final int[] before = new int[2];
+        CountDownLatch closed = new CountDownLatch(1);
+        activity.runOnUiThread(() -> {
+            before[0] = CefriumBrowser.closedBrowserCount();
+            before[1] = CefriumBrowser.liveBrowserCount();
+            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity, incognito);
+            browser.close();
+            closed.countDown();
+        });
+        Assert.assertTrue(closed.await(10, TimeUnit.SECONDS));
+        int closedNow = before[0];
+        int liveNow = -1;
+        for (int i = 0; i < 100 && closedNow == before[0]; i++) {
+            Thread.sleep(100);
+            closedNow = CefriumBrowser.closedBrowserCount();
+        }
+        liveNow = CefriumBrowser.liveBrowserCount();
+        Assert.assertEquals("the browser created after an early close() was never closed",
+                before[0] + 1, closedNow);
+        Assert.assertEquals("an early close() left a live native browser behind",
+                before[1], liveNow);
+    }
+
     @Test
     public void testDoubleClose() throws Exception {
         Activity activity = activityRule.getActivity();
