@@ -19,6 +19,18 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ### Security
 
+- **A bridge query is judged by the document that sent it.** A page could
+  send `window.cefriumQuery` calls through an iframe's initial empty
+  document right after pointing the iframe at an allowed origin. The browser
+  handled many of them after the iframe had committed the allowed page, and
+  judged them as that page: measured 152 of 200 reaching the handler under
+  the allowed identity. Every renderer-to-browser process message now carries
+  the origin of the document that sent it, stamped at send time. The bridge
+  denies a query whose sender is not the document the frame holds when the
+  query is handled. Same-origin pages, `srcdoc`, bundled assets and opaque
+  documents are unaffected: their stamp equals the committed origin. The check
+  runs before the policy, so it applies under `anyOrigin()` as well.
+
 - **Renderers now fork from a hardened app zygote**, reaching seccomp parity
   with the system WebView: `NoNewPrivs 1` with 4 filters on both, measured
   side by side on one tablet. Earlier releases read 2. Declared with

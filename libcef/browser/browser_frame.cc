@@ -40,21 +40,23 @@ void CefBrowserFrame::RegisterBrowserInterfaceBindersForFrame(
 }
 
 void CefBrowserFrame::SendMessage(const std::string& name,
-                                  base::ListValue arguments) {
+                                  base::ListValue arguments,
+                                  const url::Origin& sender_origin) {
   // Always send to the newly created RFH, which may be speculative when
   // navigating cross-origin.
   if (auto host = GetFrameHost(/*prefer_speculative=*/true)) {
-    host->SendMessage(name, std::move(arguments));
+    host->SendMessage(name, std::move(arguments), sender_origin);
   }
 }
 
 void CefBrowserFrame::SendSharedMemoryRegion(
     const std::string& name,
-    base::WritableSharedMemoryRegion region) {
+    base::WritableSharedMemoryRegion region,
+    const url::Origin& sender_origin) {
   // Always send to the newly created RFH, which may be speculative when
   // navigating cross-origin.
   if (auto host = GetFrameHost(/*prefer_speculative=*/true)) {
-    host->SendSharedMemoryRegion(name, std::move(region));
+    host->SendSharedMemoryRegion(name, std::move(region), sender_origin);
   }
 }
 

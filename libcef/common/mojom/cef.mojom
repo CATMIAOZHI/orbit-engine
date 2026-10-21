@@ -12,6 +12,7 @@ import "services/network/public/mojom/url_request.mojom";
 import "third_party/blink/public/mojom/loader/referrer.mojom";
 import "third_party/blink/public/mojom/tokens/tokens.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
+import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
 
 // Structure passed to UpdateDraggableRegions().
@@ -86,11 +87,15 @@ interface RenderFrame {
 
 // Interface for communicating with a frame in the browser process.
 interface BrowserFrame {
-  // Send a message to the browser process.
-  SendMessage(string name, mojo_base.mojom.ListValue arguments);
+  // Send a message to the browser process. |sender_origin| is the security
+  // origin of the document that sent it, taken when it was sent: by the time
+  // the browser handles the message the frame may hold the next document.
+  SendMessage(string name, mojo_base.mojom.ListValue arguments,
+              url.mojom.Origin sender_origin);
 
   // Send a shared memory region to the browser process.
-  SendSharedMemoryRegion(string name, mojo_base.mojom.WritableSharedMemoryRegion region);
+  SendSharedMemoryRegion(string name, mojo_base.mojom.WritableSharedMemoryRegion region,
+                         url.mojom.Origin sender_origin);
 
   // The render frame is ready to begin handling actions.
   FrameAttached(pending_remote<RenderFrame> render_frame,
