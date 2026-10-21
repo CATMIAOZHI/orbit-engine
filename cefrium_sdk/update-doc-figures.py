@@ -153,12 +153,20 @@ for kind, meta in (("Sandboxed", "NUM_SANDBOXED_SERVICES"),
         r'android:value="([0-9]+)"' % meta, manifest)
     if not declared:
         die("cefrium_sdk/AndroidManifest.xml: no %s meta-data" % meta)
+    # The class name Chromium binds is the one the manifest names in
+    # <KIND>_SERVICES_NAME (patch android/child_service_names), not Chromium's
+    # default: count the services declared under that name.
+    base = re.search(
+        r'android:name="org\.chromium\.content\.browser\.%s_SERVICES_NAME"\s*\n?\s*'
+        r'android:value="([^"]+)"' % kind.upper(), manifest)
+    if not base:
+        die("cefrium_sdk/AndroidManifest.xml: no %s_SERVICES_NAME meta-data"
+            % kind.upper())
     shipped = len(set(re.findall(
-        r"org\.chromium\.content\.app\.%sProcessService([0-9]+)" % kind,
-        manifest)))
+        r'android:name="%s([0-9]+)"' % re.escape(base.group(1)), manifest)))
     if int(declared.group(1)) != shipped:
         die("cefrium_sdk/AndroidManifest.xml declares %s=%s but ships %d "
-            "%sProcessService entries" % (meta, declared.group(1), shipped, kind))
+            "%s<n> entries" % (meta, declared.group(1), shipped, base.group(1)))
     slots[kind] = declared.group(1)
 
 # The floors a consumer build must meet are the ones the SDK's own Gradle module

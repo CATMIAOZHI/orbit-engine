@@ -22,12 +22,24 @@ in the internal FEATURE-NNN.md working docs (not published).
 - **Renderers now fork from a hardened app zygote**, reaching seccomp parity
   with the system WebView: `NoNewPrivs 1` with 4 filters on both, measured
   side by side on one tablet. Earlier releases read 2. Declared with
-  `android:useAppZygote="true"` on `SandboxedProcessService0`, as upstream
+  `android:useAppZygote="true"` on the first sandboxed service, as upstream
   Chrome declares it. Held back once because input stopped reaching a windowed
   renderer with it on; see the fix below, which was the actual cause.
 
 ### Fixed
 
+- **The system WebView and Cefrium work in one package**, in separate
+  processes. Both bound `org.chromium.content.app.SandboxedProcessService0`,
+  and Android keys an external isolated service by the calling package, class
+  and instance: whichever engine started second was handed the other's
+  renderer process, and its page never painted (`Child process's classpath
+  doesn't match`). Cefrium's child services now have their own class names,
+  `com.cefrium.ChildServices$Sandboxed0..39` and `$Privileged0..2`, which
+  Chromium reads from new manifest meta-data (patch
+  `android/child_service_names`). The SDK manifest declares everything. If your
+  app's manifest declared Chromium's service classes itself, remove that block:
+  it is unused now, and its `NUM_SANDBOXED_SERVICES` would still cap the pool.
+  One process with both engines stays unsupported.
 - **A surface-mode browser no longer waits a fixed 2 seconds to join its
   window.** `CefriumBrowser` connected its WebContents to the WindowAndroid on
   a 2000 ms timer after the first `loadUrl`. Until that connection no renderer
