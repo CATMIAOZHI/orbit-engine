@@ -1,5 +1,6 @@
 package com.cefrium.itest.sdk;
 
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 
 import android.app.Activity;
@@ -33,9 +34,12 @@ import java.util.concurrent.atomic.AtomicReference;
 @RunWith(AndroidJUnit4.class)
 public class CefriumPermissionTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     // Grant the OS-level location permission so a web-granted geolocation can
     // reach the provider (otherwise the system layer denies -> err:1).
@@ -175,7 +179,7 @@ public class CefriumPermissionTest {
         final String url = server.url();
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.setPermissionHandler((origin, permissions, callback) -> {
                 seenPermissions.set(permissions);
                 callback.respond(grant);

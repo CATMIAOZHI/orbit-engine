@@ -1,5 +1,6 @@
 package com.cefrium.itest.sdk;
 
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 
 import android.app.Activity;
@@ -34,9 +35,12 @@ import java.util.concurrent.atomic.AtomicReference;
 @RunWith(AndroidJUnit4.class)
 public class CefriumSslErrorTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     // A local HTTPS server with a self-signed cert: Chromium validates the cert
     // even on 127.0.0.1, so it fails validation and OnCertificateError fires. No
@@ -60,7 +64,7 @@ public class CefriumSslErrorTest {
         final String serverUrl = server.url();
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.setSslErrorHandler((url, certError, callback) -> {
                 consulted.set(true);
                 seenUrl.set(url);

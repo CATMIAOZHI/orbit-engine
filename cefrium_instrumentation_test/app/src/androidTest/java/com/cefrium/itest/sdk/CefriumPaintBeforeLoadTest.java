@@ -8,6 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.rule.ActivityTestRule;
 
 import com.cefrium.CefriumBrowser;
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 import com.cefrium.itest.LocalHttpServer;
 
@@ -44,9 +45,12 @@ import java.util.concurrent.TimeUnit;
 @RunWith(AndroidJUnit4.class)
 public class CefriumPaintBeforeLoadTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     /** Accepts connections and never writes, holding the page's load open. */
     private static final class HangingServer implements AutoCloseable {
@@ -116,7 +120,7 @@ public class CefriumPaintBeforeLoadTest {
              LocalHttpServer server = new LocalHttpServer(page(hang.port()))) {
             final String crossSite = server.url().replace("127.0.0.1", "localhost");
             activity.runOnUiThread(() -> {
-                CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+                CefriumBrowser browser = browsers.createWithSurface(activity);
                 activity.setContentView(browser.getSurfaceContainer());
                 browser.setOnLoadingStateChangedListener((isLoading, back, fwd) -> {
                     loading[0] = isLoading;

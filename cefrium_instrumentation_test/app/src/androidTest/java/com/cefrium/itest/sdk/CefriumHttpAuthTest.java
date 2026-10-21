@@ -1,5 +1,6 @@
 package com.cefrium.itest.sdk;
 
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 
 import android.app.Activity;
@@ -45,9 +46,12 @@ import java.util.concurrent.atomic.AtomicReference;
 @RunWith(AndroidJUnit4.class)
 public class CefriumHttpAuthTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     private static final String USER = "cefrium";
     private static final String PASS = "s3cret";
@@ -130,7 +134,7 @@ public class CefriumHttpAuthTest {
         final boolean[] probed = {false};
 
         activity.runOnUiThread(() -> {
-            CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+            CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.setHttpAuthHandler((host, realm, p, isProxy, callback) -> {
                 consulted.set(true);
                 seenHost.set(host);

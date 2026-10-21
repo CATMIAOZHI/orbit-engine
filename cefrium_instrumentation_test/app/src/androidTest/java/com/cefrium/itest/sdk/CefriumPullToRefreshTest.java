@@ -8,6 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.rule.ActivityTestRule;
 
 import com.cefrium.CefriumBrowser;
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 import com.cefrium.itest.LocalHttpServer;
 
@@ -34,9 +35,12 @@ import java.util.concurrent.atomic.AtomicReference;
 @RunWith(AndroidJUnit4.class)
 public class CefriumPullToRefreshTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     private static final String PAGE =
             "<!doctype html><html><head>"
@@ -56,7 +60,7 @@ public class CefriumPullToRefreshTest {
         final CountDownLatch secondLoad = new CountDownLatch(1);
         try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
             activity.runOnUiThread(() -> {
-                CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
+                CefriumBrowser browser = browsers.createWithSurface(activity);
                 created.set(browser);
                 activity.setContentView(browser.getSurfaceContainer());
                 browser.setOnTitleChangedListener(title -> {

@@ -1,5 +1,6 @@
 package com.cefrium.itest.sdk;
 
+import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 
 import android.app.Activity;
@@ -26,9 +27,12 @@ import java.util.concurrent.TimeUnit;
 @RunWith(AndroidJUnit4.class)
 public class CefriumJsDialogTest {
 
-    @Rule
+    @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =
             new ActivityTestRule<>(HostActivity.class);
+
+    @Rule(order = 1)
+    public final BrowserRule browsers = new BrowserRule();
 
     @Test
     public void testAlertConfirmPrompt() throws Exception {
@@ -38,7 +42,7 @@ public class CefriumJsDialogTest {
         final boolean[] probed = {false};
 
         act.runOnUiThread(() -> {
-            CefriumBrowser b = CefriumBrowser.createWithSurface(act);
+            CefriumBrowser b = browsers.createWithSurface(act);
             b.setJsDialogHandler((type, message, defaultPrompt, cb) -> {
                 seen.add(type + ":" + message);
                 cb.continueDialog(true, "promptval");  // OK + input
