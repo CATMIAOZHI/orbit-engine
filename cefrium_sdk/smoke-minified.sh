@@ -34,7 +34,11 @@ ADB="$ANDROID_HOME/platform-tools/adb"
 fail() { echo "FAIL: $*"; exit 1; }
 [ -f "$SDK_AAR" ] || fail "no SDK AAR at $SDK_AAR"
 [ -f "$COMPOSE_AAR" ] || fail "no Compose AAR at $COMPOSE_AAR"
-[ "$("$ADB" devices | awk 'NR>1 && $2=="device"' | wc -l)" -ge 1 ] || fail "no device"
+N="$("$ADB" devices | awk 'NR>1 && $2=="device"' | wc -l)"
+[ "$N" -ge 1 ] || fail "no device"
+# Two devices without ANDROID_SERIAL: adb refuses and Gradle picks one, so a
+# result could come from a device nobody chose. Make the choice explicit.
+[ "$N" -eq 1 ] || [ -n "${ANDROID_SERIAL:-}" ] || fail "$N devices attached; set ANDROID_SERIAL"
 
 mkdir -p "$APP/app/libs"
 cp "$SDK_AAR" "$APP/app/libs/cefrium-sdk.aar" || fail "staging the SDK AAR"

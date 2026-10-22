@@ -344,16 +344,9 @@ if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   ADB="$ANDROID_HOME/platform-tools/adb"; [ -x "$ADB" ] || ADB=adb
   [ "$("$ADB" devices 2>/dev/null | grep -c 'device$')" -ge 1 ] || {
     echo "FAIL: no device connected -- the runtime feature gate requires one."; exit 1; }
-  IT=cef/cefrium_instrumentation_test
-  mkdir -p "$IT/app/libs"
-  cp out/release/cefrium-sdk.aar "$IT/app/libs/cefrium-sdk.aar"
-  cp cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar "$IT/app/libs/cefrium-compose.aar"
-  WJI="$IT/gradle/wrapper/gradle-wrapper.jar"   # gitignored; restore from a sample
-  [ -f "$WJI" ] || { mkdir -p "$IT/gradle/wrapper"; cp "$ROOT/cefrium-sample/push-demo/gradle/wrapper/gradle-wrapper.jar" "$WJI"; }
-  [ -f "$IT/gradlew" ] || cp "$ROOT/cefrium-sample/push-demo/gradlew" "$IT/gradlew"
-  chmod +x "$IT/gradlew"
-  ( cd "$IT" && ./gradlew :app:connectedDebugAndroidTest --no-daemon )
-  echo "Runtime feature gate green -- instrumented suite passed on device."
+  # The instrumented suite runs once, in the suite phase, through its script
+  # (timeout, clean build, every declared test must run). It used to run here
+  # too, inline and without those checks.
 
   # Sample launch-smoke gate: build + launch EVERY cefrium-sample on device
   # against the fresh AAR; fail if any crashes. Samples exercise the SDK in app
@@ -406,6 +399,12 @@ if run suite; then hdr "instrumentation suite on device"
   cef/cefrium_sdk/run-instrumentation-suite.sh || {
     echo "ERROR: the instrumentation suite did not pass. Nothing is published."
     echo "       Re-run it alone: cef/cefrium_sdk/run-instrumentation-suite.sh"
+    exit 1; }
+  # Same suite on the harness minified with R8, as a consumer ships it: the
+  # SDK's consumer rules must keep everything native code and reflection reach.
+  cef/cefrium_sdk/run-instrumentation-suite.sh --minified || {
+    echo "ERROR: the minified instrumentation suite did not pass. Nothing is published."
+    echo "       Re-run it alone: cef/cefrium_sdk/run-instrumentation-suite.sh --minified"
     exit 1; }
 fi
 
