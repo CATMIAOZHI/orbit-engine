@@ -36,6 +36,22 @@ android {
         compose true
     }
 
+    // The same suite against an app minified the way a consumer minifies it:
+    // run-instrumentation-suite.sh --minified passes -PcefriumMinified.
+    buildTypes {
+        minified {
+            initWith release
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-minified.pro'
+            testProguardFiles 'proguard-test.pro'
+            signingConfig signingConfigs.debug
+            matchingFallbacks = ['release']
+        }
+    }
+    if (providers.gradleProperty('cefriumMinified').isPresent()) {
+        testBuildType 'minified'
+    }
+
 }
 
 dependencies {
@@ -48,15 +64,12 @@ dependencies {
     implementation files('libs/cefrium-compose.aar')
 
     implementation('androidx.appcompat:appcompat:1.7.0') {
-        exclude group: 'com.google.guava'
         exclude group: 'org.jetbrains.kotlin'
     }
     implementation('androidx.mediarouter:mediarouter:1.7.0') {
-        exclude group: 'com.google.guava'
         exclude group: 'org.jetbrains.kotlin'
     }
     implementation('androidx.core:core:1.16.0') {
-        exclude group: 'com.google.guava'
         exclude group: 'org.jetbrains.kotlin'
     }
     implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
@@ -74,8 +87,6 @@ dependencies {
     androidTestImplementation platform('androidx.compose:compose-bom:2026.08.00')
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
+    minifiedImplementation 'androidx.compose.ui:ui-test-manifest'
 
-    configurations.all {
-        exclude group: 'com.google.guava', module: 'listenablefuture'
-    }
 }
