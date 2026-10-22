@@ -246,6 +246,41 @@ def main():
             deduped.append(line)
         standard_entries['R.txt'] = '\n'.join(deduped).encode('utf-8')
 
+    # Phase 5a: Resources of the Maven artifacts the POM declares. A copy here
+    # is the version Chromium pins, and it can override the newer one an app
+    # picks (resource merge order follows dependency order). Drop a file only
+    # when it is byte-identical to the artifact's, and a values entry only when
+    # it is identical in the same values folder: anything Chromium changed or
+    # redefines on purpose stays.
+    lib_files, lib_values = maven_vendored.owned_resources()
+    dropped_files = dropped_values = 0
+    for name in list(standard_entries):
+        if not name.startswith('res/'):
+            continue
+        if '/values' not in name:
+            if lib_files.get(name) == standard_entries[name]:
+                del standard_entries[name]
+                dropped_files += 1
+            continue
+        if not name.endswith('.xml'):
+            continue
+        root = ET.fromstring(standard_entries[name])
+        folder = os.path.dirname(name)
+        keep = [e for e in root
+                if maven_vendored.canonical(e) not in
+                lib_values.get((folder, e.tag, e.get('name')), ())]
+        if len(keep) == len(root):
+            continue
+        dropped_values += len(root) - len(keep)
+        if not keep:
+            del standard_entries[name]
+            continue
+        root[:] = keep
+        standard_entries[name] = (b'<?xml version="1.0" encoding="utf-8"?>\n' +
+                                  ET.tostring(root, encoding='utf-8'))
+    print('Maven-provided resources dropped: %d files, %d values entries'
+          % (dropped_files, dropped_values))
+
     # Phase 5b: Consumer R8 rules. dist_aar concatenates the rule files of every
     # dependency into proguard.txt, and R8 applies them to the CONSUMER's whole
     # app. Two of them are Chrome's APK policy, not library rules: they strip

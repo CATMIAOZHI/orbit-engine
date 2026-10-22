@@ -28,6 +28,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   `maven_vendored.py`), and the build fails if it goes stale after an engine
   bump. The AAR carries the same list, and the `com.cefrium` Gradle plugin adds
   it for apps that use the AAR as a file.
+- The AAR no longer carries copies of those libraries' resources either (884
+  files, 4,146 values entries identical to the libraries' own). A copy pinned
+  to Chromium's version could override a newer one the app chose. Entries
+  Chromium changes stay.
 
 ### Migration
 - Remove `exclude group: 'com.google.guava'` and `exclude group:
