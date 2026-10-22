@@ -1,6 +1,6 @@
 version = 1
 SPDX-PackageName = "cefrium"
-SPDX-PackageSupplier = "Juan Manuel Méndez Rey <juan.mendezr@proton.me>"
+SPDX-PackageSupplier = "Juan Manuel Méndez Rey <cefrium@proton.me>"
 SPDX-PackageDownloadLocation = "https://codeberg.org/cefrium/cef-android"
 
 # Cefrium Android port — dual licensed: LGPL-3.0-or-later OR Commercial
@@ -25,9 +25,9 @@ path = [
     "tests/cef_android_test/**",
 ]
 precedence = "override"
-SPDX-FileCopyrightText = "2026 Juan Manuel Méndez Rey <juan.mendezr@proton.me>"
+SPDX-FileCopyrightText = "2026 Juan Manuel Méndez Rey <cefrium@proton.me>"
 SPDX-License-Identifier = "LGPL-3.0-or-later OR LicenseRef-Cefrium-Commercial"
-SPDX-FileComment = "Cefrium Android port. Dual licensed: LGPL v3 for open source use, Cefrium Commercial License for proprietary use. Contact juan.mendezr@proton.me for commercial licensing."
+SPDX-FileComment = "Cefrium Android port. Dual licensed: LGPL v3 for open source use, Cefrium Commercial License for proprietary use. Contact cefrium@proton.me for commercial licensing."
 
 # Cefrium modifications to upstream CEF code (dual licensed)
 [[annotations]]
@@ -37,7 +37,7 @@ path = [
     "BUILD.gn",
 ]
 precedence = "aggregate"
-SPDX-FileCopyrightText = ["2008-2026 The Chromium Embedded Framework Authors", "2026 Juan Manuel Méndez Rey <juan.mendezr@proton.me>"]
+SPDX-FileCopyrightText = ["2008-2026 The Chromium Embedded Framework Authors", "2026 Juan Manuel Méndez Rey <cefrium@proton.me>"]
 SPDX-License-Identifier = "LGPL-3.0-or-later OR LicenseRef-Cefrium-Commercial"
 SPDX-FileComment = "Upstream CEF code modified by Cefrium for Android support. Modifications are dual licensed."
 
@@ -45,7 +45,7 @@ SPDX-FileComment = "Upstream CEF code modified by Cefrium for Android support. M
 [[annotations]]
 path = ["README.md", "assets/**", "REUSE.toml"]
 precedence = "aggregate"
-SPDX-FileCopyrightText = "2026 Juan Manuel Méndez Rey <juan.mendezr@proton.me>"
+SPDX-FileCopyrightText = "2026 Juan Manuel Méndez Rey <cefrium@proton.me>"
 SPDX-License-Identifier = "CC-BY-4.0"
 SPDX-FileComment = "Documentation, screenshots, and metadata."
 
@@ -61,6 +61,6 @@ SPDX-FileComment = "License text files."
 [[annotations]]
 path = "**"
 precedence = "aggregate"
-SPDX-FileCopyrightText = ["2008-2026 The Chromium Embedded Framework Authors", "2026 Juan Manuel Méndez Rey <juan.mendezr@proton.me>"]
+SPDX-FileCopyrightText = ["2008-2026 The Chromium Embedded Framework Authors", "2026 Juan Manuel Méndez Rey <cefrium@proton.me>"]
 SPDX-License-Identifier = "BSD-3-Clause"
 SPDX-FileComment = "Fallback for upstream CEF files not covered by specific rules."

@@ -25,7 +25,7 @@ obligations. Includes priority support, custom builds, and SLA.
 
 See `LICENSES/LicenseRef-Cefrium-Commercial.txt`.
 
-Contact: juan.mendezr@proton.me
+Contact: cefrium@proton.me
 
 ## Upstream CEF Code
 
