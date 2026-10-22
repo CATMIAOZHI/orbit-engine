@@ -41,7 +41,7 @@ cp "$SDK_AAR" "$APP/app/libs/cefrium-sdk.aar" || fail "staging the SDK AAR"
 cp "$COMPOSE_AAR" "$APP/app/libs/cefrium-compose.aar" || fail "staging the Compose AAR"
 
 echo ">>> minified build (R8 on, local AARs)"
-( cd "$APP" && ./gradlew bundleRelease assembleRelease -PcefriumSource=local \
+( cd "$APP" && ./gradlew clean bundleRelease assembleRelease -PcefriumSource=local \
     -PcefriumR8Smoke=1 --no-daemon -q ) || fail "the minified build failed (R8 missing classes or rules)"
 
 AAB="$(ls "$APP"/app/build/outputs/bundle/release/*.aab | head -1)"
