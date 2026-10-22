@@ -6,7 +6,8 @@
 """Post-process cefrium.aar for Gradle compatibility (v4).
 
 Combines v1 XML merge + v3 R.txt dedup + assets + attr dedup.
-Does NOT strip classes (causes __builtin_trap in official builds).
+Strips classes the consumer gets from Gradle: androidx/kotlin by package, and
+every class a Maven artifact provides (maven_vendored.py, maven-deps.txt).
 
 Phases:
 1. Read entries, separate standard vs non-standard res
@@ -27,6 +28,9 @@ import xml.etree.ElementTree as ET
 import zipfile
 import sys
 from collections import OrderedDict
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import maven_vendored
 
 STANDARD_RES = (
     'values', 'drawable', 'layout', 'mipmap', 'color',
@@ -297,20 +301,21 @@ def main():
         # single okio-jvm. Same consumer-provides model as androidx/kotlin above.
         'okio/',
     )
-    # Keep these even if they match STRIP_FROM_JAR prefixes.
-    # Chromium loads them at runtime — stripping causes crashes.
-    KEEP_IN_JAR = (
-        'com/google/common/',        # Guava (ImmutableMap, etc.)
-        'com/google/android/gms/',   # GMS classes
-        # Chromium's modified AccessibilityNodeInfoCompat includes methods
-        # not in public androidx.core (setExpandedState, setChecked(int), etc.).
-        # Required for TalkBack accessibility. Consumer must disable
-        # checkDuplicateClasses in build.gradle (documented in QUICKSTART-CEFRIUM.md).
-        # 'androidx/core/view/accessibility/',  # Needs shadow/relocate solution
-    )
     if 'classes.jar' in standard_entries:
         jar_data = standard_entries['classes.jar']
         in_jar = zipfile.ZipFile(io.BytesIO(jar_data))
+        # Classes a Maven artifact provides (Guava, Material, GMS, Firebase,
+        # ...). Vendoring them made every consumer that uses the same library
+        # fail with "Duplicate class". The POM declares the artifacts listed in
+        # maven-deps.txt instead, and this fails if that list is stale.
+        owned = maven_vendored.ownership(
+            n for n in in_jar.namelist()
+            if not n.startswith(STRIP_FROM_JAR + ('META-INF/',))
+            and not n.endswith(('.bin', '.kotlin_module')))
+        maven_vendored.check(owned)
+        from_maven = set().union(*owned.values()) if owned else set()
+        print('Maven-provided classes stripped: %d from %d artifacts'
+              % (len(from_maven), len(owned)))
         out_buf = io.BytesIO()
         out_jar = zipfile.ZipFile(out_buf, 'w', zipfile.ZIP_DEFLATED)
         for ji in in_jar.infolist():
@@ -319,13 +324,15 @@ def main():
             if ji.filename.endswith(('.bin', '.kotlin_module')):
                 continue
             if any(ji.filename.startswith(p) for p in STRIP_FROM_JAR):
-                # Check if this class should be kept despite matching strip
-                if not any(ji.filename.startswith(k) for k in KEEP_IN_JAR):
-                    continue
+                continue
+            if ji.filename in from_maven:
+                continue
             out_jar.writestr(ji, in_jar.read(ji.filename))
         out_jar.close()
         in_jar.close()
         standard_entries['classes.jar'] = out_buf.getvalue()
+        standard_entries[maven_vendored.AAR_ENTRY] = (
+            '\n'.join(maven_vendored.runtime_dependencies()) + '\n').encode()
 
     # Phase 7: Write compressed AAR.
     with zipfile.ZipFile(args.output, 'w') as zout:
@@ -347,6 +354,14 @@ def main():
     locale = os.path.join(build_dir, 'locales', 'en-US.pak')
     if os.path.exists(locale):
         assets['locales/en-US.pak'] = 'assets/stored-locales/en-US.pak'
+    # Without these the engine traps at startup (InitializeICU, resource
+    # bundle). They are looked up next to --input, so slimming an AAR copied
+    # elsewhere used to produce one that silently lacked them.
+    required = ('icudtl.dat', 'resources.pak', 'chrome_100_percent.pak')
+    missing = [r for r in required
+               if not os.path.exists(os.path.join(build_dir, r))]
+    if missing:
+        sys.exit('slim_aar: %s not found next to %s' % (missing, args.input))
     with zipfile.ZipFile(args.output, 'a') as zout:
         for src, dst in assets.items():
             path = os.path.join(build_dir, src)

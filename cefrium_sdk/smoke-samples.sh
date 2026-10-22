@@ -16,9 +16,10 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC="$(cd "$SCRIPT_DIR/../.." && pwd)"          # chromium/src
 ROOT="$(cd "$SRC/../.." && pwd)"                # cef-dev
-SDK_AAR="$SRC/out/release/cefrium-sdk.aar"      # multi-ABI (post-merge); fallback below
+# CEFRIUM_SDK_AAR / CEFRIUM_COMPOSE_AAR test other bytes than the last build.
+SDK_AAR="${CEFRIUM_SDK_AAR:-$SRC/out/release/cefrium-sdk.aar}"      # multi-ABI (post-merge); fallback below
 [ -f "$SDK_AAR" ] || SDK_AAR="$SRC/out/Official_android_arm64/cefrium-sdk.aar"
-COMPOSE_AAR="$SRC/cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar"
+COMPOSE_AAR="${CEFRIUM_COMPOSE_AAR:-$SRC/cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar}"
 : "${ANDROID_HOME:?set ANDROID_HOME}"; : "${JAVA_HOME:?set JAVA_HOME}"
 ADB="$ANDROID_HOME/platform-tools/adb"
 AAPT="$(ls "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | head -1)"
@@ -40,7 +41,12 @@ AAPT="$(ls "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | head -1)"
 REGISTRY_VERSION=""
 [ "${1:-}" = "--registry" ] && { REGISTRY_VERSION="${2:?--registry needs a version}"; shift 2; }
 
-SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive"
+SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive kiosk-automotive-v2 kiosk-signage loaddata-baseurl osr-hud firebase-coexistence"
+# Samples that write files/verdict.txt: launching without a crash is not enough
+# for them, the verdict must read PASS.
+VERDICT_SAMPLES="firebase-coexistence"
+LOGDIR="$ROOT/tmp/smoke-samples"
+mkdir -p "$LOGDIR"
 
 if [ -n "$REGISTRY_VERSION" ]; then
   echo "=== REGISTRY MODE: smoking published cefrium-sdk $REGISTRY_VERSION ==="
@@ -87,13 +93,17 @@ for s in $SAMPLES; do
     [ -f "$COMPOSE_AAR" ] && cp "$COMPOSE_AAR" "$d/app/libs/cefrium-compose.aar"
     GA="-PcefriumSource=local"
   else
-    for libs in $(find "$d" -type d -name libs 2>/dev/null); do
-      [ -f "$libs/cefrium-sdk.aar" ] && cp "$SDK_AAR" "$libs/cefrium-sdk.aar"
-      [ -f "$libs/cefrium-compose.aar" ] && [ -f "$COMPOSE_AAR" ] && cp "$COMPOSE_AAR" "$libs/cefrium-compose.aar"
-    done
+    # Stage by what the build file asks for: libs/ is gitignored, so a fresh
+    # clone has no AAR there to replace.
+    gf="$(ls "$d"/app/build.gradle "$d"/app/build.gradle.kts 2>/dev/null | head -1)"
+    mkdir -p "$d/app/libs"
+    grep -q 'libs/cefrium-sdk.aar' "$gf" && cp "$SDK_AAR" "$d/app/libs/cefrium-sdk.aar"
+    grep -q 'libs/cefrium-compose.aar' "$gf" && [ -f "$COMPOSE_AAR" ] && cp "$COMPOSE_AAR" "$d/app/libs/cefrium-compose.aar"
   fi
-  if ! ( cd "$d" && ./gradlew :app:assembleDebug $GA --no-daemon -q ) >"/tmp/smoke-$s.log" 2>&1; then
-    echo "  $s: BUILD FAIL (/tmp/smoke-$s.log)"; fails=$((fails+1)); continue
+  # clean: the AAR under test replaces one built earlier, and AGP's incremental
+  # merge fails on entries the old AAR had ("Unknown file: ...properties").
+  if ! ( cd "$d" && ./gradlew clean :app:assembleDebug $GA --no-daemon -q ) >"$LOGDIR/$s.log" 2>&1; then
+    echo "  $s: BUILD FAIL ($LOGDIR/$s.log)"; fails=$((fails+1)); continue
   fi
   apk="$(find "$d/app/build/outputs/apk/debug" -name '*.apk' 2>/dev/null | head -1)"
   [ -n "$apk" ] || { echo "  $s: no APK"; fails=$((fails+1)); continue; }
@@ -115,8 +125,19 @@ for s in $SAMPLES; do
   # sandboxed-renderer reaping (confirmed: cefrium-browser flagged with no real
   # main-process crash in exit-info).
   before="$("$ADB" shell dumpsys activity exit-info "$pkg" 2>/dev/null | grep -cE "process=$pkg reason=(4|5|6) ")"
+  "$ADB" shell run-as "$pkg" rm -f files/verdict.txt >/dev/null 2>&1
   "$ADB" shell am start -n "$pkg/$act" >/dev/null 2>&1
   sleep 12
+  verdict=""
+  case " $VERDICT_SAMPLES " in *" $s "*)
+    # The W90 takes 15-20 s to spawn a renderer; give the verdict a minute.
+    for _ in $(seq 1 24); do
+      verdict="$("$ADB" shell run-as "$pkg" cat files/verdict.txt 2>/dev/null | tr -d '\r')"
+      [ -n "$verdict" ] && break
+      sleep 2.5
+    done
+    verdict="${verdict:-NONE (no verdict written in 72 s)}" ;;
+  esac
   after="$("$ADB" shell dumpsys activity exit-info "$pkg" 2>/dev/null | grep -cE "process=$pkg reason=(4|5|6) ")"
   # Also catch a Java FATAL surfacing in logcat (cleared per-sample above).
   fatal="$("$ADB" logcat -d 2>/dev/null | grep -icE 'FATAL EXCEPTION|NoSuchMethodError')"
@@ -141,8 +162,11 @@ for s in $SAMPLES; do
     } > "$CRASHLOG" 2>&1
     echo "      evidence: $CRASHLOG"
     fails=$((fails+1))
+  elif [ -n "$verdict" ] && [ "${verdict#PASS}" = "$verdict" ]; then
+    echo "  $s ($pkg): VERDICT FAIL -- $verdict"
+    fails=$((fails+1))
   else
-    echo "  $s ($pkg): OK"
+    echo "  $s ($pkg): OK${verdict:+ -- $verdict}"
   fi
 done
 echo "=== $((fails)) failure(s) ==="
