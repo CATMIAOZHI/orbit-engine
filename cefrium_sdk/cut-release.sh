@@ -373,7 +373,8 @@ if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
     cp out/release/cefrium-sdk.aar "$BS/cefrium-bench/app/libs/cefrium-sdk.aar"
     cp cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar "$BS/cefrium-bench/app/libs/cefrium-compose.aar"
     ( cd "$BS/cefrium-bench" && ./gradlew :app:assembleDebug --no-daemon )
-    SER="$("$ADB" devices | awk '/device$/{print $1; exit}')"
+    # The chosen device, not whichever adb lists first.
+    SER="${ANDROID_SERIAL:-$("$ADB" devices | awk '/device$/{print $1; exit}')}"
     "$ADB" -s "$SER" install -r "$BS/cefrium-bench/app/build/outputs/apk/debug/app-debug.apk"
     "$BS/leak-check.sh" -s "$SER" -n 30 -r "$VERSION" \
       || { echo "FAIL: close-leak gate -- evicted browsers not closing / counts unbounded. Blocking publish."; exit 1; }
