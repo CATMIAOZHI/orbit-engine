@@ -470,3 +470,23 @@ are **dual-licensed - choose one:**
 
 The underlying **CEF and Chromium** code is **BSD** (inherited upstream) and is
 unaffected by the above.
+
+### Attribution
+
+To meet the notice requirement, put this text where your app lists its
+open-source licenses, and ship the NOTICE file from the release you use:
+
+```
+This app uses Cefrium (https://cefrium.com), licensed under the GNU Lesser
+General Public License v3.0 or later
+(https://www.gnu.org/licenses/lgpl-3.0.html). Cefrium includes CEF and
+Chromium, licensed under the BSD 3-Clause license. Their third-party notices
+are in the NOTICE file published with each Cefrium release.
+```
+
+If you modified the Cefrium library itself, also make the source of that
+modified library available under the same license. Details and questions:
+[cefrium.com/policy](https://cefrium.com/policy/#attribution).
+
+None of this requires crediting Cefrium visibly in your app. If you want to, a
+mention or a link back is always appreciated, but it is entirely optional.
