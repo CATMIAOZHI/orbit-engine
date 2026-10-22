@@ -25,6 +25,7 @@ import io
 import os
 import re
 import sys
+import xml.etree.ElementTree as ET
 import zipfile
 
 _SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -83,6 +84,45 @@ def ownership(names, src=_SRC):
                 sys.exit('maven_vendored: no Maven coordinate for %s' % d)
             owned.setdefault(coord, set()).update(hits)
     return owned
+
+
+def canonical(elem):
+    """A values element as a comparable string: attributes sorted, whitespace
+    around text ignored, children in order."""
+    attrs = ' '.join('%s=%s' % kv for kv in sorted(elem.attrib.items()))
+    inner = ''.join(canonical(c) for c in elem)
+    return '<%s %s>%s%s</>' % (elem.tag, attrs, (elem.text or '').strip(), inner)
+
+
+def owned_resources(src=_SRC, path=DEPS_FILE):
+    """Resources the declared artifacts ship, as they ship them.
+
+    Returns (files, values): {res path: bytes} for files outside values/, and
+    {(values dir, tag, name): set(canonical)} for values entries. The AAR's
+    copy of a library resource can override a newer version the app picked,
+    so slim_aar.py drops the copies that are identical to these.
+    """
+    deps = set(read_deps(path))
+    files, values = {}, {}
+    for d in sorted(glob.glob(os.path.join(src, _PREBUILTS, '*'))):
+        if _coordinate(os.path.basename(d), src) not in deps:
+            continue
+        for f in glob.glob(d + '/*.aar'):
+            z = zipfile.ZipFile(f)
+            for n in z.namelist():
+                if not n.startswith('res/') or n.endswith('/'):
+                    continue
+                if '/values' not in n:
+                    files[n] = z.read(n)
+                    continue
+                if not n.endswith('.xml'):
+                    continue
+                folder = os.path.dirname(n)
+                for e in ET.fromstring(z.read(n)):
+                    name = e.get('name')
+                    if name:
+                        values.setdefault((folder, e.tag, name), set()).add(canonical(e))
+    return files, values
 
 
 def read_deps(path=DEPS_FILE):
