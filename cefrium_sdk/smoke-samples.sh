@@ -172,6 +172,9 @@ for s in $SAMPLES; do
   else
     echo "  $s ($pkg): OK${verdict:+ -- $verdict}"
   fi
+  # About 1.6 GB of build output per sample; thirteen of them filled the disk
+  # in the middle of a cut. The next run builds clean anyway.
+  rm -rf "$d/app/build"
 done
 echo "=== $((fails)) failure(s) ==="
 [ "$fails" -eq 0 ] || { echo "Sample smoke FAILED -- do not publish."; exit 1; }
