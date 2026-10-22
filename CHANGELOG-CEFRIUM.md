@@ -15,6 +15,22 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [Unreleased]
+
+### Fixed
+- An app that enables R8 now gets it. The AAR's consumer rules kept every
+  `org.chromium` class and carried Chrome's own APK policy, so R8 optimized,
+  obfuscated and shrank about 10% of an app, below the 25% Google Play asks
+  for. Measured on the browser app: 10% before, 65% after in all three. The
+  policy also removed the app's own `Log.v/d/i` calls and declared
+  `String.format` and `Throwable.addSuppressed` side-effect free in app code.
+- A minified app no longer dies at startup with `AbstractMethodError` on
+  devices that ship the Jetpack window extensions (a W90 tablet is one). The POM now declares
+  `androidx.window.extensions.core:core`, which R8 needs to compile a
+  Chromium callback. An app that adds the AAR as a file must add it too.
+- The release gate builds and runs a minified app, so a missing keep rule
+  blocks the release.
+
 ## [0.11.0] - 2026-10-21
 
 Engine: **Chromium 156.0.8078.17 / CEF branch 8078** (unchanged from 0.10.2).

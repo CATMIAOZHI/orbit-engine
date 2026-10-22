@@ -25,6 +25,7 @@ import os
 import re
 import xml.etree.ElementTree as ET
 import zipfile
+import sys
 from collections import OrderedDict
 
 STANDARD_RES = (
@@ -240,6 +241,37 @@ def main():
                 seen.add(key)
             deduped.append(line)
         standard_entries['R.txt'] = '\n'.join(deduped).encode('utf-8')
+
+    # Phase 5b: Consumer R8 rules. dist_aar concatenates the rule files of every
+    # dependency into proguard.txt, and R8 applies them to the CONSUMER's whole
+    # app. Two of them are Chrome's APK policy, not library rules: they strip
+    # the app's own Log.v/d/i (-maximumremovedandroidloglevel 3), declare
+    # Throwable.addSuppressed, String.format and static fields of android.** and
+    # java.** side-effect free, and enable -allowaccessmodification, all in code
+    # that is not ours. Drop those sections, and fail if they are not found (a
+    # Chromium rename must not silently bring them back) or if a blanket keep of
+    # org.chromium reappears.
+    if 'proguard.txt' in standard_entries:
+        rules = standard_entries['proguard.txt'].decode('utf-8')
+        sections = re.split(r'(?m)^(?=# FROM: )', rules)
+        app_policy = ('base/android/proguard/chromium_apk.flags',
+                      'base/android/proguard/remove_logging.flags')
+        kept, dropped = [], []
+        for sec in sections:
+            first = sec.splitlines()[0] if sec else ''
+            if first.startswith('# FROM: ') and first.rstrip().endswith(app_policy):
+                dropped.append(first[len('# FROM: '):].strip())
+            else:
+                kept.append(sec)
+        if len(dropped) != len(app_policy):
+            sys.exit('slim_aar: expected to drop %s from proguard.txt, dropped %s'
+                     % (list(app_policy), dropped))
+        rules = ''.join(kept)
+        if re.search(r'(?m)^-keep class org\.chromium\.\*\* \{', rules):
+            sys.exit('slim_aar: a blanket -keep of org.chromium.** is back in '
+                     'proguard.txt; it pins R8 near 10% for every consumer')
+        standard_entries['proguard.txt'] = rules.encode('utf-8')
+        print('Consumer rules: dropped %d app-policy sections' % len(dropped))
 
     # Phase 6: Clean classes.jar.
     # Strip ONLY AndroidX/support classes (provided by consumer's appcompat dep).
