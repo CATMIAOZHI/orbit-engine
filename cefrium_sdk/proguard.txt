@@ -24,8 +24,8 @@
 # androidx.window.extensions.core.util.function.Consumer. R8 must see that
 # interface to desugar the lambda correctly: without it the app dies at startup
 # with AbstractMethodError, and no keep rule can repair that. The SDK POM puts
-# androidx.window.extensions.core:core on the consumer's classpath; an app that
-# adds the AAR as a file must add that dependency itself. This rule then keeps
+# androidx.window.extensions.core:core on the consumer's classpath (the
+# com.cefrium plugin does it for an AAR added as a file). This rule then keeps
 # the SAM method on the implementor.
 -keep,allowobfuscation class * implements androidx.window.extensions.core.util.function.Consumer {
     public void accept(java.lang.Object);

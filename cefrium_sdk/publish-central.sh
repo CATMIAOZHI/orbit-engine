@@ -281,13 +281,20 @@ SDK_DEPS='  <dependencies>
     <dependency><groupId>androidx.core</groupId><artifactId>core</artifactId><version>1.16.0</version></dependency>
     <dependency><groupId>androidx.browser</groupId><artifactId>browser</artifactId><version>1.8.0</version></dependency>
     <dependency><groupId>androidx.datastore</groupId><artifactId>datastore-preferences</artifactId><version>1.1.1</version></dependency>
-    <dependency><groupId>androidx.window.extensions.core</groupId><artifactId>core</artifactId><version>1.0.0</version><scope>runtime</scope></dependency>
-  </dependencies>'
+'
+# The Maven libraries the AAR does not vendor, read from the AAR being published
+# so the POM matches its bytes (maven_vendored.py).
+sdk_deps() {
+  local libs
+  libs="$(python3 "$SCRIPT_DIR/maven_vendored.py" --pom "$1")" || return 1
+  printf '%s\n%s\n  </dependencies>' "$SDK_DEPS" "$libs"
+}
 
 for v in cefrium-sdk cefrium-sdk-libre; do
   [ -n "${AAR[$v]:-}" ] || { echo "skip $v (not built)"; continue; }
   echo "Staging $v (multi-ABI)..."
-  write_pom "$v" "aar" "Cefrium SDK" "CEF (Chromium Embedded Framework) for native Android -- multi-ABI. Embeds Chromium $CHROMIUM_VERSION." "$SDK_DEPS"
+  deps="$(sdk_deps "${AAR[$v]}")" || { echo "ERROR: no dependency list in ${AAR[$v]}" >&2; exit 1; }
+  write_pom "$v" "aar" "Cefrium SDK" "CEF (Chromium Embedded Framework) for native Android -- multi-ABI. Embeds Chromium $CHROMIUM_VERSION." "$deps"
   place "$v" "$VERSION" "${AAR[$v]}" "aar"
   make_sources_jar "$v" "$SDK_SRC"
   make_javadoc_jar "$v" "$WEB_DOCS"

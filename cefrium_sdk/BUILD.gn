@@ -185,7 +185,11 @@ action("cefrium_sdk") {
     ":cefrium_aar",
     "//cef:libcef",
   ]
-  inputs = [ "$root_build_dir/cefrium-raw.aar" ]
+  inputs = [
+    "$root_build_dir/cefrium-raw.aar",
+    "maven-deps.txt",
+    "maven_vendored.py",
+  ]
   outputs = [ "$root_build_dir/cefrium-sdk.aar" ]
   args = [
     "--input",

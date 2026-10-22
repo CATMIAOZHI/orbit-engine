@@ -241,15 +241,6 @@ read -r -d '' SDK_DEPS <<'XML' || true
          from datastore's transitive okio-jvm. Same consumer-provides model the AAR
          already uses for androidx/kotlin/kotlinx. No duplicate-class collision. -->
     <dependency><groupId>androidx.datastore</groupId><artifactId>datastore-preferences</artifactId><version>1.1.1</version></dependency>
-    <!-- Chromium's WindowLayoutInfoListener hands the device a lambda implementing
-         androidx.window.extensions.core.util.function.Consumer. A consumer's R8
-         must see that interface to desugar the lambda, or the minified app dies
-         at startup with AbstractMethodError (measured on a W90). 'provided' did
-         not work: Gradle does not put a POM's provided dependencies on the
-         consumer's classpath. 'runtime' is how androidx.window:window declares
-         the same artifact. -->
-    <dependency><groupId>androidx.window.extensions.core</groupId><artifactId>core</artifactId><version>1.0.0</version><scope>runtime</scope></dependency>
-  </dependencies>
 XML
 
 published_any=0
@@ -260,7 +251,10 @@ for artifact in cefrium-sdk cefrium-sdk-libre; do
     continue
   fi
   echo "Publishing $artifact (multi-ABI)..."
-  pom=$(generate_pom "$artifact" "Cefrium SDK -- CEF for Android (multi-ABI). Embeds Chromium $CHROMIUM_VERSION." "$SDK_DEPS")
+  # The Maven libraries the AAR does not vendor, read from this AAR so the POM
+  # matches its bytes (maven_vendored.py).
+  libs="$(python3 "$SCRIPT_DIR/maven_vendored.py" --pom "$aar")" || { echo "ERROR: no dependency list in $aar" >&2; exit 1; }
+  pom=$(generate_pom "$artifact" "Cefrium SDK -- CEF for Android (multi-ABI). Embeds Chromium $CHROMIUM_VERSION." "$(printf '%s\n%s\n  </dependencies>' "$SDK_DEPS" "$libs")")
   upload "$artifact" "$pom"
   upload "$artifact" "$aar"
   rm -f "$pom"
