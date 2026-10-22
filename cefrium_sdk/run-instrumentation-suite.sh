@@ -1,7 +1,10 @@
 #!/bin/bash
 # run-instrumentation-suite.sh -- the on-device suite, as a gate.
 #
-#   cef/cefrium_sdk/run-instrumentation-suite.sh [<version>]
+#   cef/cefrium_sdk/run-instrumentation-suite.sh [--minified] [<version>]
+#
+# --minified runs the same suite against the harness app built with R8 on, as a
+# consumer that enables minification builds it.
 #
 # Run from chromium/src. Without a version it tests out/release/cefrium-sdk.aar
 # and the compose build output, which is what a CUT uses: the versioned copies
@@ -27,6 +30,13 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC="$(cd "$SCRIPT_DIR/../.." && pwd)"          # chromium/src
 ITEST="$SRC/cef/cefrium_instrumentation_test"
+TASK=connectedDebugAndroidTest
+GRADLE_PROPS=()
+if [ "${1:-}" = "--minified" ]; then
+  TASK=connectedMinifiedAndroidTest
+  GRADLE_PROPS=(-PcefriumMinified=1)
+  shift
+fi
 VERSION="${1:-}"
 
 if [ ! -f "$SRC/.gn" ]; then
@@ -71,8 +81,11 @@ export ANDROID_HOME="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}"
 RESULTS="$ITEST/app/build/outputs/androidTest-results/connected"
 rm -rf "$RESULTS"
 
-echo ">>> connectedDebugAndroidTest"
-( cd "$ITEST" && ./gradlew connectedDebugAndroidTest --no-daemon )
+echo ">>> $TASK"
+# A runner that dies in onCreate leaves Gradle waiting forever (6 h once, for
+# a minified build missing androidx.tracing). Bound the run.
+( cd "$ITEST" && timeout "${CEFRIUM_SUITE_TIMEOUT:-7200}" \
+    ./gradlew clean "$TASK" "${GRADLE_PROPS[@]}" --no-daemon )
 GRADLE_RC=$?
 
 # Gradle's own status is necessary but not sufficient: read the result files.
