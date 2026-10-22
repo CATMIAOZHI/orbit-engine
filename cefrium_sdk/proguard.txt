@@ -34,8 +34,10 @@
 # Missing classes R8 reports for every consumer, none reachable in Cefrium:
 # resource R classes of Chromium/GMS/Material/Lottie packages the Cefrium Gradle
 # plugin does not generate; a hidden framework API present on devices but not in
-# the public android.jar; an optional AndroidX dependency; a class Chromium
-# generates at build time that the AAR does not carry; and okio, stripped from
+# the public android.jar; an optional AndroidX dependency; ProductConfig,
+# which Chromium generates per APK and the AAR does not carry (only Chrome's
+# Application and Trichrome zygote preload use it, and neither is declared or
+# reachable: R8 removes both from a minified app); and okio, stripped from
 # the AAR on purpose (it collided with okio-jvm from androidx.datastore) and
 # referenced only by Lottie's JSON parser for Chrome UI Cefrium does not use.
 -dontwarn org.chromium.**.R
