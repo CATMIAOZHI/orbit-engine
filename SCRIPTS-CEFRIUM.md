@@ -349,6 +349,7 @@ handler is never consulted). `--skip-build` for sample-only edits.
 | Task | Command |
 |---|---|
 | Run the instrumentation suite as a gate | `cef/cefrium_sdk/run-instrumentation-suite.sh [<version>]` |
+| Same suite on the app minified with R8 | `cef/cefrium_sdk/run-instrumentation-suite.sh --minified [<version>]` |
 | Smoke the published artifact | `cef/cefrium_sdk/smoke-samples.sh --registry <version>` |
 | R8 consumer rules: Play's 25% bar + minified run | `cef/cefrium_sdk/smoke-minified.sh` |
 | Test a published release e2e | `cef/cefrium_sdk/test-published-release.sh <version>` |
