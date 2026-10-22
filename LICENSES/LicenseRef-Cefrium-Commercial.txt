@@ -1,7 +1,7 @@
 Cefrium Commercial License Agreement
 Version 1.0
 
-Copyright (C) 2026 Juan Manuel Mendez Rey <juan.mendezr@proton.me>
+Copyright (C) 2026 Juan Manuel Mendez Rey <cefrium@proton.me>
 
 IMPORTANT: This is a draft. Consult a lawyer before using commercially.
 
@@ -39,7 +39,7 @@ IMPORTANT: This is a draft. Consult a lawyer before using commercially.
    c) Enterprise: custom pricing for large-scale deployments,
       OEM/embedded, or per-device licensing
 
-   Contact juan.mendezr@proton.me for pricing.
+   Contact cefrium@proton.me for pricing.
 
 4. SUPPORT
 
@@ -80,5 +80,5 @@ IMPORTANT: This is a draft. Consult a lawyer before using commercially.
 
 ---
 
-For licensing inquiries: juan.mendezr@proton.me
+For licensing inquiries: cefrium@proton.me
 Project: https://codeberg.org/cefrium
