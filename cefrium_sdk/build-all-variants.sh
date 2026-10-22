@@ -188,7 +188,10 @@ EOF
   # NO `pipefail`, so the pipeline's status would be tee's (always 0) and a
   # failed build would sail through as a pass. Read ninja's own status out of
   # PIPESTATUS, which is correct with or without pipefail.
-  ninja ${CEFRIUM_NINJA_JOBS:+-j "$CEFRIUM_NINJA_JOBS"} \
+  # Chromium's pinned ninja, never whatever `ninja` is first on PATH: Debian's
+  # 1.13 writes a v7 .ninja_log, the pinned 1.12 a v6 one, and each discards
+  # the other's log, so alternating them rebuilt all ~62k steps.
+  "$SRC_DIR/third_party/ninja/ninja" ${CEFRIUM_NINJA_JOBS:+-j "$CEFRIUM_NINJA_JOBS"} \
     -C "$build_dir" cef:libcef cef/cefrium_sdk:cefrium_aar 2>&1 | tee "$blog"
   ninja_rc=${PIPESTATUS[0]}
   if [ "$ninja_rc" -ne 0 ]; then
