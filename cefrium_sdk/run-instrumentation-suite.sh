@@ -64,9 +64,20 @@ if [ "$DEVICES" -eq 0 ]; then
   echo "ERROR: no device. The suite is an ON-DEVICE gate; there is no dry run." >&2
   exit 1
 fi
-[ "$DEVICES" -gt 1 ] && echo "NOTE: $DEVICES devices attached; Gradle picks one."
+# Two devices without ANDROID_SERIAL: adb refuses and Gradle picks one, so a
+# result could come from a device nobody chose. Make the choice explicit.
+if [ "$DEVICES" -gt 1 ] && [ -z "${ANDROID_SERIAL:-}" ]; then
+  echo "ERROR: $DEVICES devices attached; set ANDROID_SERIAL." >&2
+  exit 1
+fi
 
 echo ">>> staging artifacts into the harness"
+# The wrapper is gitignored here; a fresh clone takes it from a sample.
+WJI="$ITEST/gradle/wrapper/gradle-wrapper.jar"
+ROOT="$(cd "$SRC/../.." && pwd)"
+[ -f "$WJI" ] || { mkdir -p "$(dirname "$WJI")"; cp "$ROOT/cefrium-sample/push-demo/gradle/wrapper/gradle-wrapper.jar" "$WJI" || exit 1; }
+[ -f "$ITEST/gradlew" ] || cp "$ROOT/cefrium-sample/push-demo/gradlew" "$ITEST/gradlew" || exit 1
+chmod +x "$ITEST/gradlew"
 mkdir -p "$ITEST/app/libs"
 cp "$SDK_AAR" "$ITEST/app/libs/cefrium-sdk.aar" || exit 1
 cp "$COMPOSE_AAR" "$ITEST/app/libs/cefrium-compose.aar" || exit 1

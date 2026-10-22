@@ -24,7 +24,11 @@ COMPOSE_AAR="${CEFRIUM_COMPOSE_AAR:-$SRC/cef/cefrium_compose/build/outputs/aar/c
 ADB="$ANDROID_HOME/platform-tools/adb"
 AAPT="$(ls "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | head -1)"
 [ -f "$SDK_AAR" ] || { echo "FAIL: no SDK AAR at $SDK_AAR -- build it first."; exit 1; }
-[ "$("$ADB" devices 2>/dev/null | grep -c 'device$')" -ge 1 ] || { echo "FAIL: no device connected."; exit 1; }
+N="$("$ADB" devices 2>/dev/null | grep -c 'device$')"
+[ "$N" -ge 1 ] || { echo "FAIL: no device connected."; exit 1; }
+# Two devices without ANDROID_SERIAL: adb refuses and Gradle picks one, so a
+# result could come from a device nobody chose. Make the choice explicit.
+[ "$N" -eq 1 ] || [ -n "${ANDROID_SERIAL:-}" ] || { echo "FAIL: $N devices attached; set ANDROID_SERIAL."; exit 1; }
 
 # --registry <version>: smoke the PUBLISHED artifact instead of the local build.
 #
