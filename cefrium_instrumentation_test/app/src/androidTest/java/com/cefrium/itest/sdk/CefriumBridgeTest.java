@@ -269,7 +269,9 @@ public class CefriumBridgeTest {
             activity.runOnUiThread(() -> {
                 CefriumBrowser browser = browsers.createWithSurface(activity);
                 created.set(browser);
-                browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.loopback(),
+                // withSubframes(): the child must be denied for its opaque
+                // origin, not merely for being a subframe.
+                browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.loopback().withSubframes(),
                         (queryId, request, origin, callback) -> {
                             calls.incrementAndGet();
                             callback.success("handled");
@@ -348,6 +350,19 @@ public class CefriumBridgeTest {
     }
 
     /**
+     * Main page M for the SC-rc-22 tests: frames aUrl and writes every message
+     * A posts up into its own title. Bridge calls are main frame only unless
+     * the policy opts into subframes, so these tests run A inside an allowed M.
+     */
+    private static String relayPage(String aUrl) {
+        return "<html><body>m<script>"
+                + "window.addEventListener('message',function(e){document.title=String(e.data);});"
+                + "var f=document.createElement('iframe');f.src='" + aUrl + "';"
+                + "document.body.appendChild(f);"
+                + "</script></body></html>";
+    }
+
+    /**
      * SC-rc-22: a query is judged by the document that sent it. Page A (not
      * allowed) creates an iframe to B (allowed) and keeps the cefriumQuery of
      * the iframe's initial empty document. Chromium reuses that frame's
@@ -363,20 +378,22 @@ public class CefriumBridgeTest {
         try (LocalHttpServer b = new LocalHttpServer(child)) {
             final String bOrigin = b.url().substring(0, b.url().length() - 1);
             final String parentPage = "<html><body>a<script>"
+                    + "var said=false;function say(v){said=true;parent.postMessage(v,'*');}"
                     + "var f=document.createElement('iframe');document.body.appendChild(f);"
                     + "var kept=f.contentWindow.cefriumQuery;"
                     + "window.addEventListener('message',function(e){"
                     + "if(e.data!=='b-loaded')return;"
-                    + "if(!kept){document.title='verdict:nobridge';return;}"
+                    + "if(!kept){say('verdict:nobridge');return;}"
                     + "try{kept({request:'probe',"
-                    + "onSuccess:function(r){document.title='verdict:ok:'+r;},"
-                    + "onFailure:function(c,m){document.title='verdict:denied:'+c;}});"
-                    + "setTimeout(function(){if(document.title.indexOf('verdict:')!==0)"
-                    + "document.title='verdict:silent';},3000);"
-                    + "}catch(x){document.title='verdict:threw';}});"
+                    + "onSuccess:function(r){say('verdict:ok:'+r);},"
+                    + "onFailure:function(c,m){say('verdict:denied:'+c);}});"
+                    + "setTimeout(function(){if(!said)say('verdict:silent');},3000);"
+                    + "}catch(x){say('verdict:threw');}});"
                     + "f.src='" + b.url() + "';"
                     + "</script></body></html>";
-            try (LocalHttpServer a = new LocalHttpServer(parentPage)) {
+            try (LocalHttpServer a = new LocalHttpServer(parentPage);
+                 LocalHttpServer m = new LocalHttpServer(relayPage(a.url()))) {
+                final String mOrigin = m.url().substring(0, m.url().length() - 1);
                 Activity activity = activityRule.getActivity();
                 final AtomicReference<String> verdict = new AtomicReference<>();
                 final CountDownLatch done = new CountDownLatch(1);
@@ -384,7 +401,8 @@ public class CefriumBridgeTest {
                 activity.runOnUiThread(() -> {
                     CefriumBrowser browser = browsers.createWithSurface(activity);
                     browser.setQueryHandler(
-                            CefriumBrowser.QueryOriginPolicy.exactly(bOrigin),
+                            CefriumBrowser.QueryOriginPolicy.exactly(mOrigin, bOrigin)
+                                    .withSubframes(),
                             (queryId, request, origin, callback) -> {
                                 calls.incrementAndGet();
                                 callback.success("handled");
@@ -396,7 +414,7 @@ public class CefriumBridgeTest {
                             done.countDown();
                         }
                     });
-                    browser.loadUrl(a.url());
+                    browser.loadUrl(m.url());
                 });
                 Assert.assertTrue("the page never reported", done.await(20, TimeUnit.SECONDS));
                 Assert.assertEquals("A's script reached a handler that only admits B through "
@@ -437,24 +455,27 @@ public class CefriumBridgeTest {
             final String parentPage = "<html><body>a<script>"
                     + "var ok=0,attempts=0;"
                     + "window.addEventListener('message',function(e){"
-                    + "if(e.data==='b-ok'&&++ok===10)document.title='b-ok:'+attempts;"
-                    + "else if(String(e.data).indexOf('b-denied')===0)document.title=e.data;});"
+                    + "if(e.data==='b-ok'&&++ok===10)parent.postMessage('b-ok:'+attempts,'*');"
+                    + "else if(String(e.data).indexOf('b-denied')===0)parent.postMessage(e.data,'*');});"
                     + "for(var n=0;n<10;n++){"
                     + "var f=document.createElement('iframe');document.body.appendChild(f);"
                     + "var q=f.contentWindow.cefriumQuery;"
                     + "f.src='" + b.url() + "?'+n;"
-                    + "if(!q){document.title='nobridge';break;}"
+                    + "if(!q){parent.postMessage('nobridge','*');break;}"
                     + "for(var i=0;i<20;i++){q({request:'probe'});attempts++;}}"
                     + "</script></body></html>";
             final String bOrigin = b.url().substring(0, b.url().length() - 1);
-            try (LocalHttpServer a = new LocalHttpServer(parentPage)) {
+            try (LocalHttpServer a = new LocalHttpServer(parentPage);
+                 LocalHttpServer m = new LocalHttpServer(relayPage(a.url()))) {
+                final String mOrigin = m.url().substring(0, m.url().length() - 1);
                 Activity activity = activityRule.getActivity();
                 final List<String> handled = new CopyOnWriteArrayList<>();
                 final AtomicReference<String> title = new AtomicReference<>();
                 final CountDownLatch done = new CountDownLatch(1);
                 activity.runOnUiThread(() -> {
                     CefriumBrowser browser = browsers.createWithSurface(activity);
-                    browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.exactly(bOrigin),
+                    browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy
+                                    .exactly(mOrigin, bOrigin).withSubframes(),
                             (queryId, request, origin, callback) -> {
                                 handled.add(request);
                                 callback.success("handled");
@@ -467,7 +488,7 @@ public class CefriumBridgeTest {
                             done.countDown();
                         }
                     });
-                    browser.loadUrl(a.url());
+                    browser.loadUrl(m.url());
                 });
                 Assert.assertTrue("the 10 B documents never all reached the handler; title="
                         + title.get(), done.await(30, TimeUnit.SECONDS));
@@ -486,6 +507,125 @@ public class CefriumBridgeTest {
     }
 
     /** exactly() refuses an entry that could never match, instead of denying silently. */
+    // -- Main-frame isolation (sanchuang-dev/3c-app-prototype issue #3) ------
+    //
+    // The main page calls the bridge and embeds childUrl; the child calls it
+    // too and relays its verdict with postMessage. The main page writes both
+    // into its title, the one the listener sees.
+
+    private static final String CHILD = "<html><body><script>"
+            + "if(!window.cefriumQuery){parent.postMessage('nobridge','*');}else{"
+            + "window.cefriumQuery({request:'probe',"
+            + "onSuccess:function(r){parent.postMessage('ok:'+r,'*');},"
+            + "onFailure:function(c,m){parent.postMessage('denied:'+c,'*');}});}"
+            + "</script></body></html>";
+
+    private static String mainPage(String childUrl) {
+        return "<html><body><script>"
+                + "var mine=null,child=null;"
+                + "function report(){if(mine&&child)document.title='main='+mine+'|child='+child;}"
+                + "window.addEventListener('message',function(e){child=e.data;report();});"
+                + "window.cefriumQuery({request:'probe',"
+                + "onSuccess:function(r){mine='ok:'+r;report();},"
+                + "onFailure:function(c,m){mine='denied:'+c;report();}});"
+                + "var f=document.createElement('iframe');f.src='" + childUrl + "';"
+                + "document.body.appendChild(f);"
+                + "</script></body></html>";
+    }
+
+    /** Loads mainUrl under policy; returns "main=...|child=..." from its title. */
+    private String framesUnder(String mainUrl, CefriumBrowser.QueryOriginPolicy policy,
+                               AtomicInteger handlerCalls) throws Exception {
+        Activity activity = activityRule.getActivity();
+        final AtomicReference<String> verdict = new AtomicReference<>();
+        final AtomicReference<CefriumBrowser> created = new AtomicReference<>();
+        final CountDownLatch done = new CountDownLatch(1);
+        try {
+            activity.runOnUiThread(() -> {
+                CefriumBrowser browser = browsers.createWithSurface(activity);
+                created.set(browser);
+                browser.setQueryHandler(policy, (queryId, request, origin, callback) -> {
+                    handlerCalls.incrementAndGet();
+                    callback.success("handled");
+                    return true;
+                });
+                browser.setOnTitleChangedListener(title -> {
+                    if (title != null && title.startsWith("main=")) {
+                        verdict.set(title);
+                        done.countDown();
+                    }
+                });
+                browser.loadUrl(mainUrl);
+            });
+            Assert.assertTrue("the page never reported both verdicts for " + mainUrl,
+                    done.await(20, TimeUnit.SECONDS));
+        } finally {
+            activity.runOnUiThread(() -> {
+                if (created.get() != null) created.get().close();
+            });
+        }
+        return verdict.get();
+    }
+
+    private static final String DENIED = "denied:" + CefriumBrowser.QUERY_ERROR_ORIGIN_DENIED;
+
+    /** By default only the main frame reaches the handler, even same-origin. */
+    @Test
+    public void sameOriginIframeIsDeniedByDefault() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        try (LocalHttpServer child = new LocalHttpServer(CHILD);
+             LocalHttpServer main = new LocalHttpServer(mainPage(child.url()))) {
+            Assert.assertEquals("main=ok:handled|child=" + DENIED,
+                    framesUnder(main.url(), CefriumBrowser.QueryOriginPolicy.loopback(), calls));
+        }
+        Assert.assertEquals("only the main frame may reach the handler", 1, calls.get());
+    }
+
+    /** withSubframes() admits an iframe when its main frame is allowed too. */
+    @Test
+    public void withSubframesAdmitsAnIframeOfAnAllowedPage() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        try (LocalHttpServer child = new LocalHttpServer(CHILD);
+             LocalHttpServer main = new LocalHttpServer(mainPage(child.url()))) {
+            Assert.assertEquals("main=ok:handled|child=ok:handled",
+                    framesUnder(main.url(),
+                            CefriumBrowser.QueryOriginPolicy.loopback().withSubframes(), calls));
+        }
+        Assert.assertEquals(2, calls.get());
+    }
+
+    /**
+     * The issue #3 case: an allowed page framed by a page the policy does not
+     * allow stays denied, even with withSubframes(). The main frame is denied
+     * as well, so nothing reaches the handler.
+     */
+    @Test
+    public void allowedIframeInsideAForeignPageIsDenied() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        try (LocalHttpServer child = new LocalHttpServer(CHILD);
+             LocalHttpServer main = new LocalHttpServer(mainPage(child.url()))) {
+            String childOrigin = CefriumBrowser.QueryOriginPolicy.originOf(child.url());
+            Assert.assertEquals("main=" + DENIED + "|child=" + DENIED,
+                    framesUnder(main.url(), CefriumBrowser.QueryOriginPolicy
+                            .exactly(childOrigin).withSubframes(), calls));
+        }
+        Assert.assertEquals("a framed allowed page must not reach the handler", 0, calls.get());
+    }
+
+    /** A custom predicate is main frame only too, unless it opts in. */
+    @Test
+    public void customPolicyIsMainFrameOnlyByDefault() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        try (LocalHttpServer child = new LocalHttpServer(CHILD);
+             LocalHttpServer main = new LocalHttpServer(mainPage(child.url()))) {
+            CefriumBrowser.QueryOriginPolicy everyLoopback =
+                    url -> url != null && url.startsWith("http://127.0.0.1:");
+            Assert.assertEquals("main=ok:handled|child=" + DENIED,
+                    framesUnder(main.url(), everyLoopback, calls));
+        }
+        Assert.assertEquals(1, calls.get());
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void exactlyRejectsAnEntryWithoutScheme() {
         CefriumBrowser.QueryOriginPolicy.exactly("cefrium.com");
