@@ -75,7 +75,8 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 # ---- 1-2. engine + AAR ---------------------------------------------------
 if [ "$SKIP_BUILD" = "0" ]; then
   say "ninja -j $JOBS ($VARIANT)"
-  ( cd "$SRC" && ninja -j "$JOBS" -C "out/$VARIANT" cef:libcef cef/cefrium_sdk:cefrium_aar )
+  # Chromium's pinned ninja (see build-all-variants.sh for why not PATH's).
+  ( cd "$SRC" && third_party/ninja/ninja -j "$JOBS" -C "out/$VARIANT" cef:libcef cef/cefrium_sdk:cefrium_aar )
 
   say "slim the AAR"
   ( cd "$SRC" && python3 cef/cefrium_sdk/slim_aar.py \
