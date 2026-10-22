@@ -15,7 +15,9 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
-## [Unreleased]
+## [0.13.0] - 2026-10-23
+
+Engine: **Chromium 156.0.8078.17 / CEF branch 8078** (unchanged from 0.12.0).
 
 ### Changed
 - `window.cefriumQuery` answers the main frame only, whatever the origin
