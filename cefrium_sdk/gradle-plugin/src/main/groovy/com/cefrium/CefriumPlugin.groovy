@@ -41,11 +41,6 @@ class CefriumPlugin implements Plugin<Project> {
         // notifications R.string (channel group/name) when a site notification
         // channel is created on grant/display (FEATURE-037).
         'org.chromium.chrome.browser.notifications',
-        // FirebaseOptions.fromResource() reads com.google.android.gms.common
-        // R.string (google_app_id, gcm_defaultSenderId, ...) when the app uses
-        // native FCM (FirebaseApp.initializeApp / FirebaseMessaging). Without the
-        // generated R class -> NoClassDefFoundError gms/common/R$string.
-        'com.google.android.gms.common',
         'org.chromium.components.browser_ui.styles',
         'org.chromium.components.browser_ui.widget',
         // Contact Picker (navigator.contacts.select): PickerCategoryView /
@@ -112,6 +107,29 @@ class CefriumPlugin implements Plugin<Project> {
             } catch (Throwable ignore) {
                 // Best-effort lint only; never fail the consumer build over it.
             }
+        }
+
+        // The SDK does not vendor the Maven libraries Chromium uses (Guava,
+        // Material, GMS, Firebase, ...); its POM declares them. An app that adds
+        // the AAR as a file never reads that POM, so add the list the AAR carries.
+        project.afterEvaluate {
+            def coords = [] as LinkedHashSet
+            ['implementation', 'api'].each { name ->
+                def conf = project.configurations.findByName(name)
+                if (conf == null) return
+                conf.dependencies.withType(org.gradle.api.artifacts.FileCollectionDependency).each { dep ->
+                    dep.files.files.findAll { it.isFile() && it.name ==~ /cefrium-sdk.*\.aar/ }.each { aar ->
+                        new java.util.zip.ZipFile(aar).withCloseable { z ->
+                            def e = z.getEntry('cefrium-maven-deps.txt')
+                            if (e != null) {
+                                z.getInputStream(e).getText('UTF-8').readLines()*.trim()
+                                    .findAll { it && !it.startsWith('#') }.each { coords << it }
+                            }
+                        }
+                    }
+                }
+            }
+            coords.each { project.dependencies.add('runtimeOnly', it) }
         }
 
         // AGP 8+/9 variant API. Accessed dynamically (Groovy) so no AGP-API
