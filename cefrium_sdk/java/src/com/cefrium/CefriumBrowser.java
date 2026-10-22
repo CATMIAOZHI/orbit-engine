@@ -678,9 +678,33 @@ public class CefriumBrowser {
      * {@link #originOf(String) originOf(url)} or the parsed host, never a
      * string prefix, because {@code https://example.com.evil.com/} starts with
      * {@code https://example.com}.</p>
+     *
+     * <p>Only the main frame may call by default, whatever the policy. An
+     * allowed page can be framed by any site, and its iframe would otherwise
+     * reach your handler from inside that site. {@link #withSubframes()} opts
+     * a policy into subframes; even then a subframe is admitted only when the
+     * policy allows its main frame as well.</p>
      */
     public interface QueryOriginPolicy {
         boolean allows(String frameUrl);
+
+        /**
+         * Whether calls from subframes are considered at all. {@code false}
+         * unless the policy came from {@link #withSubframes()}.
+         */
+        default boolean allowsSubframes() {
+            return false;
+        }
+
+        /**
+         * This policy, also for subframes: a call from an iframe is admitted
+         * when the policy allows both the iframe's URL and its main frame's.
+         * An allowed page framed by a site the policy does not allow stays
+         * denied.
+         */
+        default QueryOriginPolicy withSubframes() {
+            return new SubframePolicy(this);
+        }
 
         /**
          * The origin of a frame URL, {@code scheme://host[:port]} with the
@@ -747,6 +771,50 @@ public class CefriumBrowser {
 
     private static final QueryOriginPolicy ANY_ORIGIN = url -> true;
 
+    /** {@link QueryOriginPolicy#withSubframes()}: the base policy, plus subframes. */
+    private static final class SubframePolicy implements QueryOriginPolicy {
+        final QueryOriginPolicy base;
+
+        SubframePolicy(QueryOriginPolicy base) {
+            this.base = base instanceof SubframePolicy ? ((SubframePolicy) base).base : base;
+        }
+
+        @Override
+        public boolean allows(String frameUrl) {
+            return base.allows(frameUrl);
+        }
+
+        @Override
+        public boolean allowsSubframes() {
+            return true;
+        }
+    }
+
+    /**
+     * Whether a subframe's call may go on to the policy: only when the policy
+     * opted into subframes and allows the caller's main frame too. Fails
+     * closed on an opaque main frame (unless anyOrigin) or a throwing policy.
+     */
+    private static boolean subframeAdmitted(QueryOriginPolicy policy, boolean any,
+            String mainFrameUrl, String mainFrameCommittedOrigin) {
+        if (!policy.allowsSubframes()) return false;
+        if (any) return true;
+        if (mainFrameCommittedOrigin == null || "null".equals(mainFrameCommittedOrigin)) {
+            return false;
+        }
+        try {
+            return policy.allows(mainFrameUrl);
+        } catch (RuntimeException e) {
+            android.util.Log.w(TAG, "QueryOriginPolicy threw on the main frame; denying", e);
+            return false;
+        }
+    }
+
+    /** The policy without a {@link SubframePolicy} wrapper, for identity checks. */
+    private static QueryOriginPolicy basePolicy(QueryOriginPolicy p) {
+        return p instanceof SubframePolicy ? ((SubframePolicy) p).base : p;
+    }
+
     /**
      * Normalizes a frame URL to {@code scheme://host[:port]}, dropping the
      * default port, or returns {@code "null"} for an opaque origin.
@@ -803,7 +871,7 @@ public class CefriumBrowser {
                     "setQueryHandler needs a QueryOriginPolicy; pass "
                     + "QueryOriginPolicy.anyOrigin() to accept every origin");
         }
-        if (handler != null && policy == ANY_ORIGIN) {
+        if (handler != null && basePolicy(policy) == ANY_ORIGIN) {
             android.util.Log.w(TAG, "window.cefriumQuery is reachable from every "
                     + "origin (QueryOriginPolicy.anyOrigin())");
         }
@@ -815,7 +883,8 @@ public class CefriumBrowser {
     // serialized, "null" when opaque; senderOrigin is the origin of the document
     // that sent the query, stamped by the renderer when it was sent.
     private void onJsQuery(final long queryId, String request, String origin,
-            String committedOrigin, String senderOrigin) {
+            String committedOrigin, String senderOrigin, boolean isMainFrame,
+            String mainFrameUrl, String mainFrameCommittedOrigin) {
         final QueryRegistration reg = mQuery;
         final QueryHandler handler = reg == null ? null : reg.handler;
         // The frame no longer holds the document that sent this query: it was
@@ -835,7 +904,19 @@ public class CefriumBrowser {
         // origin even at an allowed URL: the content its embedder did not
         // trust. Only anyOrigin() admits it; no other policy is consulted.
         boolean opaque = committedOrigin == null || "null".equals(committedOrigin);
-        if (handler != null && (!opaque || reg.policy == ANY_ORIGIN)) {
+        boolean any = basePolicy(reg == null ? null : reg.policy) == ANY_ORIGIN;
+        if (handler != null && !isMainFrame && !subframeAdmitted(reg.policy, any,
+                mainFrameUrl, mainFrameCommittedOrigin)) {
+            // An allowed page can be framed by any site; its iframe must not
+            // reach the handler from inside that site. Log origins, not URLs.
+            android.util.Log.w(TAG, "window.cefriumQuery denied for a subframe of "
+                    + normalizeOrigin(mainFrameUrl)
+                    + (reg.policy.allowsSubframes() ? "" : " (the policy is main frame only)"));
+            nativeQueryResult(mNativePtr, queryId, false, null,
+                    QUERY_ERROR_ORIGIN_DENIED, "origin not allowed");
+            return;
+        }
+        if (handler != null && (!opaque || any)) {
             try {
                 allowed = reg.policy.allows(origin);
             } catch (RuntimeException e) {

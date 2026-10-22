@@ -1900,10 +1900,20 @@ class CefriumBridgeHandler : public CefMessageRouterBrowserSide::Handler {
     // iframe's initial document saw them judged as the iframe's next page), so
     // the committed origin alone does not identify the sender.
     std::string sender_origin = "null";
+    // The main frame of the caller's own frame tree. Java admits a subframe
+    // only when the policy opted into subframes and allows this main frame
+    // too: an allowed page framed by a foreign one must not reach the handler.
+    bool is_main = false;
+    std::string main_url;
+    std::string main_committed_origin = "null";
     if (frame) {
       auto* host = static_cast<CefFrameHostImpl*>(frame.get());
       if (auto* rfh = host->GetRenderFrameHost()) {
         committed_origin = rfh->GetLastCommittedOrigin().Serialize();
+        is_main = frame->IsMain();
+        content::RenderFrameHost* main = rfh->GetMainFrame();
+        main_url = main->GetLastCommittedURL().spec();
+        main_committed_origin = main->GetLastCommittedOrigin().Serialize();
       }
       if (const auto& sender = host->current_message_sender_origin()) {
         sender_origin = sender->Serialize();
@@ -1913,18 +1923,24 @@ class CefriumBridgeHandler : public CefMessageRouterBrowserSide::Handler {
     jmethodID method = env->GetMethodID(
         cls, "onJsQuery",
         "(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;"
-        "Ljava/lang/String;)V");
+        "Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;)V");
     if (method) {
       jstring j_req = env->NewStringUTF(request.ToString().c_str());
       jstring j_origin = env->NewStringUTF(origin.c_str());
       jstring j_committed = env->NewStringUTF(committed_origin.c_str());
       jstring j_sender = env->NewStringUTF(sender_origin.c_str());
+      jstring j_main_url = env->NewStringUTF(main_url.c_str());
+      jstring j_main_committed = env->NewStringUTF(main_committed_origin.c_str());
       env->CallVoidMethod(java_browser_, method, static_cast<jlong>(query_id),
-                          j_req, j_origin, j_committed, j_sender);
+                          j_req, j_origin, j_committed, j_sender,
+                          static_cast<jboolean>(is_main), j_main_url,
+                          j_main_committed);
       env->DeleteLocalRef(j_req);
       env->DeleteLocalRef(j_origin);
       env->DeleteLocalRef(j_committed);
       env->DeleteLocalRef(j_sender);
+      env->DeleteLocalRef(j_main_url);
+      env->DeleteLocalRef(j_main_committed);
     } else {
       // A missing method would leave the query pending forever.
       env->ExceptionClear();

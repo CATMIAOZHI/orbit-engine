@@ -15,6 +15,21 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [Unreleased]
+
+### Changed
+- `window.cefriumQuery` answers the main frame only, whatever the origin
+  policy. An allowed page can be framed by any site, and its iframe used to
+  reach the handler from inside that site. `QueryOriginPolicy.withSubframes()`
+  opts a policy into subframes, and even then a subframe is admitted only when
+  the policy allows its main frame too. The check runs in the browser process
+  on the frame tree, not on anything the page reports.
+
+### Migration
+- If your pages call the bridge from an iframe, add `.withSubframes()` to the
+  policy, and make sure the policy also allows the page that holds the iframe.
+  `QueryHandler.onQuery` keeps its signature.
+
 ## [0.12.0] - 2026-10-22
 
 Engine: **Chromium 156.0.8078.17 / CEF branch 8078** (unchanged from 0.11.0).
