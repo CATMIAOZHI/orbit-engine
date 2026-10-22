@@ -350,6 +350,7 @@ handler is never consulted). `--skip-build` for sample-only edits.
 |---|---|
 | Run the instrumentation suite as a gate | `cef/cefrium_sdk/run-instrumentation-suite.sh [<version>]` |
 | Smoke the published artifact | `cef/cefrium_sdk/smoke-samples.sh --registry <version>` |
+| R8 consumer rules: Play's 25% bar + minified run | `cef/cefrium_sdk/smoke-minified.sh` |
 | Test a published release e2e | `cef/cefrium_sdk/test-published-release.sh <version>` |
 | Verify an artifact's engine/ABIs | `cef/cefrium_sdk/verify-release-artifacts.sh <version>` |
 | Audit the engine's network calls | `cef/cefrium_sdk/audit-engine-network.sh` |

@@ -241,14 +241,14 @@ read -r -d '' SDK_DEPS <<'XML' || true
          from datastore's transitive okio-jvm. Same consumer-provides model the AAR
          already uses for androidx/kotlin/kotlinx. No duplicate-class collision. -->
     <dependency><groupId>androidx.datastore</groupId><artifactId>datastore-preferences</artifactId><version>1.1.1</version></dependency>
-    <!-- Chromium's WindowLayoutInfoListener has a lambda implementing
-         androidx.window.extensions.core...Consumer. That interface is NOT vendored
-         (the platform provides it at runtime), so a consumer's R8 could not resolve
-         it and stripped accept(Object) -> AbstractMethodError at startup in
-         minified builds. Declare it 'provided' (compileOnly for the consumer): on
-         the R8 classpath so the keep rule in proguard.txt resolves, but NOT bundled
-         or on the runtime classpath (the device provides it). -->
-    <dependency><groupId>androidx.window.extensions.core</groupId><artifactId>core</artifactId><version>1.0.0</version><scope>provided</scope></dependency>
+    <!-- Chromium's WindowLayoutInfoListener hands the device a lambda implementing
+         androidx.window.extensions.core.util.function.Consumer. A consumer's R8
+         must see that interface to desugar the lambda, or the minified app dies
+         at startup with AbstractMethodError (measured on a W90). 'provided' did
+         not work: Gradle does not put a POM's provided dependencies on the
+         consumer's classpath. 'runtime' is how androidx.window:window declares
+         the same artifact. -->
+    <dependency><groupId>androidx.window.extensions.core</groupId><artifactId>core</artifactId><version>1.0.0</version><scope>runtime</scope></dependency>
   </dependencies>
 XML
 
