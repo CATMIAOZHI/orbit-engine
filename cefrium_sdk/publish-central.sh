@@ -281,6 +281,7 @@ SDK_DEPS='  <dependencies>
     <dependency><groupId>androidx.core</groupId><artifactId>core</artifactId><version>1.16.0</version></dependency>
     <dependency><groupId>androidx.browser</groupId><artifactId>browser</artifactId><version>1.8.0</version></dependency>
     <dependency><groupId>androidx.datastore</groupId><artifactId>datastore-preferences</artifactId><version>1.1.1</version></dependency>
+    <dependency><groupId>androidx.window.extensions.core</groupId><artifactId>core</artifactId><version>1.0.0</version><scope>runtime</scope></dependency>
   </dependencies>'
 
 for v in cefrium-sdk cefrium-sdk-libre; do

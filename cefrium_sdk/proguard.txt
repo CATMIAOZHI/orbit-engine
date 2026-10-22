@@ -13,15 +13,38 @@
 # Keep all classes with native methods.
 -keepclasseswithmembernames class * { native <methods>; }
 
-# Keep Chromium classes called from native via JNI.
--keep class org.chromium.** { *; }
+# Chromium classes reached from native code are kept by Chromium's own rules,
+# shipped in this AAR: jni_zero keeps every @CalledByNative / @AccessedByNative
+# member and every native method, and chromium_annotations keeps
+# @UsedByReflection. A blanket keep of org.chromium.** used to sit here; it
+# stopped R8 from shrinking, optimizing or obfuscating 85% of a consumer's
+# classes (about 10% in each category, below Google Play's 25% bar).
 
-# Chromium's WindowLayoutInfoListener has a lambda implementing
-# androidx.window.extensions.core.util.function.Consumer. In a minified consumer
-# build R8 could strip its accept(Object) (empty implementation) ->
-# AbstractMethodError at startup. Keep the SAM method on any such implementor.
-# The interface is provided on the compile classpath via the SDK's POM
-# (androidx.window.extensions.core:core, scope provided) so this rule resolves.
+# Chromium's WindowLayoutInfoListener hands the device a lambda implementing
+# androidx.window.extensions.core.util.function.Consumer. R8 must see that
+# interface to desugar the lambda correctly: without it the app dies at startup
+# with AbstractMethodError, and no keep rule can repair that. The SDK POM puts
+# androidx.window.extensions.core:core on the consumer's classpath; an app that
+# adds the AAR as a file must add that dependency itself. This rule then keeps
+# the SAM method on the implementor.
 -keep,allowobfuscation class * implements androidx.window.extensions.core.util.function.Consumer {
     public void accept(java.lang.Object);
 }
+
+# Missing classes R8 reports for every consumer, none reachable in Cefrium:
+# resource R classes of Chromium/GMS/Material/Lottie packages the Cefrium Gradle
+# plugin does not generate; a hidden framework API present on devices but not in
+# the public android.jar; an optional AndroidX dependency; a class Chromium
+# generates at build time that the AAR does not carry; and okio, stripped from
+# the AAR on purpose (it collided with okio-jvm from androidx.datastore) and
+# referenced only by Lottie's JSON parser for Chrome UI Cefrium does not use.
+-dontwarn org.chromium.**.R
+-dontwarn org.chromium.**.R$*
+-dontwarn com.google.android.gms.**.R$*
+-dontwarn com.google.android.material.R$*
+-dontwarn com.google.ar.**.R$*
+-dontwarn com.airbnb.lottie.R$*
+-dontwarn android.webkit.WebViewDelegate
+-dontwarn kotlinx.coroutines.guava.ListenableFutureKt
+-dontwarn org.chromium.chrome.browser.ProductConfig
+-dontwarn okio.**

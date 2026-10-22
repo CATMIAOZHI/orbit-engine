@@ -361,6 +361,11 @@ if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   # crashing on a new engine must block the publish (the 0.4.0 flagship lesson).
   cef/cefrium_sdk/smoke-samples.sh
 
+  # Minified gate: build the browser with R8 on against the fresh AAR, fail
+  # below Play's 25% in any R8 category, and run it on the device. A missing
+  # consumer keep only shows at run time.
+  cef/cefrium_sdk/smoke-minified.sh
+
   # Close-leak regression gate (testing/profiling plan, Phase 4/7). Build the
   # benchmark harness against the fresh AAR and drive 30 pool-evicting navigations;
   # then assert the engine's DETERMINISTIC counters (closedBrowserCount grew, live +
