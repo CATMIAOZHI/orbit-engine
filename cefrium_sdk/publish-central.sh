@@ -389,9 +389,16 @@ PUB_TYPE="USER_MANAGED"; [ "$MODE" = "publish" ] && PUB_TYPE="AUTOMATIC"
 # upload_and_poll <bundle> <deployment-name> -> 0 if VALIDATED/PUBLISHED, else 1
 upload_and_poll() {
   local bundle="$1" name="$2" id resp state=""
-  id="$(curl -sf -K "$CURL_CFG" -F "bundle=@$bundle" \
-        "$UPLOAD_URL?name=$name&publishingType=$PUB_TYPE")" \
-    || { echo "  $name: upload FAILED"; return 1; }
+  # Keep the HTTP status and body: a bare "upload FAILED" once left a release
+  # half-published with no way to tell why.
+  local body="$WORK/upload-$name.body" code
+  code="$(curl -s -o "$body" -w '%{http_code}' -K "$CURL_CFG" -F "bundle=@$bundle" \
+        "$UPLOAD_URL?name=$name&publishingType=$PUB_TYPE")"
+  if [ "$code" != 201 ]; then
+    echo "  $name: upload FAILED (HTTP ${code:-none}): $(head -c 400 "$body" 2>/dev/null)"
+    return 1
+  fi
+  id="$(cat "$body")"
   echo "  $name -> deployment $id"
   local i
   for i in $(seq 1 90); do
@@ -410,7 +417,12 @@ upload_and_poll() {
 echo ""
 echo "Uploading ${#BUNDLES[@]} coordinate(s) to Central ($PUB_TYPE)..."
 fail=0
+# CEFRIUM_CENTRAL_ONLY="cefrium-sdk cefrium-sdk-libre": upload only these, for
+# finishing a release some of whose coordinates are already published.
 for art in $(printf '%s\n' "${!BUNDLES[@]}" | sort); do
+  if [ -n "${CEFRIUM_CENTRAL_ONLY:-}" ] && [[ " $CEFRIUM_CENTRAL_ONLY " != *" $art "* ]]; then
+    echo "  $art: skipped (CEFRIUM_CENTRAL_ONLY)"; continue
+  fi
   upload_and_poll "${BUNDLES[$art]}" "cefrium-$art-$VERSION" || fail=1
 done
 
