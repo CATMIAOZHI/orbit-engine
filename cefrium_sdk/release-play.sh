@@ -144,19 +144,25 @@ done
 if [ "${CEFRIUM_PLAY_SKIP_SAMPLES:-0}" != "1" ]; then
   [ -f "$FAT_AAR" ] || { echo "ERROR: no fat AAR at $FAT_AAR -- run the merge phase first"; exit 1; }
   FAILED=""
-  for d in "$SAMPLE_REPO"/*/; do
-    [ -f "$d/gradlew" ] || continue
-    name="$(basename "$d")"
+  LOGDIR="$SAMPLE_REPO/../tmp/play-samples"
+  mkdir -p "$LOGDIR"
+  # Only samples tracked in git: leftover folders are not consumers we ship.
+  # Clean builds: an incremental build against a new AAR fails in AGP's
+  # resource merge on entries the old AAR had, which looked like an API break.
+  for name in $(git -C "$SAMPLE_REPO" ls-files '*/gradlew' | cut -d/ -f1 | sort -u); do
+    d="$SAMPLE_REPO/$name"
     # Every sample consumes the SDK as app/libs/cefrium-sdk.aar.
-    [ -d "$d/app/libs" ] || continue
+    grep -qs 'libs/cefrium-sdk.aar' "$d"/app/build.gradle* || continue
+    mkdir -p "$d/app/libs"
     cp "$FAT_AAR" "$d/app/libs/cefrium-sdk.aar"
     echo ">>> building sample $name against $VERSION"
-    if ( cd "$d" && ./gradlew assembleDebug --no-daemon -q >/dev/null 2>&1 ); then
+    if ( cd "$d" && ./gradlew clean assembleDebug --no-daemon -q >"$LOGDIR/$name.log" 2>&1 ); then
       echo "    OK"
     else
-      echo "    FAILED"
+      echo "    FAILED ($LOGDIR/$name.log)"
       FAILED="$FAILED $name"
     fi
+    rm -rf "$d/app/build"
   done
   if [ -n "$FAILED" ]; then
     echo
