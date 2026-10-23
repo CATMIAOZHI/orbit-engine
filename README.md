@@ -6,7 +6,7 @@
 
 **The full Chromium engine in your Android app, through the CEF C API.**
 
-[![SDK](https://img.shields.io/badge/SDK-0.12.0-22d3ee)](https://codeberg.org/cefrium/cef-android/releases)
+[![SDK](https://img.shields.io/badge/SDK-0.13.0-22d3ee)](https://codeberg.org/cefrium/cef-android/releases)
 [![Chromium](https://img.shields.io/badge/Chromium-156.0.8078.17-4285f4)](https://cefrium.com/upstream/)
 [![Android patches](https://img.shields.io/badge/Android%20patches-36-6b7280)](patch/patches/android)
 [![Maven Central](https://img.shields.io/badge/Maven%20Central-com.cefrium-1f6feb)](https://central.sonatype.com/namespace/com.cefrium)
@@ -255,12 +255,12 @@ only. For the mirror, add
 // app/build.gradle
 plugins {
     id 'com.android.application'
-    id 'com.cefrium' version '0.12.0'  // generates R.java for Chromium packages
+    id 'com.cefrium' version '0.13.0'  // generates R.java for Chromium packages
 }
 
 dependencies {
-    implementation 'com.cefrium:cefrium-sdk:0.12.0'      // multi-ABI; your APK ships one
-    implementation 'com.cefrium:cefrium-compose:0.12.0'  // optional, Jetpack Compose
+    implementation 'com.cefrium:cefrium-sdk:0.13.0'      // multi-ABI; your APK ships one
+    implementation 'com.cefrium:cefrium-compose:0.13.0'  // optional, Jetpack Compose
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.mediarouter:mediarouter:1.7.0'
     implementation 'androidx.core:core:1.16.0'
@@ -278,10 +278,10 @@ Alternatively, download the AAR directly from
 [Codeberg Packages](https://codeberg.org/cefrium/-/packages):
 
 **SDK (multi-ABI: arm64-v8a + x86_64, H.264/AAC + VP8/VP9/Opus):**
-- [cefrium-sdk-0.12.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk/0.12.0/cefrium-sdk-0.12.0.aar) (~250 MB, `arm64-v8a` + `x86_64`; the consumer's APK/App Bundle ships only the device's ABI, ~150 MB)
+- [cefrium-sdk-0.13.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk/0.13.0/cefrium-sdk-0.13.0.aar) (~250 MB, `arm64-v8a` + `x86_64`; the consumer's APK/App Bundle ships only the device's ABI, ~150 MB)
 
 **Jetpack Compose wrapper (all architectures):**
-- [cefrium-compose-0.12.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-compose/0.12.0/cefrium-compose-0.12.0.aar) (28 KB)
+- [cefrium-compose-0.13.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-compose/0.13.0/cefrium-compose-0.13.0.aar) (28 KB)
 
 Place in `app/libs/` and use `implementation files('libs/cefrium-sdk.aar')`.
 
@@ -329,7 +329,7 @@ The authoritative on-device suite is `cefrium_instrumentation_test/`, a
 self-contained Gradle module (not part of the GN/ninja build) that consumes the
 built AARs and exercises the public SDK exactly as a consumer would, so a clone
 of this repo is self-verifying, independent of the samples repo: **29 test
-classes, 70 `@Test` methods** across the Java SDK (core, hardening, the
+classes, 74 `@Test` methods** across the Java SDK (core, hardening, the
 `window.cefriumQuery` JS bridge, navigation, cookies, settings, the request
 interceptor, permissions, PDF, media, popups, JS dialogs, nested scroll, SSL
 and HTTP auth) and the Compose API (`CefriumView` tab keep-alive,
