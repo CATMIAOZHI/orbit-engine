@@ -115,6 +115,8 @@ public class CefriumBrowser {
     private boolean mPullToRefresh;
     // FEATURE-057: true if this is a private (incognito) browser.
     private boolean mIncognito;
+    // FEATURE-071: whose cookies, storage and cache this browser uses.
+    private CefriumProfile mProfile = CefriumProfile.getDefault();
     // A restored tab defers its load until the surface + overscroll handler are
     // connected (connectWebContentsInternal), then triggers it once.
     private boolean mPendingRestoreLoad;
@@ -162,12 +164,27 @@ public class CefriumBrowser {
      * @param scale  Device scale factor (e.g., 2.75 for Xiaomi Redmi Note 13 Pro).
      */
     public CefriumBrowser(int width, int height, float scale) {
+        this(width, height, scale, CefriumProfile.getDefault());
+    }
+
+    /**
+     * Like {@link #CefriumBrowser(int, int, float)}, using {@code profile}'s
+     * cookies, storage and cache.
+     */
+    public CefriumBrowser(int width, int height, float scale, CefriumProfile profile) {
+        if (profile == null) {
+            throw new IllegalArgumentException("profile must not be null");
+        }
         // Lazy init: the SDK's CefriumInitProvider already ran the per-process
         // setup at app launch, so initialize() can use the captured app context.
         if (!Cefrium.isInitialized()) {
             Cefrium.initialize();
         }
-        mNativePtr = nativeCreate(width, height, scale);
+        mProfile = profile;
+        mIncognito = profile.isIncognito();
+        mNativePtr = nativeCreate(width, height, scale, profile.isIncognito(),
+                profile.getName());
+        CefriumProfile.browserOpened(profile);
     }
 
     private static final String TAG = "CefriumBrowser";
@@ -1970,6 +1987,7 @@ public class CefriumBrowser {
     public void close() {
         if (mClosed) return;
         mClosed = true;
+        CefriumProfile.browserClosed(mProfile);
         if (mMediaSession != null) {
             mMediaSession.destroy();
             mMediaSession = null;
@@ -2609,6 +2627,23 @@ public class CefriumBrowser {
      */
     public static CefriumBrowser createWithSurface(android.app.Activity activity,
                                                    boolean incognito) {
+        return createWithSurface(activity,
+                incognito ? CefriumProfile.incognito() : CefriumProfile.getDefault());
+    }
+
+    /**
+     * Like {@link #createWithSurface(android.app.Activity)}, using
+     * {@code profile}'s cookies, storage and cache.
+     *
+     * @param activity The Activity to render in.
+     * @param profile  e.g. {@code CefriumProfile.get("work")}.
+     * @return A new CefriumBrowser instance with Surface rendering.
+     */
+    public static CefriumBrowser createWithSurface(android.app.Activity activity,
+                                                   CefriumProfile profile) {
+        if (profile == null) {
+            throw new IllegalArgumentException("profile must not be null");
+        }
         // Lazy init: no Application boilerplate or explicit initialize() needed.
         // CefriumInitProvider ran the per-process setup at app launch; initialize()
         // is idempotent and self-sufficient.
@@ -2646,12 +2681,14 @@ public class CefriumBrowser {
 
         // Create native browser (non-windowless mode).
         float density = activity.getResources().getDisplayMetrics().density;
-        browser.mIncognito = incognito;
+        browser.mProfile = profile;
+        browser.mIncognito = profile.isIncognito();
         browser.mNativePtr = nativeCreateWithSurface(
                 browser.mWindowAndroid, null,
                 activity.getResources().getDisplayMetrics().widthPixels,
                 activity.getResources().getDisplayMetrics().heightPixels,
-                density, incognito);
+                density, profile.isIncognito(), profile.getName());
+        CefriumProfile.browserOpened(profile);
 
         browser.mActivity = activity;
         // Browser creation is synchronous on Android: OnAfterCreated already ran
@@ -2693,6 +2730,11 @@ public class CefriumBrowser {
     /** @return true if this is a private (incognito) browser. */
     public boolean isIncognito() {
         return mIncognito;
+    }
+
+    /** @return the profile whose cookies, storage and cache this browser uses. */
+    public CefriumProfile getProfile() {
+        return mProfile;
     }
 
     /**
@@ -3667,11 +3709,12 @@ public class CefriumBrowser {
     }
 
     // Native methods.
-    private static native long nativeCreate(int width, int height, float scale);
+    private static native long nativeCreate(int width, int height, float scale,
+            boolean incognito, String profile);
     private static native long nativeCreateWithSurface(
             org.chromium.ui.base.WindowAndroid windowAndroid,
             android.view.Surface surface, int width, int height, float scale,
-            boolean incognito);
+            boolean incognito, String profile);
     private static native void nativeSetRenderHandler(long nativePtr, CefriumBrowser browser);
     private static native void nativeBindJavaBrowser(long nativePtr, CefriumBrowser browser);
     private static native boolean nativeSetBackgroundColor(long nativePtr, int argb);

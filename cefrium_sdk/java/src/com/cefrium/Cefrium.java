@@ -493,7 +493,16 @@ public final class Cefrium {
         }
 
         // Initialize CEF native layer (browser process only).
-        String cacheDir = dataRoot(appContext).getAbsolutePath();
+        // Canonical: CEF canonicalizes root_cache_path (/data/user/0 is a link to
+        // /data/data) and silently keeps a profile in memory if its cache_path,
+        // built from this string, is not literally under the canonical root.
+        java.io.File root = dataRoot(appContext);
+        String cacheDir;
+        try {
+            cacheDir = root.getCanonicalPath();
+        } catch (java.io.IOException e) {
+            cacheDir = root.getAbsolutePath();
+        }
         String dataDir = appContext.getFilesDir().getAbsolutePath();
         int result = nativeInitialize(cacheDir, dataDir);
         if (result != 0) {
@@ -656,7 +665,9 @@ public final class Cefrium {
     private static java.io.File dataRoot(Context appContext) {
         java.io.File root = sDataDirectory != null
                 ? sDataDirectory : appContext.getDir("cefrium", Context.MODE_PRIVATE);
-        return migrateEngineData(appContext.getCacheDir(), root);
+        java.io.File used = migrateEngineData(appContext.getCacheDir(), root);
+        CefriumProfile.onDataRoot(used);
+        return used;
     }
 
     /**

@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.cefrium.CefriumBrowser
+import com.cefrium.CefriumProfile
 
 /**
  * Hoisted state for [CefriumView], created with [rememberCefriumViewState].
@@ -35,7 +36,16 @@ class CefriumViewState(
     // session isolated from normal tabs; cookies/history/cache are in-memory and
     // cleared when the last incognito browser closes.
     val incognito: Boolean = false,
+    // FEATURE-071: whose cookies, storage and cache the browser uses; null =
+    // the default profile (or incognito when [incognito] is true).
+    val profile: CefriumProfile? = null,
 ) : RememberObserver {
+
+    init {
+        require(!(incognito && profile != null)) {
+            "Pass either incognito = true or a profile, not both"
+        }
+    }
 
     var lastLoadedUrl: String? by mutableStateOf(null)
         internal set
@@ -139,7 +149,10 @@ class CefriumViewState(
     /** Returns the existing browser or creates one (loading [initialUrl] once). */
     internal fun getOrCreateBrowser(activity: Activity): CefriumBrowser {
         browser?.let { return it }
-        val b = CefriumBrowser.createWithSurface(activity, incognito)
+        val b = CefriumBrowser.createWithSurface(
+            activity,
+            profile ?: if (incognito) CefriumProfile.incognito() else CefriumProfile.getDefault(),
+        )
         b.setCallback(object : CefriumBrowser.Callback() {
             override fun onUrlChanged(url: String) {
                 lastLoadedUrl = url
@@ -266,8 +279,11 @@ class CefriumViewState(
 fun rememberCefriumViewState(
     url: String,
     incognito: Boolean = false,
+    profile: CefriumProfile? = null,
 ): CefriumViewState =
-    remember(url, incognito) { CefriumViewState(url, incognito = incognito) }
+    remember(url, incognito, profile) {
+        CefriumViewState(url, incognito = incognito, profile = profile)
+    }
 
 /** A download progress update, delivered via [CefriumViewState.lastDownload]. */
 data class DownloadInfo(
