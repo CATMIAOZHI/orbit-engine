@@ -9,3 +9,6 @@ local.properties
 # Gradle wrapper jar is a binary; regenerate with:
 #   gradle wrapper --gradle-version 8.9
 gradle/wrapper/gradle-wrapper.jar
+
+# Kotlin Build Tools API session dir, created by AGP 9 / Gradle 9 builds.
+/.kotlin/
