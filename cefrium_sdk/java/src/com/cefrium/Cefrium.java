@@ -82,6 +82,7 @@ public final class Cefrium {
     private static boolean sComponentUpdatesEnabled = true;
     private static boolean sNetworkTimeQueriesEnabled = false;
     private static boolean sGpuProcessEnabled = false;
+    private static java.io.File sDataDirectory;
 
     private Cefrium() {}
 
@@ -131,6 +132,38 @@ public final class Cefrium {
             return;
         }
         sComponentUpdatesEnabled = enabled;
+    }
+
+    /**
+     * Where the engine keeps its persistent data: cookies, history, local
+     * storage, IndexedDB, service workers and autofill. Call before the first
+     * browser is created.
+     *
+     * <p>The default is the app's private {@code app_cefrium} directory. Before
+     * 0.14.0 the data lived in the app's cache directory, which Android may
+     * clear when storage runs low, and with it every signed-in session. On the
+     * first start of 0.14.0 that data is moved here once.</p>
+     *
+     * <p>A directory is used by one process at a time. To back it up or move
+     * it, close every browser first: the engine keeps its databases open.</p>
+     *
+     * @param directory the data root; created if it does not exist.
+     */
+    public static synchronized void setDataDirectory(java.io.File directory) {
+        if (sInitialized) {
+            android.util.Log.w(TAG, "setDataDirectory() ignored: the engine is "
+                    + "already initialized. Call it before the first browser is created.");
+            return;
+        }
+        sDataDirectory = directory;
+    }
+
+    /**
+     * @return the data root set with {@link #setDataDirectory}, or null for the
+     *         default ({@code app_cefrium}).
+     */
+    public static synchronized java.io.File getDataDirectory() {
+        return sDataDirectory;
     }
 
     /** @return whether engine component updates are enabled (default true). */
@@ -451,7 +484,7 @@ public final class Cefrium {
         }
 
         // Initialize CEF native layer (browser process only).
-        String cacheDir = appContext.getCacheDir().getAbsolutePath();
+        String cacheDir = dataRoot(appContext).getAbsolutePath();
         String dataDir = appContext.getFilesDir().getAbsolutePath();
         int result = nativeInitialize(cacheDir, dataDir);
         if (result != 0) {
@@ -602,6 +635,58 @@ public final class Cefrium {
 
     // Native methods implemented in libcef.so.
     private static native int nativeInitialize(String cacheDir, String dataDir);
+
+    /** What a profile root holds that must survive, by Chromium's names. */
+    private static final String[] PROFILE_ENTRIES = {"Default", "Local State"};
+
+    /**
+     * The engine's data root, after moving pre-0.14.0 data out of the cache
+     * directory. Never loses data: if the move fails, this run keeps using
+     * the old location and the next start tries again.
+     */
+    private static java.io.File dataRoot(Context appContext) {
+        java.io.File root = sDataDirectory != null
+                ? sDataDirectory : appContext.getDir("cefrium", Context.MODE_PRIVATE);
+        return migrateEngineData(appContext.getCacheDir(), root);
+    }
+
+    /**
+     * Moves the profile entries from {@code legacy} into {@code root} and
+     * returns the root the engine must use. Package-private for tests.
+     */
+    static java.io.File migrateEngineData(java.io.File legacy, java.io.File root) {
+        if (!new java.io.File(legacy, "Default").isDirectory()) {
+            root.mkdirs();
+            return root;
+        }
+        if (new java.io.File(root, "Default").exists()) {
+            // Both exist: the new root wins and the old copy is left alone.
+            android.util.Log.w(TAG, "Engine data found in both " + legacy + " and " + root
+                    + "; using " + root + " and leaving the old copy untouched");
+            return root;
+        }
+        if (!root.isDirectory() && !root.mkdirs()) {
+            android.util.Log.w(TAG, "Cannot create " + root + "; keeping engine data in "
+                    + legacy + " for this run");
+            return legacy;
+        }
+        for (String name : PROFILE_ENTRIES) {
+            java.io.File from = new java.io.File(legacy, name);
+            if (!from.exists()) continue;
+            if (!from.renameTo(new java.io.File(root, name))) {
+                // Undo the part that moved, so the old root stays complete.
+                for (String done : PROFILE_ENTRIES) {
+                    if (done.equals(name)) break;
+                    new java.io.File(root, done).renameTo(new java.io.File(legacy, done));
+                }
+                android.util.Log.w(TAG, "Moving engine data to " + root + " failed at "
+                        + name + "; keeping it in " + legacy + " for this run");
+                return legacy;
+            }
+        }
+        android.util.Log.i(TAG, "Moved engine data from " + legacy + " to " + root);
+        return root;
+    }
     private static native void nativeShutdown();
     private static native int nativeLoadAdBlockList(String path);
 }
