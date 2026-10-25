@@ -30,6 +30,12 @@ in the internal FEATURE-NNN.md working docs (not published).
   first page load threw `NameNotFoundException` for
   `NativeOnlySandboxedProcessService0`. Renderers now use the same Java child
   services as on every other Android version.
+- Data written in the last seconds before the app goes to the background is
+  no longer lost if Android then kills the process. The engine writes
+  preferences, cookies and storage in batches, and nothing flushed them when
+  the app was backgrounded; site permissions, a fresh login cookie or a push
+  subscription could vanish. Every loaded profile is now flushed when the last
+  activity stops, as Chrome does.
 
 ### Added
 - `Cefrium.setDataDirectory(File)` chooses where that data lives. Call it

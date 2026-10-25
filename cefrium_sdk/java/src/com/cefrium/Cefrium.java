@@ -9,12 +9,14 @@ import android.content.Context;
 import android.content.pm.PackageInfo;
 
 import org.chromium.base.ApkInfo;
+import org.chromium.base.ApplicationState;
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.PathUtils;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
+import org.chromium.chrome.browser.profiles.ProfileManagerUtils;
 import org.chromium.ui.base.ResourceBundle;
 
 /**
@@ -516,11 +518,28 @@ public final class Cefrium {
         // 14+ with Credential Manager; harmless (best-effort) otherwise.
         configureWebAuthn();
         configureContactsPicker();
+        flushWhenBackgrounded();
 
         sInitialized = true;
         // No manual message loop pumping needed — CEF integrates with
         // Android's Looper when multi_threaded_message_loop = false.
         return true;
+    }
+
+    private static boolean sFlushListenerRegistered;
+
+    // As Chrome does: once no activity is visible Android may kill the process
+    // without warning, so write what is still pending (preferences, cookies,
+    // storage, Local State) for every loaded profile. Otherwise, for example, a
+    // push subscription made seconds earlier is lost.
+    private static void flushWhenBackgrounded() {
+        if (sFlushListenerRegistered) return;
+        sFlushListenerRegistered = true;
+        ApplicationStatus.registerApplicationStateListener(state -> {
+            if (state == ApplicationState.HAS_STOPPED_ACTIVITIES && sInitialized) {
+                ProfileManagerUtils.flushPersistentDataForAllProfiles();
+            }
+        });
     }
 
     // Route WebAuthn through the Credential Manager (CredMan-only) and set a
