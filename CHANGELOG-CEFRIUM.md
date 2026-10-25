@@ -41,10 +41,8 @@ in the internal FEATURE-NNN.md working docs (not published).
   `CefriumProfile.delete(name)` refuses while a browser of the profile is open
   and, once the profile has been used in this run, deletes it on the next
   start. Web Push reaches only the default profile.
-
-### Fixed
-- An off-screen browser created as incognito now really is: off-screen
-  browsers ignored the incognito flag and used the persistent profile.
+- Off-screen browsers can be incognito:
+  `new CefriumBrowser(width, height, scale, CefriumProfile.incognito())`.
 
 ## [0.13.0] - 2026-10-23
 
