@@ -471,6 +471,15 @@ public final class Cefrium {
             disableFeature("NetworkTimeServiceQuerying");
         }
 
+        // Android 17 runs renderers as native-only services when Chromium's
+        // javaless renderer experiment is on, and looks for
+        // NativeOnlySandboxedProcessService0, which the SDK does not declare:
+        // the first renderer launch threw NameNotFoundException. Those services
+        // also start without JNI_OnLoad, where the renderer's CefApp is
+        // registered. Keep renderers on the Java services every other Android
+        // version uses until the native path is supported (FEATURE-072).
+        CommandLine.getInstance().appendSwitchWithValue("javaless-renderers", "disabled");
+
         // Set device scale factor from screen density so pages render
         // with correct mobile viewport (e.g., 1080px at 2.75x = ~393 CSS px).
         float density = appContext.getResources().getDisplayMetrics().density;
