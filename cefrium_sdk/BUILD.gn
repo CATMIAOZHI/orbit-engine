@@ -56,6 +56,8 @@ android_library("cefrium_java") {
     "java/src/com/cefrium/CefriumCommandHandler.java",
     "java/src/com/cefrium/CefriumDialogHandler.java",
     "java/src/com/cefrium/CefriumProfile.java",
+    "java/src/com/cefrium/CefriumPush.java",
+    "java/src/com/cefrium/CefriumPushService.java",
     "java/src/com/cefrium/CefriumSurfaceContainer.java",
     "java/src/com/cefrium/ChildServices.java",
     "java/src/org/chromium/build/BuildConfig.java",
@@ -66,7 +68,9 @@ android_library("cefrium_java") {
   ]
   deps = [
     ":cefrium_resources",
+    "$google_play_services_package:google_firebase_firebase_messaging_java",
     "//base:base_java",
+    "//components/gcm_driver/android:gcm_driver_java",
     "//components/external_intents/android:java",
     "//components/embedder_support/android:content_view_java",
     "//components/embedder_support/android:view_java",

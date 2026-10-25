@@ -49,6 +49,12 @@ in the internal FEATURE-NNN.md working docs (not published).
   site by Chromium and is in neither.
 - Off-screen browsers can be incognito:
   `new CefriumBrowser(width, height, scale, CefriumProfile.incognito())`.
+- Web Push delivery: an app passes its Firebase messages to
+  `CefriumPush.handleMessage(context, from, extras)`, which hands the Web Push
+  ones to the engine and returns false for the app's own. An app without a
+  `FirebaseMessagingService` of its own enables `CefriumPushService` in its
+  manifest instead. Each message wakes the service worker of the profile that
+  subscribed; if that profile is not open, the message is kept until it is.
 
 ## [0.13.0] - 2026-10-23
 
