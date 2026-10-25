@@ -60,7 +60,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   ones to the engine and returns false for the app's own. An app without a
   `FirebaseMessagingService` of its own enables `CefriumPushService` in its
   manifest instead. Each message wakes the service worker of the profile that
-  subscribed; if that profile is not open, the message is kept until it is.
+  subscribed, and starts the app if it is not running; if that profile is not
+  open, the message is kept until it is. Messages travel on FCM's
+  pre-production Web Push channel, the one every Chromium build that is not
+  Google Chrome gets.
 
 ## [0.13.0] - 2026-10-23
 

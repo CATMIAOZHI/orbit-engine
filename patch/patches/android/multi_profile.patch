@@ -84,7 +84,7 @@ index 5fd22e22cbfe5..ec1e247cd4140 100644
    std::unique_ptr<ash::Preferences> chromeos_preferences_;
  
 diff --git components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
-index 721271eb26cb6..65b0fe568330a 100644
+index 721271eb26cb6..f0c635583d351 100644
 --- components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
 +++ components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
 @@ -11,6 +11,7 @@ import org.jni_zero.JNINamespace;
@@ -234,29 +234,25 @@ index 721271eb26cb6..65b0fe568330a 100644
                  GCMDriverJni.get().onUnregisterFinished(mNativeGCMDriverAndroid, appId, success);
              }
          }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-@@ -154,13 +218,31 @@ public class GCMDriver {
+@@ -154,13 +218,25 @@ public class GCMDriver {
      public static void dispatchMessage(GCMMessage message) {
          ThreadUtils.assertOnUiThread();
  
+-        if (sInstance == null) {
+-            throw new RuntimeException("Failed to instantiate GCMDriver.");
 +        String route = routeOf(message.getAppId());
-+        if (route != null) {
-+            GCMDriver owner = sByStorePath.get(route);
-+            if (owner == null) {
-+                // The owning profile is not open in this process: keep the
-+                // message until its driver starts and replays it.
-+                LazySubscriptionsManager.persistMessage(
-+                        LazySubscriptionsManager.buildSubscriptionUniqueId(
-+                                message.getAppId(), message.getSenderId()),
-+                        message);
-+                return;
-+            }
-+            owner.deliver(message);
++        GCMDriver owner = route != null ? sByStorePath.get(route) : sInstance;
++        if (owner == null) {
++            // The owning profile is not open in this process (or no profile is
++            // yet, when the message woke the app): keep the message until its
++            // driver starts and replays it.
++            LazySubscriptionsManager.persistMessage(
++                    LazySubscriptionsManager.buildSubscriptionUniqueId(
++                            message.getAppId(), message.getSenderId()),
++                    message);
 +            return;
-+        }
-         if (sInstance == null) {
-             throw new RuntimeException("Failed to instantiate GCMDriver.");
          }
-+        sInstance.deliver(message);
++        owner.deliver(message);
 +    }
  
 +    private void deliver(GCMMessage message) {
@@ -267,7 +263,7 @@ index 721271eb26cb6..65b0fe568330a 100644
                          message.getAppId(),
                          message.getSenderId(),
                          message.getMessageId(),
-@@ -170,9 +252,11 @@ public class GCMDriver {
+@@ -170,9 +246,11 @@ public class GCMDriver {
      }
  
      public static void overrideSubscriberForTesting(GoogleCloudMessagingSubscriber subscriber) {

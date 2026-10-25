@@ -356,6 +356,7 @@ handler is never consulted). `--skip-build` for sample-only edits.
 | Verify an artifact's engine/ABIs | `cef/cefrium_sdk/verify-release-artifacts.sh <version>` |
 | Audit the engine's network calls | `cef/cefrium_sdk/audit-engine-network.sh` |
 | Did it crash, and of what? | `cef/cefrium_sdk/why-died.sh [package]` |
+| Web Push end to end (real FCM) | `cefrium-sample/push-demo/e2e/webpush-e2e.py --serial <s> --profile default\|<name>` |
 
 `run-instrumentation-suite.sh` stages the AARs into the harness, runs
 `connectedDebugAndroidTest`, and then reads the result files instead of
@@ -372,6 +373,13 @@ sandboxed-renderer reaping), then pulls the Java cause and any `libcef.so`
 backtrace and prints the `llvm-addr2line` command for it. Use it instead of
 `pidof`: the W90 takes 15-20 s to spawn a renderer, so a check before that
 reports a crash that never happened.
+
+`webpush-e2e.py` is the one check that is not hermetic, so it is not in the
+gate: it sends real VAPID messages through FCM to the push-demo app and passes
+only when the service worker reports each one, with the app in front and with
+its process killed first. It needs a device whose Play services register with
+FCM: a Play-certified phone or a `google_apis` emulator, not the W90. Run it
+before a cut that touches push, the profiles or the GCM patch hunks.
 
 Validation samples live in `cefrium-sample/java-sample`; each writes a verdict
 file read with `adb shell run-as com.cefrium.sample cat files/<name>.txt`. The
