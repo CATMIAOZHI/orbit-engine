@@ -134,6 +134,34 @@ void ReleaseIncognitoContext() {
   }
 }
 
+// FEATURE-071: the engine's data root (CefSettings.root_cache_path), set by
+// nativeInitialize. Named profiles live in <root>/profile-<name>: the Chrome
+// runtime only creates a disk profile whose directory is an immediate child of
+// the root, and silently falls back to an in-memory one otherwise.
+std::string& DataRoot() {
+  static base::NoDestructor<std::string> root;
+  return *root;
+}
+
+// FEATURE-071: one persistent context per named profile, created on first use
+// and kept for the life of the process (CEF does not close a context's
+// databases when its last browser goes away). Java validates the name.
+// Touched only on the CEF UI thread, like IncognitoContext.
+std::map<std::string, CefRefPtr<CefRequestContext>>& ProfileContexts() {
+  static base::NoDestructor<std::map<std::string, CefRefPtr<CefRequestContext>>>
+      contexts;
+  return *contexts;
+}
+CefRefPtr<CefRequestContext> ProfileContext(const std::string& name) {
+  CefRefPtr<CefRequestContext>& ctx = ProfileContexts()[name];
+  if (!ctx) {
+    CefRequestContextSettings settings;
+    CefString(&settings.cache_path) = DataRoot() + "/profile-" + name;
+    ctx = CefRequestContext::CreateContext(settings, nullptr);
+  }
+  return ctx;
+}
+
 }  // namespace
 
 // Per-browser render handler that forwards OnPaint to Java.
@@ -3210,7 +3238,34 @@ struct SdkBrowserData {
   bool is_surface_mode = false;
   // FEATURE-057: created with the shared off-the-record context (private tab).
   bool is_incognito = false;
+  // FEATURE-071: named profile; empty = the global (default) context.
+  std::string profile;
+  // Whether this browser holds an incognito reference to release on close.
+  bool holds_incognito = false;
 };
+
+namespace {
+CefString JStr(JNIEnv* env, jstring j);  // Defined with the cookie helpers.
+
+// FEATURE-071: the request context a new browser of |data| is created with:
+// incognito, a named profile, or nullptr for the global context. Takes the
+// incognito reference that OnBeforeClose gives back.
+CefRefPtr<CefRequestContext> ContextFor(SdkBrowserData* data) {
+  if (data->is_incognito) {
+    // One reference per browser, even if both lazy OSR paths run before the
+    // browser exists.
+    if (data->holds_incognito) {
+      return IncognitoContext();
+    }
+    data->holds_incognito = true;
+    return AcquireIncognitoContext();
+  }
+  if (!data->profile.empty()) {
+    return ProfileContext(data->profile);
+  }
+  return nullptr;
+}
+}  // namespace
 
 // Rebuild a navigation stack captured by nativeSerializeNavigationState onto
 // |wc|'s controller (must be a fresh WebContents -- no committed navigation) and
@@ -3366,7 +3421,7 @@ void SdkLifeSpanHandler::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   }
   // FEATURE-057: last incognito tab closing drops the shared OTR context, which
   // clears its in-memory cookies/history/cache (clear-on-close).
-  if (data_->is_incognito) {
+  if (data_->holds_incognito) {
     ReleaseIncognitoContext();
   }
   // The browser has now actually closed -- safe to tear down. (Doing this in
@@ -3488,6 +3543,7 @@ Java_com_cefrium_Cefrium_nativeInitialize(
   settings.multi_threaded_message_loop = false;
   settings.log_severity = LOGSEVERITY_INFO;
   CefString(&settings.root_cache_path).FromASCII(cache_dir);
+  DataRoot() = cache_dir;
 
   // Identify as Chrome Android so sites serve full-featured content. CEF IS
   // Chromium -- accurate identification, not spoofing.
@@ -3523,8 +3579,11 @@ Java_com_cefrium_Cefrium_nativeShutdown(JNIEnv* env, jclass clazz) {
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_cefrium_CefriumBrowser_nativeCreate(
-    JNIEnv* env, jclass clazz, jint width, jint height, jfloat scale) {
+    JNIEnv* env, jclass clazz, jint width, jint height, jfloat scale,
+    jboolean incognito, jstring profile) {
   auto* data = new SdkBrowserData();
+  data->is_incognito = (incognito == JNI_TRUE);
+  data->profile = JStr(env, profile).ToString();
   data->render_handler = new SdkRenderHandler(width, height, scale);
   data->life_span_handler = new SdkLifeSpanHandler();
   data->life_span_handler->SetBrowserData(data);
@@ -3572,7 +3631,7 @@ Java_com_cefrium_CefriumBrowser_nativeLoadUrl(
 
     data->pending_url = url;
     CefBrowserHost::CreateBrowser(window_info, data->client, CefString(url),
-                                  browser_settings, nullptr, nullptr);
+                                  browser_settings, nullptr, ContextFor(data));
     LOGI("CreateBrowser with URL: %s", url);
   } else {
     data->browser->GetMainFrame()->LoadURL(CefString(url));
@@ -3746,7 +3805,7 @@ Java_com_cefrium_CefriumBrowser_nativeLoadDataWithBaseUrl(
     data->pending_url = served_url;
     CefBrowserHost::CreateBrowser(window_info, data->client,
                                   CefString(served_url), browser_settings,
-                                  nullptr, nullptr);
+                                  nullptr, ContextFor(data));
     LOGI("CreateBrowser (data-with-base served origin=%s)", served_url.c_str());
   } else {
     data->browser->GetMainFrame()->LoadURL(served_url);
@@ -4593,10 +4652,11 @@ extern "C" JNIEXPORT jlong JNICALL
 Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
     JNIEnv* env, jclass clazz, jobject java_window_android,
     jobject java_surface, jint width, jint height, jfloat scale,
-    jboolean incognito) {
+    jboolean incognito, jstring profile) {
   auto* data = new SdkBrowserData();
   data->is_surface_mode = true;
   data->is_incognito = (incognito == JNI_TRUE);
+  data->profile = JStr(env, profile).ToString();
 
   // Create life span handler to capture the browser reference.
   data->life_span_handler = new SdkLifeSpanHandler();
@@ -4624,15 +4684,10 @@ Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
   CefBrowserSettings browser_settings;
   browser_settings.background_color = CefColorSetARGB(255, 255, 255, 255);
 
-  // Incognito tabs share one off-the-record context (isolated + in-memory);
-  // normal tabs pass null -> the global persistent context.
-  CefRefPtr<CefRequestContext> request_context;
-  if (data->is_incognito) {
-    request_context = AcquireIncognitoContext();
-    LOGI("nativeCreateWithSurface: incognito (off-the-record context)");
-  }
+  // Incognito tabs share one off-the-record context (isolated + in-memory), a
+  // named profile has its own persistent one, and the rest use the global.
   CefBrowserHost::CreateBrowser(window_info, data->client, CefString(""),
-                                browser_settings, nullptr, request_context);
+                                browser_settings, nullptr, ContextFor(data));
 
   {
     base::AutoLock lock(BridgeDataLock());
