@@ -62,6 +62,9 @@ dependencies {
     //      app/libs/cefrium-compose.aar
     implementation files('libs/cefrium-sdk.aar')
     implementation files('libs/cefrium-compose.aar')
+    // From the SDK's POM, which a file dependency does not read: Web Push
+    // subscribes through it (CefriumWebPushTest).
+    implementation 'com.google.android.gms:play-services-iid:17.0.0'
 
     implementation('androidx.appcompat:appcompat:1.7.0') {
         exclude group: 'org.jetbrains.kotlin'
