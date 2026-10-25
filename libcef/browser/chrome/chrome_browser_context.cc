@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/threading/thread_restrictions.h"
+#include "build/build_config.h"
 #include "cef/libcef/browser/net_service/proxy_url_loader_factory.h"
 #include "cef/libcef/browser/prefs/browser_prefs.h"
 #include "cef/libcef/browser/thread_util.h"
@@ -100,6 +101,17 @@ void ChromeBrowserContext::InitializeAsync(base::OnceClosure initialized_cb) {
       ProfileCreated(CreateStatus::kInitialized, profile);
       return;
     } else if (cache_path_.DirName() == user_data_dir) {
+#if BUILDFLAG(IS_ANDROID)
+      // Android creates disk profiles synchronously, as it creates the first
+      // one: their prefs load synchronously there, so the asynchronous path
+      // would finish initializing the profile before ProfileManager has
+      // registered it.
+      base::ScopedAllowBlockingForTesting allow_blocking;
+      Profile* profile = profile_manager->GetProfile(cache_path_);
+      ProfileCreated(profile ? CreateStatus::kInitialized : CreateStatus::kDefault,
+                     profile);
+      return;
+#else
       // Create or load a specific disk-based profile. May continue
       // synchronously or asynchronously.
       profile_manager->CreateProfileAsync(
@@ -111,6 +123,7 @@ void ChromeBrowserContext::InitializeAsync(base::OnceClosure initialized_cb) {
                          weak_ptr_factory_.GetWeakPtr(),
                          CreateStatus::kCreated));
       return;
+#endif
     } else {
       // All profile directories must be relative to |user_data_dir|.
       LOG(ERROR) << "Cannot create profile at path "
