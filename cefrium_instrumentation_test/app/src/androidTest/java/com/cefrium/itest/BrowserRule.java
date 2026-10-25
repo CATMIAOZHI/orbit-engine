@@ -36,6 +36,10 @@ public final class BrowserRule extends ExternalResource {
         return track(CefriumBrowser.createWithSurface(activity, incognito));
     }
 
+    public CefriumBrowser createWithSurface(Activity activity, com.cefrium.CefriumProfile profile) {
+        return track(CefriumBrowser.createWithSurface(activity, profile));
+    }
+
     private CefriumBrowser track(CefriumBrowser browser) {
         created.add(browser);
         return browser;
