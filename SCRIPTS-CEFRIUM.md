@@ -377,9 +377,10 @@ reports a crash that never happened.
 `webpush-e2e.py` is the one check that is not hermetic, so it is not in the
 gate: it sends real VAPID messages through FCM to the push-demo app and passes
 only when the service worker reports each one, with the app in front and with
-its process killed first. It needs a device whose Play services register with
-FCM: a Play-certified phone or a `google_apis` emulator, not the W90. Run it
-before a cut that touches push, the profiles or the GCM patch hunks.
+its process killed first. It needs Play services on the device; the W90 and a
+`google_apis` emulator both pass (Web Push registers through InstanceID, which
+works where `FirebaseMessaging.getToken()` hangs). Run it before a cut that
+touches push, the profiles or the GCM patch hunks.
 
 Validation samples live in `cefrium-sample/java-sample`; each writes a verdict
 file read with `adb shell run-as com.cefrium.sample cat files/<name>.txt`. The
