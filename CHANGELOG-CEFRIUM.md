@@ -26,10 +26,13 @@ in the internal FEATURE-NNN.md working docs (not published).
   is moved there once, so users keep their sessions; if the move fails it is
   undone and retried on the next start.
 - The engine no longer crashes at startup on Android 17. There Chromium runs
-  renderers as native-only services, which the SDK does not declare, and the
-  first page load threw `NameNotFoundException` for
-  `NativeOnlySandboxedProcessService0`. Renderers now use the same Java child
-  services as on every other Android version.
+  renderers as native services with no Java runtime, which the SDK did not
+  declare, and the first page load threw `NameNotFoundException` for
+  `NativeOnlySandboxedProcessService0`. They are now supported: libcef.so
+  exports their entry point and initializes CEF in them, so the renderer
+  bridge works there too. Their declarations need `compileSdk 37`, so the
+  `com.cefrium` Gradle plugin adds them when the app compiles against 37 or
+  later; an app below that keeps compiling and gets the Java renderers.
 - Data written in the last seconds before the app goes to the background is
   no longer lost if Android then kills the process. The engine writes
   preferences, cookies and storage in batches, and nothing flushed them when
