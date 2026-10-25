@@ -70,6 +70,7 @@ android_library("cefrium_java") {
     ":cefrium_resources",
     "$google_play_services_package:google_firebase_firebase_messaging_java",
     "//base:base_java",
+    "//chrome/browser/profiles/android:java",
     "//components/gcm_driver/android:gcm_driver_java",
     "//components/external_intents/android:java",
     "//components/embedder_support/android:content_view_java",
