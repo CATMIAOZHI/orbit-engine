@@ -1,5 +1,5 @@
 diff --git content/public/android/java/src/org/chromium/content/browser/ChildProcessCreationParamsImpl.java content/public/android/java/src/org/chromium/content/browser/ChildProcessCreationParamsImpl.java
-index ecf13ea586a5057db531da73ca359340acba450c..e6ea4e5af8baaedd9c46af8a0b87f0d5e05b62fb 100644
+index ecf13ea586a50..97a0045e04055 100644
 --- content/public/android/java/src/org/chromium/content/browser/ChildProcessCreationParamsImpl.java
 +++ content/public/android/java/src/org/chromium/content/browser/ChildProcessCreationParamsImpl.java
 @@ -4,6 +4,9 @@
@@ -12,27 +12,30 @@ index ecf13ea586a5057db531da73ca359340acba450c..e6ea4e5af8baaedd9c46af8a0b87f0d5
  import android.os.Build;
  import android.os.Bundle;
  import android.os.Process;
-@@ -29,6 +32,19 @@ public class ChildProcessCreationParamsImpl {
+@@ -29,6 +32,22 @@ public class ChildProcessCreationParamsImpl {
      private static final String NATIVE_SANDBOXED_SERVICES_NAME =
              "org.chromium.content.app.NativeOnlySandboxedProcessService";
  
-+    // Application meta-data that replaces the two class names above. An
-+    // embedder that shares its package with the system WebView needs its own:
-+    // WebView binds org.chromium.content.app.SandboxedProcessService0 under the
++    // Application meta-data that replaces the class names above. An embedder
++    // that shares its package with the system WebView needs its own: WebView
++    // binds org.chromium.content.app.SandboxedProcessService0 under the
 +    // embedding app's package, and a second binder of the same name and
 +    // instance is handed WebView's process.
 +    private static final String SANDBOXED_SERVICES_NAME_KEY =
 +            "org.chromium.content.browser.SANDBOXED_SERVICES_NAME";
++    private static final String NATIVE_SANDBOXED_SERVICES_NAME_KEY =
++            "org.chromium.content.browser.NATIVE_SANDBOXED_SERVICES_NAME";
 +    private static final String PRIVILEGED_SERVICES_NAME_KEY =
 +            "org.chromium.content.browser.PRIVILEGED_SERVICES_NAME";
 +    private static @Nullable String sManifestSandboxedServicesName;
++    private static @Nullable String sManifestNativeSandboxedServicesName;
 +    private static @Nullable String sManifestPrivilegedServicesName;
 +    private static boolean sManifestServicesNamesRead;
 +
      // Members should all be immutable to avoid worrying about thread safety.
      private static @Nullable String sPackageNameForPrivilegedService;
      private static @Nullable String sPackageNameForSandboxedService;
-@@ -103,8 +119,33 @@ public class ChildProcessCreationParamsImpl {
+@@ -103,8 +122,35 @@ public class ChildProcessCreationParamsImpl {
          return extras.getInt(EXTRA_LIBRARY_PROCESS_TYPE, LibraryProcessType.PROCESS_CHILD);
      }
  
@@ -47,6 +50,8 @@ index ecf13ea586a5057db531da73ca359340acba450c..e6ea4e5af8baaedd9c46af8a0b87f0d5
 +            if (info.metaData != null) {
 +                sManifestSandboxedServicesName =
 +                        info.metaData.getString(SANDBOXED_SERVICES_NAME_KEY);
++                sManifestNativeSandboxedServicesName =
++                        info.metaData.getString(NATIVE_SANDBOXED_SERVICES_NAME_KEY);
 +                sManifestPrivilegedServicesName =
 +                        info.metaData.getString(PRIVILEGED_SERVICES_NAME_KEY);
 +            }
@@ -67,16 +72,18 @@ index ecf13ea586a5057db531da73ca359340acba450c..e6ea4e5af8baaedd9c46af8a0b87f0d5
      }
  
      private static boolean isPrimaryAbi64Bit() {
-@@ -139,8 +180,12 @@ public class ChildProcessCreationParamsImpl {
+@@ -139,8 +185,14 @@ public class ChildProcessCreationParamsImpl {
      }
  
      public static String getSandboxedServicesName() {
 -        return isNativeSandboxedServiceEnabled()
 -                ? NATIVE_SANDBOXED_SERVICES_NAME
-+        // The native-only service keeps its fixed name: SANDBOXED_SERVICES_NAME
-+        // names the Java sandboxed services only.
-+        if (isNativeSandboxedServiceEnabled()) return NATIVE_SANDBOXED_SERVICES_NAME;
 +        readManifestServicesNames();
++        if (isNativeSandboxedServiceEnabled()) {
++            return sManifestNativeSandboxedServicesName != null
++                    ? sManifestNativeSandboxedServicesName
++                    : NATIVE_SANDBOXED_SERVICES_NAME;
++        }
 +        return sManifestSandboxedServicesName != null
 +                ? sManifestSandboxedServicesName
                  : SANDBOXED_SERVICES_NAME;

@@ -8,11 +8,15 @@
 // libcef.so is loaded. In child processes, registers a ContentMainDelegate
 // so that ContentMain.start() can find it. In the browser process,
 // CefMainRunner handles delegate creation during CefInitialize().
+//
+// Javaless renderers (Android 17+) have no JVM and never call JNI_OnLoad;
+// they call NativeInitializationHook() instead.
 
 #include <jni.h>
 #include <unistd.h>
 
 #include "base/android/jni_android.h"
+#include "base/android/library_loader/library_loader_hooks.h"
 #include "cef/libcef/browser/android/cefrium_app.h"
 #include "cef/libcef/common/chrome/chrome_main_delegate_cef.h"
 #include "content/public/app/content_jni_onload.h"
@@ -33,23 +37,16 @@ bool IsChildProcess() {
   return strstr(buf, ":") != nullptr;
 }
 
-}  // namespace
-
-extern "C" {
-
-__attribute__((visibility("default")))
-JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
-  base::android::InitVM(vm);
-
+bool InitLibrary(bool is_child_process) {
   if (!content::android::OnJNIOnLoadInit()) {
-    return -1;
+    return false;
   }
 
   // Tell Chromium that locale paks are stored as APK assets.
   // Must be set before InitializeICU() which is called by libraryLoaded().
   ui::SetLocalePaksStoredInApk(true);
 
-  if (IsChildProcess()) {
+  if (is_child_process) {
     // Child processes (renderer, GPU, utility) need a ContentMainDelegate
     // before ContentMain.start() is called. The browser process handles
     // this in CefMainRunner::ContentMainInitialize() with actual
@@ -57,6 +54,27 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
     content::SetContentMainDelegate(
         new ChromeMainDelegateCef(/*runner=*/nullptr, /*settings=*/nullptr,
                                   /*application=*/new CefriumApp()));
+  }
+  return true;
+}
+
+}  // namespace
+
+// Overrides the weak default in content/app/android/
+// javaless_child_process_service.cc, which only ever runs in a child.
+bool NativeInitializationHook(
+    base::android::LibraryProcessType library_process_type) {
+  return InitLibrary(/*is_child_process=*/true);
+}
+
+extern "C" {
+
+__attribute__((visibility("default")))
+JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+  base::android::InitVM(vm);
+
+  if (!InitLibrary(IsChildProcess())) {
+    return -1;
   }
 
   return JNI_VERSION_1_4;

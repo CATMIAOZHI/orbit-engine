@@ -8,5 +8,7 @@
     cef_*;
     Java_*;
     JNI_OnLoad;
+    /* Android 17+ javaless renderers start here instead of JNI_OnLoad. */
+    NativeChildProcessService_onCreate;
   local: *;
 };
