@@ -278,6 +278,19 @@ public final class Cefrium {
 
     // Add a feature to --disable-features without clobbering a value the embedder
     // (or an earlier call) already put there.
+    private static final String JAVALESS_MARKER = "com.cefrium.JAVALESS_RENDERERS";
+
+    private static boolean hasJavalessRenderers(Context appContext) {
+        try {
+            android.content.pm.ApplicationInfo info = appContext.getPackageManager()
+                    .getApplicationInfo(appContext.getPackageName(),
+                            android.content.pm.PackageManager.GET_META_DATA);
+            return info.metaData != null && info.metaData.getBoolean(JAVALESS_MARKER, false);
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
     private static void disableFeature(String feature) {
         CommandLine commandLine = CommandLine.getInstance();
         String existing = commandLine.getSwitchValue("disable-features", "");
@@ -473,14 +486,13 @@ public final class Cefrium {
             disableFeature("NetworkTimeServiceQuerying");
         }
 
-        // Android 17 runs renderers as native-only services when Chromium's
-        // javaless renderer experiment is on, and looks for
-        // NativeOnlySandboxedProcessService0, which the SDK does not declare:
-        // the first renderer launch threw NameNotFoundException. Those services
-        // also start without JNI_OnLoad, where the renderer's CefApp is
-        // registered. Keep renderers on the Java services every other Android
-        // version uses until the native path is supported (FEATURE-072).
-        CommandLine.getInstance().appendSwitchWithValue("javaless-renderers", "disabled");
+        // Android 17+ renderers run as native services when the app declares
+        // them, which the com.cefrium Gradle plugin does when the app compiles
+        // against API 37 (FEATURE-072). Without the declarations Chromium would
+        // still look for them, so keep renderers on the Java services.
+        if (!hasJavalessRenderers(appContext)) {
+            CommandLine.getInstance().appendSwitchWithValue("javaless-renderers", "disabled");
+        }
 
         // Set device scale factor from screen density so pages render
         // with correct mobile viewport (e.g., 1080px at 2.75x = ~393 CSS px).

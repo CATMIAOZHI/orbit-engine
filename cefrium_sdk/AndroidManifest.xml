@@ -92,6 +92,8 @@
              "Child process's classpath doesn't match" in logcat. -->
         <meta-data android:name="org.chromium.content.browser.SANDBOXED_SERVICES_NAME"
                    android:value="com.cefrium.ChildServices$Sandboxed"/>
+        <meta-data android:name="org.chromium.content.browser.NATIVE_SANDBOXED_SERVICES_NAME"
+                   android:value="com.cefrium.ChildServices$NativeSandboxed"/>
         <meta-data android:name="org.chromium.content.browser.PRIVILEGED_SERVICES_NAME"
                    android:value="com.cefrium.ChildServices$Privileged"/>
         <!-- android:useAppZygote on service 0, as upstream Chrome declares it.
@@ -108,6 +110,13 @@
              starts renderers fast enough to run into that gap. Fixed by
              connecting as soon as the native browser exists
              (onNativeBrowserCreated). -->
+        <!-- Android 17+ renderers with no JVM (Chromium's javaless renderers)
+             run as com.cefrium.ChildServices$NativeSandboxed0 and 1. They need
+             android:nativeService and android:zygotePreloadNativeLib, which a
+             build with compileSdk below 37 rejects, so they are not declared
+             here: the com.cefrium Gradle plugin adds them when the app compiles
+             against 37 or later, and Cefrium keeps renderers on the Java
+             services below when they are missing. -->
         <service android:name="com.cefrium.ChildServices$Sandboxed0"
                  android:process=":sandboxed_process0"
                  android:isolatedProcess="true"
