@@ -84,23 +84,82 @@ index 5fd22e22cbfe5..ec1e247cd4140 100644
    std::unique_ptr<ash::Preferences> chromeos_preferences_;
  
 diff --git components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
-index 721271eb26cb6..dcfa079124db5 100644
+index 721271eb26cb6..65b0fe568330a 100644
 --- components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
 +++ components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
-@@ -59,7 +59,11 @@ public class GCMDriver {
+@@ -11,6 +11,7 @@ import org.jni_zero.JNINamespace;
+ import org.jni_zero.JniType;
+ import org.jni_zero.NativeMethods;
+ 
++import org.chromium.base.ContextUtils;
+ import org.chromium.base.Log;
+ import org.chromium.base.ResettersForTesting;
+ import org.chromium.base.ThreadUtils;
+@@ -19,6 +20,8 @@ import org.chromium.build.annotations.NullMarked;
+ import org.chromium.build.annotations.Nullable;
+ 
+ import java.io.IOException;
++import java.util.HashMap;
++import java.util.Map;
+ import java.util.Set;
+ 
+ /**
+@@ -34,14 +37,33 @@ public class GCMDriver {
+     private static final String TAG = "GCMDriver";
+ 
+     // The instance of GCMDriver currently owned by a C++ GCMDriverAndroid, if any.
++    // With more than one disk profile (an embedder), the first one's driver.
+     private static @Nullable GCMDriver sInstance;
+ 
++    // Every live driver by its GCM store path (one per disk profile), and the
++    // app id -> store path routes of the subscriptions made through them (web
++    // push subscribes through InstanceIDBridge, which records the route too).
++    // Messages go to the owner: every profile's push handler claims all web
++    // push app ids and unsubscribes the ones it does not know, so broadcasting
++    // would revoke other profiles' subscriptions. Unrouted app ids
++    // (subscriptions made before routes existed) go to sInstance.
++    private static final Map<String, GCMDriver> sByStorePath = new HashMap<>();
++    private static final String ROUTE_PREFIX = "gcm_driver_route.";
++    private static @Nullable GoogleCloudMessagingSubscriber sSubscriberForTesting;
++
+     private long mNativeGCMDriverAndroid;
+     private GoogleCloudMessagingSubscriber mSubscriber;
++    private final String mStorePath;
+ 
+     protected GCMDriver(long nativeGCMDriverAndroid) {
++        this(nativeGCMDriverAndroid, "");
++    }
++
++    private GCMDriver(long nativeGCMDriverAndroid, String storePath) {
+         mNativeGCMDriverAndroid = nativeGCMDriverAndroid;
+-        mSubscriber = new GoogleCloudMessagingV2();
++        mSubscriber =
++                sSubscriberForTesting != null ? sSubscriberForTesting : new GoogleCloudMessagingV2();
++        mStorePath = storePath;
+     }
+ 
+     /** Sets a test instance. */
+@@ -57,11 +79,16 @@ public class GCMDriver {
+      * @param nativeGCMDriverAndroid The C++ object that owns us.
+      */
      @CalledByNative
-     private static GCMDriver create(long nativeGCMDriverAndroid) {
+-    private static GCMDriver create(long nativeGCMDriverAndroid) {
++    private static GCMDriver create(
++            long nativeGCMDriverAndroid, @JniType("std::string") String storePath) {
++        GCMDriver driver = new GCMDriver(nativeGCMDriverAndroid, storePath);
++        sByStorePath.put(storePath, driver);
          if (sInstance != null) {
 -            throw new IllegalStateException("Already instantiated");
-+            // Another disk profile of an embedder. Incoming messages keep going
-+            // to the first driver only: every profile's push handler claims all
-+            // web push app ids, and one that does not know a subscription
-+            // unsubscribes it, which would revoke the first profile's.
-+            return new GCMDriver(nativeGCMDriverAndroid);
++            // Another disk profile of an embedder: it receives the messages of
++            // the subscriptions it makes (see dispatchMessage).
++            return driver;
          }
-         sInstance = new GCMDriver(nativeGCMDriverAndroid);
+-        sInstance = new GCMDriver(nativeGCMDriverAndroid);
++        sInstance = driver;
          // TODO(crbug.com/40620351): This has been in added in M75 to migrate the
-@@ -75,8 +79,9 @@ public class GCMDriver {
+         // way we store if there are persisted messages. It should be removed in
+         // M77.
+@@ -75,11 +102,43 @@ public class GCMDriver {
       */
      @CalledByNative
      private void destroy() {
@@ -109,6 +168,306 @@ index 721271eb26cb6..dcfa079124db5 100644
 +        if (sInstance == this) {
 +            sInstance = null;
 +        }
++        if (sByStorePath.get(mStorePath) == this) {
++            sByStorePath.remove(mStorePath);
++        }
          mNativeGCMDriverAndroid = 0;
      }
  
++    /**
++     * Records that messages for {@code appId} belong to the profile whose GCM
++     * store is {@code storePath}. Called when a subscription is made.
++     */
++    public static void recordRoute(String appId, String storePath) {
++        if (storePath.isEmpty()) return;
++        ContextUtils.getAppSharedPreferences()
++                .edit()
++                .putString(ROUTE_PREFIX + appId, storePath)
++                .apply();
++    }
++
++    /** Forgets {@code appId}'s route. Called when its subscription is removed. */
++    public static void clearRoute(String appId) {
++        ContextUtils.getAppSharedPreferences().edit().remove(ROUTE_PREFIX + appId).apply();
++    }
++
++    private static @Nullable String routeOf(@Nullable String appId) {
++        if (appId == null) return null;
++        return ContextUtils.getAppSharedPreferences().getString(ROUTE_PREFIX + appId, null);
++    }
++
++    // True when this driver is the one a message for appId belongs to.
++    private boolean owns(@Nullable String appId) {
++        String route = routeOf(appId);
++        return route == null ? sInstance == this : route.equals(mStorePath);
++    }
++
+     @CalledByNative
+     private void replayPersistedMessages(@JniType("std::string") final String appId) {
+         Set<String> subscriptionsWithPersistedMessagesForAppId =
+@@ -90,8 +149,10 @@ public class GCMDriver {
+ 
+         for (String id : subscriptionsWithPersistedMessagesForAppId) {
+             GCMMessage[] messages = LazySubscriptionsManager.readMessages(id);
++            // Messages kept for another profile wait for that profile's driver.
++            if (messages.length > 0 && !owns(messages[0].getAppId())) continue;
+             for (GCMMessage message : messages) {
+-                dispatchMessage(message);
++                deliver(message);
+             }
+             LazySubscriptionsManager.deletePersistedMessagesForSubscriptionId(id);
+         }
+@@ -116,6 +177,8 @@ public class GCMDriver {
+ 
+             @Override
+             protected void onPostExecute(String registrationId) {
++                // Route this subscription's messages to this profile.
++                if (!registrationId.isEmpty()) recordRoute(appId, mStorePath);
+                 GCMDriverJni.get()
+                         .onRegisterFinished(
+                                 mNativeGCMDriverAndroid,
+@@ -145,6 +208,7 @@ public class GCMDriver {
+ 
+             @Override
+             protected void onPostExecute(Boolean success) {
++                if (success) clearRoute(appId);
+                 GCMDriverJni.get().onUnregisterFinished(mNativeGCMDriverAndroid, appId, success);
+             }
+         }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+@@ -154,13 +218,31 @@ public class GCMDriver {
+     public static void dispatchMessage(GCMMessage message) {
+         ThreadUtils.assertOnUiThread();
+ 
++        String route = routeOf(message.getAppId());
++        if (route != null) {
++            GCMDriver owner = sByStorePath.get(route);
++            if (owner == null) {
++                // The owning profile is not open in this process: keep the
++                // message until its driver starts and replays it.
++                LazySubscriptionsManager.persistMessage(
++                        LazySubscriptionsManager.buildSubscriptionUniqueId(
++                                message.getAppId(), message.getSenderId()),
++                        message);
++                return;
++            }
++            owner.deliver(message);
++            return;
++        }
+         if (sInstance == null) {
+             throw new RuntimeException("Failed to instantiate GCMDriver.");
+         }
++        sInstance.deliver(message);
++    }
+ 
++    private void deliver(GCMMessage message) {
+         GCMDriverJni.get()
+                 .onMessageReceived(
+-                        sInstance.mNativeGCMDriverAndroid,
++                        mNativeGCMDriverAndroid,
+                         message.getAppId(),
+                         message.getSenderId(),
+                         message.getMessageId(),
+@@ -170,9 +252,11 @@ public class GCMDriver {
+     }
+ 
+     public static void overrideSubscriberForTesting(GoogleCloudMessagingSubscriber subscriber) {
+-        assert sInstance != null;
+         assert subscriber != null;
+-        sInstance.mSubscriber = subscriber;
++        // Every driver, including those of profiles created later.
++        sSubscriberForTesting = subscriber;
++        for (GCMDriver driver : sByStorePath.values()) driver.mSubscriber = subscriber;
++        if (sInstance != null) sInstance.mSubscriber = subscriber;
+     }
+ 
+     @NativeMethods
+diff --git components/gcm_driver/gcm_driver.cc components/gcm_driver/gcm_driver.cc
+index f9d36ac71a0cf..70fe166aae151 100644
+--- components/gcm_driver/gcm_driver.cc
++++ components/gcm_driver/gcm_driver.cc
+@@ -53,7 +53,8 @@ void InstanceIDHandler::DeleteAllTokensForApp(const std::string& app_id,
+ 
+ GCMDriver::GCMDriver(
+     const base::FilePath& store_path,
+-    const scoped_refptr<base::SequencedTaskRunner>& blocking_task_runner) {
++    const scoped_refptr<base::SequencedTaskRunner>& blocking_task_runner)
++    : store_path_(store_path) {
+   // The |blocking_task_runner| can be nullptr for tests that do not need the
+   // encryption capabilities of the GCMDriver class.
+   if (blocking_task_runner)
+diff --git components/gcm_driver/gcm_driver.h components/gcm_driver/gcm_driver.h
+index 96eeebe5d5027..50e04da382811 100644
+--- components/gcm_driver/gcm_driver.h
++++ components/gcm_driver/gcm_driver.h
+@@ -11,6 +11,7 @@
+ 
+ #include "base/containers/circular_deque.h"
+ #include "base/containers/flat_map.h"
++#include "base/files/file_path.h"
+ #include "base/functional/callback.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/memory/scoped_refptr.h"
+@@ -22,7 +23,6 @@
+ #include "components/gcm_driver/gcm_client.h"
+ 
+ namespace base {
+-class FilePath;
+ class SequencedTaskRunner;
+ }  // namespace base
+ 
+@@ -121,6 +121,9 @@ class GCMDriver {
+ 
+   virtual ~GCMDriver();
+ 
++  // The GCM store path this driver was created with: one per profile.
++  const base::FilePath& store_path() const { return store_path_; }
++
+   // Registers |sender_ids| for an app. *Use |InstanceID| instead in new code.*
+   //
+   // A registration ID will be returned by the GCM server. On Android, only a
+@@ -424,6 +427,8 @@ class GCMDriver {
+   base::flat_map<std::string, base::circular_deque<BufferedMessage>>
+       buffered_messages_;
+ 
++  const base::FilePath store_path_;
++
+   base::WeakPtrFactory<GCMDriver> weak_ptr_factory_{this};
+ };
+ 
+diff --git components/gcm_driver/gcm_driver_android.cc components/gcm_driver/gcm_driver_android.cc
+index 7201b3c75f07c..885689f5638ee 100644
+--- components/gcm_driver/gcm_driver_android.cc
++++ components/gcm_driver/gcm_driver_android.cc
+@@ -11,6 +11,7 @@
+ #include "base/android/jni_array.h"
+ #include "base/android/jni_string.h"
+ #include "base/compiler_specific.h"
++#include "base/files/file_path.h"
+ #include "base/logging.h"
+ #include "base/notimplemented.h"
+ #include "base/task/sequenced_task_runner.h"
+@@ -29,7 +30,10 @@ GCMDriverAndroid::GCMDriverAndroid(
+     const scoped_refptr<base::SequencedTaskRunner>& blocking_task_runner)
+     : GCMDriver(store_path, blocking_task_runner), recorder_(this) {
+   JNIEnv* env = AttachCurrentThread();
+-  java_ref_.Reset(Java_GCMDriver_create(env, reinterpret_cast<intptr_t>(this)));
++  // The store path identifies the profile, so the Java side can route each
++  // subscription's messages to the profile that made it.
++  java_ref_.Reset(Java_GCMDriver_create(env, reinterpret_cast<intptr_t>(this),
++                                        store_path.value()));
+ }
+ 
+ GCMDriverAndroid::~GCMDriverAndroid() {
+diff --git components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java
+index 370ae28ef8e02..f5b8a4b550afc 100644
+--- components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java
++++ components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java
+@@ -4,6 +4,8 @@
+ 
+ package org.chromium.components.gcm_driver.instance_id;
+ 
++import android.text.TextUtils;
++
+ import org.jni_zero.CalledByNative;
+ import org.jni_zero.JNINamespace;
+ import org.jni_zero.JniType;
+@@ -11,6 +13,7 @@ import org.jni_zero.NativeMethods;
+ 
+ import org.chromium.base.task.AsyncTask;
+ import org.chromium.build.annotations.NullMarked;
++import org.chromium.components.gcm_driver.GCMDriver;
+ import org.chromium.components.gcm_driver.InstanceIDFlags;
+ import org.chromium.components.gcm_driver.LazySubscriptionsManager;
+ import org.chromium.components.gcm_driver.SubscriptionFlagManager;
+@@ -36,9 +39,14 @@ public class InstanceIDBridge {
+ 
+     private static boolean sBlockOnAsyncTasksForTesting;
+ 
+-    private InstanceIDBridge(long nativeInstanceIDAndroid, String subtype) {
++    // GCM store path of the profile this bridge belongs to; see
++    // GCMDriver.recordRoute.
++    private final String mStorePath;
++
++    private InstanceIDBridge(long nativeInstanceIDAndroid, String subtype, String storePath) {
+         mSubtype = subtype;
+         mNativeInstanceIDAndroid = nativeInstanceIDAndroid;
++        mStorePath = storePath;
+     }
+ 
+     /**
+@@ -47,8 +55,10 @@ public class InstanceIDBridge {
+      */
+     @CalledByNative
+     public static InstanceIDBridge create(
+-            long nativeInstanceIDAndroid, @JniType("std::string") String subtype) {
+-        return new InstanceIDBridge(nativeInstanceIDAndroid, subtype);
++            long nativeInstanceIDAndroid,
++            @JniType("std::string") String subtype,
++            @JniType("std::string") String storePath) {
++        return new InstanceIDBridge(nativeInstanceIDAndroid, subtype, storePath);
+     }
+ 
+     /**
+@@ -130,7 +140,9 @@ public class InstanceIDBridge {
+                             SubscriptionFlagManager.buildSubscriptionUniqueId(
+                                     mSubtype, authorizedEntity),
+                             flags);
+-                    return mInstanceID.getToken(authorizedEntity, scope);
++                    String token = mInstanceID.getToken(authorizedEntity, scope);
++                    if (!TextUtils.isEmpty(token)) GCMDriver.recordRoute(mSubtype, mStorePath);
++                    return token;
+                 } catch (IOException ex) {
+                     return "";
+                 }
+@@ -164,6 +176,7 @@ public class InstanceIDBridge {
+                     SubscriptionFlagManager.clearFlags(
+                             SubscriptionFlagManager.buildSubscriptionUniqueId(
+                                     mSubtype, authorizedEntity));
++                    GCMDriver.clearRoute(mSubtype);
+                     return true;
+                 } catch (IOException ex) {
+                     return false;
+diff --git components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
+index ccbe7bb9eeea0..db2aa979ef7ba 100644
+--- components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
++++ components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
+@@ -40,6 +40,14 @@ public class InstanceIDWithSubtype {
+     /** Fake subclasses can set this so getInstance creates instances of them. */
+     @VisibleForTesting protected static @Nullable FakeFactory sFakeFactoryForTesting;
+ 
++    /** Makes getInstance() build instances with {@code factory}; null restores the real ones. */
++    public static void setFakeFactoryForTesting(@Nullable FakeFactory factory) {
++        synchronized (sSubtypeInstancesLock) {
++            sFakeFactoryForTesting = factory;
++            sSubtypeInstances.clear();
++        }
++    }
++
+     protected InstanceIDWithSubtype(InstanceID instanceID) {
+         mInstanceID = instanceID;
+     }
+diff --git components/gcm_driver/instance_id/instance_id_android.cc components/gcm_driver/instance_id/instance_id_android.cc
+index a2bf1dd93b350..140ff83337856 100644
+--- components/gcm_driver/instance_id/instance_id_android.cc
++++ components/gcm_driver/instance_id/instance_id_android.cc
+@@ -15,6 +15,7 @@
+ #include "base/logging.h"
+ #include "base/task/single_thread_task_runner.h"
+ #include "base/time/time.h"
++#include "components/gcm_driver/gcm_driver.h"
+ 
+ // Must come after all headers that specialize FromJniType() / ToJniType().
+ #include "components/gcm_driver/instance_id/android/jni_headers/InstanceIDBridge_jni.h"
+@@ -55,8 +56,11 @@ InstanceIDAndroid::InstanceIDAndroid(const std::string& app_id,
+   std::string subtype = app_id;
+ 
+   JNIEnv* env = AttachCurrentThread();
++  // The store path identifies the profile, so a message for this app id is
++  // routed to the profile that subscribed (see GCMDriver.java).
+   java_ref_.Reset(Java_InstanceIDBridge_create(
+-      env, reinterpret_cast<intptr_t>(this), subtype));
++      env, reinterpret_cast<intptr_t>(this), subtype,
++      gcm_driver->store_path().value()));
+ }
+ 
+ InstanceIDAndroid::~InstanceIDAndroid() {
