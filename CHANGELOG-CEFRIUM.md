@@ -40,7 +40,7 @@ in the internal FEATURE-NNN.md working docs (not published).
   off-screen constructor, or `rememberCefriumViewState(profile = ...)`.
   `CefriumProfile.delete(name)` refuses while a browser of the profile is open
   and, once the profile has been used in this run, deletes it on the next
-  start. Web Push reaches only the default profile.
+  start.
 - Off-screen browsers can be incognito:
   `new CefriumBrowser(width, height, scale, CefriumProfile.incognito())`.
 
