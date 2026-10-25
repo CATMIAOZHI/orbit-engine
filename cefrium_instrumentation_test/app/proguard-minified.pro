@@ -20,5 +20,8 @@
 -keep class org.hamcrest.** { *; }
 
 # Tests that look inside on purpose: CefriumEngineSettingsTest reads Chromium's
-# command line, which the app never does.
+# command line, which the app never does; CefriumWebPushTest swaps the GCM
+# InstanceID for a fake.
 -keep class org.chromium.base.CommandLine { public *; }
+-keep class org.chromium.components.gcm_driver.instance_id.InstanceIDWithSubtype { *; }
+-keep interface org.chromium.components.gcm_driver.instance_id.InstanceIDWithSubtype$FakeFactory { *; }

@@ -59,6 +59,17 @@
             android:authorities="${applicationId}.cefriuminit"
             android:exported="false"
             android:initOrder="100" />
+        <!-- FEATURE-073: Web Push for apps without a FirebaseMessagingService
+             of their own. Disabled so it never takes messages from the app's
+             own service; an app enables it in its manifest, or calls
+             CefriumPush.handleMessage from its own service instead. -->
+        <service android:name="com.cefrium.CefriumPushService"
+                 android:enabled="false"
+                 android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
         <!-- F5: foreground service hosting the media-playback notification. -->
         <service android:name="com.cefrium.CefriumMediaService"
                  android:foregroundServiceType="mediaPlayback"
