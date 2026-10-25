@@ -41,6 +41,12 @@ in the internal FEATURE-NNN.md working docs (not published).
   `CefriumProfile.delete(name)` refuses while a browser of the profile is open
   and, once the profile has been used in this run, deletes it on the next
   start.
+- Per-site data: `CefriumProfile.listSiteData(callback)` reports each site
+  with its storage size and cookie count, the figures Chrome's per-site
+  storage screen shows, and `clearSiteData(site, done)` removes that site's
+  cookies, local and session storage, IndexedDB, Cache Storage, service
+  workers and the other per-site stores. The HTTP cache is not attributed per
+  site by Chromium and is in neither.
 - Off-screen browsers can be incognito:
   `new CefriumBrowser(width, height, scale, CefriumProfile.incognito())`.
 

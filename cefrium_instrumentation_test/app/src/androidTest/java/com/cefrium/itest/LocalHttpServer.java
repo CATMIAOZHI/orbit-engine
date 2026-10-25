@@ -26,24 +26,36 @@ public final class LocalHttpServer implements AutoCloseable {
     private volatile boolean running = true;
 
     public LocalHttpServer(String html) throws Exception {
+        this(html, null, null);
+    }
+
+    /**
+     * Also serves {@code script} as JavaScript at {@code scriptPath} (e.g.
+     * {@code "/sw.js"}), for service workers; every other path gets the HTML.
+     */
+    public LocalHttpServer(String html, String scriptPath, String script) throws Exception {
         server = new ServerSocket(0, 0, InetAddress.getByName("127.0.0.1"));
         port = server.getLocalPort();
         final byte[] body = html.getBytes(StandardCharsets.UTF_8);
-        final byte[] head = ("HTTP/1.1 200 OK\r\n"
-                + "Content-Type: text/html; charset=utf-8\r\n"
-                + "Content-Length: " + body.length + "\r\n"
-                + "Connection: close\r\n\r\n").getBytes(StandardCharsets.UTF_8);
+        final byte[] head = response("text/html; charset=utf-8", body.length);
+        final byte[] jsBody = script == null ? null : script.getBytes(StandardCharsets.UTF_8);
+        final byte[] jsHead = script == null
+                ? null : response("application/javascript; charset=utf-8", jsBody.length);
         Thread t = new Thread(() -> {
             while (running) {
                 try (Socket s = server.accept()) {
                     s.setSoTimeout(5000);
                     BufferedReader in = new BufferedReader(new InputStreamReader(
                             s.getInputStream(), StandardCharsets.UTF_8));
+                    String requestLine = in.readLine();
                     String line;
                     while ((line = in.readLine()) != null && !line.isEmpty()) { /* drain headers */ }
+                    boolean js = jsBody != null && requestLine != null
+                            && requestLine.split(" ").length > 1
+                            && requestLine.split(" ")[1].split("\\?")[0].equals(scriptPath);
                     OutputStream out = s.getOutputStream();
-                    out.write(head);
-                    out.write(body);
+                    out.write(js ? jsHead : head);
+                    out.write(js ? jsBody : body);
                     out.flush();
                 } catch (Exception ignored) {
                     // accept() throws on close(); a partial request just drops.
@@ -52,6 +64,18 @@ public final class LocalHttpServer implements AutoCloseable {
         }, "cefrium-test-httpd");
         t.setDaemon(true);
         t.start();
+    }
+
+    private static byte[] response(String contentType, int length) {
+        return ("HTTP/1.1 200 OK\r\n"
+                + "Content-Type: " + contentType + "\r\n"
+                + "Content-Length: " + length + "\r\n"
+                + "Connection: close\r\n\r\n").getBytes(StandardCharsets.UTF_8);
+    }
+
+    /** URL of the served page on localhost, a different host from 127.0.0.1. */
+    public String localhostUrl() {
+        return "http://localhost:" + port + "/";
     }
 
     /** URL of the served page, e.g. http://127.0.0.1:45123/ */

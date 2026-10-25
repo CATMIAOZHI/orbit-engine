@@ -10,7 +10,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -128,6 +131,97 @@ public final class CefriumProfile {
         deleteRecursively(dir);
         return true;
     }
+
+    /** One site's data in a profile, as {@link #listSiteData} reports it. */
+    public static final class SiteData {
+        /** The site: a host, or an origin for data Chromium keys by origin. */
+        public final String site;
+        /** Bytes of storage: local and session storage, IndexedDB, Cache
+         *  Storage, File System and the other per-site stores. The HTTP cache
+         *  is not attributed per site and is not included. */
+        public final long storageBytes;
+        /** Number of cookies. */
+        public final long cookieCount;
+
+        SiteData(String site, long storageBytes, long cookieCount) {
+            this.site = site;
+            this.storageBytes = storageBytes;
+            this.cookieCount = cookieCount;
+        }
+    }
+
+    /** Receives {@link #listSiteData}'s result, on the UI thread. */
+    public interface SiteDataCallback {
+        void onSiteData(List<SiteData> sites);
+    }
+
+    private static final android.os.Handler sMain =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+    private static final Map<Long, Object> sPending = new HashMap<>();
+    private static long sNextRequest = 1;
+
+    /**
+     * Lists every site that has data in this profile, with its size and
+     * cookie count: the same figures Chrome's per-site storage screen shows.
+     *
+     * @throws IllegalStateException before the engine is initialized.
+     */
+    public void listSiteData(SiteDataCallback callback) {
+        if (callback == null) throw new IllegalArgumentException("callback must not be null");
+        root();
+        long id = register(callback);
+        sMain.post(() -> nativeListSiteData(mIncognito, mName, id));
+    }
+
+    /**
+     * Deletes everything this profile holds for {@code site}: cookies, local
+     * and session storage, IndexedDB, Cache Storage, service workers and the
+     * other per-site stores. {@code site} is a value from {@link #listSiteData}
+     * or an origin URL such as {@code https://example.com}, which also covers
+     * the data Chromium keeps under that host.
+     *
+     * @param done runs on the UI thread once the data is gone; may be null.
+     * @throws IllegalStateException before the engine is initialized.
+     */
+    public void clearSiteData(String site, Runnable done) {
+        if (site == null || site.isEmpty()) throw new IllegalArgumentException("site must not be empty");
+        root();
+        long id = register(done == null ? (Runnable) () -> {} : done);
+        sMain.post(() -> nativeClearSiteData(mIncognito, mName, site, id));
+    }
+
+    private static synchronized long register(Object callback) {
+        long id = sNextRequest++;
+        sPending.put(id, callback);
+        return id;
+    }
+
+    // Called by native code on the UI thread; owners is null on failure.
+    @SuppressWarnings("unused")
+    private static void onSiteDataResult(long requestId, String[] owners, long[] bytes,
+                                         long[] cookies) {
+        Object callback;
+        synchronized (CefriumProfile.class) {
+            callback = sPending.remove(requestId);
+        }
+        if (callback instanceof Runnable) {
+            ((Runnable) callback).run();
+            return;
+        }
+        if (!(callback instanceof SiteDataCallback)) return;
+        List<SiteData> sites = new ArrayList<>();
+        if (owners != null) {
+            for (int i = 0; i < owners.length; i++) {
+                sites.add(new SiteData(owners[i], bytes[i], cookies[i]));
+            }
+        }
+        ((SiteDataCallback) callback).onSiteData(Collections.unmodifiableList(sites));
+    }
+
+    private static native void nativeListSiteData(boolean incognito, String profile,
+                                                  long requestId);
+    private static native void nativeClearSiteData(boolean incognito, String profile,
+                                                   String site, long requestId);
 
     @Override
     public boolean equals(Object o) {

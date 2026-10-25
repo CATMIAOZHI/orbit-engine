@@ -9,6 +9,7 @@
 #include <jni.h>
 #include <map>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "base/base64.h"
@@ -76,6 +77,12 @@
 #include "ui/base/page_transition_types.h"
 #include "ui/events/keycodes/keyboard_code_conversion_android.h"
 #include "url/gurl.h"
+#include "base/barrier_closure.h"
+#include "cef/libcef/browser/request_context_impl.h"
+#include "chrome/browser/browsing_data/chrome_browsing_data_model_delegate.h"
+#include "chrome/browser/profiles/profile.h"
+#include "components/browsing_data/content/browsing_data_model.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "url/origin.h"
 
 #define TAG "Cefrium"
@@ -5046,6 +5053,176 @@ Java_com_cefrium_CefriumBrowser_nativeClearCache(
     data->browser->GetHost()->ExecuteDevToolsMethod(
         1, "Network.clearBrowserCache", nullptr);
   }
+}
+
+// FEATURE-071: per-site data of a profile, through Chromium's
+// BrowsingDataModel (what Chrome's per-site storage screen uses). Listing
+// reports each data owner (host or origin) with its storage size and cookie
+// count; clearing removes everything the model knows for that owner. The HTTP
+// cache is not attributed per site by Chromium, so it is in neither.
+namespace {
+
+// The context for (incognito, profile): null when incognito has no open
+// browser, i.e. no data.
+CefRefPtr<CefRequestContext> SiteDataContext(JNIEnv* env, jboolean incognito,
+                                             jstring profile) {
+  if (incognito == JNI_TRUE) {
+    return IncognitoContext();
+  }
+  const std::string name = JStr(env, profile).ToString();
+  return name.empty() ? CefRequestContext::GetGlobalContext()
+                      : ProfileContext(name);
+}
+
+std::string OwnerString(const BrowsingDataModel::DataOwner& owner) {
+  return std::visit(
+      absl::Overload{[](const std::string& host) { return host; },
+                     [](const url::Origin& origin) { return origin.Serialize(); }},
+      owner);
+}
+
+void BuildSiteDataModel(
+    CefRefPtr<CefRequestContext> context,
+    base::OnceCallback<void(std::unique_ptr<BrowsingDataModel>)> done) {
+  Profile* profile = CefRequestContextImpl::GetProfile(context);
+  BrowsingDataModel::BuildFromDisk(
+      profile, ChromeBrowsingDataModelDelegate::CreateForProfile(profile),
+      std::move(done));
+}
+
+// Calls CefriumProfile.onSiteDataResult(requestId, owners, bytes, cookies) on
+// the UI thread; owners is null when the request failed.
+void DeliverSiteData(jclass clazz, jlong request_id,
+                     const std::vector<std::string>* owners,
+                     const std::vector<int64_t>* bytes,
+                     const std::vector<int64_t>* cookies) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  jmethodID method = env->GetStaticMethodID(clazz, "onSiteDataResult",
+                                            "(J[Ljava/lang/String;[J[J)V");
+  if (!method) {
+    env->ExceptionClear();
+    env->DeleteGlobalRef(clazz);
+    return;
+  }
+  jobjectArray j_owners = nullptr;
+  jlongArray j_bytes = nullptr;
+  jlongArray j_cookies = nullptr;
+  if (owners) {
+    const jsize n = static_cast<jsize>(owners->size());
+    j_owners = env->NewObjectArray(n, env->FindClass("java/lang/String"), nullptr);
+    j_bytes = env->NewLongArray(n);
+    j_cookies = env->NewLongArray(n);
+    for (jsize i = 0; i < n; ++i) {
+      jstring o = env->NewStringUTF((*owners)[i].c_str());
+      env->SetObjectArrayElement(j_owners, i, o);
+      env->DeleteLocalRef(o);
+    }
+    env->SetLongArrayRegion(j_bytes, 0, n,
+                            reinterpret_cast<const jlong*>(bytes->data()));
+    env->SetLongArrayRegion(j_cookies, 0, n,
+                            reinterpret_cast<const jlong*>(cookies->data()));
+  }
+  env->CallStaticVoidMethod(clazz, method, request_id, j_owners, j_bytes,
+                            j_cookies);
+  if (j_owners) env->DeleteLocalRef(j_owners);
+  if (j_bytes) env->DeleteLocalRef(j_bytes);
+  if (j_cookies) env->DeleteLocalRef(j_cookies);
+  env->DeleteGlobalRef(clazz);
+}
+
+}  // namespace
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumProfile_nativeListSiteData(
+    JNIEnv* env, jclass clazz, jboolean incognito, jstring profile,
+    jlong request_id) {
+  jclass global = static_cast<jclass>(env->NewGlobalRef(clazz));
+  CefRefPtr<CefRequestContext> context =
+      SiteDataContext(env, incognito, profile);
+  if (!context) {
+    std::vector<std::string> none;
+    std::vector<int64_t> zero;
+    DeliverSiteData(global, request_id, &none, &zero, &zero);
+    return;
+  }
+  BuildSiteDataModel(
+      context,
+      base::BindOnce(
+          [](jclass clazz, jlong request_id,
+             std::unique_ptr<BrowsingDataModel> model) {
+            // One row per owner: a model entry is per (owner, storage key).
+            std::map<std::string, std::pair<int64_t, int64_t>> rows;
+            for (const auto& entry : *model) {
+              auto& row = rows[OwnerString(*entry.data_owner)];
+              row.first += entry.data_details->storage_size;
+              row.second += entry.data_details->cookie_count;
+            }
+            std::vector<std::string> owners;
+            std::vector<int64_t> bytes;
+            std::vector<int64_t> cookies;
+            for (const auto& [owner, sizes] : rows) {
+              owners.push_back(owner);
+              bytes.push_back(sizes.first);
+              cookies.push_back(sizes.second);
+            }
+            DeliverSiteData(clazz, request_id, &owners, &bytes, &cookies);
+          },
+          global, request_id));
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumProfile_nativeClearSiteData(
+    JNIEnv* env, jclass clazz, jboolean incognito, jstring profile,
+    jstring site, jlong request_id) {
+  jclass global = static_cast<jclass>(env->NewGlobalRef(clazz));
+  CefRefPtr<CefRequestContext> context =
+      SiteDataContext(env, incognito, profile);
+  const std::string wanted = JStr(env, site).ToString();
+  if (!context) {
+    DeliverSiteData(global, request_id, nullptr, nullptr, nullptr);
+    return;
+  }
+  BuildSiteDataModel(
+      context,
+      base::BindOnce(
+          [](jclass clazz, jlong request_id, std::string wanted,
+             std::unique_ptr<BrowsingDataModel> model) {
+            // The site as listed (host or origin), or an origin URL, which
+            // also matches the entries Chromium groups under its host.
+            const GURL url(wanted);
+            const std::string host =
+                url.is_valid() ? std::string(url.host()) : std::string();
+            std::vector<BrowsingDataModel::DataOwner> matches;
+            std::set<std::string> seen;
+            for (const auto& entry : *model) {
+              const std::string owner = OwnerString(*entry.data_owner);
+              if ((owner == wanted || (!host.empty() &&
+                                       (owner == host ||
+                                        owner == url::Origin::Create(url).Serialize()))) &&
+                  seen.insert(owner).second) {
+                matches.push_back(*entry.data_owner);
+              }
+            }
+            BrowsingDataModel* raw = model.get();
+            auto finish = base::BindOnce(
+                [](jclass clazz, jlong request_id,
+                   std::unique_ptr<BrowsingDataModel>, size_t count) {
+                  std::vector<std::string> cleared(count);
+                  std::vector<int64_t> zero(count, 0);
+                  DeliverSiteData(clazz, request_id, &cleared, &zero, &zero);
+                },
+                clazz, request_id, std::move(model), matches.size());
+            if (matches.empty()) {
+              std::move(finish).Run();
+              return;
+            }
+            base::RepeatingClosure barrier =
+                base::BarrierClosure(matches.size(), std::move(finish));
+            for (const auto& owner : matches) {
+              raw->RemoveBrowsingData(owner, barrier);
+            }
+          },
+          global, request_id, wanted));
 }
 
 // FEATURE-031: PrintToPDF (URL/page -> PDF file). Delivers the result to Java
