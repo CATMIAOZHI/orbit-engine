@@ -25,6 +25,11 @@ in the internal FEATURE-NNN.md working docs (not published).
   app's private `app_cefrium` directory. On the first start the existing data
   is moved there once, so users keep their sessions; if the move fails it is
   undone and retried on the next start.
+- The engine no longer crashes at startup on Android 17. There Chromium runs
+  renderers as native-only services, which the SDK does not declare, and the
+  first page load threw `NameNotFoundException` for
+  `NativeOnlySandboxedProcessService0`. Renderers now use the same Java child
+  services as on every other Android version.
 
 ### Added
 - `Cefrium.setDataDirectory(File)` chooses where that data lives. Call it
