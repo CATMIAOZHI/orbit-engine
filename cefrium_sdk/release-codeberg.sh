@@ -16,6 +16,7 @@ SRC_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"               # chromium/src
 CEF_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"                  # chromium/src/cef
 REL_DIR="$SRC_DIR/out/release"
 COMPOSE_AAR="$CEF_DIR/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar"
+UNIFIEDPUSH_AAR="$CEF_DIR/cefrium_unifiedpush/build/outputs/aar/cefrium-unifiedpush-release.aar"
 GPG_KEY="2A840ED00DE669F4219B8B3302A79E3B82151695"
 # Read the engine out of the tree, never hardcode it: the release notes are the
 # first place an adopter looks for what Chromium a version embeds.
@@ -58,6 +59,7 @@ if [ -f cefrium-sdk-libre.aar ]; then
   SUM_FILES="$SUM_FILES cefrium-sdk-libre-$VERSION.aar"
 fi
 [ -f "$COMPOSE_AAR" ] && { cp -f "$COMPOSE_AAR" "cefrium-compose-$VERSION.aar"; SUM_FILES="$SUM_FILES cefrium-compose-$VERSION.aar"; }
+[ -f "$UNIFIEDPUSH_AAR" ] && { cp -f "$UNIFIEDPUSH_AAR" "cefrium-unifiedpush-$VERSION.aar"; SUM_FILES="$SUM_FILES cefrium-unifiedpush-$VERSION.aar"; }
 # The supply-chain disclosure goes INSIDE the signed manifest. An SBOM that
 # states which engine a release embeds is only worth as much as its integrity:
 # unattested, anyone can serve a different one. (Covered from 0.9.5 on; the

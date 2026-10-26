@@ -209,7 +209,9 @@ stale build dir (see "After an engine bump" in CLAUDE.md / RELEASING-CEFRIUM.md)
    ./gradlew assembleRelease --no-daemon
    # -> build/outputs/aar/cefrium-compose-release.aar
    ```
-3. **Gradle Plugin JAR** -- `cef/cefrium_sdk/gradle-plugin/build/libs/gradle-plugin.jar`.
+3. **UnifiedPush AAR**: the same steps in `cef/cefrium_unifiedpush`
+   (`-> build/outputs/aar/cefrium-unifiedpush-release.aar`).
+4. **Gradle Plugin JAR** -- `cef/cefrium_sdk/gradle-plugin/build/libs/gradle-plugin.jar`.
 
 ### 7.2 Publish to the Codeberg Maven registry
 
@@ -224,7 +226,7 @@ cef/cefrium_sdk/publish-maven.sh <version>
 ```
 
 `publish-maven.sh` uploads `cefrium-sdk`, `cefrium-sdk-libre`, `cefrium-compose`,
-`cefrium-gradle-plugin` and the plugin marker POM, each with a generated POM.
+`cefrium-unifiedpush`, `cefrium-gradle-plugin` and the plugin marker POM, each with a generated POM.
 
 **CRITICAL -- raw PUT, never multipart.** The Codeberg Maven API expects the raw
 file body on a `PUT` (`curl --upload-file`). Using `curl -F`/`--form` sends
@@ -240,7 +242,7 @@ POMs), aborting the release on corruption.
 version, delete it first:
 ```bash
 TOKEN=$(cat "$CEFRIUM_REGISTRY_TOKEN")
-for n in cefrium-sdk cefrium-sdk-libre cefrium-compose cefrium-gradle-plugin com.cefrium.gradle.plugin; do
+for n in cefrium-sdk cefrium-sdk-libre cefrium-compose cefrium-unifiedpush cefrium-gradle-plugin com.cefrium.gradle.plugin; do
   curl -s -X DELETE -H "Authorization: token $TOKEN" \
     "https://codeberg.org/api/v1/packages/cefrium/maven/com.cefrium%3A$n/$VERSION"
 done
