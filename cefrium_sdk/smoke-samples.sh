@@ -20,6 +20,7 @@ ROOT="$(cd "$SRC/../.." && pwd)"                # cef-dev
 SDK_AAR="${CEFRIUM_SDK_AAR:-$SRC/out/release/cefrium-sdk.aar}"      # multi-ABI (post-merge); fallback below
 [ -f "$SDK_AAR" ] || SDK_AAR="$SRC/out/Official_android_arm64/cefrium-sdk.aar"
 COMPOSE_AAR="${CEFRIUM_COMPOSE_AAR:-$SRC/cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar}"
+UNIFIEDPUSH_AAR="${CEFRIUM_UNIFIEDPUSH_AAR:-$SRC/cef/cefrium_unifiedpush/build/outputs/aar/cefrium-unifiedpush-release.aar}"
 : "${ANDROID_HOME:?set ANDROID_HOME}"; : "${JAVA_HOME:?set JAVA_HOME}"
 ADB="$ANDROID_HOME/platform-tools/adb"
 AAPT="$(ls "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | head -1)"
@@ -72,8 +73,14 @@ if [ -n "$REGISTRY_VERSION" ]; then
   echo "  published ABIs: ${abis:-none}"
   case "$abis" in *arm64-v8a*) ;; *) echo "FAIL: published AAR has no arm64-v8a"; exit 1 ;; esac
   case "$abis" in *x86_64*)    ;; *) echo "FAIL: published AAR has no x86_64 -- emulator users get UnsatisfiedLinkError"; exit 1 ;; esac
+  # cefrium-unifiedpush exists from 0.15.0 on; without it unifiedpush-demo
+  # fails to build, which is the loud answer for a release that should have it.
+  up="https://repo1.maven.org/maven2/com/cefrium/cefrium-unifiedpush/$REGISTRY_VERSION/cefrium-unifiedpush-$REGISTRY_VERSION.aar"
+  [ -s "$PUB/cefrium-unifiedpush.aar" ] || curl -sfL -o "$PUB/cefrium-unifiedpush.aar" "$up" \
+    || { rm -f "$PUB/cefrium-unifiedpush.aar"; echo "  cefrium-unifiedpush: not on Central for $REGISTRY_VERSION"; }
   SDK_AAR="$PUB/cefrium-sdk.aar"
   COMPOSE_AAR="$PUB/cefrium-compose.aar"
+  UNIFIEDPUSH_AAR="$PUB/cefrium-unifiedpush.aar"
 fi
 # The two browsers live in their own repo (cefrium/cefrium-browser); the rest are
 # in cefrium-sample.
@@ -103,6 +110,7 @@ for s in $SAMPLES; do
     mkdir -p "$d/app/libs"
     grep -q 'libs/cefrium-sdk.aar' "$gf" && cp "$SDK_AAR" "$d/app/libs/cefrium-sdk.aar"
     grep -q 'libs/cefrium-compose.aar' "$gf" && [ -f "$COMPOSE_AAR" ] && cp "$COMPOSE_AAR" "$d/app/libs/cefrium-compose.aar"
+    grep -q 'libs/cefrium-unifiedpush.aar' "$gf" && [ -f "$UNIFIEDPUSH_AAR" ] && cp "$UNIFIEDPUSH_AAR" "$d/app/libs/cefrium-unifiedpush.aar"
   fi
   # clean: the AAR under test replaces one built earlier, and AGP's incremental
   # merge fails on entries the old AAR had ("Unknown file: ...properties").

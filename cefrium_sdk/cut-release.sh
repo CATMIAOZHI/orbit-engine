@@ -265,7 +265,7 @@ if run merge; then
     echo "ERROR: could not generate the SBOM/NOTICE for $VERSION."; exit 1; }
 fi
 
-if run compose; then hdr "compose AAR"
+if run compose; then hdr "compose + unifiedpush AARs"
   mkdir -p cef/cefrium_compose/libs   # gitignored compileOnly dep dir; may be absent on a fresh tree
   cp out/release/cefrium-sdk.aar cef/cefrium_compose/libs/
   # gradle-wrapper.jar is gitignored in cefrium_compose; restore from a sample
@@ -273,6 +273,11 @@ if run compose; then hdr "compose AAR"
   WJ=cef/cefrium_compose/gradle/wrapper/gradle-wrapper.jar
   [ -f "$WJ" ] || cp "$ROOT/cefrium-sample/push-demo/gradle/wrapper/gradle-wrapper.jar" "$WJ"
   ( cd cef/cefrium_compose && ./gradlew assembleRelease --no-daemon )
+  mkdir -p cef/cefrium_unifiedpush/libs
+  cp out/release/cefrium-sdk.aar cef/cefrium_unifiedpush/libs/
+  WJ=cef/cefrium_unifiedpush/gradle/wrapper/gradle-wrapper.jar
+  [ -f "$WJ" ] || cp "$ROOT/cefrium-sample/push-demo/gradle/wrapper/gradle-wrapper.jar" "$WJ"
+  ( cd cef/cefrium_unifiedpush && ./gradlew assembleRelease --no-daemon )
 fi
 if run plugin;  then hdr "plugin jar check"
   jar=cef/cefrium_sdk/gradle-plugin/build/libs/gradle-plugin.jar

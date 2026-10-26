@@ -90,11 +90,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CEF_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RELEASE_DIR="$(cd "$SCRIPT_DIR/../../out/release" 2>/dev/null && pwd || true)"
 COMPOSE_AAR="$CEF_DIR/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar"
+UNIFIEDPUSH_AAR="$CEF_DIR/cefrium_unifiedpush/build/outputs/aar/cefrium-unifiedpush-release.aar"
 PLUGIN_JAR="$SCRIPT_DIR/gradle-plugin/build/libs/gradle-plugin.jar"
 
 # Source roots for the -sources.jar of each coordinate.
 SDK_SRC="$SCRIPT_DIR/java/src"
 COMPOSE_SRC="$CEF_DIR/cefrium_compose/java/src"
+UNIFIEDPUSH_SRC="$CEF_DIR/cefrium_unifiedpush/java/src"
 PLUGIN_SRC="$SCRIPT_DIR/gradle-plugin/src/main/groovy"
 # Existing generated API docs (jarred as -javadoc.jar when present); a minimal
 # placeholder pointing at cefrium.com/docs is used when a dir is absent.
@@ -309,6 +311,20 @@ if [ -f "$COMPOSE_AAR" ]; then
   place "cefrium-compose" "$VERSION" "$COMPOSE_AAR" "aar"
   make_sources_jar "cefrium-compose" "$COMPOSE_SRC"
   make_javadoc_jar "cefrium-compose" "$WEB_DOCS/compose"
+fi
+
+if [ -f "$UNIFIEDPUSH_AAR" ]; then
+  echo "Staging cefrium-unifiedpush..."
+  UNIFIEDPUSH_DEPS='  <dependencies>
+    <dependency><groupId>com.cefrium</groupId><artifactId>cefrium-sdk</artifactId><version>'"$VERSION"'</version></dependency>
+    <dependency><groupId>org.unifiedpush.android</groupId><artifactId>connector</artifactId><version>3.3.5</version>
+      <exclusions><exclusion><groupId>com.google.crypto.tink</groupId><artifactId>tink</artifactId></exclusion></exclusions></dependency>
+    <dependency><groupId>com.google.crypto.tink</groupId><artifactId>tink-android</artifactId><version>1.23.0</version></dependency>
+  </dependencies>'
+  write_pom "cefrium-unifiedpush" "aar" "Cefrium UnifiedPush" "Web Push through UnifiedPush instead of Firebase Cloud Messaging, for the Cefrium SDK." "$UNIFIEDPUSH_DEPS"
+  place "cefrium-unifiedpush" "$VERSION" "$UNIFIEDPUSH_AAR" "aar"
+  make_sources_jar "cefrium-unifiedpush" "$UNIFIEDPUSH_SRC"
+  make_javadoc_jar "cefrium-unifiedpush" "$WEB_DOCS/unifiedpush"
 fi
 
 if [ -f "$PLUGIN_JAR" ]; then
