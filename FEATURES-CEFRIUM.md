@@ -529,18 +529,26 @@ engine's Google account, sync and optimization-guide backends are inert.
 
 ### Changing either default
 
-Both controls must be set before the engine initializes -- that is, before your
-first browser is created:
+Both controls must be set before the engine initializes. The SDK initializes
+from a ContentProvider, which Android creates after
+`Application.attachBaseContext` and before `Application.onCreate`, so call them
+from `attachBaseContext` (the kiosk-pos sample does):
 
 ```java
-// In Application.onCreate(), or anywhere before the first CefriumBrowser.
-Cefrium.setComponentUpdatesEnabled(false);   // opt OUT of the security data feed
-Cefrium.setNetworkTimeQueriesEnabled(true);  // opt back IN to the time query
+@Override
+protected void attachBaseContext(Context base) {
+    super.attachBaseContext(base);
+    Cefrium.setComponentUpdatesEnabled(false);   // opt OUT of the security data feed
+    Cefrium.setNetworkTimeQueriesEnabled(true);  // opt back IN to the time query
+}
 ```
 
 ```kotlin
-Cefrium.setComponentUpdatesEnabled(false)
-Cefrium.setNetworkTimeQueriesEnabled(true)
+override fun attachBaseContext(base: Context) {
+    super.attachBaseContext(base)
+    Cefrium.setComponentUpdatesEnabled(false)
+    Cefrium.setNetworkTimeQueriesEnabled(true)
+}
 ```
 
 Called after initialization they are ignored and log a warning. Read the current
