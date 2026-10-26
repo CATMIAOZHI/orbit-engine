@@ -336,6 +336,9 @@ if run stats;   then hdr "consumer-doc figures"
   # already-clean tree, so on a --from stats re-run this is the only line that
   # proves the docs in git carry this release's figures.
   cef/cefrium_sdk/update-doc-figures.py --check
+  # Cefrium's own sources carry the dual-licence header; CEF-derived code
+  # (libcef/, patch/) keeps CEF's BSD header and is not checked here.
+  cef/cefrium_sdk/license-headers.py --check
 fi
 if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   cp out/release/cefrium-sdk.aar "$ROOT/cefrium-sample/push-demo/app/libs/cefrium-sdk.aar"

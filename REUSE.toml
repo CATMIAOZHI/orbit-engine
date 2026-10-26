@@ -21,6 +21,10 @@ SPDX-FileComment = "Upstream CEF code. BSD license from original project."
 path = [
     "libcef/browser/android/**",
     "cefrium_sdk/**",
+    "cefrium_compose/**",
+    "cefrium_unifiedpush/**",
+    "cefrium_relay/**",
+    "cefrium_instrumentation_test/**",
     "patch/patches/android/**",
     "tests/cef_android_test/**",
 ]

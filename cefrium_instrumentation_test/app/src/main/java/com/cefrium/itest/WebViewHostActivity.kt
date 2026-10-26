@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Juan Manuel Méndez Rey <cefrium@proton.me>
+// SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-Cefrium-Commercial
+
 package com.cefrium.itest
 
 import android.app.Activity
