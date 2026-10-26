@@ -15,6 +15,19 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [Unreleased]
+
+### Added
+- Web Push without Firebase. `CefriumPushTransport` lets an app serve its
+  pages' push subscriptions with another push service: the page gets the
+  transport's endpoint, and the transport hands each message, still
+  encrypted for the page, to `CefriumPush.deliverMessage`. The new
+  `com.cefrium:cefrium-unifiedpush` library is one for UnifiedPush:
+  `CefriumUnifiedPush.install(this)` in `Application.onCreate()` and
+  subscriptions go through the distributor the user chose (ntfy, NextPush),
+  so Web Push works on devices without Google Play services. Sample:
+  `cefrium-sample/unifiedpush-demo`.
+
 ## [0.14.0] - 2026-10-25
 
 Engine: **Chromium 156.0.8078.17 / CEF branch 8078** (unchanged from 0.13.0).
