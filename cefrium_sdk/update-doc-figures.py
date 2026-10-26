@@ -531,6 +531,7 @@ def declared_symbols():
     blob = []
     for rel in ("cefrium_sdk/java/src/com/cefrium",
                 "cefrium_compose/java/src/com/cefrium/compose",
+                "cefrium_unifiedpush/java/src/com/cefrium/unifiedpush",
                 "tests/cef_android_test/apk/src/org/cefrium/test",
                 # The harness README names its own test classes, and they live
                 # two directories deep (sdk/, compose/), so this one is walked.
