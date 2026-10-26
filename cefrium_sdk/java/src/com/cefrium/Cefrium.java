@@ -81,6 +81,7 @@ public final class Cefrium {
     // no security data, so Cefrium defaults it off and diverges from Chromium
     // here deliberately.
     private static boolean sComponentUpdatesEnabled = true;
+    private static boolean sLibraryPrefetchEnabled = true;
     private static boolean sNetworkTimeQueriesEnabled = false;
     private static boolean sGpuProcessEnabled = false;
     private static java.io.File sDataDirectory;
@@ -170,6 +171,76 @@ public final class Cefrium {
     /** @return whether engine component updates are enabled (default true). */
     public static synchronized boolean areComponentUpdatesEnabled() {
         return sComponentUpdatesEnabled;
+    }
+
+    /**
+     * Read the engine's library ahead while it starts. On a cold start, when
+     * libcef.so is not in the page cache, loading and initializing the engine
+     * faults its code in from storage a few hundred random reads at a time; a
+     * background thread reading the file sequentially brings it in first. On
+     * two phones the first page ran 155-340 ms sooner on a cold start (about
+     * 17%). When the library is already cached the thread stops after its
+     * first read; a warm start measured within 10 ms of one without it. The
+     * read goes through the page cache only (sendfile to /dev/null), so it adds
+     * no memory to the app.
+     *
+     * <p>On by default. Call it from {@code Application.attachBaseContext}, not
+     * from {@code onCreate}: the SDK initializes from a ContentProvider, which
+     * Android creates in between. Later calls are ignored and log a warning.
+     */
+    public static synchronized void setLibraryPrefetchEnabled(boolean enabled) {
+        if (sInitialized) {
+            android.util.Log.w(TAG, "setLibraryPrefetchEnabled() ignored: the engine is "
+                    + "already initialized. Call it from Application.attachBaseContext.");
+            return;
+        }
+        sLibraryPrefetchEnabled = enabled;
+    }
+
+    /** @return whether the library is read ahead at startup (default true). */
+    public static synchronized boolean isLibraryPrefetchEnabled() {
+        return sLibraryPrefetchEnabled;
+    }
+
+    // The kernel's own read-ahead advice (fadvise WILLNEED) did nothing on the
+    // phone tried, and mapping the file to touch it keeps it in the app's
+    // memory until a GC; sendfile to /dev/null fills the page cache and stops.
+    // Reading a fully cached file still costs time, so the first 16 MiB decide:
+    // cached they came back in 1.5-5.5 ms on the phones measured, from storage
+    // in 22-109 ms.
+    private static final long PREFETCH_PROBE_BYTES = 16L << 20;
+    private static final long PREFETCH_CACHED_NANOS = 12_000_000L;
+
+    private static void prefetchLibrary(Context appContext) {
+        final java.io.File lib = new java.io.File(
+                appContext.getApplicationInfo().nativeLibraryDir, "libcef.so");
+        if (!lib.isFile()) return;  // loaded from inside the APK: nothing to read ahead
+        Thread t = new Thread(() -> {
+            try (java.io.FileInputStream in = new java.io.FileInputStream(lib);
+                 java.io.FileOutputStream sink = new java.io.FileOutputStream("/dev/null")) {
+                java.nio.channels.FileChannel from = in.getChannel();
+                long size = from.size();
+                long start = System.nanoTime();
+                long pos = transfer(from, 0, Math.min(PREFETCH_PROBE_BYTES, size), sink);
+                if (System.nanoTime() - start < PREFETCH_CACHED_NANOS) return;
+                transfer(from, pos, size, sink);
+            } catch (java.io.IOException ignored) {
+                // Only a head start: the library loads the same way without it.
+            }
+        }, "CefriumPrefetch");
+        t.setDaemon(true);
+        t.start();
+    }
+
+    /** Sends [pos, end) of the file to the sink; returns where it stopped. */
+    private static long transfer(java.nio.channels.FileChannel from, long pos, long end,
+            java.io.FileOutputStream sink) throws java.io.IOException {
+        while (pos < end) {
+            long sent = from.transferTo(pos, end - pos, sink.getChannel());
+            if (sent <= 0) break;
+            pos += sent;
+        }
+        return pos;
     }
 
     /**
@@ -424,6 +495,9 @@ public final class Cefrium {
         }
 
         Context appContext = context.getApplicationContext();
+        if (sLibraryPrefetchEnabled) {
+            prefetchLibrary(appContext);
+        }
 
         // Per-process plumbing (ContextUtils, ResourceBundle, LibraryProcessType,
         // PathUtils, ApplicationStatus). Idempotent — a no-op if CefriumInitProvider

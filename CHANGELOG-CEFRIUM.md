@@ -38,6 +38,12 @@ in the internal FEATURE-NNN.md working docs (not published).
 - `CefriumProfile.incognito().followDefaultProfile()` drops the incognito
   profile's own proxy and WebRTC settings.
 
+- Faster cold start: the engine's library is read ahead on a background
+  thread while it loads, so the first page runs 155-340 ms sooner (about 17%)
+  when `libcef.so` is not in the page cache, measured on two phones. A warm
+  start is not slowed: the thread stops at once when the file is cached.
+  `Cefrium.setLibraryPrefetchEnabled(false)` turns it off.
+
 ### Changed
 - The YouTube ad heuristics are no longer added with the first list: call
   `Cefrium.loadYouTubeAdRules()` to keep them. They are also limited to
