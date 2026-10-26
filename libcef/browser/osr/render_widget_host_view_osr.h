@@ -69,6 +69,7 @@ class CursorManager;
 
 class CefContextFactoryAndroid;
 class CefCopyFrameGenerator;
+class CefFrameSinkHostClient;
 class CefSoftwareOutputDeviceOSR;
 class CefTouchSelectionControllerClientOSR;
 class CefVideoConsumerOSR;
@@ -454,6 +455,7 @@ class CefRenderWidgetHostViewOSR
   std::unique_ptr<ui::Compositor> compositor_;
 #if BUILDFLAG(IS_ANDROID)
   std::unique_ptr<CefContextFactoryAndroid> android_context_factory_;
+  std::unique_ptr<CefFrameSinkHostClient> frame_sink_host_client_;
 #else
   std::unique_ptr<content::DelegatedFrameHost> delegated_frame_host_;
   std::unique_ptr<content::DelegatedFrameHostClient>

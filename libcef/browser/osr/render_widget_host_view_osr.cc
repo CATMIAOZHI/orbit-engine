@@ -49,6 +49,8 @@
 #include "content/public/browser/browser_thread.h"
 #if BUILDFLAG(IS_ANDROID)
 #include "cef/libcef/browser/osr/cef_context_factory_android.h"
+#include "components/viz/host/host_frame_sink_client.h"
+#include "components/viz/host/host_frame_sink_manager.h"
 #else
 #include "content/public/browser/context_factory.h"
 #endif
@@ -202,6 +204,58 @@ ui::ImeTextSpan::UnderlineStyle GetImeUnderlineStyle(
 
 }  // namespace
 
+#if BUILDFLAG(IS_ANDROID)
+// Registers the renderer's FrameSinkId with the HostFrameSinkManager, which
+// DelegatedFrameHost(Android) does on other views. Without it nothing can be
+// embedded in the renderer's surface (a <video> submits to a frame sink of its
+// own) and frame tokens never come back.
+class CefFrameSinkHostClient : public viz::HostFrameSinkClient {
+ public:
+  CefFrameSinkHostClient(CefRenderWidgetHostViewOSR* view,
+                         viz::HostFrameSinkManager* host_frame_sink_manager)
+      : view_(view),
+        host_frame_sink_manager_(host_frame_sink_manager),
+        frame_sink_id_(view->GetFrameSinkId()) {}
+
+  CefFrameSinkHostClient(const CefFrameSinkHostClient&) = delete;
+  CefFrameSinkHostClient& operator=(const CefFrameSinkHostClient&) = delete;
+
+  ~CefFrameSinkHostClient() override {
+    if (owns_frame_sink_id_) {
+      host_frame_sink_manager_->InvalidateFrameSinkId(frame_sink_id_, this, {});
+    }
+  }
+
+  void SetIsFrameSinkIdOwner(bool is_owner) {
+    if (is_owner == owns_frame_sink_id_) {
+      return;
+    }
+    owns_frame_sink_id_ = is_owner;
+    if (owns_frame_sink_id_) {
+      host_frame_sink_manager_->RegisterFrameSinkId(
+          frame_sink_id_, this, viz::ReportFirstSurfaceActivation::kNo);
+      host_frame_sink_manager_->SetFrameSinkDebugLabel(
+          frame_sink_id_, "CefRenderWidgetHostViewOSR");
+    }
+  }
+
+  // viz::HostFrameSinkClient:
+  void OnFirstSurfaceActivation(const viz::SurfaceInfo& surface_info) override {
+  }
+
+  void OnFrameTokenChanged(uint32_t frame_token,
+                           base::TimeTicks activation_time) override {
+    view_->render_widget_host()->DidProcessFrame(frame_token, activation_time);
+  }
+
+ private:
+  const raw_ptr<CefRenderWidgetHostViewOSR> view_;
+  const raw_ptr<viz::HostFrameSinkManager> host_frame_sink_manager_;
+  const viz::FrameSinkId frame_sink_id_;
+  bool owns_frame_sink_id_ = false;
+};
+#endif  // IS_ANDROID
+
 // Logic copied from RenderWidgetHostViewAura::CreateSelectionController.
 void CefRenderWidgetHostViewOSR::CreateSelectionController() {
   ui::TouchSelectionController::Config tsc_config;
@@ -268,6 +322,8 @@ CefRenderWidgetHostViewOSR::CefRenderWidgetHostViewOSR(
     android_context_factory_ = std::make_unique<CefContextFactoryAndroid>();
   }
   auto* context_factory = android_context_factory_.get();
+  frame_sink_host_client_ = std::make_unique<CefFrameSinkHostClient>(
+      this, context_factory->GetHostFrameSinkManager());
 #else
   auto* context_factory = content::GetContextFactory();
 #endif
@@ -347,6 +403,9 @@ void CefRenderWidgetHostViewOSR::ReleaseCompositor() {
 
   host_display_client_ = nullptr;
 
+#if BUILDFLAG(IS_ANDROID)
+  frame_sink_host_client_.reset();
+#endif
   compositor_.reset(nullptr);
 }
 
@@ -1056,7 +1115,11 @@ const viz::LocalSurfaceId& CefRenderWidgetHostViewOSR::GetLocalSurfaceId()
 
 void CefRenderWidgetHostViewOSR::UpdateFrameSinkIdRegistration() {
   RenderWidgetHostViewBase::UpdateFrameSinkIdRegistration();
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
+  if (frame_sink_host_client_) {
+    frame_sink_host_client_->SetIsFrameSinkIdOwner(is_frame_sink_id_owner());
+  }
+#else
   if (delegated_frame_host_) {
     delegated_frame_host_->SetIsFrameSinkIdOwner(is_frame_sink_id_owner());
   }
