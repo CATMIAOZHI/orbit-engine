@@ -37,6 +37,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   from revealing the device's address around a proxy.
 - `CefriumProfile.incognito().followDefaultProfile()` drops the incognito
   profile's own proxy and WebRTC settings.
+- `CefriumBrowser.addDocumentStartJavaScript(script, allowedOriginRules)`
+  runs a script in every matching frame before the page's own scripts, as
+  the WebView method of the same name. It is kept across navigations and
+  removed with the returned handler.
 
 - Faster cold start: the engine's library is read ahead on a background
   thread while it loads, so the first page runs 155-340 ms sooner (about 17%)

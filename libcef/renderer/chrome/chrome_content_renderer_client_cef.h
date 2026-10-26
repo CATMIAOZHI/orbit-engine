@@ -10,6 +10,7 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
+#include "build/build_config.h"
 #include "chrome/renderer/chrome_content_renderer_client.h"
 
 namespace cef {
@@ -43,6 +44,10 @@ class ChromeContentRendererClientCef : public ChromeContentRendererClient {
   void RenderThreadStarted() override;
   void RenderThreadConnected() override;
   void RenderFrameCreated(content::RenderFrame* render_frame) override;
+#if BUILDFLAG(IS_ANDROID)
+  void RunScriptsAtDocumentStart(content::RenderFrame* render_frame) override;
+  void RunScriptsAtDocumentEnd(content::RenderFrame* render_frame) override;
+#endif
   void WebViewCreated(blink::WebView* web_view,
                       bool was_created_by_renderer,
                       const url::Origin* outermost_origin) override;

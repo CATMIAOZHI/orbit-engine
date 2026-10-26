@@ -9,6 +9,9 @@
 #include "cef/libcef/renderer/render_manager.h"
 #include "cef/libcef/renderer/thread_util.h"
 #include "chrome/renderer/printing/chrome_print_render_frame_helper_delegate.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "components/js_injection/renderer/js_communication.h"
+#endif
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
 #include "third_party/blink/public/web/web_view.h"
@@ -62,7 +65,33 @@ void ChromeContentRendererClientCef::RenderFrameCreated(
   }
 
   ChromeContentRendererClient::RenderFrameCreated(render_frame);
+
+#if BUILDFLAG(IS_ANDROID)
+  // Scripts the browser adds for document start or end, as Android WebView's
+  // addDocumentStartJavaScript. Deletes itself with the frame.
+  new js_injection::JsCommunication(render_frame);
+#endif
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void ChromeContentRendererClientCef::RunScriptsAtDocumentStart(
+    content::RenderFrame* render_frame) {
+  ChromeContentRendererClient::RunScriptsAtDocumentStart(render_frame);
+  if (auto* communication = js_injection::JsCommunication::Get(render_frame)) {
+    communication->RunScripts(
+        js_injection::mojom::DocumentInjectionTime::kDocumentStart);
+  }
+}
+
+void ChromeContentRendererClientCef::RunScriptsAtDocumentEnd(
+    content::RenderFrame* render_frame) {
+  ChromeContentRendererClient::RunScriptsAtDocumentEnd(render_frame);
+  if (auto* communication = js_injection::JsCommunication::Get(render_frame)) {
+    communication->RunScripts(
+        js_injection::mojom::DocumentInjectionTime::kDocumentEnd);
+  }
+}
+#endif
 
 void ChromeContentRendererClientCef::WebViewCreated(
     blink::WebView* web_view,
