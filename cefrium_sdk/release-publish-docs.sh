@@ -84,7 +84,8 @@ publish() { # <dir> <expected-remote-substring> <expected-branch> <commit-msg> <
 
 publish "$WEB" "cefrium/pages" "pages" \
   "Publish $VERSION: site, quickstart, releases and regenerated API docs" \
-  quickstart releases docs index.html assets
+  quickstart releases docs index.html assets guides upstream modern-web \
+  avatar.svg avatar.png
 
 # Backstop for the release-pinned sources. cut-release.sh commits these at the
 # phase that writes them, so this is normally a no-op -- it exists so that a
