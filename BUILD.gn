@@ -1193,6 +1193,9 @@ source_set("libcef_static") {
       "libcef/browser/android/browser_surface_android.cc",
       "libcef/browser/android/browser_surface_android.h",
       "libcef/browser/android/cef_share_service.h",
+      # Pickers (<select>, date/time, colour) for browsers without a window.
+      "libcef/browser/android/picker_host_android.cc",
+      "libcef/browser/android/picker_host_android.h",
       # FEATURE-061: serve APK assets/resources (file:///android_asset/,
       # file:///android_res/) from the host app.
       "libcef/browser/net_service/android_asset_response_delegate.cc",
@@ -1217,6 +1220,9 @@ source_set("libcef_static") {
       # FEATURE-061: AndroidStreamReaderURLLoader + InputStream, to serve APK
       # asset/resource URLs from the app's AssetManager.
       "//components/embedder_support/android:util",
+
+      # <input type=color>: HtmlColorPickerBridge, as Chrome on Android uses.
+      "//components/embedder_support/android:web_contents_delegate",
 
       # Android Autofill — provides AndroidAutofillManager,
       # AndroidAutofillProvider, and JNI bridge to Android's autofill framework.

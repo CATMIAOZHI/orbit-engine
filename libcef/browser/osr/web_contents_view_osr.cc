@@ -14,6 +14,13 @@
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/render_widget_host.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/functional/bind.h"
+#include "base/strings/utf_string_conversions.h"
+#include "cef/libcef/browser/android/picker_host_android.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#endif
+
 CefWebContentsViewOSR::CefWebContentsViewOSR(SkColor background_color,
                                              bool use_shared_texture,
                                              bool use_external_begin_frame)
@@ -192,3 +199,64 @@ CefWebContentsViewOSR::GetSelectionControllerClient() const {
   CefRenderWidgetHostViewOSR* view = GetView();
   return view ? view->selection_controller_client() : nullptr;
 }
+
+#if BUILDFLAG(IS_ANDROID)
+// Android uses external popup menus, which WebContentsViewAndroid shows as a
+// dialog on the window. An off-screen browser has none: the embedder's picker
+// host shows the menu.
+void CefWebContentsViewOSR::ShowPopupMenu(
+    content::RenderFrameHost* render_frame_host,
+    mojo::PendingRemote<blink::mojom::PopupMenuClient> popup_client,
+    const gfx::Rect& bounds,
+    double item_font_size,
+    int selected_item,
+    std::vector<blink::mojom::MenuItemPtr> menu_items,
+    bool right_aligned,
+    bool allow_multiple_selection) {
+  mojo::Remote<blink::mojom::PopupMenuClient> client(std::move(popup_client));
+  auto* host = cef_android::GetPickerHost();
+  if (!host || !web_contents_) {
+    client->DidCancel();
+    return;
+  }
+
+  using Item = cef_android::PickerHost::SelectItem;
+  std::vector<Item> items;
+  items.reserve(menu_items.size());
+  for (const auto& menu_item : menu_items) {
+    Item item;
+    item.label = base::UTF8ToUTF16(menu_item->label.value_or(std::string()));
+    switch (menu_item->type) {
+      case blink::mojom::MenuItem::Type::kCheckableOption:
+        item.type = Item::Type::kCheckableOption;
+        break;
+      case blink::mojom::MenuItem::Type::kGroup:
+      case blink::mojom::MenuItem::Type::kSubMenu:
+        item.type = Item::Type::kGroup;
+        break;
+      case blink::mojom::MenuItem::Type::kSeparator:
+        item.type = Item::Type::kSeparator;
+        break;
+      case blink::mojom::MenuItem::Type::kOption:
+        item.type = Item::Type::kOption;
+        break;
+    }
+    item.enabled = menu_item->enabled;
+    item.checked = menu_item->checked;
+    items.push_back(std::move(item));
+  }
+
+  host->ShowSelect(
+      web_contents_, std::move(items), selected_item, allow_multiple_selection,
+      base::BindOnce(
+          [](mojo::Remote<blink::mojom::PopupMenuClient> client,
+             std::optional<std::vector<int>> indices) {
+            if (indices) {
+              client->DidAcceptIndices(*indices);
+            } else {
+              client->DidCancel();
+            }
+          },
+          std::move(client)));
+}
+#endif  // BUILDFLAG(IS_ANDROID)
