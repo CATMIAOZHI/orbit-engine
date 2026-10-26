@@ -181,6 +181,12 @@ class SdkRenderHandler : public CefRenderHandler {
     java_browser_ = env->NewGlobalRef(java_browser);
   }
 
+  // Physical pixels, as passed to the constructor.
+  void SetSize(int width, int height) {
+    width_ = width;
+    height_ = height;
+  }
+
   void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect) override {
     // Report CSS pixel dimensions (physical / scale) so pages use
     // mobile-width media queries (e.g., 1080/2.75 ≈ 393 CSS px).
@@ -4144,6 +4150,25 @@ Java_com_cefrium_CefriumBrowser_nativeRespondHttpAuth(
   env->ReleaseStringUTFChars(username, user);
   if (pass) {
     env->ReleaseStringUTFChars(password, pass);
+  }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetSize(JNIEnv* env,
+                                              jclass clazz,
+                                              jlong native_ptr,
+                                              jint width,
+                                              jint height) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->render_handler) {
+    return;
+  }
+  data->render_handler->SetSize(width, height);
+  // Before the first load there is no browser yet; it starts at the new size.
+  if (data->browser) {
+    // The screen rect GetScreenInfo reports is the view's, so it changed too.
+    data->browser->GetHost()->NotifyScreenInfoChanged();
+    data->browser->GetHost()->WasResized();
   }
 }
 
