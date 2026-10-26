@@ -1,0 +1,75 @@
+diff --git components/push_messaging/push_messaging_utils.cc components/push_messaging/push_messaging_utils.cc
+index 688417a479794..cc44f2c075288 100644
+--- components/push_messaging/push_messaging_utils.cc
++++ components/push_messaging/push_messaging_utils.cc
+@@ -9,6 +9,7 @@
+ #include "components/push_messaging/push_messaging_constants.h"
+ #include "components/push_messaging/push_messaging_features.h"
+ #include "url/gurl.h"
++#include "url/url_constants.h"
+ 
+ namespace push_messaging {
+ 
+@@ -30,6 +31,11 @@ std::string GetGcmEndpointForChannel(version_info::Channel channel) {
+ 
+ GURL CreateEndpoint(version_info::Channel channel,
+                     const std::string& subscription_id) {
++  // A push service other than GCM returns its endpoint as the subscription id.
++  const GURL own_endpoint(subscription_id);
++  if (own_endpoint.is_valid() && own_endpoint.SchemeIs(url::kHttpsScheme)) {
++    return own_endpoint;
++  }
+   const GURL endpoint(GetGcmEndpointForChannel(channel) + subscription_id);
+   DCHECK(endpoint.is_valid());
+   return endpoint;
+diff --git components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
+index db2aa979ef7ba..a5f78c344adf8 100644
+--- components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
++++ components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
+@@ -48,6 +48,19 @@ public class InstanceIDWithSubtype {
+         }
+     }
+ 
++    private static @Nullable Factory sFactory;
++
++    /**
++     * Makes getInstance() ask {@code factory} first, so an embedder can serve some subtypes with a
++     * push service other than GCM; null restores Google Play services for all of them.
++     */
++    public static void setFactory(@Nullable Factory factory) {
++        synchronized (sSubtypeInstancesLock) {
++            sFactory = factory;
++            sSubtypeInstances.clear();
++        }
++    }
++
+     protected InstanceIDWithSubtype(InstanceID instanceID) {
+         mInstanceID = instanceID;
+     }
+@@ -66,7 +79,10 @@ public class InstanceIDWithSubtype {
+             if (existing == null) {
+                 if (sFakeFactoryForTesting != null) {
+                     existing = sFakeFactoryForTesting.create(subtype);
+-                } else {
++                } else if (sFactory != null) {
++                    existing = sFactory.create(subtype);
++                }
++                if (existing == null) {
+                     Bundle options = new Bundle();
+                     options.putCharSequence(OPTION_SUBTYPE, subtype);
+                     InstanceID instanceID =
+@@ -106,6 +122,14 @@ public class InstanceIDWithSubtype {
+         return mInstanceID.getToken(authorizedEntity, scope);
+     }
+ 
++    /**
++     * Supplies the instance for a subtype, or null to use Google Play services. An instance it
++     * returns is a subclass that overrides every public method and never touches InstanceID.
++     */
++    public interface Factory {
++        @Nullable InstanceIDWithSubtype create(String subtype);
++    }
++
+     /** Fake subclasses can set {@link #sFakeFactoryForTesting} to an implementation of this. */
+     @VisibleForTesting
+     public interface FakeFactory {
