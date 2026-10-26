@@ -34,6 +34,27 @@ in the internal FEATURE-NNN.md working docs (not published).
   the message through FCM, and `CefriumPush.handleMessage` delivers it. This
   replaces the Chromium push channel Google provides for testing.
 - A push without a payload sent through a transport is delivered as one.
+- `CefriumBrowser.setSize(width, height)` resizes an off-screen browser; it
+  kept its constructor size before.
+- `CefriumPickerHandler` (`setPickerHandler`) shows the `<select>`, date/time
+  and colour pickers of an off-screen browser, which has no window for
+  Chromium's dialogs. `setDialogActivity(activity)` gives it default ones,
+  and default JS dialogs, instead.
+
+### Fixed
+- Off-screen: `<video>` showed no frames (H.264 also stalled after the first
+  frame). The view never registered its frame sink, so the video's could not
+  be embedded; the same gap kept frame tokens from returning, which the text
+  selection fix of 0.9.2 had worked around. Issue #16.
+- Off-screen: entering fullscreen from the media controls crashed the
+  browser process in the screen orientation lock. Issue #16.
+- Off-screen: `<select>` and the date/time inputs did nothing when tapped.
+  Issue #16.
+- `<input type=color>` did nothing, in any mode; it now opens Chromium's
+  colour picker.
+- The SDK AAR lost 1311 Android resource entries when it was slimmed (a
+  name defined for night mode dropped its day definition), among them
+  colours Chromium's colour picker needs.
 
 ## [0.14.0] - 2026-10-25
 
