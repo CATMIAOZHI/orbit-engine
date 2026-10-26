@@ -30,6 +30,14 @@ in the internal FEATURE-NNN.md working docs (not published).
   blocking on that site) and the options third-party, domain= and the
   resource types.
 
+- `CefriumProfile.setProxy` / `clearProxy` and
+  `setWebRtcIpHandlingPolicy`: the proxy and WebRTC policy of a profile,
+  which every browser of it uses. They can be set before any browser of the
+  profile exists. `CefriumProfile.WEBRTC_DISABLE_NON_PROXIED_UDP` keeps WebRTC
+  from revealing the device's address around a proxy.
+- `CefriumProfile.incognito().followDefaultProfile()` drops the incognito
+  profile's own proxy and WebRTC settings.
+
 ### Changed
 - The YouTube ad heuristics are no longer added with the first list: call
   `Cefrium.loadYouTubeAdRules()` to keep them. They are also limited to
@@ -46,6 +54,13 @@ in the internal FEATURE-NNN.md working docs (not published).
   licence, since they are meant for upstream.
 
 ### Fixed
+- A proxy set on the default profile now covers private browsers too, as in
+  Chrome: the incognito profile ignored it and connected directly. It follows
+  the default profile's proxy and WebRTC policy unless given its own.
+- `CefriumBrowser.setProxy` right after creating a browser returned false and
+  did nothing, because the browser did not exist yet; it now sets the proxy of
+  the browser's profile and applies before the first navigation. It always
+  applied to the whole profile, which the documentation now says.
 - The ad-block list download no longer bypasses the engine's proxy: it goes
   through the engine's network stack, so it follows `setProxy` instead of
   connecting directly. A download that fails, or returns something that is

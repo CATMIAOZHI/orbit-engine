@@ -1598,14 +1598,16 @@ public class CefriumBrowser {
     public static final String PROXY_PAC = "pac_script";
 
     /**
-     * Configures the proxy for this browser's request context. [mode] is one of
-     * the {@code PROXY_*} constants; [server] is {@code "host:port"} (or
-     * {@code "scheme://host:port"}) for {@link #PROXY_FIXED}, the PAC URL for
-     * {@link #PROXY_PAC}, and ignored otherwise. Returns false if the preference
-     * could not be applied. Useful for kiosk/enterprise deployments.
+     * Sets the proxy of this browser's PROFILE: {@code getProfile().setProxy}.
+     * Every browser of the profile uses it, including ones opened later, and
+     * the default and named profiles keep it across restarts. It applies before
+     * the browser's first navigation, so it can be called right after creating
+     * the browser. See {@link CefriumProfile#setProxy(String, String)}.
+     *
+     * @return false if the engine rejected the setting.
      */
     public boolean setProxy(String mode, String server) {
-        return mNativePtr != 0 && nativeSetProxy(mNativePtr, mode, server);
+        return mProfile.setProxy(mode, server);
     }
 
     /** Convenience: route all traffic through a fixed proxy {@code "host:port"}. */
@@ -3959,7 +3961,6 @@ public class CefriumBrowser {
     private static native void nativeJsDialogResult(long nativePtr, long token, boolean success, String userInput);
     private static native void nativeRespondPermission(long nativePtr, long promptId, boolean grant);
     private static native void nativeSetContentSetting(long nativePtr, String requestingUrl, int permission, int value);
-    private static native boolean nativeSetProxy(long nativePtr, String mode, String server);
     private static native void nativeSetDeviceChooserHandler(long nativePtr, boolean enabled);
     private static native void nativeDeviceChooserSelect(long nativePtr, long id, String deviceId);
     private static native void nativeDeviceChooserCancel(long nativePtr, long id);
