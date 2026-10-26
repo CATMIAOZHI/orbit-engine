@@ -2185,6 +2185,24 @@ public class CefriumBrowser {
     }
 
     /**
+     * Resizes an off-screen browser, for example when the view that shows its
+     * frames changes size. The page lays out again at the new size, gets a
+     * {@code resize} event, and the following {@code onPaint} frames have the
+     * new dimensions. No effect on a surface browser, which follows its view.
+     *
+     * @param width  Viewport width in physical pixels, as in the constructor.
+     * @param height Viewport height in physical pixels.
+     */
+    public void setSize(int width, int height) {
+        if (width <= 0 || height <= 0) {
+            throw new IllegalArgumentException("width and height must be positive");
+        }
+        if (checkNative("setSize")) {
+            nativeSetSize(mNativePtr, width, height);
+        }
+    }
+
+    /**
      * Force the browser to repaint. Call this if you need
      * an updated frame (e.g. after content changes).
      */
@@ -3722,6 +3740,7 @@ public class CefriumBrowser {
     private static native void nativeLoadDataWithBaseUrl(long nativePtr, String baseUrl,
             String data, String mimeType, String encoding, String historyUrl);
     private static native void nativeInvalidate(long nativePtr);
+    private static native void nativeSetSize(long nativePtr, int width, int height);
     private static native void nativeImeSetComposition(long nativePtr, String text, int selStart, int selEnd);
     private static native void nativeImeCommitText(long nativePtr, String text, int relativeCursorPos);
     private static native void nativeImeFinishComposingText(long nativePtr, boolean keepSelection);
