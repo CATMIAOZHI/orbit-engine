@@ -9,6 +9,14 @@
 #if BUILDFLAG(IS_ANDROID)
 #include <android/log.h>
 #endif
+#if BUILDFLAG(IS_ANDROID)
+#include "base/memory/weak_ptr.h"
+#include "cef/libcef/browser/android/picker_host_android.h"
+#include "components/embedder_support/android/delegate/html_color_picker_bridge.h"
+#include "content/public/browser/color_chooser.h"
+#include "ui/android/view_android.h"
+#include "ui/android/window_android.h"
+#endif
 #include <string>
 #include <utility>
 
@@ -1103,6 +1111,68 @@ void AlloyBrowserHostImpl::RunFileChooser(
   FileSelectHelper::RunFileChooser(render_frame_host, std::move(listener),
                                    params);
 }
+
+#if BUILDFLAG(IS_ANDROID)
+namespace {
+
+// <input type=color> in a browser without a window: the embedder's picker
+// host shows the picker.
+class WindowlessColorChooser : public content::ColorChooser {
+ public:
+  explicit WindowlessColorChooser(content::WebContents* web_contents)
+      : web_contents_(web_contents) {}
+
+  void Show(cef_android::PickerHost* host,
+            SkColor color,
+            std::vector<SkColor> suggestions) {
+    host->ShowColor(web_contents_, color, std::move(suggestions),
+                    base::BindOnce(&WindowlessColorChooser::OnDone,
+                                   weak_factory_.GetWeakPtr()));
+  }
+
+  // content::ColorChooser:
+  void End() override {}
+  void SetSelectedColor(SkColor color) override {}
+
+ private:
+  void OnDone(std::optional<SkColor> color) {
+    content::WebContents* web_contents = web_contents_;
+    if (color) {
+      web_contents->DidChooseColorInColorChooser(*color);
+    }
+    // Destroys this.
+    web_contents->DidEndColorChooser();
+  }
+
+  const raw_ptr<content::WebContents> web_contents_;
+  base::WeakPtrFactory<WindowlessColorChooser> weak_factory_{this};
+};
+
+}  // namespace
+
+std::unique_ptr<content::ColorChooser> AlloyBrowserHostImpl::OpenColorChooser(
+    content::WebContents* web_contents,
+    SkColor color,
+    const std::vector<blink::mojom::ColorSuggestionPtr>& suggestions) {
+  // What Chrome on Android does, through WebContentsDelegateAndroid.
+  if (web_contents->GetNativeView() &&
+      web_contents->GetNativeView()->GetWindowAndroid()) {
+    return std::make_unique<web_contents_delegate_android::HtmlColorPickerBridge>(
+        web_contents, color, suggestions);
+  }
+  auto* host = cef_android::GetPickerHost();
+  if (!host) {
+    return nullptr;
+  }
+  std::vector<SkColor> colors;
+  for (const auto& suggestion : suggestions) {
+    colors.push_back(suggestion->color);
+  }
+  auto chooser = std::make_unique<WindowlessColorChooser>(web_contents);
+  chooser->Show(host, color, std::move(colors));
+  return chooser;
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 bool AlloyBrowserHostImpl::ShowContextMenu(
     const content::ContextMenuParams& params) {

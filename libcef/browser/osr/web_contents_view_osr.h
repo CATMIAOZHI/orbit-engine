@@ -89,6 +89,17 @@ class CefWebContentsViewOSR : public content::WebContentsView,
   void LostFocus(content::RenderWidgetHostImpl* render_widget_host) override;
   void TakeFocus(bool reverse) override;
   void FullscreenStateChanged(bool is_fullscreen) override {}
+#if BUILDFLAG(IS_ANDROID)
+  void ShowPopupMenu(
+      content::RenderFrameHost* render_frame_host,
+      mojo::PendingRemote<blink::mojom::PopupMenuClient> popup_client,
+      const gfx::Rect& bounds,
+      double item_font_size,
+      int selected_item,
+      std::vector<blink::mojom::MenuItemPtr> menu_items,
+      bool right_aligned,
+      bool allow_multiple_selection) override;
+#endif
 
  private:
   CefRenderWidgetHostViewOSR* GetView() const;
