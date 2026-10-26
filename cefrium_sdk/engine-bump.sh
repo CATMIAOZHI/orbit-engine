@@ -244,6 +244,7 @@ if run rebase; then hdr "rebase CEF android-port onto upstream branch $CEFBR (gu
   git clean -fdxq \
     cefrium_sdk/gradle-plugin/build cefrium_sdk/gradle-plugin/.gradle \
     cefrium_compose/build cefrium_compose/.gradle cefrium_compose/libs \
+    cefrium_unifiedpush/build cefrium_unifiedpush/.gradle cefrium_unifiedpush/libs \
     cefrium_instrumentation_test/build cefrium_instrumentation_test/.gradle \
     cefrium_instrumentation_test/app/build 2>/dev/null || true
   # The AARs in cefrium_compose/libs/ are staged copies of a PREVIOUS engine's

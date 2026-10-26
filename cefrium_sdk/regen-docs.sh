@@ -117,7 +117,7 @@ if [ "$DO_JAVADOC" = "1" ]; then
     unzip -o -q "$aar" classes.jar -d "$WORK/xtmp" 2>/dev/null \
       && mv "$WORK/xtmp/classes.jar" "$WORK/cp/aar-$i.jar" 2>/dev/null || true
   done < <(find "$HOME/.gradle/caches/modules-2/files-2.1" -name "*.aar" 2>/dev/null \
-            | grep -iE "androidx|com\.google\.android\.material|com\.google\.android\.gms|firebase")
+            | grep -iE "androidx|com\.google\.android\.material|com\.google\.android\.gms|firebase|unifiedpush")
   j=0
   while IFS= read -r jar; do
     j=$((j+1)); cp "$jar" "$WORK/cp/jar-$j.jar" 2>/dev/null || true
@@ -150,6 +150,21 @@ if [ "$DO_JAVADOC" = "1" ]; then
     echo "  MISMATCH: no file under docs/ mentions \"Cefrium $VERSION\" -- javadoc left the OLD tree"
     fail=1
   fi
+
+  echo
+  echo "=== Javadoc (cefrium-unifiedpush -> $WEB/docs/unifiedpush) ==="
+  "$JDK25/bin/javadoc" \
+    -d "$WEB/docs/unifiedpush" \
+    -sourcepath "$CEF_DIR/cefrium_unifiedpush/java/src" \
+    -subpackages com.cefrium.unifiedpush \
+    -classpath "$ANDROID_JAR:$WORK/classes.jar:$WORK/cp/*" \
+    -quiet -windowtitle "Cefrium UnifiedPush API" -doctitle "Cefrium UnifiedPush API" \
+    -header "Cefrium $VERSION" -Xdoclint:none 2>&1 | tail -5
+  jrc=${PIPESTATUS[0]}
+  [ "$jrc" -eq 0 ] || echo "  WARN: javadoc exited $jrc (assertions below decide)"
+  coverage_check "$CEF_DIR/cefrium_unifiedpush/java/src/com/cefrium/unifiedpush" ".java" \
+    "$WEB/docs/unifiedpush" "unifiedpush classes" \
+    '^public (?:final |abstract )?(?:class|interface|enum) ([A-Za-z0-9_]+)' || fail=1
 fi
 
 if [ "$DO_DOKKA" = "1" ]; then

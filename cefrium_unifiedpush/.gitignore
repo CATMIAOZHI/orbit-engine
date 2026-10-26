@@ -1,10 +1,9 @@
-# Build outputs and tooling — never commit binaries
+# Build outputs and tooling: never commit binaries
 /build/
 /.gradle/
 /libs/
 *.aar
 local.properties
 
-# Gradle wrapper jar is a binary; regenerate with:
-#   gradle wrapper --gradle-version 8.9
+# Gradle wrapper jar is a binary; cut-release.sh restores it.
 gradle/wrapper/gradle-wrapper.jar

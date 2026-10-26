@@ -20,6 +20,7 @@ RELEASE_DIR="$(cd "$SCRIPT_DIR/../../out/release" && pwd)"
 # Compose AAR is built by the self-contained module at cef/cefrium_compose
 # (relocated out of cefrium-sample; see CLAUDE.md).
 COMPOSE_AAR="$(cd "$(dirname "$0")/.." && pwd)/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar"
+UNIFIEDPUSH_AAR="$(cd "$(dirname "$0")/.." && pwd)/cefrium_unifiedpush/build/outputs/aar/cefrium-unifiedpush-release.aar"
 BASE_URL="https://codeberg.org/api/packages/cefrium/maven"
 
 if [ ! -f "$TOKEN_FILE" ]; then
@@ -281,6 +282,24 @@ if [ -f "$COMPOSE_AAR" ]; then
     "Jetpack Compose wrapper for Cefrium SDK" "$deps")
   upload "cefrium-compose" "$pom"
   upload "cefrium-compose" "$COMPOSE_AAR"
+  rm -f "$pom"
+  echo ""
+fi
+
+# Publish cefrium-unifiedpush if available. The connector's JVM Tink brings
+# protobuf-java, which clashes with every app's protobuf-javalite.
+if [ -f "$UNIFIEDPUSH_AAR" ]; then
+  echo "Publishing cefrium-unifiedpush..."
+  deps='  <dependencies>
+    <dependency><groupId>com.cefrium</groupId><artifactId>cefrium-sdk</artifactId><version>'"$VERSION"'</version></dependency>
+    <dependency><groupId>org.unifiedpush.android</groupId><artifactId>connector</artifactId><version>3.3.5</version>
+      <exclusions><exclusion><groupId>com.google.crypto.tink</groupId><artifactId>tink</artifactId></exclusion></exclusions></dependency>
+    <dependency><groupId>com.google.crypto.tink</groupId><artifactId>tink-android</artifactId><version>1.23.0</version></dependency>
+  </dependencies>'
+  pom=$(generate_pom "cefrium-unifiedpush" \
+    "Web Push through UnifiedPush for Cefrium SDK" "$deps")
+  upload "cefrium-unifiedpush" "$pom"
+  upload "cefrium-unifiedpush" "$UNIFIEDPUSH_AAR"
   rm -f "$pom"
   echo ""
 fi
