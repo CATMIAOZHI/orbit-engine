@@ -155,13 +155,28 @@ fi
 if [ -n "$PREV" ]; then
   echo
   echo "no stale '$PREV' outside the releases history"
-  STALE="$(grep -rlF "$PREV" --include=*.html . 2>/dev/null \
-            | grep -vE "^\./releases/|^\./docs/" || true)"
+  # A guide may date a feature ("since 0.14.0", "Before 0.14.0 the SDK..."):
+  # that stays true after the bump, so those mentions are not stale.
+  STALE="$(grep -rF "$PREV" --include=*.html . 2>/dev/null \
+            | grep -vE "^\./releases/|^\./docs/" \
+            | grep -viE "(since|before|from|until|start of) $(printf %s "$PREV" | sed 's/\./\\./g')" \
+            | cut -d: -f1 | sort -u || true)"
   if [ -z "$STALE" ]; then
     ok "no page still advertises $PREV"
   else
     for f in $STALE; do bad "still mentions $PREV: $f"; done
   fi
+fi
+
+# ---- 2b. the adopting guide's figures are this release's AAR -------------
+AAR="$CEF_DIR/../out/release/cefrium-sdk.aar"
+echo
+if [ -f "$AAR" ]; then
+  "$SCRIPT_DIR/update-web-aar-figures.py" "$NEW" "$AAR" --check \
+    && ok "adopting guide: figures measured on the $NEW AAR" \
+    || bad "adopting guide: figures do not match the $NEW AAR"
+else
+  bad "adopting guide: $AAR missing, cannot check its figures"
 fi
 
 # ---- 3. the API docs were regenerated -----------------------------------

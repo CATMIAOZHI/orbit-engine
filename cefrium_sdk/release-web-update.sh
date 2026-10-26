@@ -84,6 +84,18 @@ echo "Web update: $PREV -> $NEW (CEF $BRANCH, Chromium $CHROMIUM, $DATE)"
 apply "$QS" "s{(com\\.cefrium['\"]\\)? version ['\"])[0-9]+\\.[0-9]+\\.[0-9]+(['\"])}{\${1}$NEW\${2}}g; s{(com\\.cefrium:cefrium-(?:sdk|compose)[^:\"]*:)[0-9]+\\.[0-9]+\\.[0-9]+}{\${1}$NEW}g" \
   "$NEW" "quickstart version"
 
+# 1-bis. The guides show the same coordinates in their build snippets, and no
+# step owned them: the push guide still said 0.14.0 after 0.15.0 shipped.
+for g in "$WEB"/guides/*/index.html; do
+  grep -qE "com\.cefrium:cefrium-[a-z-]+:[0-9]" "$g" || continue
+  apply "$g" "s{(com\.cefrium:cefrium-(?:sdk|compose|unifiedpush)[^:\"]*:)[0-9]+\.[0-9]+\.[0-9]+}{\${1}$NEW}g" \
+    ":$NEW" "guide coordinates ($(basename "$(dirname "$g")"))"
+done
+
+# 1-ter. The adopting guide's class and size figures, measured on the AAR this
+# cut published.
+"$SCRIPT_DIR/update-web-aar-figures.py" "$NEW" "$CEF_DIR/../out/release/cefrium-sdk.aar"
+
 # 1. The site avatar carries the Chromium MAJOR as a badge. It is the most
 # visible version statement on the whole site and it was hand-edited, so it
 # aged silently: the live badge still read 154 after 156 shipped. Derived from
