@@ -106,7 +106,12 @@ def get_standard_path(name):
     return None
 
 
-def collect_defined_names(xml_data):
+def values_config(path):
+    """'res/values-night/x.xml' -> 'values-night': names are per configuration."""
+    return path.split('/')[1]
+
+
+def collect_defined_names(xml_data, config):
     names = set()
     try:
         root = ET.fromstring(xml_data)
@@ -115,16 +120,16 @@ def collect_defined_names(xml_data):
     for elem in root:
         name = elem.get('name', '')
         if name:
-            names.add((elem.tag, name))
+            names.add((config, elem.tag, name))
         if elem.tag == 'declare-styleable':
             for child in elem:
                 cname = child.get('name', '')
                 if cname:
-                    names.add((child.tag, cname))
+                    names.add((config, child.tag, cname))
     return names
 
 
-def merge_values_xml(existing_xml, new_xml, global_names):
+def merge_values_xml(existing_xml, new_xml, global_names, config):
     try:
         existing_root = ET.fromstring(existing_xml)
     except ET.ParseError:
@@ -135,7 +140,7 @@ def merge_values_xml(existing_xml, new_xml, global_names):
         return existing_xml
     for elem in new_root:
         name = elem.get('name', '')
-        key = (elem.tag, name)
+        key = (config, elem.tag, name)
         if name and key not in global_names:
             existing_root.append(elem)
             global_names.add(key)
@@ -185,7 +190,7 @@ def main():
     for name, data in standard_entries.items():
         if name.startswith('res/') and '/values' in name and name.endswith('.xml'):
             global_names |= collect_defined_names(
-                data.decode('utf-8', errors='replace'))
+                data.decode('utf-8', errors='replace'), values_config(name))
 
     # Phase 3: Merge non-standard values into standard entries.
     for std_path, data_list in nonstandard_values.items():
@@ -196,7 +201,8 @@ def main():
             merged = '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n</resources>'
         for data in data_list:
             new_xml = data.decode('utf-8', errors='replace')
-            merged = merge_values_xml(merged, new_xml, global_names)
+            merged = merge_values_xml(merged, new_xml, global_names,
+                                      values_config(std_path))
         standard_entries[std_path] = merged.encode('utf-8')
 
     # Phase 4: Deduplicate <attr> declarations globally.
