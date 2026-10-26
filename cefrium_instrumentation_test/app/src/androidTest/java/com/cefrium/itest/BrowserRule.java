@@ -40,7 +40,8 @@ public final class BrowserRule extends ExternalResource {
         return track(CefriumBrowser.createWithSurface(activity, profile));
     }
 
-    private CefriumBrowser track(CefriumBrowser browser) {
+    /** Closes {@code browser} after the test, like the ones created here. */
+    public CefriumBrowser track(CefriumBrowser browser) {
         created.add(browser);
         return browser;
     }
