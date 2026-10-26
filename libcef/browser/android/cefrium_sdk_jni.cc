@@ -21,6 +21,7 @@
 #include "cef/include/cef_client.h"
 #include "cef/include/cef_cookie.h"
 #include "cef/include/cef_request.h"
+#include "cef/include/cef_parser.h"
 #include "cef/include/cef_request_context.h"
 #include "cef/include/cef_urlrequest.h"
 #include "cef/include/cef_values.h"
@@ -124,6 +125,72 @@ CefRefPtr<CefRequestContext>& IncognitoContext() {
   static base::NoDestructor<CefRefPtr<CefRequestContext>> ctx;
   return *ctx;
 }
+
+// Profile preferences set from Java (proxy, WebRTC IP policy), by profile:
+// "" is the default profile, kIncognitoKey the incognito one, anything else a
+// named profile. A context initializes asynchronously, and the incognito one
+// is recreated for every private session, so what the app set is kept here and
+// applied when a context becomes ready; CEF creates no browser before that.
+// Touched only on the CEF UI thread.
+constexpr char kIncognitoKey[] = "\x01incognito";
+using PrefMap = std::map<std::string, CefRefPtr<CefValue>>;
+std::map<std::string, PrefMap>& ProfilePrefs() {
+  static base::NoDestructor<std::map<std::string, PrefMap>> prefs;
+  return *prefs;
+}
+std::set<std::string>& ReadyProfiles() {
+  static base::NoDestructor<std::set<std::string>> ready;
+  return *ready;
+}
+
+// The settings the incognito profile takes from the default one unless it has
+// its own, as Chrome's incognito does. Our incognito context does not read the
+// default profile's preferences by itself, so without this a proxy set on the
+// default profile left private browsers connecting directly.
+constexpr const char* kInheritedByIncognito[] = {"proxy",
+                                                 "webrtc.ip_handling_policy"};
+
+bool ApplyProfilePref(CefRefPtr<CefRequestContext> context,
+                      const std::string& name,
+                      CefRefPtr<CefValue> value) {
+  CefString error;
+  if (!context->SetPreference(name, value, error)) {
+    LOG(ERROR) << "Cefrium: preference " << name << ": " << error.ToString();
+    return false;
+  }
+  return true;
+}
+
+class ProfilePrefsApplier : public CefRequestContextHandler {
+ public:
+  explicit ProfilePrefsApplier(std::string key) : key_(std::move(key)) {}
+
+  void OnRequestContextInitialized(
+      CefRefPtr<CefRequestContext> context) override {
+    ReadyProfiles().insert(key_);
+    const PrefMap& own = ProfilePrefs()[key_];
+    if (key_ == kIncognitoKey) {
+      // Includes what the default profile saved in an earlier run.
+      CefRefPtr<CefRequestContext> global =
+          CefRequestContext::GetGlobalContext();
+      for (const char* name : kInheritedByIncognito) {
+        if (!own.count(name)) {
+          if (CefRefPtr<CefValue> value = global->GetPreference(name)) {
+            ApplyProfilePref(context, name, value);
+          }
+        }
+      }
+    }
+    for (const auto& [name, value] : own) {
+      ApplyProfilePref(context, name, value);
+    }
+  }
+
+  IMPLEMENT_REFCOUNTING(ProfilePrefsApplier);
+
+ private:
+  const std::string key_;
+};
 int& IncognitoBrowserCount() {
   static int count = 0;
   return count;
@@ -133,7 +200,9 @@ CefRefPtr<CefRequestContext> AcquireIncognitoContext() {
   if (!IncognitoContext()) {
     CefRequestContextSettings settings;
     // Empty cache_path -> isolated, in-memory "incognito" context.
-    IncognitoContext() = CefRequestContext::CreateContext(settings, nullptr);
+    ReadyProfiles().erase(kIncognitoKey);
+    IncognitoContext() = CefRequestContext::CreateContext(
+        settings, new ProfilePrefsApplier(kIncognitoKey));
   }
   ++IncognitoBrowserCount();
   return IncognitoContext();
@@ -168,7 +237,8 @@ CefRefPtr<CefRequestContext> ProfileContext(const std::string& name) {
   if (!ctx) {
     CefRequestContextSettings settings;
     CefString(&settings.cache_path) = DataRoot() + "/profile-" + name;
-    ctx = CefRequestContext::CreateContext(settings, nullptr);
+    ctx = CefRequestContext::CreateContext(settings,
+                                           new ProfilePrefsApplier(name));
   }
   return ctx;
 }
@@ -4354,44 +4424,72 @@ Java_com_cefrium_CefriumBrowser_nativeSetContentSetting(
   env->ReleaseStringUTFChars(url_jstr, url);
 }
 
-// FEATURE: proxy configuration via the request context "proxy" preference.
-// |mode| is a Chromium proxy mode ("direct", "system", "auto_detect",
-// "fixed_servers", "pac_script"); |server| is "host:port" (fixed_servers) or the
-// PAC URL (pac_script), ignored for the others. Returns false if the preference
-// could not be set.
+// Sets a preference of a profile's request context: now if the context is
+// ready, otherwise when it is (see ProfilePrefs). Must run on the UI thread.
+// Returns false if the context rejected it.
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_cefrium_CefriumBrowser_nativeSetProxy(
-    JNIEnv* env, jclass, jlong native_ptr, jstring mode_jstr, jstring server_jstr) {
-  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
-  if (!data || !data->browser) {
+Java_com_cefrium_CefriumProfile_nativeSetPreference(JNIEnv* env,
+                                                    jclass,
+                                                    jboolean incognito,
+                                                    jstring profile_j,
+                                                    jstring name_j,
+                                                    jstring json_j) {
+  if (!CefCurrentlyOn(TID_UI)) {
+    LOG(ERROR) << "Cefrium: profile preferences are set on the main thread";
     return JNI_FALSE;
   }
-  CefRefPtr<CefRequestContext> context =
-      data->browser->GetHost()->GetRequestContext();
-  if (!context) {
+  const std::string profile = JStr(env, profile_j).ToString();
+  const std::string key = incognito == JNI_TRUE ? kIncognitoKey : profile;
+  const std::string name = JStr(env, name_j).ToString();
+  CefRefPtr<CefValue> value =
+      CefParseJSON(JStr(env, json_j), JSON_PARSER_RFC);
+  if (!value) {
     return JNI_FALSE;
   }
-  const char* mode = env->GetStringUTFChars(mode_jstr, nullptr);
-  CefRefPtr<CefDictionaryValue> dict = CefDictionaryValue::Create();
-  dict->SetString("mode", mode);
-  if (server_jstr) {
-    const char* server = env->GetStringUTFChars(server_jstr, nullptr);
-    if (std::string(mode) == "pac_script") {
-      dict->SetString("pac_url", server);
-    } else {
-      dict->SetString("server", server);
+  CefRefPtr<CefRequestContext> context;
+  if (incognito == JNI_TRUE) {
+    context = IncognitoContext();
+  } else if (profile.empty()) {
+    context = CefRequestContext::GetGlobalContext();
+    ReadyProfiles().insert(key);
+  } else {
+    context = ProfileContext(profile);
+  }
+  if (context && ReadyProfiles().count(key) &&
+      !ApplyProfilePref(context, name, value)) {
+    return JNI_FALSE;
+  }
+  ProfilePrefs()[key][name] = value;
+  // An open incognito session follows the default profile's change unless it
+  // set this itself.
+  if (key.empty() && IncognitoContext() && ReadyProfiles().count(kIncognitoKey) &&
+      !ProfilePrefs()[kIncognitoKey].count(name) &&
+      std::count(std::begin(kInheritedByIncognito),
+                 std::end(kInheritedByIncognito), name)) {
+    ApplyProfilePref(IncognitoContext(), name, value);
+  }
+  return JNI_TRUE;
+}
+
+// Drops the incognito profile's own proxy and WebRTC settings, so it follows
+// the default profile's again.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumProfile_nativeFollowDefaultProfile(JNIEnv* env,
+                                                           jclass) {
+  if (!CefCurrentlyOn(TID_UI)) {
+    LOG(ERROR) << "Cefrium: profile preferences are set on the main thread";
+    return;
+  }
+  PrefMap& own = ProfilePrefs()[kIncognitoKey];
+  CefRefPtr<CefRequestContext> global = CefRequestContext::GetGlobalContext();
+  for (const char* name : kInheritedByIncognito) {
+    own.erase(name);
+    if (IncognitoContext() && ReadyProfiles().count(kIncognitoKey)) {
+      if (CefRefPtr<CefValue> value = global->GetPreference(name)) {
+        ApplyProfilePref(IncognitoContext(), name, value);
+      }
     }
-    env->ReleaseStringUTFChars(server_jstr, server);
   }
-  CefRefPtr<CefValue> val = CefValue::Create();
-  val->SetDictionary(dict);
-  CefString error;
-  bool ok = context->SetPreference("proxy", val, error);
-  if (!ok) {
-    LOGI("setProxy(%s) failed: %s", mode, error.ToString().c_str());
-  }
-  env->ReleaseStringUTFChars(mode_jstr, mode);
-  return ok ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL

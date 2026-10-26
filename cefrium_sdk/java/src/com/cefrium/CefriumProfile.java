@@ -189,6 +189,86 @@ public final class CefriumProfile {
         sMain.post(() -> nativeClearSiteData(mIncognito, mName, site, id));
     }
 
+    // ----- Network privacy settings -------------------------------------------
+    // Profile-wide: every browser of this profile uses them, including browsers
+    // opened later. The default and named profiles save them with their data,
+    // so they survive a restart until changed. The incognito profile follows
+    // the default profile's, as in Chrome, unless it is given its own; those
+    // last for this run, across private sessions. Named profiles are separate
+    // and follow nothing. Call on the main thread; they can be set before any
+    // browser of the profile exists.
+
+    /**
+     * For the incognito profile: drops the proxy and WebRTC settings set on it,
+     * so it follows the default profile's again. Does nothing on other profiles.
+     */
+    public void followDefaultProfile() {
+        if (!mIncognito) return;
+        root();
+        nativeFollowDefaultProfile();
+    }
+
+    /**
+     * Routes this profile's traffic through a proxy. {@code mode} is one of the
+     * {@code CefriumBrowser.PROXY_*} constants; {@code server} is
+     * {@code "host:port"} or {@code "scheme://host:port"} (e.g.
+     * {@code "socks5://127.0.0.1:9050"}) for {@code PROXY_FIXED}, the PAC URL
+     * for {@code PROXY_PAC}, and ignored otherwise.
+     *
+     * <p>A fixed proxy has no direct fallback: when it cannot be reached,
+     * requests fail instead of leaving without it. Loopback addresses
+     * (localhost, 127.0.0.1) are never proxied, as in Chrome. WebRTC is not
+     * covered by a proxy; see {@link #setWebRtcIpHandlingPolicy}.
+     *
+     * @return false if the engine rejected the setting.
+     */
+    public boolean setProxy(String mode, String server) {
+        if (mode == null) throw new IllegalArgumentException("mode must not be null");
+        StringBuilder json = new StringBuilder("{\"mode\":").append(org.json.JSONObject.quote(mode));
+        if (server != null) {
+            json.append(CefriumBrowser.PROXY_PAC.equals(mode) ? ",\"pac_url\":" : ",\"server\":")
+                .append(org.json.JSONObject.quote(server));
+        }
+        return setPreference("proxy", json.append('}').toString());
+    }
+
+    /** {@link #setProxy(String, String)} with {@code PROXY_FIXED}. */
+    public boolean setProxy(String server) {
+        return setProxy(CefriumBrowser.PROXY_FIXED, server);
+    }
+
+    /** Direct connections again. */
+    public boolean clearProxy() {
+        return setProxy(CefriumBrowser.PROXY_DIRECT, null);
+    }
+
+    /** WebRTC policies for {@link #setWebRtcIpHandlingPolicy}, as in Chrome. */
+    public static final String WEBRTC_DEFAULT = "default";
+    public static final String WEBRTC_DEFAULT_PUBLIC_AND_PRIVATE_INTERFACES =
+            "default_public_and_private_interfaces";
+    public static final String WEBRTC_DEFAULT_PUBLIC_INTERFACE_ONLY =
+            "default_public_interface_only";
+    public static final String WEBRTC_DISABLE_NON_PROXIED_UDP = "disable_non_proxied_udp";
+
+    /**
+     * Which network interfaces and transports WebRTC may use. A proxy does not
+     * carry WebRTC's UDP, so with a proxy alone a page can still learn the
+     * device's address through a peer connection. With
+     * {@link #WEBRTC_DISABLE_NON_PROXIED_UDP} WebRTC uses no UDP that bypasses
+     * the proxy, and gathers no local or public address candidates.
+     *
+     * @return false if the engine rejected the setting.
+     */
+    public boolean setWebRtcIpHandlingPolicy(String policy) {
+        if (policy == null) throw new IllegalArgumentException("policy must not be null");
+        return setPreference("webrtc.ip_handling_policy", org.json.JSONObject.quote(policy));
+    }
+
+    private boolean setPreference(String name, String json) {
+        root();
+        return nativeSetPreference(mIncognito, mName, name, json);
+    }
+
     private static synchronized long register(Object callback) {
         long id = sNextRequest++;
         sPending.put(id, callback);
@@ -221,6 +301,9 @@ public final class CefriumProfile {
                                                   long requestId);
     private static native void nativeClearSiteData(boolean incognito, String profile,
                                                    String site, long requestId);
+    private static native void nativeFollowDefaultProfile();
+    private static native boolean nativeSetPreference(boolean incognito, String profile,
+                                                      String name, String json);
 
     @Override
     public boolean equals(Object o) {
