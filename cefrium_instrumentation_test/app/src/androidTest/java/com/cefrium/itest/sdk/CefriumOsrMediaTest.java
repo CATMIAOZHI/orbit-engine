@@ -5,7 +5,6 @@ import com.cefrium.itest.HostActivity;
 import com.cefrium.itest.LocalMediaServer;
 
 import android.app.Activity;
-import android.os.ParcelFileDescriptor;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -19,23 +18,23 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Issue #16: media in an off-screen (OSR) browser. The media are test assets
- * (h264.mp4 and vp9.webm: 320x240 test pattern, 4 s; tone.mp3: 440 Hz, 6 s)
+ * (h264.mp4 and vp9.webm: 320x240 test pattern, 4 s; tone.mp3: 440 Hz, 6 s;
+ * h264-aac.mp4: the pattern with a 440 Hz AAC track, 6 s)
  * served from loopback.
  *
  * <ul>
  *   <li>Video frames reach onPaint: the test pattern's colours show up in the
  *       video's rectangle (0 coloured pixels before the fix, for both the
  *       hardware-decoded H.264 and the software-decoded VP9).</li>
- *   <li>Audio plays: Android reports a started output stream for this app.</li>
+ *   <li>Audio is audible: the output mix peaks above -60 dBFS while the tone
+ *       plays, and stays silent when the same element is muted (the control).
+ *       A video with an AAC track is both painted and heard.</li>
  *   <li>Fullscreen from a tap enters and leaves without killing the browser
  *       process (it asserted in ScreenOrientationProviderImpl before).</li>
  * </ul>
@@ -56,8 +55,17 @@ public class CefriumOsrMediaTest {
             + "</script></body></html>";
 
     private static final String AUDIO_PAGE = "<html><body style='margin:0'>"
-            + "<audio id=a loop src='/tone.mp3'></audio>"
+            + "<audio id=a loop ATTRS src='/tone.mp3'></audio>"
             + "<button id=b style='position:fixed;left:0;top:0;width:100%;height:100%'>play</button>"
+            + "<script>a.onerror=function(){document.title='error:'+a.error.code;};"
+            + "b.onclick=function(){a.play().catch(function(e){document.title='error:'+e.name;});};"
+            + "a.onplaying=function(){document.title='playing';};"
+            + "</script></body></html>";
+
+    private static final String VIDEO_SOUND_PAGE = "<html><body style='margin:0;background:#fff'>"
+            + "<video id=a loop playsinline width=320 height=240"
+            + " style='position:absolute;left:0;top:0;background:#000' src='/h264-aac.mp4'></video>"
+            + "<button id=b style='position:fixed;left:0;top:0;width:100%;height:100%;opacity:0.01'>play</button>"
             + "<script>a.onerror=function(){document.title='error:'+a.error.code;};"
             + "b.onclick=function(){a.play().catch(function(e){document.title='error:'+e.name;});};"
             + "a.onplaying=function(){document.title='playing';};"
@@ -109,39 +117,90 @@ public class CefriumOsrMediaTest {
         }
     }
 
+    private static final java.util.function.Consumer<CefriumBrowser> TAP =
+            b -> b.sendTap(200f, 150f);
+
+    // Silence on the output mix reads -9600 mB. A 440 Hz tone at half media
+    // volume reads around -1000 mB; anything above -6000 is clearly sound.
+    private static final int AUDIBLE_MB = -6000;
+
     @Test
-    public void audioPlays() throws Exception {
+    public void audioIsAudible() throws Exception {
+        int peak = playAndMeasure(AUDIO_PAGE.replace("ATTRS", ""), null, TAP);
+        Assert.assertTrue("the tone played but the output mix peaked at " + peak + " mB",
+                peak > AUDIBLE_MB);
+    }
+
+    // The control: the same page, muted, must read as silence. Without it a
+    // measurement that always reports sound would pass audioIsAudible.
+    @Test
+    public void mutedAudioIsSilent() throws Exception {
+        int peak = playAndMeasure(AUDIO_PAGE.replace("ATTRS", "muted"), null, TAP);
+        Assert.assertTrue("a muted element reached the output mix at " + peak + " mB",
+                peak <= AUDIBLE_MB);
+    }
+
+    @Test
+    public void videoWithSoundIsAudibleAndPainted() throws Exception {
+        AtomicInteger coloured = new AtomicInteger(-1);
+        int peak = playAndMeasure(VIDEO_SOUND_PAGE, coloured, TAP);
+        Assert.assertTrue("no video in onPaint: " + coloured.get() + " coloured pixels",
+                coloured.get() > 1000);
+        Assert.assertTrue("the video played but the output mix peaked at " + peak + " mB",
+                peak > AUDIBLE_MB);
+    }
+
+    /**
+     * Loads the page off-screen, taps it until it reports "playing", then
+     * returns the loudest peak on the output mix over two seconds.
+     */
+    private int playAndMeasure(String html, AtomicInteger coloured,
+            java.util.function.Consumer<CefriumBrowser> gesture) throws Exception {
         Activity activity = activityRule.getActivity();
+        android.app.UiAutomation ui = InstrumentationRegistry.getInstrumentation().getUiAutomation();
+        ui.grantRuntimePermission(activity.getPackageName(), android.Manifest.permission.RECORD_AUDIO);
+        android.media.AudioManager am = activity.getSystemService(android.media.AudioManager.class);
+        int stream = android.media.AudioManager.STREAM_MUSIC;
+        int volume = am.getStreamVolume(stream);
+        am.setStreamVolume(stream, am.getStreamMaxVolume(stream) / 2, 0);
         AtomicReference<String> title = new AtomicReference<>("");
         CefriumBrowser[] holder = new CefriumBrowser[1];
-        try (LocalMediaServer server = new LocalMediaServer(AUDIO_PAGE)) {
+        android.media.audiofx.Visualizer mix = new android.media.audiofx.Visualizer(0);
+        try (LocalMediaServer server = new LocalMediaServer(html)) {
+            mix.setMeasurementMode(android.media.audiofx.Visualizer.MEASUREMENT_MODE_PEAK_RMS);
+            mix.setEnabled(true);
             activity.runOnUiThread(() -> {
                 CefriumBrowser b = track(new CefriumBrowser(400, 300, 1.0f));
                 b.setRenderHandler(new CefriumRenderHandler() {
                     @Override
-                    public void onPaint(int width, int height, ByteBuffer px) {}
+                    public void onPaint(int width, int height, ByteBuffer px) {
+                        if (coloured != null) coloured.set(colouredPixels(width, height, px));
+                    }
                 });
                 holder[0] = b;
-                b.loadUrl(server.url());
                 b.setOnTitleChangedListener(title::set);
+                b.loadUrl(server.url());
             });
             // Playing with sound needs a user gesture: tap the page's button.
             long deadline = System.currentTimeMillis() + 30_000;
             while (!"playing".equals(title.get()) && System.currentTimeMillis() < deadline) {
-                activity.runOnUiThread(() -> holder[0].sendTap(200f, 150f));
+                if (gesture != null) activity.runOnUiThread(() -> gesture.accept(holder[0]));
                 Thread.sleep(1000);
                 if (title.get().startsWith("error:")) Assert.fail(title.get());
             }
-            Assert.assertEquals("the audio element never started", "playing", title.get());
-            String uid = "u/pid:" + android.os.Process.myUid() + "/";
-            String started = null;
-            for (int i = 0; i < 20 && started == null; i++) {
-                for (String line : shell("dumpsys audio").split("\n")) {
-                    if (line.contains(uid) && line.contains("state:started")) started = line;
-                }
-                if (started == null) Thread.sleep(500);
+            Assert.assertEquals("the media element never started", "playing", title.get());
+            android.media.audiofx.Visualizer.MeasurementPeakRms m =
+                    new android.media.audiofx.Visualizer.MeasurementPeakRms();
+            int peak = -9600;
+            for (int i = 0; i < 20; i++) {
+                Thread.sleep(100);
+                mix.getMeasurementPeakRms(m);
+                peak = Math.max(peak, m.mPeak);
             }
-            Assert.assertNotNull("Android has no started audio stream from this app", started);
+            return peak;
+        } finally {
+            mix.release();
+            am.setStreamVolume(stream, volume, 0);
         }
     }
 
@@ -204,19 +263,5 @@ public class CefriumOsrMediaTest {
             Thread.sleep(100);
         }
         Assert.fail("no '" + want + "' title; last=" + title.get());
-    }
-
-    private static String shell(String cmd) throws Exception {
-        ParcelFileDescriptor pfd = InstrumentationRegistry.getInstrumentation()
-                .getUiAutomation().executeShellCommand(cmd);
-        try (InputStream in = new FileInputStream(pfd.getFileDescriptor())) {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] buf = new byte[8192];
-            int n;
-            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-            return out.toString("UTF-8");
-        } finally {
-            pfd.close();
-        }
     }
 }
