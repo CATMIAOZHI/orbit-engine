@@ -1,0 +1,87 @@
+diff --git content/browser/date_time_chooser/android/date_time_chooser_android.cc content/browser/date_time_chooser/android/date_time_chooser_android.cc
+index 9ea8059a387aa3a28b1d7d0502305e329fd625b7..61ccda00f124bc95ea5fc62b819f788b8123693c 100644
+--- content/browser/date_time_chooser/android/date_time_chooser_android.cc
++++ content/browser/date_time_chooser/android/date_time_chooser_android.cc
+@@ -10,6 +10,7 @@
+ #include "base/android/jni_string.h"
+ #include "base/i18n/char_iterator.h"
+ #include "base/i18n/unicodestring.h"
++#include "base/no_destructor.h"
+ #include "content/public/browser/content_browser_client.h"
+ #include "content/public/browser/render_frame_host.h"
+ #include "content/public/browser/render_view_host.h"
+@@ -43,6 +44,12 @@ std::u16string SanitizeSuggestionString(const std::u16string& string) {
+   return base::i18n::UnicodeStringToString16(sanitized);
+ }
+ 
++content::DateTimeChooserAndroid::WindowlessHandler& GetWindowlessHandler() {
++  static base::NoDestructor<content::DateTimeChooserAndroid::WindowlessHandler>
++      handler;
++  return *handler;
++}
++
+ }  // namespace
+ 
+ namespace content {
+@@ -71,6 +78,13 @@ void DateTimeChooserAndroid::OpenPlatformDialog(
+     return;
+   }
+ 
++  gfx::NativeWindow native_window = GetWebContents().GetTopLevelNativeWindow();
++  if (!native_window && GetWindowlessHandler()) {
++    GetWindowlessHandler().Run(&GetWebContents(), std::move(value),
++                               std::move(callback));
++    return;
++  }
++
+   open_date_time_response_callback_ = std::move(callback);
+ 
+   ScopedJavaLocalRef<jobjectArray> suggestions_array;
+@@ -89,8 +103,6 @@ void DateTimeChooserAndroid::OpenPlatformDialog(
+     }
+   }
+ 
+-  gfx::NativeWindow native_window = GetWebContents().GetTopLevelNativeWindow();
+-
+   if (native_window && !(native_window->GetJavaObject()).is_null()) {
+     j_date_time_chooser_.Reset(
+         Java_DateTimeChooserAndroid_createDateTimeChooser(
+@@ -124,6 +136,11 @@ void DateTimeChooserAndroid::CancelDialog(JNIEnv* env) {
+   std::move(open_date_time_response_callback_).Run(false, 0.0);
+ }
+ 
++// static
++void DateTimeChooserAndroid::SetWindowlessHandler(WindowlessHandler handler) {
++  GetWindowlessHandler() = std::move(handler);
++}
++
+ // static
+ void DateTimeChooser::CreateDateTimeChooser(WebContents* web_contents) {
+   web_contents->SetUserData(
+diff --git content/browser/date_time_chooser/android/date_time_chooser_android.h content/browser/date_time_chooser/android/date_time_chooser_android.h
+index ee1bf665880641292697fab14993817f23acc218..287ed45187700cf410df2e0e4e8d3e940410f7ae 100644
+--- content/browser/date_time_chooser/android/date_time_chooser_android.h
++++ content/browser/date_time_chooser/android/date_time_chooser_android.h
+@@ -6,6 +6,7 @@
+ #define CONTENT_BROWSER_DATE_TIME_CHOOSER_ANDROID_DATE_TIME_CHOOSER_ANDROID_H_
+ 
+ #include "base/android/jni_weak_ref.h"
++#include "base/functional/callback.h"
+ #include "base/gtest_prod_util.h"
+ #include "content/browser/date_time_chooser/date_time_chooser.h"
+ #include "content/common/content_export.h"
+@@ -28,6 +29,14 @@ class CONTENT_EXPORT DateTimeChooserAndroid : public DateTimeChooser {
+   // Closes the dialog without propagating any changes.
+   void CancelDialog(JNIEnv* env);
+ 
++  // Shows the dialog for a WebContents that has no window, such as one
++  // rendered off-screen. The handler must run the callback.
++  using WindowlessHandler =
++      base::RepeatingCallback<void(WebContents*,
++                                   blink::mojom::DateTimeDialogValuePtr,
++                                   OpenDateTimeDialogCallback)>;
++  static void SetWindowlessHandler(WindowlessHandler handler);
++
+  protected:
+   // DateTimeChooser:
+   void OpenPlatformDialog(blink::mojom::DateTimeDialogValuePtr value,

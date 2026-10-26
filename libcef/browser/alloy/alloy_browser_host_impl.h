@@ -233,6 +233,13 @@ class AlloyBrowserHostImpl : public CefBrowserHostBase,
   void RunFileChooser(content::RenderFrameHost* render_frame_host,
                       scoped_refptr<content::FileSelectListener> listener,
                       const blink::mojom::FileChooserParams& params) override;
+#if BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<content::ColorChooser> OpenColorChooser(
+      content::WebContents* web_contents,
+      SkColor color,
+      const std::vector<blink::mojom::ColorSuggestionPtr>& suggestions)
+      override;
+#endif
   void EnterFullscreenModeForTab(
       content::RenderFrameHost* requesting_frame,
       const blink::mojom::FullscreenOptions& options) override;
