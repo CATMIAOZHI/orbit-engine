@@ -5,6 +5,8 @@
 // Implements native methods declared in Cefrium.java and CefriumBrowser.java.
 
 #include <cinttypes>
+#include <fstream>
+#include <iterator>
 #include <jni.h>
 #include <map>
 #include <string>
@@ -20,6 +22,7 @@
 #include "cef/include/cef_cookie.h"
 #include "cef/include/cef_request.h"
 #include "cef/include/cef_request_context.h"
+#include "cef/include/cef_urlrequest.h"
 #include "cef/include/cef_values.h"
 #include "cef/include/cef_version.h"
 #include "cef/include/cef_context_menu_handler.h"
@@ -1159,9 +1162,6 @@ class SdkContextMenuHandler : public CefContextMenuHandler {
   CefRefPtr<CefRunQuickMenuCallback> pending_quick_;  // FEATURE-066 (OSR)
 };
 
-// Global AdBlock filter engine — shared across all browsers.
-static AdBlockFilter* g_adblock_filter = nullptr;
-
 // loadHtmlWithBaseUrl via a GENUINE network-served response (not a data: URL).
 //
 // A data-with-base (data:) document is rejected client-side by some embedded
@@ -1353,14 +1353,43 @@ class SdkCookieAccessFilter : public CefCookieAccessFilter {
 
 class SdkResourceRequestHandler : public CefResourceRequestHandler {
  public:
-  explicit SdkResourceRequestHandler(int* blocked_count)
-      : blocked_count_(blocked_count) {}
+  // Which Java listeners exist, from CefriumBrowser.updateRequestObservers().
+  // Every request runs through this handler on the IO thread, so a call into
+  // Java that nobody listens to is not made.
+  enum Observer {
+    kInterceptor = 1 << 0,       // RequestInterceptor
+    kInterceptListener = 1 << 1,  // onRequestIntercepted
+    kResourceEvents = 1 << 2,     // CefriumRequestHandler redirect/response/complete
+  };
 
   void SetResponseTapEnabled(bool e) { response_tap_enabled_ = e; }
   void SetCookieFilterEnabled(bool e) { cookie_filter_enabled_ = e; }
+  void SetObservers(int observers) { observers_ = observers; }
+  void SetAdBlockEnabled(bool enabled) { adblock_enabled_ = enabled; }
+  int blocked_count() const { return blocked_count_; }
 
+  // The Java browser is the same object for the browser's lifetime; the first
+  // reference is kept, so the IO thread never sees it change.
   void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
-    if (java_browser) java_browser_ = env->NewGlobalRef(java_browser);
+    if (!java_browser || java_browser_) {
+      return;
+    }
+    jclass cls = env->GetObjectClass(java_browser);
+    should_block_ = env->GetMethodID(
+        cls, "onShouldBlockRequest", "(Ljava/lang/String;Ljava/lang/String;Z)Z");
+    intercepted_ = env->GetMethodID(
+        cls, "onRequestIntercepted", "(Ljava/lang/String;Ljava/lang/String;Z)V");
+    redirect_ = env->GetMethodID(cls, "onResourceRedirect",
+                                 "(Ljava/lang/String;Ljava/lang/String;)V");
+    response_ =
+        env->GetMethodID(cls, "onResourceResponse", "(Ljava/lang/String;I)V");
+    complete_ = env->GetMethodID(cls, "onResourceLoadComplete",
+                                 "(Ljava/lang/String;IJ)V");
+    env->DeleteLocalRef(cls);
+    if (env->ExceptionCheck()) {
+      env->ExceptionClear();
+    }
+    java_browser_ = env->NewGlobalRef(java_browser);
   }
 
   CefResourceRequestHandler::ReturnValue OnBeforeResourceLoad(
@@ -1368,58 +1397,38 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
       CefRefPtr<CefFrame> frame,
       CefRefPtr<CefRequest> request,
       CefRefPtr<CefCallback> callback) override {
-    std::string url = request->GetURL().ToString();
-    std::string method = request->GetMethod().ToString();
+    const int observers = observers_;
+    std::shared_ptr<const AdBlockFilter> filter =
+        adblock_enabled_ ? AdBlockFilter::Current() : nullptr;
+    if (!filter && !(observers & (kInterceptor | kInterceptListener))) {
+      return RV_CONTINUE;
+    }
+    const std::string url = request->GetURL().ToString();
 
-    bool blocked = g_adblock_filter && g_adblock_filter->ShouldBlock(url);
+    bool blocked =
+        filter && filter->ShouldBlock(GURL(url), DocumentOf(frame, request),
+                                      request->GetResourceType());
 
+    jobject jb = java_browser_;
+    JNIEnv* env = jb ? base::android::AttachCurrentThread() : nullptr;
+    if (!blocked && env && should_block_ && (observers & kInterceptor)) {
+      jstring ju = env->NewStringUTF(url.c_str());
+      jstring jm = env->NewStringUTF(request->GetMethod().ToString().c_str());
+      blocked = env->CallBooleanMethod(jb, should_block_, ju, jm,
+                                       frame && frame->IsMain());
+      env->DeleteLocalRef(ju);
+      env->DeleteLocalRef(jm);
+    }
     if (blocked) {
-      if (blocked_count_) (*blocked_count_)++;
+      blocked_count_++;
     }
-
-    // Consumer interceptor (FEATURE-027): if not already ad-blocked, ask the
-    // Java RequestInterceptor synchronously (we are on the IO thread).
-    if (!blocked && java_browser_) {
-      JNIEnv* env = base::android::AttachCurrentThread();
-      if (env) {
-        jclass cls = env->GetObjectClass(java_browser_);
-        jmethodID mid = env->GetMethodID(
-            cls, "onShouldBlockRequest",
-            "(Ljava/lang/String;Ljava/lang/String;Z)Z");
-        if (mid) {
-          jstring ju = env->NewStringUTF(url.c_str());
-          jstring jm = env->NewStringUTF(method.c_str());
-          jboolean r = env->CallBooleanMethod(
-              java_browser_, mid, ju, jm, frame && frame->IsMain());
-          env->DeleteLocalRef(ju);
-          env->DeleteLocalRef(jm);
-          if (r) {
-            blocked = true;
-            if (blocked_count_) (*blocked_count_)++;
-          }
-        }
-        env->DeleteLocalRef(cls);
-      }
+    if (env && intercepted_ && (observers & kInterceptListener)) {
+      jstring ju = env->NewStringUTF(url.substr(0, 200).c_str());
+      jstring jm = env->NewStringUTF(request->GetMethod().ToString().c_str());
+      env->CallVoidMethod(jb, intercepted_, ju, jm, blocked);
+      env->DeleteLocalRef(ju);
+      env->DeleteLocalRef(jm);
     }
-
-    // Report to Java if listener is set.
-    if (java_browser_) {
-      JNIEnv* env = base::android::AttachCurrentThread();
-      if (env) {
-        jclass cls = env->GetObjectClass(java_browser_);
-        jmethodID mid = env->GetMethodID(cls, "onRequestIntercepted",
-                                         "(Ljava/lang/String;Ljava/lang/String;Z)V");
-        if (mid) {
-          jstring j_url = env->NewStringUTF(url.substr(0, 200).c_str());
-          jstring j_method = env->NewStringUTF(method.c_str());
-          env->CallVoidMethod(java_browser_, mid, j_url, j_method, blocked);
-          env->DeleteLocalRef(j_url);
-          env->DeleteLocalRef(j_method);
-        }
-        env->DeleteLocalRef(cls);
-      }
-    }
-
     return blocked ? RV_CANCEL : RV_CONTINUE;
   }
 
@@ -1450,40 +1459,26 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
                           CefRefPtr<CefRequest> request,
                           CefRefPtr<CefResponse> response,
                           CefString& new_url) override {
-    if (!java_browser_) return;
-    JNIEnv* env = base::android::AttachCurrentThread();
-    if (!env) return;
-    jclass cls = env->GetObjectClass(java_browser_);
-    jmethodID mid = env->GetMethodID(cls, "onResourceRedirect",
-        "(Ljava/lang/String;Ljava/lang/String;)V");
-    if (mid) {
-      jstring jo = env->NewStringUTF(request->GetURL().ToString().c_str());
-      jstring jn = env->NewStringUTF(new_url.ToString().c_str());
-      env->CallVoidMethod(java_browser_, mid, jo, jn);
-      env->DeleteLocalRef(jo);
-      env->DeleteLocalRef(jn);
+    JNIEnv* env = ResourceEventsEnv();
+    if (!env || !redirect_) {
+      return;
     }
-    env->DeleteLocalRef(cls);
+    jstring jo = env->NewStringUTF(request->GetURL().ToString().c_str());
+    jstring jn = env->NewStringUTF(new_url.ToString().c_str());
+    env->CallVoidMethod(java_browser_, redirect_, jo, jn);
+    env->DeleteLocalRef(jo);
+    env->DeleteLocalRef(jn);
   }
 
   bool OnResourceResponse(CefRefPtr<CefBrowser> browser,
                           CefRefPtr<CefFrame> frame,
                           CefRefPtr<CefRequest> request,
                           CefRefPtr<CefResponse> response) override {
-    if (java_browser_) {
-      JNIEnv* env = base::android::AttachCurrentThread();
-      if (env) {
-        jclass cls = env->GetObjectClass(java_browser_);
-        jmethodID mid = env->GetMethodID(cls, "onResourceResponse",
-            "(Ljava/lang/String;I)V");
-        if (mid) {
-          jstring ju = env->NewStringUTF(request->GetURL().ToString().c_str());
-          env->CallVoidMethod(java_browser_, mid, ju,
-                              response->GetStatus());
-          env->DeleteLocalRef(ju);
-        }
-        env->DeleteLocalRef(cls);
-      }
+    JNIEnv* env = ResourceEventsEnv();
+    if (env && response_) {
+      jstring ju = env->NewStringUTF(request->GetURL().ToString().c_str());
+      env->CallVoidMethod(java_browser_, response_, ju, response->GetStatus());
+      env->DeleteLocalRef(ju);
     }
     return false;  // do not re-issue the request
   }
@@ -1494,20 +1489,15 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
                               CefRefPtr<CefResponse> response,
                               URLRequestStatus status,
                               int64_t received_content_length) override {
-    if (!java_browser_) return;
-    JNIEnv* env = base::android::AttachCurrentThread();
-    if (!env) return;
-    jclass cls = env->GetObjectClass(java_browser_);
-    jmethodID mid = env->GetMethodID(cls, "onResourceLoadComplete",
-        "(Ljava/lang/String;IJ)V");
-    if (mid) {
-      jstring ju = env->NewStringUTF(request->GetURL().ToString().c_str());
-      env->CallVoidMethod(java_browser_, mid, ju,
-                          response ? response->GetStatus() : 0,
-                          static_cast<jlong>(received_content_length));
-      env->DeleteLocalRef(ju);
+    JNIEnv* env = ResourceEventsEnv();
+    if (!env || !complete_) {
+      return;
     }
-    env->DeleteLocalRef(cls);
+    jstring ju = env->NewStringUTF(request->GetURL().ToString().c_str());
+    env->CallVoidMethod(java_browser_, complete_, ju,
+                        response ? response->GetStatus() : 0,
+                        static_cast<jlong>(received_content_length));
+    env->DeleteLocalRef(ju);
   }
 
   // FEATURE-063 (opt-in): body-tap response filter. null unless enabled.
@@ -1545,16 +1535,46 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
   IMPLEMENT_REFCOUNTING(SdkResourceRequestHandler);
 
  private:
-  int* blocked_count_;
-  jobject java_browser_ = nullptr;
-  bool response_tap_enabled_ = false;
-  bool cookie_filter_enabled_ = false;
+  // The document a request is made for: the parent page for an iframe
+  // navigation, otherwise the frame's own page.
+  static GURL DocumentOf(CefRefPtr<CefFrame> frame,
+                         CefRefPtr<CefRequest> request) {
+    if (!frame) {
+      return GURL(request->GetReferrerURL().ToString());
+    }
+    if (request->GetResourceType() == RT_SUB_FRAME) {
+      if (CefRefPtr<CefFrame> parent = frame->GetParent()) {
+        return GURL(parent->GetURL().ToString());
+      }
+    }
+    return GURL(frame->GetURL().ToString());
+  }
+
+  // Checked before any jmethodID is read: they are written before
+  // java_browser_ is published (SetJavaBrowser).
+  JNIEnv* ResourceEventsEnv() const {
+    if (!java_browser_ || !(observers_ & kResourceEvents)) {
+      return nullptr;
+    }
+    return base::android::AttachCurrentThread();
+  }
+
+  std::atomic<jobject> java_browser_{nullptr};
+  jmethodID should_block_ = nullptr;
+  jmethodID intercepted_ = nullptr;
+  jmethodID redirect_ = nullptr;
+  jmethodID response_ = nullptr;
+  jmethodID complete_ = nullptr;
+  std::atomic<int> observers_{0};
+  std::atomic<bool> adblock_enabled_{true};
+  std::atomic<int> blocked_count_{0};
+  std::atomic<bool> response_tap_enabled_{false};
+  std::atomic<bool> cookie_filter_enabled_{false};
 };
 
 class SdkRequestHandler : public CefRequestHandler {
  public:
-  explicit SdkRequestHandler(int* blocked_count)
-      : resource_handler_(new SdkResourceRequestHandler(blocked_count)) {}
+  SdkRequestHandler() : resource_handler_(new SdkResourceRequestHandler()) {}
 
   CefRefPtr<CefResourceRequestHandler> GetResourceRequestHandler(
       CefRefPtr<CefBrowser> browser,
@@ -2973,7 +2993,7 @@ class SdkClient : public CefClient {
  public:
   SdkClient(CefRefPtr<SdkRenderHandler> render_handler,
             CefRefPtr<SdkLifeSpanHandler> life_span_handler,
-            int* blocked_count = nullptr,
+            bool with_request_handler = false,
             struct SdkBrowserData* browser_data = nullptr)
       : render_handler_(render_handler),
         life_span_handler_(life_span_handler),
@@ -2992,7 +3012,7 @@ class SdkClient : public CefClient {
         frame_handler_(new SdkFrameHandler()),
         command_handler_(new SdkCommandHandler()),
         dialog_handler_(new SdkDialogHandler()),
-        request_handler_(blocked_count ? new SdkRequestHandler(blocked_count) : nullptr) {
+        request_handler_(with_request_handler ? new SdkRequestHandler() : nullptr) {
     {
       base::AutoLock lock(LiveLock());
       Live().insert(this);
@@ -3502,8 +3522,6 @@ struct SdkBrowserData {
   // setMediaPlaybackRequiresUserGesture before the browser exists; applied in
   // OnAfterCreated, which runs before the first navigation.
   std::optional<bool> media_playback_requires_user_gesture;
-  int blocked_count = 0;
-  bool adblock_enabled = false;
 
   // Surface rendering mode (null for OSR mode).
   std::unique_ptr<BrowserSurfaceAndroid> surface_bridge;
@@ -3869,7 +3887,7 @@ Java_com_cefrium_CefriumBrowser_nativeCreate(
   data->life_span_handler = new SdkLifeSpanHandler();
   data->life_span_handler->SetBrowserData(data);
   data->client = new SdkClient(data->render_handler, data->life_span_handler,
-                               &data->blocked_count);
+                               /*with_request_handler=*/true);
   LOGI("nativeCreate: %dx%d (browser not yet created, adblock active)", width, height);
   {
     base::AutoLock lock(BridgeDataLock());
@@ -4900,22 +4918,38 @@ Java_com_cefrium_CefriumBrowser_nativeSendMouseWheelEvent(
   data->browser->GetHost()->SendMouseWheelEvent(event, delta_x, delta_y);
 }
 
-// Ad-blocking: enable/disable and get blocked count.
+namespace {
+SdkResourceRequestHandler* RequestHandlerOf(jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->client || !data->client->request_handler()) {
+    return nullptr;
+  }
+  return data->client->request_handler()->resource_request_handler().get();
+}
+}  // namespace
+
+// Ad blocking per browser: on by default once a list is loaded.
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeSetAdBlockEnabled(
     JNIEnv* env, jclass clazz, jlong native_ptr, jboolean enabled) {
-  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
-  if (data) {
-    data->adblock_enabled = enabled;
-    LOGI("AdBlock %s", enabled ? "ENABLED" : "DISABLED");
+  if (auto* handler = RequestHandlerOf(native_ptr)) {
+    handler->SetAdBlockEnabled(enabled == JNI_TRUE);
   }
 }
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_cefrium_CefriumBrowser_nativeGetBlockedCount(
     JNIEnv* env, jclass clazz, jlong native_ptr) {
-  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
-  return data ? data->blocked_count : 0;
+  auto* handler = RequestHandlerOf(native_ptr);
+  return handler ? handler->blocked_count() : 0;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetRequestObservers(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jint observers) {
+  if (auto* handler = RequestHandlerOf(native_ptr)) {
+    handler->SetObservers(observers);
+  }
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -4967,7 +5001,7 @@ Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
   data->client = new SdkClient(
       nullptr,  // No render handler — ContentViewRenderView handles rendering
       data->life_span_handler,
-      &data->blocked_count);
+      /*with_request_handler=*/true);
 
   // Set download directory to app's external files/Download.
   // TODO: get from Java instead of hardcoding.
@@ -5722,17 +5756,103 @@ Java_com_cefrium_CefriumBrowser_nativeStopFinding(
   }
 }
 
-// Load EasyList filter rules from a file path.
+// Sets an EasyList-format list from a file; `list` names it, so loading the
+// same list again replaces its rules. Returns its rule count, -1 if unreadable.
 extern "C" JNIEXPORT jint JNICALL
 Java_com_cefrium_Cefrium_nativeLoadAdBlockList(
-    JNIEnv* env, jclass clazz, jstring path_jstr) {
-  if (!g_adblock_filter) {
-    g_adblock_filter = new AdBlockFilter();
-    g_adblock_filter->AddYouTubeAdRules();
+    JNIEnv* env, jclass clazz, jstring list_j, jstring path_j) {
+  std::ifstream file(JStr(env, path_j).ToString());
+  if (!file.is_open()) {
+    return -1;
   }
-  const char* path = env->GetStringUTFChars(path_jstr, nullptr);
-  int count = g_adblock_filter->LoadFromFile(path);
-  env->ReleaseStringUTFChars(path_jstr, path);
-  LOGI("AdBlock: loaded %d rules from %s", count, path);
-  return count;
+  std::string content((std::istreambuf_iterator<char>(file)),
+                      std::istreambuf_iterator<char>());
+  return AdBlockFilter::Load(JStr(env, list_j).ToString(), content);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_cefrium_Cefrium_nativeLoadYouTubeAdRules(JNIEnv* env, jclass clazz) {
+  return AdBlockFilter::LoadYouTubeAdRules();
+}
+
+namespace {
+
+// Fetches a filter list through the engine's own network stack, so it follows
+// the default profile's proxy instead of leaving the device directly. The body
+// goes back to Cefrium.onAdBlockListFetched(id, status, body, error).
+class AdBlockListFetch : public CefURLRequestClient {
+ public:
+  AdBlockListFetch(jclass cefrium, jlong id) : cefrium_(cefrium), id_(id) {}
+
+  void OnRequestComplete(CefRefPtr<CefURLRequest> request) override {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jmethodID done = env->GetStaticMethodID(
+        cefrium_, "onAdBlockListFetched", "(JI[BLjava/lang/String;)V");
+    if (done) {
+      CefRefPtr<CefResponse> response = request->GetResponse();
+      const int status = response ? response->GetStatus() : 0;
+      const bool ok = request->GetRequestStatus() == UR_SUCCESS;
+      jbyteArray body = nullptr;
+      if (ok) {
+        body = env->NewByteArray(static_cast<jsize>(body_.size()));
+        env->SetByteArrayRegion(body, 0, static_cast<jsize>(body_.size()),
+                                reinterpret_cast<const jbyte*>(body_.data()));
+      }
+      jstring error = ok ? nullptr
+                         : env->NewStringUTF(
+                               ("network error " +
+                                std::to_string(request->GetRequestError()))
+                                   .c_str());
+      env->CallStaticVoidMethod(cefrium_, done, id_, status, body, error);
+      if (body) env->DeleteLocalRef(body);
+      if (error) env->DeleteLocalRef(error);
+    }
+    if (env->ExceptionCheck()) {
+      env->ExceptionClear();
+    }
+    env->DeleteGlobalRef(cefrium_);
+  }
+
+  void OnDownloadData(CefRefPtr<CefURLRequest> request,
+                      const void* data,
+                      size_t data_length) override {
+    body_.append(static_cast<const char*>(data), data_length);
+  }
+
+  void OnUploadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
+  void OnDownloadProgress(CefRefPtr<CefURLRequest>, int64_t, int64_t) override {}
+  bool GetAuthCredentials(bool,
+                          const CefString&,
+                          int,
+                          const CefString&,
+                          const CefString&,
+                          CefRefPtr<CefAuthCallback>) override {
+    return false;
+  }
+
+  IMPLEMENT_REFCOUNTING(AdBlockListFetch);
+
+ private:
+  jclass cefrium_;
+  const jlong id_;
+  std::string body_;
+};
+
+}  // namespace
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_Cefrium_nativeFetchAdBlockList(
+    JNIEnv* env, jclass clazz, jstring url_j, jlong id) {
+  auto cefrium = static_cast<jclass>(env->NewGlobalRef(clazz));
+  const std::string url = JStr(env, url_j).ToString();
+  CefPostTask(TID_UI, base::BindOnce(
+                          [](std::string url, jclass cefrium, jlong id) {
+                            CefRefPtr<CefRequest> request = CefRequest::Create();
+                            request->SetURL(url);
+                            request->SetMethod("GET");
+                            CefURLRequest::Create(
+                                request, new AdBlockListFetch(cefrium, id),
+                                nullptr);
+                          },
+                          url, cefrium, id));
 }
