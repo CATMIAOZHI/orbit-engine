@@ -1,0 +1,4 @@
+# Build outputs and keys: never commit binaries or secrets
+/cefrium-relay
+*.pem
+*.json
