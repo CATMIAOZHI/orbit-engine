@@ -166,7 +166,7 @@ CefriumWebView(
 | Pinned Chromium version | No (system) | Yes (156) |
 | Multi-process control | No | Yes |
 | Network request interception (full) | Partial (GET) | Yes (all) |
-| Built-in ad blocking | No | Yes (engine-level filter, `Cefrium.loadAdBlockList`) |
+| Ad blocking with filter lists | Via `shouldInterceptRequest`, by URL | Yes: load an EasyList-format list (`Cefrium.loadAdBlockList`); none is built in |
 | Find in page API | Yes (findAllAsync) | Yes (CefBrowserHost::Find) |
 | Context menu API | Limited | Full (CEF API) |
 | File dialog | Yes | Yes |

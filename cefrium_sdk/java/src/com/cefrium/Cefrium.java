@@ -635,50 +635,175 @@ public final class Cefrium {
         return CHROMIUM_VERSION;
     }
 
-    /**
-     * Load ad-blocking filter rules from an EasyList-format file.
-     * Can be called multiple times to load additional lists.
-     *
-     * @param path Absolute path to the filter list file.
-     * @return Number of rules loaded.
-     */
-    public static int loadAdBlockList(String path) {
-        return nativeLoadAdBlockList(path);
+    // ----- Ad blocking -------------------------------------------------------
+    // Network-level only: requests matching a loaded list are cancelled before
+    // they leave the engine. Nothing is blocked until the app loads a list.
+    // Cosmetic (element-hiding) rules are not applied. Lists such as EasyList
+    // carry their own licence (EasyList: GPL-3.0 or CC BY-SA 3.0), which
+    // applies if you ship the list inside your app.
+
+    /** EasyList, the list {@link #downloadAndLoadEasyList} fetches. */
+    public static final String EASYLIST_URL = "https://easylist.to/easylist/easylist.txt";
+
+    /** The result of loading a filter list. */
+    public interface AdBlockListCallback {
+        /**
+         * @param rules the rules the list now has in the filter, or -1 if none
+         *     could be loaded.
+         * @param error null on success; otherwise why the download failed (a
+         *     cached copy may still have been loaded, see {@code rules}).
+         */
+        void onResult(int rules, String error);
     }
 
     /**
-     * Download and load EasyList from the internet.
-     * Call from a background thread — performs network I/O.
+     * Loads an EasyList-format filter list from a file. Loading the same path
+     * again replaces that list's rules. Supported: {@code ||host^} and
+     * {@code ||host/path} rules, {@code @@} exceptions (including
+     * {@code @@||site^$document}, which stops blocking on that site) and the
+     * options third-party, domain= and the resource types; a rule with any
+     * other option is skipped. Main-frame navigations are never blocked.
+     * Call from a background thread: a full list takes a moment to parse.
      *
-     * @param context Application context for file storage.
+     * @return the list's rule count, or -1 if the file cannot be read.
      */
-    public static void downloadAndLoadEasyList(final android.content.Context context) {
-        new Thread(() -> {
-            try {
-                java.io.File dir = context.getFilesDir();
-                java.io.File file = new java.io.File(dir, "easylist.txt");
+    public static int loadAdBlockList(String path) {
+        return nativeLoadAdBlockList(path, path);
+    }
 
-                // Download if not exists or older than 24 hours.
-                boolean needsDownload = !file.exists() ||
-                        (System.currentTimeMillis() - file.lastModified() > 24 * 60 * 60 * 1000);
+    /**
+     * Adds Cefrium's heuristics for YouTube's ad requests (ad breaks, ad
+     * streams by their URL parameters, ad tracking). They are not part of any
+     * list and YouTube changes these endpoints, so treat them as best effort.
+     * Off unless called.
+     *
+     * @return the rules added, 0 if they were already loaded.
+     */
+    public static int loadYouTubeAdRules() {
+        return nativeLoadYouTubeAdRules();
+    }
 
-                if (needsDownload) {
-                    java.net.URL url = new java.net.URL("https://easylist.to/easylist/easylist.txt");
-                    java.io.InputStream in = url.openStream();
-                    java.io.FileOutputStream out = new java.io.FileOutputStream(file);
-                    byte[] buf = new byte[8192];
-                    int n;
-                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-                    out.close();
-                    in.close();
-                }
+    /** {@link #downloadAndLoadAdBlockList} for {@link #EASYLIST_URL}. */
+    public static void downloadAndLoadEasyList(android.content.Context context) {
+        downloadAndLoadAdBlockList(context, EASYLIST_URL, null);
+    }
 
-                int count = nativeLoadAdBlockList(file.getAbsolutePath());
-                android.util.Log.i("Cefrium", "EasyList loaded: " + count + " rules");
-            } catch (Exception e) {
-                android.util.Log.e("Cefrium", "EasyList download failed: " + e.getMessage());
+    /** {@link #downloadAndLoadAdBlockList} for {@link #EASYLIST_URL}. */
+    public static void downloadAndLoadEasyList(android.content.Context context,
+            AdBlockListCallback callback) {
+        downloadAndLoadAdBlockList(context, EASYLIST_URL, callback);
+    }
+
+    /**
+     * Downloads an EasyList-format list and loads it, at most once a day: a
+     * copy younger than 24 hours is loaded from the app's files instead. The
+     * download goes through the engine's network stack, so it uses the default
+     * profile's proxy ({@link CefriumBrowser#setProxy}), not a direct
+     * connection. If it fails, the last good copy is loaded, if any. Returns at
+     * once; the callback (may be null) runs on a background thread.
+     */
+    public static void downloadAndLoadAdBlockList(android.content.Context context,
+            String url, AdBlockListCallback callback) {
+        final java.io.File file = adBlockListFile(context, url);
+        sAdBlockExecutor.execute(() -> {
+            if (file.exists()
+                    && System.currentTimeMillis() - file.lastModified() < ADBLOCK_LIST_MAX_AGE_MS) {
+                report(callback, nativeLoadAdBlockList(url, file.getPath()), null);
+                return;
             }
-        }).start();
+            long id;
+            synchronized (sAdBlockFetches) {
+                id = ++sAdBlockFetchId;
+                sAdBlockFetches.put(id, new AdBlockFetch(url, file, callback));
+            }
+            nativeFetchAdBlockList(url, id);
+        });
+    }
+
+    private static final long ADBLOCK_LIST_MAX_AGE_MS = 24L * 60 * 60 * 1000;
+    private static final java.util.concurrent.Executor sAdBlockExecutor =
+            java.util.concurrent.Executors.newSingleThreadExecutor();
+    private static final java.util.Map<Long, AdBlockFetch> sAdBlockFetches =
+            new java.util.HashMap<>();
+    private static long sAdBlockFetchId;
+
+    private static final class AdBlockFetch {
+        final String url;
+        final java.io.File file;
+        final AdBlockListCallback callback;
+        AdBlockFetch(String url, java.io.File file, AdBlockListCallback callback) {
+            this.url = url;
+            this.file = file;
+            this.callback = callback;
+        }
+    }
+
+    private static java.io.File adBlockListFile(android.content.Context context, String url) {
+        java.io.File dir = new java.io.File(context.getFilesDir(), "cefrium-adblock");
+        try {
+            byte[] hash = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(url.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder name = new StringBuilder();
+            for (int i = 0; i < 8; i++) name.append(String.format("%02x", hash[i]));
+            return new java.io.File(dir, name + ".txt");
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);  // SHA-256 is always present
+        }
+    }
+
+    private static void report(AdBlockListCallback callback, int rules, String error) {
+        if (error != null || rules < 0) {
+            android.util.Log.w("Cefrium", "ad block list: " + (error != null ? error : "unreadable"));
+        }
+        if (callback != null) callback.onResult(rules, error);
+    }
+
+    // Called from native when nativeFetchAdBlockList finishes (UI thread).
+    @SuppressWarnings("unused")
+    private static void onAdBlockListFetched(long id, int status, byte[] body, String error) {
+        final AdBlockFetch fetch;
+        synchronized (sAdBlockFetches) {
+            fetch = sAdBlockFetches.remove(id);
+        }
+        if (fetch == null) return;
+        sAdBlockExecutor.execute(() -> {
+            String problem = error;
+            if (problem == null && status != 200) problem = "HTTP " + status;
+            // A list starts with its "[Adblock Plus x.y]" header; anything else
+            // (a captive portal, an error page) must not replace a good copy.
+            if (problem == null && (body == null || !startsWith(body, "[Adblock"))) {
+                problem = "not a filter list";
+            }
+            if (problem == null) {
+                try {
+                    writeAtomically(fetch.file, body);
+                } catch (java.io.IOException e) {
+                    problem = "cannot save the list: " + e.getMessage();
+                }
+            }
+            int rules = fetch.file.exists()
+                    ? nativeLoadAdBlockList(fetch.url, fetch.file.getPath()) : -1;
+            report(fetch.callback, rules, problem);
+        });
+    }
+
+    private static boolean startsWith(byte[] body, String prefix) {
+        if (body.length < prefix.length()) return false;
+        for (int i = 0; i < prefix.length(); i++) {
+            if (body[i] != prefix.charAt(i)) return false;
+        }
+        return true;
+    }
+
+    private static void writeAtomically(java.io.File file, byte[] body) throws java.io.IOException {
+        java.io.File dir = file.getParentFile();
+        if (!dir.isDirectory() && !dir.mkdirs()) throw new java.io.IOException("mkdirs " + dir);
+        java.io.File tmp = new java.io.File(dir, file.getName() + ".tmp");
+        try (java.io.FileOutputStream out = new java.io.FileOutputStream(tmp)) {
+            out.write(body);
+            out.getFD().sync();
+        }
+        if (!tmp.renameTo(file)) throw new java.io.IOException("rename " + tmp);
     }
 
     // Native methods implemented in libcef.so.
@@ -738,5 +863,7 @@ public final class Cefrium {
         return root;
     }
     private static native void nativeShutdown();
-    private static native int nativeLoadAdBlockList(String path);
+    private static native int nativeLoadAdBlockList(String list, String path);
+    private static native int nativeLoadYouTubeAdRules();
+    private static native void nativeFetchAdBlockList(String url, long id);
 }
