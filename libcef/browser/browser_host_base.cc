@@ -1035,6 +1035,22 @@ void CefBrowserHostBase::SetPreferredColorSchemeDark(std::optional<bool> dark) {
   }
 }
 
+void CefBrowserHostBase::SetMediaPlaybackRequiresUserGesture(
+    std::optional<bool> required) {
+  if (!CEF_CURRENTLY_ON_UIT()) {
+    CEF_POST_TASK(
+        CEF_UIT,
+        base::BindOnce(&CefBrowserHostBase::SetMediaPlaybackRequiresUserGesture,
+                       this, required));
+    return;
+  }
+
+  media_playback_requires_user_gesture_ = required;
+  if (auto* web_contents = GetWebContents()) {
+    web_contents->OnWebPreferencesChanged();
+  }
+}
+
 void CefBrowserHostBase::ReplaceMisspelling(const CefString& word) {
   if (!CEF_CURRENTLY_ON_UIT()) {
     CEF_POST_TASK(

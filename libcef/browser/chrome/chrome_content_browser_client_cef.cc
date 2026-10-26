@@ -529,6 +529,14 @@ void ChromeContentBrowserClientCef::OverrideWebPreferences(
           prefs->preferred_color_scheme;
     }
 
+    // Same mapping as Android WebView's setMediaPlaybackRequiresUserGesture.
+    if (browser->media_playback_requires_user_gesture().has_value()) {
+      prefs->autoplay_policy =
+          browser->media_playback_requires_user_gesture().value()
+              ? blink::mojom::AutoplayPolicy::kUserGestureRequired
+              : blink::mojom::AutoplayPolicy::kNoUserGestureRequired;
+    }
+
     // Set the background color for the WebView.
     base_background_color = browser->GetBackgroundColor();
   } else {
