@@ -5,8 +5,9 @@ native Android. It is dual-licensed.
 
 ## Dual Licensing
 
-The Cefrium Android port (patches, SDK, Gradle plugin, JNI bridge)
-is available under two licenses:
+The Cefrium SDK (the Java/Kotlin SDK, its JNI bridge, the Compose
+wrapper, UnifiedPush, the relay and the Gradle plugin) is available under
+two licenses:
 
 ### 1. LGPL v3 (Open Source)
 
@@ -31,6 +32,11 @@ Contact: cefrium@proton.me
 
 The original CEF code (by Marshall Greenblatt and contributors)
 remains under its BSD 3-Clause license. See `LICENSES/BSD-3-Clause.txt`.
+
+The Android platform code (`libcef/browser/android/`, except the SDK's
+`cefrium_*` and `adblock_filter.*` files), the changes to CEF files and the
+Chromium patches under `patch/patches/android/` are under the same BSD
+3-Clause license, because they are intended for upstream CEF.
 
 ## REUSE Compliance
 

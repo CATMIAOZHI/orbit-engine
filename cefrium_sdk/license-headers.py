@@ -9,9 +9,10 @@ plugin and the instrumentation tests) is dual-licensed, LGPL-3.0-or-later or
 the commercial licence in LICENSE-CEFRIUM.md. Files had been started from
 CEF's BSD header, some naming the CEF authors, and many had none.
 
-libcef/ and patch/ are out of scope: CEF-derived files keep CEF's header.
+libcef/ and patch/ keep CEF's BSD header: that code is headed for upstream.
+The exception is the SDK's own native code (SDK_NATIVE below).
 """
-import os, re, sys
+import glob, os, re, sys
 
 CEF = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOTS = ["cefrium_sdk/java", "cefrium_sdk/gradle-plugin", "cefrium_compose",
@@ -27,7 +28,15 @@ OLD = re.compile(r"\A(?://[^\n]*\n)*?//[^\n]*(?:Copyright|SPDX-FileCopyrightText
                  r"(?://[^\n]*\n)*")
 
 
+# SDK-only C++ that lives next to the platform code but never goes upstream.
+# Keep in step with the dual-licence annotation in REUSE.toml.
+SDK_NATIVE = ["libcef/browser/android/cefrium_*", "libcef/browser/android/adblock_filter.*"]
+
+
 def sources():
+    for pattern in SDK_NATIVE:
+        for path in sorted(glob.glob(os.path.join(CEF, pattern))):
+            yield path
     for root in ROOTS:
         for d, dirs, names in os.walk(os.path.join(CEF, root)):
             dirs[:] = [x for x in dirs if x not in ("build", ".gradle")]

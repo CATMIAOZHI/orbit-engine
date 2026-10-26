@@ -8,6 +8,15 @@ SPDX-PackageDownloadLocation = "https://codeberg.org/cefrium/cef-android"
 # Commercial use without copyleft: Cefrium Commercial License
 # See LICENSES/ directory for full texts.
 
+# Fallback -- upstream CEF code. First, because the last matching annotation
+# wins: every more specific block below overrides it.
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["2008-2026 The Chromium Embedded Framework Authors", "2026 Juan Manuel Méndez Rey <cefrium@proton.me>"]
+SPDX-License-Identifier = "BSD-3-Clause"
+SPDX-FileComment = "Fallback for upstream CEF files not covered by specific rules."
+
 # CEF upstream code (BSD-licensed, not modified by Cefrium)
 [[annotations]]
 path = ["include/**", "libcef_dll/**", "tools/**"]
@@ -16,16 +25,28 @@ SPDX-FileCopyrightText = "2008-2026 The Chromium Embedded Framework Authors"
 SPDX-License-Identifier = "BSD-3-Clause"
 SPDX-FileComment = "Upstream CEF code. BSD license from original project."
 
-# Cefrium Android port — new code (dual licensed)
+# Android platform code headed for upstream CEF: CEF's BSD licence, so it can
+# be submitted unmodified.
 [[annotations]]
 path = [
     "libcef/browser/android/**",
+    "patch/patches/android/**",
+]
+precedence = "override"
+SPDX-FileCopyrightText = ["2008-2026 The Chromium Embedded Framework Authors", "2026 Juan Manuel Méndez Rey <cefrium@proton.me>"]
+SPDX-License-Identifier = "BSD-3-Clause"
+SPDX-FileComment = "Android platform support for CEF, intended for upstream."
+
+# Cefrium Android port — new code (dual licensed)
+[[annotations]]
+path = [
+    "libcef/browser/android/cefrium_*",
+    "libcef/browser/android/adblock_filter.*",
     "cefrium_sdk/**",
     "cefrium_compose/**",
     "cefrium_unifiedpush/**",
     "cefrium_relay/**",
     "cefrium_instrumentation_test/**",
-    "patch/patches/android/**",
     "tests/cef_android_test/**",
 ]
 precedence = "override"
@@ -33,7 +54,8 @@ SPDX-FileCopyrightText = "2026 Juan Manuel Méndez Rey <cefrium@proton.me>"
 SPDX-License-Identifier = "LGPL-3.0-or-later OR LicenseRef-Cefrium-Commercial"
 SPDX-FileComment = "Cefrium Android port. Dual licensed: LGPL v3 for open source use, Cefrium Commercial License for proprietary use. Contact cefrium@proton.me for commercial licensing."
 
-# Cefrium modifications to upstream CEF code (dual licensed)
+# Cefrium modifications to upstream CEF code: kept under CEF's BSD licence so
+# they can go upstream.
 [[annotations]]
 path = [
     "libcef/browser/osr/cef_context_factory_android.*",
@@ -42,8 +64,8 @@ path = [
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = ["2008-2026 The Chromium Embedded Framework Authors", "2026 Juan Manuel Méndez Rey <cefrium@proton.me>"]
-SPDX-License-Identifier = "LGPL-3.0-or-later OR LicenseRef-Cefrium-Commercial"
-SPDX-FileComment = "Upstream CEF code modified by Cefrium for Android support. Modifications are dual licensed."
+SPDX-License-Identifier = "BSD-3-Clause"
+SPDX-FileComment = "Upstream CEF code modified for Android support, intended for upstream."
 
 # Documentation and screenshots
 [[annotations]]
@@ -60,11 +82,3 @@ precedence = "override"
 SPDX-FileCopyrightText = "NONE"
 SPDX-License-Identifier = "CC0-1.0"
 SPDX-FileComment = "License text files."
-
-# Fallback — upstream CEF code
-[[annotations]]
-path = "**"
-precedence = "aggregate"
-SPDX-FileCopyrightText = ["2008-2026 The Chromium Embedded Framework Authors", "2026 Juan Manuel Méndez Rey <cefrium@proton.me>"]
-SPDX-License-Identifier = "BSD-3-Clause"
-SPDX-FileComment = "Fallback for upstream CEF files not covered by specific rules."

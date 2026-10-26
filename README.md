@@ -459,8 +459,8 @@ return rather than goodwill:
 
 ## License
 
-The **Cefrium additions** (`cefrium_sdk/`, the Android port, the Compose wrapper)
-are **dual-licensed - choose one:**
+The **Cefrium SDK** (`cefrium_sdk/`, its JNI bridge, the Compose wrapper,
+UnifiedPush, the relay and the Gradle plugin) is **dual-licensed - choose one:**
 
 - **[LGPL-3.0-or-later](https://www.gnu.org/licenses/lgpl-3.0.html)** - free/libre.
   Use it in any app while complying with the LGPL (dynamic linking, provide the
@@ -469,7 +469,9 @@ are **dual-licensed - choose one:**
   without LGPL obligations. Contact: **cefrium@proton.me**
 
 The underlying **CEF and Chromium** code is **BSD** (inherited upstream) and is
-unaffected by the above.
+unaffected by the above. So is the Android platform code and the Chromium
+patches this port adds: they stay under CEF's BSD license because they are
+meant to go upstream. `REUSE.toml` says which license covers each file.
 
 ### Attribution
 
