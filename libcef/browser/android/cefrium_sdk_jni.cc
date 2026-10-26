@@ -3500,6 +3500,9 @@ struct SdkBrowserData {
   // the browser is created at about:blank so the renderer spawns, then this is
   // applied in OnAfterCreated before any real navigation.
   std::vector<uint8_t> pending_nav_state;
+  // setMediaPlaybackRequiresUserGesture before the browser exists; applied in
+  // OnAfterCreated, which runs before the first navigation.
+  std::optional<bool> media_playback_requires_user_gesture;
   int blocked_count = 0;
   bool adblock_enabled = false;
 
@@ -3599,6 +3602,11 @@ void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
        browser->GetIdentifier(), data_ ? data_->is_surface_mode : 0);
   if (data_) {
     data_->browser = browser;
+    if (data_->media_playback_requires_user_gesture.has_value()) {
+      static_cast<CefBrowserHostBase*>(browser->GetHost().get())
+          ->SetMediaPlaybackRequiresUserGesture(
+              data_->media_playback_requires_user_gesture);
+    }
 
     // In Surface mode, attach the WebContents to the compositor.
     if (data_->is_surface_mode && data_->surface_bridge) {
@@ -5657,6 +5665,20 @@ Java_com_cefrium_CefriumBrowser_nativeSetDarkMode(
     if (browser_impl) {
       browser_impl->SetPreferredColorSchemeDark(dark == JNI_TRUE);
     }
+  }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetMediaPlaybackRequiresUserGesture(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jboolean required) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data) {
+    return;
+  }
+  data->media_playback_requires_user_gesture = required == JNI_TRUE;
+  if (data->browser) {
+    static_cast<CefBrowserHostBase*>(data->browser->GetHost().get())
+        ->SetMediaPlaybackRequiresUserGesture(required == JNI_TRUE);
   }
 }
 
