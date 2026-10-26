@@ -1277,8 +1277,104 @@ public class CefriumBrowser {
         };
         JsDialogHandler h = mJsDialogHandler;
         if (h != null && h.onJsDialog(type, message, defaultPrompt, cb)) return;
-        if (mActivity == null) { cb.continueDialog(false, ""); return; }
-        mActivity.runOnUiThread(() -> showDefaultJsDialog(type, message, defaultPrompt, cb));
+        android.app.Activity activity = dialogActivity();
+        if (activity == null) { cb.continueDialog(false, ""); return; }
+        activity.runOnUiThread(() -> showDefaultJsDialog(activity, type, message, defaultPrompt, cb));
+    }
+
+    // ----- Pickers and default dialogs (issue #16) ---------------------------
+
+    private CefriumPickerHandler mPickerHandler;
+    private android.app.Activity mDialogActivity;
+
+    /**
+     * Sets the handler for the {@code <select>}, date/time and colour pickers
+     * of an off-screen browser. See {@link CefriumPickerHandler}.
+     */
+    public void setPickerHandler(CefriumPickerHandler handler) {
+        mPickerHandler = handler;
+    }
+
+    /**
+     * The activity on which an off-screen browser shows its default dialogs:
+     * JS alert/confirm/prompt and the {@code <select>}, date/time and colour
+     * pickers. Without one, and without a handler for them, they are
+     * cancelled. A surface browser uses its own activity.
+     */
+    public void setDialogActivity(android.app.Activity activity) {
+        mDialogActivity = activity;
+    }
+
+    private android.app.Activity dialogActivity() {
+        return mActivity != null ? mActivity : mDialogActivity;
+    }
+
+    // Called from native (UI thread) when a <select> opens in a browser
+    // without a window. Returns false to cancel.
+    private boolean onShowSelect(long id, String[] labels, int[] types, boolean[] enabled,
+            boolean[] checked, int selected, boolean multiple) {
+        CefriumPickerHandler.SelectItem[] items = new CefriumPickerHandler.SelectItem[labels.length];
+        for (int i = 0; i < labels.length; i++) {
+            items[i] = new CefriumPickerHandler.SelectItem(labels[i], types[i], enabled[i], checked[i]);
+        }
+        final boolean[] answered = {false};
+        CefriumPickerHandler.SelectCallback cb = new CefriumPickerHandler.SelectCallback() {
+            @Override public void select(int[] indices) { answer(indices); }
+            @Override public void cancel() { answer(null); }
+            private void answer(int[] indices) {
+                if (answered[0]) return;
+                answered[0] = true;
+                nativePickerSelectResult(id, indices);
+            }
+        };
+        CefriumPickerHandler h = mPickerHandler;
+        if (h != null && h.onShowSelect(items, selected, multiple, cb)) return true;
+        android.app.Activity activity = dialogActivity();
+        if (activity == null) return false;
+        activity.runOnUiThread(
+                () -> CefriumPickerDialogs.showSelect(activity, items, selected, multiple, cb));
+        return true;
+    }
+
+    private boolean onShowDateTime(long id, int type, double value, double minimum,
+            double maximum, double step) {
+        final boolean[] answered = {false};
+        CefriumPickerHandler.DateTimeCallback cb = new CefriumPickerHandler.DateTimeCallback() {
+            @Override public void set(double v) { answer(true, v); }
+            @Override public void cancel() { answer(false, 0); }
+            private void answer(boolean ok, double v) {
+                if (answered[0]) return;
+                answered[0] = true;
+                nativePickerDateTimeResult(id, ok, v);
+            }
+        };
+        CefriumPickerHandler h = mPickerHandler;
+        if (h != null && h.onShowDateTime(type, value, minimum, maximum, step, cb)) return true;
+        android.app.Activity activity = dialogActivity();
+        if (activity == null) return false;
+        activity.runOnUiThread(() -> CefriumPickerDialogs.showDateTime(
+                activity, type, value, minimum, maximum, step, cb));
+        return true;
+    }
+
+    private boolean onShowColor(long id, int color, int[] suggestions) {
+        final boolean[] answered = {false};
+        CefriumPickerHandler.ColorCallback cb = new CefriumPickerHandler.ColorCallback() {
+            @Override public void set(int c) { answer(true, c); }
+            @Override public void cancel() { answer(false, 0); }
+            private void answer(boolean ok, int c) {
+                if (answered[0]) return;
+                answered[0] = true;
+                nativePickerColorResult(id, ok, c);
+            }
+        };
+        CefriumPickerHandler h = mPickerHandler;
+        if (h != null && h.onShowColor(color, suggestions, cb)) return true;
+        android.app.Activity activity = dialogActivity();
+        if (activity == null) return false;
+        activity.runOnUiThread(
+                () -> CefriumPickerDialogs.showColor(activity, color, suggestions, cb));
+        return true;
     }
 
     // ── Permissions ──
@@ -1723,13 +1819,13 @@ public class CefriumBrowser {
         h.onHttpAuthRequest(host, realm, port, isProxy, cb);
     }
 
-    private void showDefaultJsDialog(int type, String message, String defaultPrompt,
-                                     JsDialogCallback cb) {
-        android.app.AlertDialog.Builder b = new android.app.AlertDialog.Builder(mActivity);
+    private void showDefaultJsDialog(android.app.Activity activity, int type, String message,
+                                     String defaultPrompt, JsDialogCallback cb) {
+        android.app.AlertDialog.Builder b = new android.app.AlertDialog.Builder(activity);
         b.setMessage(message);
         b.setCancelable(false);
         final android.widget.EditText input =
-                (type == JS_DIALOG_PROMPT) ? new android.widget.EditText(mActivity) : null;
+                (type == JS_DIALOG_PROMPT) ? new android.widget.EditText(activity) : null;
         if (input != null) {
             input.setText(defaultPrompt == null ? "" : defaultPrompt);
             b.setView(input);
@@ -3741,6 +3837,10 @@ public class CefriumBrowser {
             String data, String mimeType, String encoding, String historyUrl);
     private static native void nativeInvalidate(long nativePtr);
     private static native void nativeSetSize(long nativePtr, int width, int height);
+    // Picker answers; null indices / ok=false cancel.
+    private static native void nativePickerSelectResult(long id, int[] indices);
+    private static native void nativePickerDateTimeResult(long id, boolean ok, double value);
+    private static native void nativePickerColorResult(long id, boolean ok, int color);
     private static native void nativeImeSetComposition(long nativePtr, String text, int selStart, int selEnd);
     private static native void nativeImeCommitText(long nativePtr, String text, int relativeCursorPos);
     private static native void nativeImeFinishComposingText(long nativePtr, boolean keepSelection);
