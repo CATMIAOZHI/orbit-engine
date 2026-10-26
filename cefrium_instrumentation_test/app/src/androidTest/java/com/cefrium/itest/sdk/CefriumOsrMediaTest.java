@@ -153,12 +153,44 @@ public class CefriumOsrMediaTest {
                 peak > AUDIBLE_MB);
     }
 
+    // Issue #16: a page that starts sound on its own. Blocked by default, as in
+    // Chrome and WebView; setMediaPlaybackRequiresUserGesture(false) lifts it.
+    private static final String AUTOPLAY_PAGE = "<html><body>"
+            + "<audio id=a loop src='/tone.mp3'></audio><script>"
+            + "a.onplaying=function(){document.title='playing';};"
+            + "a.play().catch(function(e){document.title='error:'+e.name;});"
+            + "</script></body></html>";
+
+    @Test
+    public void autoplayWithSoundIsBlockedByDefault() throws Exception {
+        try {
+            playAndMeasure(AUTOPLAY_PAGE, null, null);
+            Assert.fail("unmuted autoplay played without a gesture");
+        } catch (AssertionError e) {
+            Assert.assertEquals("error:NotAllowedError", e.getMessage());
+        }
+    }
+
+    @Test
+    public void autoplayWithSoundPlaysWhenNoGestureIsRequired() throws Exception {
+        int peak = playAndMeasure(AUTOPLAY_PAGE, null, null,
+                b -> b.setMediaPlaybackRequiresUserGesture(false));
+        Assert.assertTrue("autoplay started but the output mix peaked at " + peak + " mB",
+                peak > AUDIBLE_MB);
+    }
+
     /**
      * Loads the page off-screen, taps it until it reports "playing", then
      * returns the loudest peak on the output mix over two seconds.
      */
     private int playAndMeasure(String html, AtomicInteger coloured,
             java.util.function.Consumer<CefriumBrowser> gesture) throws Exception {
+        return playAndMeasure(html, coloured, gesture, null);
+    }
+
+    private int playAndMeasure(String html, AtomicInteger coloured,
+            java.util.function.Consumer<CefriumBrowser> gesture,
+            java.util.function.Consumer<CefriumBrowser> setup) throws Exception {
         Activity activity = activityRule.getActivity();
         android.app.UiAutomation ui = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         ui.grantRuntimePermission(activity.getPackageName(), android.Manifest.permission.RECORD_AUDIO);
@@ -181,10 +213,11 @@ public class CefriumOsrMediaTest {
                     }
                 });
                 holder[0] = b;
+                if (setup != null) setup.accept(b);
                 b.setOnTitleChangedListener(title::set);
                 b.loadUrl(server.url());
             });
-            // Playing with sound needs a user gesture: tap the page's button.
+            // Playing with sound needs a user gesture, unless setup lifted that.
             long deadline = System.currentTimeMillis() + 30_000;
             while (!"playing".equals(title.get()) && System.currentTimeMillis() < deadline) {
                 if (gesture != null) activity.runOnUiThread(() -> gesture.accept(holder[0]));

@@ -39,6 +39,7 @@ package com.cefrium;
  */
 public class CefriumBrowser {
     private long mNativePtr;  // Pointer to native CefBrowser
+    private boolean mMediaPlaybackRequiresUserGesture = true;
     private CefriumRenderHandler mRenderHandler;
     private String mCurrentUrl;  // Tracked for saveState/getUrl
     private OnUrlChangedListener mUrlListener;
@@ -319,6 +320,23 @@ public class CefriumBrowser {
      */
     public void setDarkMode(boolean dark) {
         if (mNativePtr != 0) nativeSetDarkMode(mNativePtr, dark);
+    }
+
+    /**
+     * Whether media needs a user gesture to start playing with sound, as
+     * Android WebView's {@code WebSettings.setMediaPlaybackRequiresUserGesture}.
+     * By default an unmuted {@code play()} or {@code autoplay} without a tap is
+     * rejected with {@code NotAllowedError}. Pass {@code false} to let pages
+     * start sound on their own. Can be called before the first load.
+     */
+    public void setMediaPlaybackRequiresUserGesture(boolean required) {
+        mMediaPlaybackRequiresUserGesture = required;
+        if (mNativePtr != 0) nativeSetMediaPlaybackRequiresUserGesture(mNativePtr, required);
+    }
+
+    /** The value last passed to {@link #setMediaPlaybackRequiresUserGesture}; true by default. */
+    public boolean getMediaPlaybackRequiresUserGesture() {
+        return mMediaPlaybackRequiresUserGesture;
     }
 
     /**
@@ -3896,6 +3914,7 @@ public class CefriumBrowser {
     private static native void nativePrintToPdf(long nativePtr, CefriumBrowser browser, String filePath, long requestId);
     private static native void nativeSetUserAgentOverride(long nativePtr, String userAgent);
     private static native void nativeSetJavaScriptEnabled(long nativePtr, boolean enabled);
+    private static native void nativeSetMediaPlaybackRequiresUserGesture(long nativePtr, boolean required);
     private static native void nativeSetZoomLevel(long nativePtr, double zoomLevel);
     private static native void nativePostUrl(long nativePtr, String url, byte[] postData);
     private static native void nativeStopLoading(long nativePtr);
