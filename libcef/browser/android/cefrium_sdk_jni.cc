@@ -24,6 +24,10 @@
 #include "cef/include/cef_parser.h"
 #include "cef/include/cef_request_context.h"
 #include "cef/include/cef_urlrequest.h"
+#include "components/js_injection/browser/js_communication_host.h"
+#include "components/js_injection/common/enum.mojom.h"
+#include "components/origin_matcher/origin_matcher.h"
+#include "content/public/browser/web_contents_user_data.h"
 #include "cef/include/cef_values.h"
 #include "cef/include/cef_version.h"
 #include "cef/include/cef_context_menu_handler.h"
@@ -244,6 +248,28 @@ CefRefPtr<CefRequestContext> ProfileContext(const std::string& name) {
 }
 
 }  // namespace
+
+// Document-start scripts, as Android WebView's addDocumentStartJavaScript:
+// components/js_injection's host hands each script to every frame of the
+// WebContents as the frame is created, over the frame's own channel, so the
+// renderer has it before the frame's first document commits (cross-process
+// iframes and new renderer processes included). One host per WebContents,
+// gone with it.
+class DocumentScripts
+    : public content::WebContentsUserData<DocumentScripts> {
+ public:
+  js_injection::JsCommunicationHost& host() { return host_; }
+
+ private:
+  explicit DocumentScripts(content::WebContents* web_contents)
+      : content::WebContentsUserData<DocumentScripts>(*web_contents),
+        host_(web_contents) {}
+  friend WebContentsUserData;
+  WEB_CONTENTS_USER_DATA_KEY_DECL();
+
+  js_injection::JsCommunicationHost host_;
+};
+WEB_CONTENTS_USER_DATA_KEY_IMPL(DocumentScripts);
 
 // Per-browser render handler that forwards OnPaint to Java.
 class SdkRenderHandler : public CefRenderHandler {
@@ -3592,6 +3618,16 @@ struct SdkBrowserData {
   // setMediaPlaybackRequiresUserGesture before the browser exists; applied in
   // OnAfterCreated, which runs before the first navigation.
   std::optional<bool> media_playback_requires_user_gesture;
+  // addDocumentStartJavaScript: scripts added before the browser exists, and
+  // our ids for the scripts the JsCommunicationHost holds (ours -> its).
+  struct PendingScript {
+    int id;
+    std::u16string script;
+    std::vector<std::string> rules;
+  };
+  std::vector<PendingScript> pending_scripts;
+  std::map<int, int> script_ids;
+  int next_script_id = 1;
 
   // Surface rendering mode (null for OSR mode).
   std::unique_ptr<BrowserSurfaceAndroid> surface_bridge;
@@ -3689,6 +3725,25 @@ void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
        browser->GetIdentifier(), data_ ? data_->is_surface_mode : 0);
   if (data_) {
     data_->browser = browser;
+    if (!data_->pending_scripts.empty()) {
+      content::WebContents* wc = static_cast<CefBrowserHostBase*>(
+                                     browser->GetHost().get())
+                                     ->GetWebContents();
+      if (wc) {
+        DocumentScripts::CreateForWebContents(wc);
+        auto& host = DocumentScripts::FromWebContents(wc)->host();
+        for (auto& pending : data_->pending_scripts) {
+          auto result = host.AddPersistentJavaScript(
+              pending.script,
+              js_injection::mojom::DocumentInjectionTime::kDocumentStart,
+              pending.rules, /*world_identifier=*/0);
+          if (result.script_id) {
+            data_->script_ids[pending.id] = *result.script_id;
+          }
+        }
+      }
+      data_->pending_scripts.clear();
+    }
     if (data_->media_playback_requires_user_gesture.has_value()) {
       static_cast<CefBrowserHostBase*>(browser->GetHost().get())
           ->SetMediaPlaybackRequiresUserGesture(
@@ -5810,6 +5865,76 @@ Java_com_cefrium_CefriumBrowser_nativeSetMediaPlaybackRequiresUserGesture(
   if (data->browser) {
     static_cast<CefBrowserHostBase*>(data->browser->GetHost().get())
         ->SetMediaPlaybackRequiresUserGesture(required == JNI_TRUE);
+  }
+}
+
+// Returns our id for the script (> 0), or -(n + 1) when rule n is invalid.
+extern "C" JNIEXPORT jint JNICALL
+Java_com_cefrium_CefriumBrowser_nativeAddDocumentStartJavaScript(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jstring script_j,
+    jobjectArray rules_j) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data) {
+    return 0;
+  }
+  std::vector<std::string> rules;
+  origin_matcher::OriginMatcher matcher;
+  const jsize n = env->GetArrayLength(rules_j);
+  for (jsize i = 0; i < n; ++i) {
+    auto rule_j = static_cast<jstring>(env->GetObjectArrayElement(rules_j, i));
+    std::string rule = JStr(env, rule_j).ToString();
+    env->DeleteLocalRef(rule_j);
+    if (!matcher.AddRuleFromString(rule)) {
+      return -(i + 1);
+    }
+    rules.push_back(std::move(rule));
+  }
+  const int id = data->next_script_id++;
+  std::u16string script = JStr(env, script_j).ToString16();
+  content::WebContents* wc =
+      data->browser ? static_cast<CefBrowserHostBase*>(
+                          data->browser->GetHost().get())
+                          ->GetWebContents()
+                    : nullptr;
+  if (!wc) {
+    data->pending_scripts.push_back({id, std::move(script), std::move(rules)});
+    return id;
+  }
+  DocumentScripts::CreateForWebContents(wc);
+  auto result = DocumentScripts::FromWebContents(wc)->host()
+                    .AddPersistentJavaScript(
+                        std::move(script),
+                        js_injection::mojom::DocumentInjectionTime::kDocumentStart,
+                        rules, /*world_identifier=*/0);
+  if (!result.script_id) {
+    return 0;
+  }
+  data->script_ids[id] = *result.script_id;
+  return id;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeRemoveDocumentStartJavaScript(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jint id) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data) {
+    return;
+  }
+  std::erase_if(data->pending_scripts,
+                [id](const auto& pending) { return pending.id == id; });
+  auto it = data->script_ids.find(id);
+  if (it == data->script_ids.end()) {
+    return;
+  }
+  const int host_id = it->second;
+  data->script_ids.erase(it);
+  content::WebContents* wc =
+      data->browser ? static_cast<CefBrowserHostBase*>(
+                          data->browser->GetHost().get())
+                          ->GetWebContents()
+                    : nullptr;
+  if (auto* scripts = wc ? DocumentScripts::FromWebContents(wc) : nullptr) {
+    scripts->host().RemovePersistentJavaScript(host_id);
   }
 }
 

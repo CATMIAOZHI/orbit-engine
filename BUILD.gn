@@ -1191,6 +1191,14 @@ source_set("libcef_static") {
       # <input type=color>: HtmlColorPickerBridge, as Chrome on Android uses.
       "//components/embedder_support/android:web_contents_delegate",
 
+      # Document-start scripts (CefriumBrowser.addDocumentStartJavaScript), the
+      # component Android WebView uses for the same API: browser host and the
+      # per-frame renderer side.
+      "//components/js_injection/browser",
+      "//components/js_injection/common:enum_mojom",
+      "//components/js_injection/renderer",
+      "//components/origin_matcher",
+
       # Android Autofill — provides AndroidAutofillManager,
       # AndroidAutofillProvider, and JNI bridge to Android's autofill framework.
       # Required by CefriumAutofillClient which creates AndroidAutofillManager
