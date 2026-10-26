@@ -463,8 +463,12 @@ The **Cefrium SDK** (`cefrium_sdk/`, its JNI bridge, the Compose wrapper,
 UnifiedPush, the relay and the Gradle plugin) is **dual-licensed - choose one:**
 
 - **[LGPL-3.0-or-later](https://www.gnu.org/licenses/lgpl-3.0.html)** - free/libre.
-  Use it in any app while complying with the LGPL (dynamic linking, provide the
-  Cefrium source/relinking ability to your users).
+  Use it in any app, closed source included: keep the notices, say where the
+  source of the release is, keep `libcef.so` as its own file and the SDK's
+  ProGuard rules as they are, and do not forbid reverse engineering of the
+  library. Hardware you sell with the app installed also needs the
+  installation information LGPLv3 asks for. Details:
+  [cefrium.com/policy](https://cefrium.com/policy/).
 - **Cefrium Commercial License** - for closed-source / proprietary integration
   without LGPL obligations. Contact: **cefrium@proton.me**
 
@@ -483,8 +487,11 @@ This app uses Cefrium (https://cefrium.com), licensed under the GNU Lesser
 General Public License v3.0 or later
 (https://www.gnu.org/licenses/lgpl-3.0.html). Cefrium includes CEF and
 Chromium, licensed under the BSD 3-Clause license. Their third-party notices
-are in the NOTICE file published with each Cefrium release.
+are in the NOTICE file published with each Cefrium release. Source:
+https://codeberg.org/cefrium/cef-android/src/tag/vX.Y.Z
 ```
+
+Put the version you ship in place of `X.Y.Z`.
 
 If you modified the Cefrium library itself, also make the source of that
 modified library available under the same license. Details and questions:
