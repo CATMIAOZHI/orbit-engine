@@ -11,6 +11,7 @@ import android.os.Looper;
 
 import org.chromium.components.gcm_driver.GCMDriver;
 import org.chromium.components.gcm_driver.GCMMessage;
+import org.chromium.components.gcm_driver.instance_id.InstanceIDWithSubtype;
 
 /**
  * Delivers Web Push messages to the engine.
@@ -33,12 +34,17 @@ import org.chromium.components.gcm_driver.GCMMessage;
  * }</pre>
  *
  * <p>An app without its own Firebase service enables {@link CefriumPushService}
- * instead, which does the above.</p>
+ * instead, which does the above. An app that uses another push service
+ * installs a {@link CefriumPushTransport} with {@link #setTransport}.</p>
  */
 public final class CefriumPush {
     // Web Push app ids: Chromium's push_messaging::kAppIdentifierPrefix.
     private static final String WEB_PUSH_APP_ID_PREFIX = "wp:";
     private static final String SUBTYPE = "subtype";
+    private static final String RAW_DATA = "rawData";
+    // GCMEncryptionProvider: the salt and key id travel in an aes128gcm body.
+    private static final String CONTENT_ENCODING = "content-encoding";
+    private static final String AES128GCM = "aes128gcm";
 
     private CefriumPush() {}
 
@@ -60,12 +66,49 @@ public final class CefriumPush {
      */
     public static boolean handleMessage(Context context, String from, Bundle data) {
         if (!isWebPushMessage(data)) return false;
-        final GCMMessage message = new GCMMessage(from, data);
+        dispatch(context, new GCMMessage(from, data));
+        return true;
+    }
+
+    /**
+     * Serves every Web Push subscription made from now on with
+     * {@code transport} instead of Firebase Cloud Messaging; null restores
+     * FCM. Call it in {@code Application.onCreate()}, so the transport is in
+     * place when a message or an unsubscribe arrives after a restart.
+     * Subscriptions made before keep the service they were made with.
+     */
+    public static void setTransport(CefriumPushTransport transport) {
+        InstanceIDWithSubtype.setFactory(transport == null ? null : subtype ->
+                subtype.startsWith(WEB_PUSH_APP_ID_PREFIX)
+                        ? new PushTransportInstanceID(subtype, transport) : null);
+    }
+
+    /**
+     * Hands a message that a {@link CefriumPushTransport} received to the
+     * engine.
+     *
+     * @param appId the subscription, as passed to
+     *        {@link CefriumPushTransport#subscribe}.
+     * @param body the request body the application server sent: an RFC 8291
+     *        {@code aes128gcm} message, still encrypted.
+     * @return false if {@code appId} is not a subscription the transport made.
+     */
+    public static boolean deliverMessage(Context context, String appId, byte[] body) {
+        String sender = PushTransportInstanceID.senderOf(appId);
+        if (sender == null) return false;
+        Bundle data = new Bundle();
+        data.putString(SUBTYPE, appId);
+        data.putString(CONTENT_ENCODING, AES128GCM);
+        data.putByteArray(RAW_DATA, body);
+        dispatch(context, new GCMMessage(sender, data));
+        return true;
+    }
+
+    private static void dispatch(Context context, GCMMessage message) {
         final Context app = context.getApplicationContext();
         new Handler(Looper.getMainLooper()).post(() -> {
             if (!Cefrium.isInitialized()) Cefrium.initialize(app);
             GCMDriver.dispatchMessage(message);
         });
-        return true;
     }
 }
