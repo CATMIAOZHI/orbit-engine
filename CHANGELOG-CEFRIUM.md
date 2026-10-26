@@ -27,6 +27,13 @@ in the internal FEATURE-NNN.md working docs (not published).
   subscriptions go through the distributor the user chose (ntfy, NextPush),
   so Web Push works on devices without Google Play services. Sample:
   `cefrium-sample/unifiedpush-demo`.
+- Web Push through the app's own Firebase project. `CefriumRelayTransport`
+  sends subscriptions to `cefrium-relay` (in `cefrium_relay/`), a stateless
+  Web Push service the app developer runs: each endpoint carries the
+  subscription sealed to the relay's key, the relay checks VAPID and forwards
+  the message through FCM, and `CefriumPush.handleMessage` delivers it. This
+  replaces the Chromium push channel Google provides for testing.
+- A push without a payload sent through a transport is delivered as one.
 
 ## [0.14.0] - 2026-10-25
 
