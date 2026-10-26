@@ -339,6 +339,44 @@ public class CefriumBrowser {
         return mMediaPlaybackRequiresUserGesture;
     }
 
+    /** A script added with {@link #addDocumentStartJavaScript}. */
+    public interface ScriptHandler {
+        /** Stops the script for documents that start from now on. */
+        void remove();
+    }
+
+    /**
+     * Runs {@code script} in every document of this browser whose origin
+     * matches {@code allowedOriginRules}, before any of the page's own
+     * scripts, as Android WebView's {@code addDocumentStartJavaScript}. It runs
+     * in iframes too, in the page's JavaScript world, for every navigation from
+     * now on, until removed. A rule is {@code "*"} (every origin), an origin
+     * such as {@code "https://example.com"} or {@code "http://localhost:8080"},
+     * or a subdomain pattern such as {@code "https://*.example.com"}. Can be
+     * called before the first load.
+     *
+     * <p>To add CSS at document start (before the page has a {@code <head>}),
+     * adopt a stylesheet:
+     * {@code const s = new CSSStyleSheet(); s.replaceSync(css);
+     * document.adoptedStyleSheets = [...document.adoptedStyleSheets, s];}
+     *
+     * @throws IllegalArgumentException if a rule is not valid.
+     */
+    public ScriptHandler addDocumentStartJavaScript(String script,
+            java.util.Set<String> allowedOriginRules) {
+        if (script == null) throw new IllegalArgumentException("script must not be null");
+        String[] rules = allowedOriginRules.toArray(new String[0]);
+        if (!checkNative("addDocumentStartJavaScript")) return () -> {};
+        int id = nativeAddDocumentStartJavaScript(mNativePtr, script, rules);
+        if (id < 0) {
+            throw new IllegalArgumentException("allowedOriginRules " + rules[-id - 1]
+                    + " is invalid");
+        }
+        return () -> {
+            if (id > 0 && mNativePtr != 0) nativeRemoveDocumentStartJavaScript(mNativePtr, id);
+        };
+    }
+
     /**
      * Unified callback interface for browser events.
      * Implement only the methods you need — all have empty defaults.
@@ -3955,6 +3993,9 @@ public class CefriumBrowser {
     private static native void nativeSetUserAgentOverride(long nativePtr, String userAgent);
     private static native void nativeSetJavaScriptEnabled(long nativePtr, boolean enabled);
     private static native void nativeSetMediaPlaybackRequiresUserGesture(long nativePtr, boolean required);
+    private static native int nativeAddDocumentStartJavaScript(long nativePtr, String script,
+            String[] allowedOriginRules);
+    private static native void nativeRemoveDocumentStartJavaScript(long nativePtr, int id);
     private static native void nativeSetZoomLevel(long nativePtr, double zoomLevel);
     private static native void nativePostUrl(long nativePtr, String url, byte[] postData);
     private static native void nativeStopLoading(long nativePtr);
