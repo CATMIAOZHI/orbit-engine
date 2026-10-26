@@ -98,4 +98,19 @@ public class CefriumEngineSettingsTest {
                 org.chromium.base.CommandLine.getInstance()
                         .hasSwitch("disable-component-update"));
     }
+
+    // The engine's own choice, read back: Java renderer services below
+    // Android 17, or the native ones when the app declares them, and every
+    // declared slot counted. The SDK declares 40 Java slots.
+    @Test
+    public void rendererServicesAreTheOnesTheEngineLaunches() {
+        Cefrium.RendererServices services = Cefrium.getRendererServices();
+        if (android.os.Build.VERSION.SDK_INT < 37) {
+            Assert.assertFalse(services.toString(), services.javaless);
+            Assert.assertEquals("com.cefrium.ChildServices$Sandboxed", services.serviceName);
+            Assert.assertEquals(40, services.count);
+        } else {
+            Assert.assertTrue(services.toString(), services.count > 0);
+        }
+    }
 }
