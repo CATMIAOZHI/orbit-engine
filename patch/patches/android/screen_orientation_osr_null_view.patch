@@ -1,0 +1,17 @@
+diff --git content/browser/screen_orientation/screen_orientation_delegate_android.cc content/browser/screen_orientation/screen_orientation_delegate_android.cc
+index c1bc30f2a1bf64bcb41826beb1977a20cea131d9..5c14f23363a88d10e0b81420849557da8a93eb88 100644
+--- content/browser/screen_orientation/screen_orientation_delegate_android.cc
++++ content/browser/screen_orientation/screen_orientation_delegate_android.cc
+@@ -45,6 +45,12 @@ bool ScreenOrientationDelegateAndroid::IsPhone() const {
+ 
+ bool ScreenOrientationDelegateAndroid::ScreenOrientationProviderSupported(
+     WebContents* web_contentss) {
++  // A WebContents with no view attached has no window to lock; that is the
++  // steady state for off-screen rendering.
++  if (!web_contentss || !web_contentss->GetNativeView()) {
++    return false;
++  }
++
+   // Since orientation lock behavior is unpredictable on non-phone form factors,
+   // don't claim to support it.
+   if (base::FeatureList::IsEnabled(
