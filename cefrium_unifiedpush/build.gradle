@@ -1,0 +1,36 @@
+// Builds cefrium-unifiedpush.aar: Web Push through UnifiedPush instead of
+// Firebase Cloud Messaging (FEATURE-074). Like cefrium_compose, it compiles
+// against the freshly built SDK AAR in libs/ and does not bundle it.
+plugins {
+    id 'com.android.library' version '9.4.0'
+}
+
+android {
+    namespace 'com.cefrium.unifiedpush'
+    compileSdk 37
+
+    defaultConfig {
+        minSdk 29
+        targetSdk 34
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    sourceSets {
+        main.java.srcDirs = ['java/src']
+    }
+}
+
+dependencies {
+    compileOnly files('libs/cefrium-sdk.aar')
+    // The connector depends on the JVM Tink, which brings full protobuf-java
+    // and clashes with the protobuf-javalite of every Android app; Tink's
+    // Android build has the same classes.
+    implementation('org.unifiedpush.android:connector:3.3.5') {
+        exclude group: 'com.google.crypto.tink', module: 'tink'
+    }
+    implementation 'com.google.crypto.tink:tink-android:1.23.0'
+}
