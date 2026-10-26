@@ -44,6 +44,11 @@ in the internal FEATURE-NNN.md working docs (not published).
   start is not slowed: the thread stops at once when the file is cached.
   `Cefrium.setLibraryPrefetchEnabled(false)` turns it off.
 
+- `Cefrium.getRendererServices()`: which renderer services the engine
+  launches on this device (native javaless ones on Android 17+, or the Java
+  ones) and how many the app declares, so a build can be checked without
+  reading engine internals.
+
 ### Changed
 - The YouTube ad heuristics are no longer added with the first list: call
   `Cefrium.loadYouTubeAdRules()` to keep them. They are also limited to

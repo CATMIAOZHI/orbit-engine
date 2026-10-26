@@ -350,6 +350,61 @@ public final class Cefrium {
     // (or an earlier call) already put there.
     private static final String JAVALESS_MARKER = "com.cefrium.JAVALESS_RENDERERS";
 
+    /** The renderer process services the engine uses; see {@link #getRendererServices}. */
+    public static final class RendererServices {
+        /** True when renderers start as native services, without a JVM (Android 17+). */
+        public final boolean javaless;
+        /** The service class prefix, e.g. {@code com.cefrium.ChildServices$Sandboxed}. */
+        public final String serviceName;
+        /** How many such services the app declares: the most renderers at once. */
+        public final int count;
+
+        RendererServices(boolean javaless, String serviceName, int count) {
+            this.javaless = javaless;
+            this.serviceName = serviceName;
+            this.count = count;
+        }
+
+        @Override
+        public String toString() {
+            return serviceName + " x" + count + (javaless ? " (javaless)" : "");
+        }
+    }
+
+    /**
+     * Which renderer services the engine launches, as it decided for this
+     * device and app: native (javaless) ones on Android 17+ when the app
+     * declares them, the Java ones otherwise, and how many the manifest has.
+     * Use it to verify a build instead of reading engine internals.
+     *
+     * @throws IllegalStateException before the engine is initialized.
+     */
+    public static synchronized RendererServices getRendererServices() {
+        if (!sInitialized) {
+            throw new IllegalStateException("the engine is not initialized");
+        }
+        Context context = ContextUtils.getApplicationContext();
+        boolean javaless = org.chromium.content.browser.ChildProcessCreationParamsImpl
+                .isNativeSandboxedServiceEnabled();
+        String name = org.chromium.content.browser.ChildProcessCreationParamsImpl
+                .getSandboxedServicesName();
+        int count = 0;
+        try {
+            android.content.pm.PackageInfo info = context.getPackageManager().getPackageInfo(
+                    context.getPackageName(), android.content.pm.PackageManager.GET_SERVICES);
+            if (info.services != null) {
+                for (android.content.pm.ServiceInfo service : info.services) {
+                    String suffix = service.name.startsWith(name)
+                            ? service.name.substring(name.length()) : null;
+                    if (suffix != null && suffix.matches("[0-9]+")) count++;
+                }
+            }
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            // Our own package: cannot happen.
+        }
+        return new RendererServices(javaless, name, count);
+    }
+
     private static boolean hasJavalessRenderers(Context appContext) {
         try {
             android.content.pm.ApplicationInfo info = appContext.getPackageManager()
