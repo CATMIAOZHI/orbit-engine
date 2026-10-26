@@ -229,7 +229,7 @@ class CefRenderWidgetHostViewOSR
 
   // RenderFrameMetadataProvider::Observer implementation.
   void OnRenderFrameMetadataChangedBeforeActivation(
-      const cc::RenderFrameMetadata& metadata) override;
+      const cc::RenderFrameMetadata& metadata) override {}
   void OnRenderFrameMetadataChangedAfterActivation(
       base::TimeTicks activation_time) override;
   void OnRenderFrameSubmission() override {}
@@ -353,12 +353,6 @@ class CefRenderWidgetHostViewOSR
   void CreateSelectionController();
 
   void OnScrollOffsetChanged();
-
-  // Delivers scroll-offset and touch-selection metadata to the client and the
-  // selection controller. Called from OnRenderFrameMetadataChangedAfterActivation
-  // on desktop, and from OnRenderFrameMetadataChangedBeforeActivation on Android
-  // (where AfterActivation never fires for a windowless view).
-  void ProcessRenderFrameMetadata(const cc::RenderFrameMetadata& metadata);
 
   void AddGuestHostView(CefRenderWidgetHostViewOSR* guest_host);
   void RemoveGuestHostView(CefRenderWidgetHostViewOSR* guest_host);
