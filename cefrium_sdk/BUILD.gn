@@ -56,6 +56,8 @@ android_library("cefrium_java") {
     "java/src/com/cefrium/CefriumCommandHandler.java",
     "java/src/com/cefrium/CefriumDialogHandler.java",
     "java/src/com/cefrium/CefriumProfile.java",
+    "java/src/com/cefrium/CefriumPickerDialogs.java",
+    "java/src/com/cefrium/CefriumPickerHandler.java",
     "java/src/com/cefrium/CefriumPush.java",
     "java/src/com/cefrium/CefriumPushService.java",
     "java/src/com/cefrium/CefriumPushTransport.java",

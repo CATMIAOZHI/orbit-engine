@@ -55,10 +55,12 @@
 #include <android/log.h>
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
+#include "base/android/jni_string.h"
 #include "base/pickle.h"
 #include "cef/libcef/browser/android/adblock_filter.h"
 #include "cef/libcef/browser/android/browser_surface_android.h"
 #include "cef/libcef/browser/android/cef_share_service.h"
+#include "cef/libcef/browser/android/picker_host_android.h"
 #include "cef/libcef/browser/browser_host_base.h"
 #include "cef/libcef/browser/frame_host_impl.h"
 #include "content/public/browser/browser_context.h"
@@ -2992,6 +2994,10 @@ class SdkClient : public CefClient {
         command_handler_(new SdkCommandHandler()),
         dialog_handler_(new SdkDialogHandler()),
         request_handler_(blocked_count ? new SdkRequestHandler(blocked_count) : nullptr) {
+    {
+      base::AutoLock lock(LiveLock());
+      Live().insert(this);
+    }
     if (browser_data) {
       load_handler_->SetBrowserData(browser_data);
     }
@@ -3179,7 +3185,26 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkDialogHandler> dialog_handler() { return dialog_handler_; }
   CefriumBridgeHandler* bridge_handler() { return bridge_handler_.get(); }
 
+  // The Java CefriumBrowser of a WebContents, or null if it is not one of
+  // this SDK's browsers.
+  static jobject JavaBrowserFor(content::WebContents* web_contents) {
+    auto browser = CefBrowserHostBase::GetBrowserForContents(web_contents);
+    if (!browser) {
+      return nullptr;
+    }
+    CefRefPtr<CefClient> client = browser->GetClient();
+    base::AutoLock lock(LiveLock());
+    if (!client || !Live().contains(static_cast<SdkClient*>(client.get()))) {
+      return nullptr;
+    }
+    return static_cast<SdkClient*>(client.get())->java_browser_;
+  }
+
   ~SdkClient() override {
+    {
+      base::AutoLock lock(LiveLock());
+      Live().erase(this);
+    }
     if (java_browser_) {
       if (JNIEnv* env = base::android::AttachCurrentThread()) {
         env->DeleteGlobalRef(java_browser_);
@@ -3190,6 +3215,17 @@ class SdkClient : public CefClient {
   IMPLEMENT_REFCOUNTING(SdkClient);
 
  private:
+  // Clients alive, so JavaBrowserFor can tell its own clients from any other
+  // CefClient before casting. A client may be released off the UI thread.
+  static std::set<SdkClient*>& Live() {
+    static base::NoDestructor<std::set<SdkClient*>> live;
+    return *live;
+  }
+  static base::Lock& LiveLock() {
+    static base::NoDestructor<base::Lock> lock;
+    return *lock;
+  }
+
   CefRefPtr<SdkRenderHandler> render_handler_;
   CefRefPtr<SdkLifeSpanHandler> life_span_handler_;
   CefRefPtr<SdkLoadHandler> load_handler_;
@@ -3226,6 +3262,228 @@ struct SdkPendingDataLoad {
   std::string base_url;
   std::string history_url;
 };
+
+// Issue #16: <select>, date/time and colour pickers of a browser without a
+// window. Each request goes to the Java CefriumBrowser, which answers through
+// nativePicker*Result with the request's id.
+class SdkPickerHost : public cef_android::PickerHost {
+ public:
+  static SdkPickerHost* Get() {
+    static base::NoDestructor<SdkPickerHost> host;
+    return host.get();
+  }
+
+  void ShowSelect(content::WebContents* web_contents,
+                  std::vector<SelectItem> items,
+                  int selected_item,
+                  bool allow_multiple_selection,
+                  SelectCallback callback) override {
+    jobject java_browser = SdkClient::JavaBrowserFor(web_contents);
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!java_browser || !env) {
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    const int64_t id = ++last_id_;
+    selects_[id] = std::move(callback);
+
+    const jsize n = static_cast<jsize>(items.size());
+    jclass string_class = env->FindClass("java/lang/String");
+    jobjectArray labels = env->NewObjectArray(n, string_class, nullptr);
+    std::vector<jint> types(n);
+    std::vector<jboolean> enabled(n);
+    std::vector<jboolean> checked(n);
+    for (jsize i = 0; i < n; ++i) {
+      jstring label =
+          base::android::ConvertUTF16ToJavaString(env, items[i].label).Release();
+      env->SetObjectArrayElement(labels, i, label);
+      env->DeleteLocalRef(label);
+      types[i] = static_cast<jint>(items[i].type);
+      enabled[i] = items[i].enabled;
+      checked[i] = items[i].checked;
+    }
+    jintArray jtypes = env->NewIntArray(n);
+    env->SetIntArrayRegion(jtypes, 0, n, types.data());
+    jbooleanArray jenabled = env->NewBooleanArray(n);
+    env->SetBooleanArrayRegion(jenabled, 0, n, enabled.data());
+    jbooleanArray jchecked = env->NewBooleanArray(n);
+    env->SetBooleanArrayRegion(jchecked, 0, n, checked.data());
+
+    jclass cls = env->GetObjectClass(java_browser);
+    jmethodID mid = env->GetMethodID(cls, "onShowSelect",
+                                     "(J[Ljava/lang/String;[I[Z[ZIZ)Z");
+    bool shown = mid && env->CallBooleanMethod(java_browser, mid, id, labels,
+                                               jtypes, jenabled, jchecked,
+                                               selected_item,
+                                               allow_multiple_selection);
+    if (env->ExceptionCheck()) {
+      env->ExceptionClear();
+      shown = false;
+    }
+    env->DeleteLocalRef(cls);
+    env->DeleteLocalRef(jchecked);
+    env->DeleteLocalRef(jenabled);
+    env->DeleteLocalRef(jtypes);
+    env->DeleteLocalRef(labels);
+    env->DeleteLocalRef(string_class);
+    if (!shown) {
+      ResolveSelect(id, std::nullopt);
+    }
+  }
+
+  void ShowDateTime(content::WebContents* web_contents,
+                    int dialog_type,
+                    double value,
+                    double minimum,
+                    double maximum,
+                    double step,
+                    DateTimeCallback callback) override {
+    jobject java_browser = SdkClient::JavaBrowserFor(web_contents);
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!java_browser || !env) {
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    const int64_t id = ++last_id_;
+    date_times_[id] = std::move(callback);
+    jclass cls = env->GetObjectClass(java_browser);
+    jmethodID mid = env->GetMethodID(cls, "onShowDateTime", "(JIDDDD)Z");
+    bool shown = mid && env->CallBooleanMethod(java_browser, mid, id,
+                                               dialog_type, value, minimum,
+                                               maximum, step);
+    if (env->ExceptionCheck()) {
+      env->ExceptionClear();
+      shown = false;
+    }
+    env->DeleteLocalRef(cls);
+    if (!shown) {
+      ResolveDateTime(id, std::nullopt);
+    }
+  }
+
+  void ShowColor(content::WebContents* web_contents,
+                 SkColor color,
+                 std::vector<SkColor> suggestions,
+                 ColorCallback callback) override {
+    jobject java_browser = SdkClient::JavaBrowserFor(web_contents);
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (!java_browser || !env) {
+      std::move(callback).Run(std::nullopt);
+      return;
+    }
+    const int64_t id = ++last_id_;
+    colors_[id] = std::move(callback);
+    const jsize n = static_cast<jsize>(suggestions.size());
+    std::vector<jint> values(suggestions.begin(), suggestions.end());
+    jintArray jsuggestions = env->NewIntArray(n);
+    env->SetIntArrayRegion(jsuggestions, 0, n, values.data());
+    jclass cls = env->GetObjectClass(java_browser);
+    jmethodID mid = env->GetMethodID(cls, "onShowColor", "(JI[I)Z");
+    bool shown = mid && env->CallBooleanMethod(java_browser, mid, id,
+                                               static_cast<jint>(color),
+                                               jsuggestions);
+    if (env->ExceptionCheck()) {
+      env->ExceptionClear();
+      shown = false;
+    }
+    env->DeleteLocalRef(cls);
+    env->DeleteLocalRef(jsuggestions);
+    if (!shown) {
+      ResolveColor(id, std::nullopt);
+    }
+  }
+
+  // UI thread.
+  void ResolveSelect(int64_t id, std::optional<std::vector<int>> indices) {
+    auto it = selects_.find(id);
+    if (it == selects_.end()) {
+      return;
+    }
+    SelectCallback callback = std::move(it->second);
+    selects_.erase(it);
+    std::move(callback).Run(std::move(indices));
+  }
+
+  void ResolveDateTime(int64_t id, std::optional<double> value) {
+    auto it = date_times_.find(id);
+    if (it == date_times_.end()) {
+      return;
+    }
+    DateTimeCallback callback = std::move(it->second);
+    date_times_.erase(it);
+    std::move(callback).Run(value);
+  }
+
+  void ResolveColor(int64_t id, std::optional<SkColor> color) {
+    auto it = colors_.find(id);
+    if (it == colors_.end()) {
+      return;
+    }
+    ColorCallback callback = std::move(it->second);
+    colors_.erase(it);
+    std::move(callback).Run(color);
+  }
+
+ private:
+  int64_t last_id_ = 0;
+  std::map<int64_t, SelectCallback> selects_;
+  std::map<int64_t, DateTimeCallback> date_times_;
+  std::map<int64_t, ColorCallback> colors_;
+};
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativePickerSelectResult(JNIEnv* env,
+                                                         jclass clazz,
+                                                         jlong id,
+                                                         jintArray indices) {
+  std::optional<std::vector<int>> chosen;
+  if (indices) {
+    std::vector<jint> values(env->GetArrayLength(indices));
+    env->GetIntArrayRegion(indices, 0, static_cast<jsize>(values.size()),
+                           values.data());
+    chosen = std::vector<int>(values.begin(), values.end());
+  }
+  CefPostTask(TID_UI, base::BindOnce(
+                          [](int64_t id, std::optional<std::vector<int>> v) {
+                            SdkPickerHost::Get()->ResolveSelect(id,
+                                                                std::move(v));
+                          },
+                          static_cast<int64_t>(id), std::move(chosen)));
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativePickerDateTimeResult(JNIEnv* env,
+                                                           jclass clazz,
+                                                           jlong id,
+                                                           jboolean ok,
+                                                           jdouble value) {
+  std::optional<double> chosen;
+  if (ok) {
+    chosen = value;
+  }
+  CefPostTask(TID_UI, base::BindOnce(
+                          [](int64_t id, std::optional<double> v) {
+                            SdkPickerHost::Get()->ResolveDateTime(id, v);
+                          },
+                          static_cast<int64_t>(id), chosen));
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativePickerColorResult(JNIEnv* env,
+                                                        jclass clazz,
+                                                        jlong id,
+                                                        jboolean ok,
+                                                        jint color) {
+  std::optional<SkColor> chosen;
+  if (ok) {
+    chosen = static_cast<SkColor>(color);
+  }
+  CefPostTask(TID_UI, base::BindOnce(
+                          [](int64_t id, std::optional<SkColor> v) {
+                            SdkPickerHost::Get()->ResolveColor(id, v);
+                          },
+                          static_cast<int64_t>(id), chosen));
+}
 
 struct SdkBrowserData {
   CefRefPtr<CefBrowser> browser;
@@ -3577,6 +3835,9 @@ Java_com_cefrium_Cefrium_nativeInitialize(
   CefString(&settings.locales_dir_path).FromASCII(locales_dir.c_str());
 
   bool result = CefInitialize(main_args, settings, nullptr, nullptr);
+  if (result) {
+    cef_android::SetPickerHost(SdkPickerHost::Get());
+  }
   env->ReleaseStringUTFChars(cache_dir_jstr, cache_dir);
   env->ReleaseStringUTFChars(data_dir_jstr, data_dir);
 
