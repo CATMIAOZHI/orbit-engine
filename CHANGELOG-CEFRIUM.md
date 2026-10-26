@@ -15,6 +15,46 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [Unreleased]
+
+### Added
+- `CefriumBrowser.setMediaPlaybackRequiresUserGesture(false)` lets a page
+  start sound on its own, as the WebView setting of the same name. By default
+  an unmuted `autoplay` or `play()` without a tap is rejected with
+  `NotAllowedError` (issue #16).
+- `CefriumBrowser.setAdBlockEnabled` turns ad blocking off or on per browser.
+- `Cefrium.downloadAndLoadAdBlockList(context, url, callback)` for any
+  EasyList-format list, with a result callback; `downloadAndLoadEasyList`
+  gains a callback overload.
+- Filter lists now honour `@@` exception rules, `@@||site^$document` (no
+  blocking on that site) and the options third-party, domain= and the
+  resource types.
+
+### Changed
+- The YouTube ad heuristics are no longer added with the first list: call
+  `Cefrium.loadYouTubeAdRules()` to keep them. They are also limited to
+  YouTube's own hosts; as bare URL substrings they matched any site.
+- A rule with an option the filter cannot apply (`$popup`, `$csp`, ...) is
+  skipped. It used to be applied to every request.
+- `||host/path` rules match the start of the path, as Adblock Plus defines
+  them, not any substring.
+- Loading the same list again replaces its rules instead of adding them twice.
+- A main-frame navigation is never blocked by a list.
+- Licence headers: Cefrium's own sources carry the SPDX dual-licence header,
+  and `REUSE.toml` covers Compose, UnifiedPush, the relay and the tests. The
+  Android platform code and the Chromium patches stay under CEF's BSD
+  licence, since they are meant for upstream.
+
+### Fixed
+- The ad-block list download no longer bypasses the engine's proxy: it goes
+  through the engine's network stack, so it follows `setProxy` instead of
+  connecting directly. A download that fails, or returns something that is
+  not a filter list, no longer replaces the last good copy.
+- Ad blocking: the filter was read on the network thread while a list was
+  loading on another, and the blocked counter lived in memory freed when the
+  browser closed. Both are now safe.
+- A request that no Java listener observes no longer calls into Java.
+
 ## [0.15.0] - 2026-10-26
 
 ### Added

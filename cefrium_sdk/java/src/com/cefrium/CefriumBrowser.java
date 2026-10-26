@@ -46,7 +46,7 @@ public class CefriumBrowser {
     private OnTitleChangedListener mTitleListener;
     private OnLoadingStateChangedListener mLoadingListener;
     private OnRenderProcessTerminatedListener mRenderProcessTerminatedListener;
-    private OnRequestInterceptedListener mRequestListener;
+    private volatile OnRequestInterceptedListener mRequestListener;
     private OnFullscreenChangedListener mFullscreenListener;
     // When false, a small script is injected on each load-finish to neutralize
     // page/pinch zoom for arbitrary content. See setPinchToZoomEnabled(boolean).
@@ -366,7 +366,7 @@ public class CefriumBrowser {
         public void onContextMenu(String menuItems, String url) {}
     }
 
-    private Callback mCallback;
+    private volatile Callback mCallback;
 
     /**
      * Set a unified callback for all browser events.
@@ -378,6 +378,7 @@ public class CefriumBrowser {
         if (mNativePtr != 0) {
             nativeSetDisplayCallback(mNativePtr, this);
         }
+        updateRequestObservers();
     }
 
     /**
@@ -478,6 +479,29 @@ public class CefriumBrowser {
     public void setOnRequestInterceptedListener(OnRequestInterceptedListener listener) {
         mRequestListener = listener;
         if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        updateRequestObservers();
+    }
+
+    // Tells native which per-request Java listeners exist, so a request that
+    // nobody observes makes no call into Java (it runs on the network thread).
+    private void updateRequestObservers() {
+        if (mNativePtr == 0) return;
+        int observers = 0;
+        if (mRequestInterceptor != null) observers |= 1;
+        if (mRequestListener != null || overridesRequestIntercepted(mCallback)) observers |= 2;
+        if (mRequestHandler != null) observers |= 4;
+        nativeSetRequestObservers(mNativePtr, observers);
+    }
+
+    private static boolean overridesRequestIntercepted(Callback callback) {
+        if (callback == null) return false;
+        try {
+            return callback.getClass().getMethod("onRequestIntercepted",
+                    String.class, String.class, boolean.class).getDeclaringClass()
+                    != Callback.class;
+        } catch (NoSuchMethodException e) {
+            return true;
+        }
     }
 
     // Called from native CefDisplayHandler::OnAddressChange.
@@ -1216,7 +1240,8 @@ public class CefriumBrowser {
     /**
      * Decides whether to block outgoing requests. Invoked on a background
      * (network) thread for every request — must be fast and thread-safe, and
-     * must not touch the UI. Complements the built-in EasyList ad blocker.
+     * must not touch the UI. Consulted for requests a loaded ad-block list did
+     * not already block (see {@link Cefrium#loadAdBlockList}).
      */
     public interface RequestInterceptor {
         /** Return true to block (cancel) this request. */
@@ -1231,6 +1256,7 @@ public class CefriumBrowser {
         // Ensure native holds this Java ref so the resource handler can call
         // onShouldBlockRequest — independent of whether a display callback was set.
         if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        updateRequestObservers();
     }
 
     // Called from native (IO thread) for every request not already ad-blocked.
@@ -2712,8 +2738,18 @@ public class CefriumBrowser {
     }
 
     /**
-     * Get the number of blocked ad/tracking requests since the browser was created.
-     * Cefrium includes a built-in network-level ad blocker using EasyList rules.
+     * Turns ad blocking off or back on for this browser; on by default. It
+     * only blocks once a list is loaded: nothing is built in (see
+     * {@link Cefrium#loadAdBlockList} and {@link Cefrium#downloadAndLoadEasyList}).
+     */
+    public void setAdBlockEnabled(boolean enabled) {
+        if (mNativePtr != 0) nativeSetAdBlockEnabled(mNativePtr, enabled);
+    }
+
+    /**
+     * The requests this browser cancelled since it was created: those matching
+     * a loaded ad-block list plus those a {@link RequestInterceptor} blocked.
+     * 0 while no list is loaded and no interceptor blocks anything.
      *
      * @return Number of blocked requests, or 0 if the browser is closed.
      */
@@ -3378,7 +3414,7 @@ public class CefriumBrowser {
 
     private CefriumDisplayHandler mDisplayHandler;
     private CefriumLoadHandler mLoadHandler;
-    private CefriumRequestHandler mRequestHandler;
+    private volatile CefriumRequestHandler mRequestHandler;
     private CefriumKeyboardHandler mKeyboardHandler;
     private CefriumFocusHandler mFocusHandler;
     private CefriumDragHandler mDragHandler;
@@ -3419,6 +3455,7 @@ public class CefriumBrowser {
     public void setRequestHandler(CefriumRequestHandler handler) {
         mRequestHandler = handler;
         if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        updateRequestObservers();
     }
     /** Sets the keyboard handler (intercept keys before the page). */
     public void setKeyboardHandler(CefriumKeyboardHandler handler) {
@@ -3886,6 +3923,7 @@ public class CefriumBrowser {
     private static native void nativeSendMouseWheelEvent(long nativePtr, int x, int y, int modifiers, int deltaX, int deltaY);
     private static native void nativeSetAdBlockEnabled(long nativePtr, boolean enabled);
     private static native int nativeGetBlockedCount(long nativePtr);
+    private static native void nativeSetRequestObservers(long nativePtr, int observers);
     private static native void nativeUpdateSurface(
             long nativePtr, android.view.Surface surface, int width, int height);
     private static native void nativeDetachSurface(long nativePtr);
