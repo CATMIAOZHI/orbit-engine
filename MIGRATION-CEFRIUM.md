@@ -65,6 +65,9 @@ browser.setCallback(new CefriumBrowser.Callback() {
 | Find in page | `webView.findAllAsync(text)` | `browser.find(text, fwd, case, next)` |
 | Stop finding | `webView.clearMatches()` | `browser.stopFinding(clear)` |
 | Dark mode | WebSettings (API 33+) | `browser.setDarkMode(true)` |
+| Run JavaScript | `webView.evaluateJavascript(js, cb)` | `browser.evaluateJavaScript(js)` |
+| Script before the page's own | `WebViewCompat.addDocumentStartJavaScript(webView, js, rules)` | `browser.addDocumentStartJavaScript(js, rules)` |
+| Autoplay with sound | `settings.setMediaPlaybackRequiresUserGesture(false)` | `browser.setMediaPlaybackRequiresUserGesture(false)` |
 
 ## Request interception
 
@@ -175,7 +178,7 @@ CefriumWebView(
 | WebAuthn / passkeys (web origin) | No | Yes (Credential Manager, 0.5.0+, Android 14+) |
 | Web Share | No (manual intent) | Yes (navigator.share, 0.5.0+) |
 | Clipboard read/write | Partial | Yes (navigator.clipboard) |
-| Proxy configuration | No | Yes (setProxy / PAC) |
+| Proxy configuration | App-wide (`ProxyController`) | Per profile (`CefriumProfile.setProxy`), WebRTC policy too |
 
 ## What WebView has that Cefrium doesn't (yet)
 
