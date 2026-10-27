@@ -1,0 +1,16 @@
+# The androidx libraries the SDK POM declares (compile scope), besides the
+# Maven libraries the AAR does not vendor (maven-deps.txt, runtime scope).
+# Read by maven_vendored.py --pom for both publish scripts, and by the
+# instrumentation harness, so the suite runs on a consumer's classpath.
+#
+# The AAR vendors Material/Preference/Cast with their resources, so these are
+# only the content layer's androidx. datastore-preferences is for the vendored
+# Firebase Installations/FCM-token path (HeartBeatInfoStorage): without it
+# FirebaseMessaging.getToken() hangs with NoClassDefFoundError on
+# PreferencesKeys. Its okio-jvm is the only okio: slim_aar.py strips the
+# orphaned one from the AAR, so do not exclude okio here.
+androidx.appcompat:appcompat:1.7.0
+androidx.mediarouter:mediarouter:1.7.0
+androidx.core:core:1.16.0
+androidx.browser:browser:1.8.0
+androidx.datastore:datastore-preferences:1.1.1

@@ -62,20 +62,18 @@ dependencies {
     //      app/libs/cefrium-compose.aar
     implementation files('libs/cefrium-sdk.aar')
     implementation files('libs/cefrium-compose.aar')
-    // From the SDK's POM, which a file dependency does not read: Web Push
-    // subscribes through it (CefriumWebPushTest).
-    implementation 'com.google.android.gms:play-services-iid:17.0.0'
-
-    implementation('androidx.appcompat:appcompat:1.7.0') {
-        exclude group: 'org.jetbrains.kotlin'
+    // What the SDK's POM declares, which a file dependency does not read, so
+    // the suite runs on the classpath a Maven consumer gets: pom-deps.txt, and
+    // the runtime libraries listed inside the AAR under test.
+    file('../../cefrium_sdk/pom-deps.txt').eachLine { line ->
+        line = line.trim()
+        if (line && !line.startsWith('#')) add('implementation', line)
     }
-    implementation('androidx.mediarouter:mediarouter:1.7.0') {
-        exclude group: 'org.jetbrains.kotlin'
+    zipTree(file('libs/cefrium-sdk.aar')).matching { include 'cefrium-maven-deps.txt' }
+            .singleFile.eachLine { line ->
+        line = line.trim()
+        if (line && !line.startsWith('#')) add('runtimeOnly', line)
     }
-    implementation('androidx.core:core:1.16.0') {
-        exclude group: 'org.jetbrains.kotlin'
-    }
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
 
     // Compose (for the Compose-layer tests + createComposeRule host activity).
     implementation platform('androidx.compose:compose-bom:2026.08.00')
@@ -90,6 +88,8 @@ dependencies {
     // InputManager.getInstance(), removed in Android 17.
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
     androidTestImplementation 'junit:junit:4.13.2'
+    // CefriumWebPushTest reads the InstanceID token itself.
+    androidTestImplementation 'com.google.android.gms:play-services-iid:17.0.0'
     androidTestImplementation platform('androidx.compose:compose-bom:2026.08.00')
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
