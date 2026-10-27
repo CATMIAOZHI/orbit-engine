@@ -215,6 +215,21 @@ HINSTANCE GetCodeModuleHandle() {
 }
 #endif
 
+// Same mapping as Android WebView's setMediaPlaybackRequiresUserGesture.
+// Returns whether it changed `prefs`.
+bool ApplyAutoplayPolicy(const CefBrowserHostBase& browser,
+                         blink::web_pref::WebPreferences* prefs) {
+  if (!browser.media_playback_requires_user_gesture().has_value()) {
+    return false;
+  }
+  const auto policy = browser.media_playback_requires_user_gesture().value()
+                          ? blink::mojom::AutoplayPolicy::kUserGestureRequired
+                          : blink::mojom::AutoplayPolicy::kNoUserGestureRequired;
+  const bool changed = prefs->autoplay_policy != policy;
+  prefs->autoplay_policy = policy;
+  return changed;
+}
+
 }  // namespace
 
 ChromeContentBrowserClientCef::ChromeContentBrowserClientCef() = default;
@@ -484,6 +499,21 @@ void ChromeContentBrowserClientCef::CreateWindowResult(
   CefBrowserInfoManager::GetInstance()->CreateWindowResult(opener, success);
 }
 
+// Chrome sets the autoplay policy again after every navigation, which would
+// undo the browser's own setting for the new document.
+bool ChromeContentBrowserClientCef::OverrideWebPreferencesAfterNavigation(
+    content::WebContents* web_contents,
+    content::SiteInstance& main_frame_site,
+    blink::web_pref::WebPreferences* prefs) {
+  bool changed =
+      ChromeContentBrowserClient::OverrideWebPreferencesAfterNavigation(
+          web_contents, main_frame_site, prefs);
+  if (auto browser = CefBrowserHostBase::GetBrowserForContents(web_contents)) {
+    changed |= ApplyAutoplayPolicy(*browser, prefs);
+  }
+  return changed;
+}
+
 void ChromeContentBrowserClientCef::OverrideWebPreferences(
     content::WebContents* web_contents,
     content::SiteInstance& main_frame_site,
@@ -525,13 +555,7 @@ void ChromeContentBrowserClientCef::OverrideWebPreferences(
           prefs->preferred_color_scheme;
     }
 
-    // Same mapping as Android WebView's setMediaPlaybackRequiresUserGesture.
-    if (browser->media_playback_requires_user_gesture().has_value()) {
-      prefs->autoplay_policy =
-          browser->media_playback_requires_user_gesture().value()
-              ? blink::mojom::AutoplayPolicy::kUserGestureRequired
-              : blink::mojom::AutoplayPolicy::kNoUserGestureRequired;
-    }
+    ApplyAutoplayPolicy(*browser, prefs);
 
     // Set the background color for the WebView.
     base_background_color = browser->GetBackgroundColor();

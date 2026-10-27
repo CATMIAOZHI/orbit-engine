@@ -179,6 +179,46 @@ public class CefriumOsrMediaTest {
                 peak > AUDIBLE_MB);
     }
 
+    // Chrome sets the autoplay policy again after each navigation; the
+    // browser's setting must survive that. play() is called well after the
+    // load, so the reset has certainly reached the page.
+    @Test
+    public void noGestureRequiredSurvivesTheNavigation() throws Exception {
+        String page = "<html><body><audio id=a loop src='/tone.mp3'></audio><script>"
+                + "a.onplaying=function(){document.title='playing';};"
+                + "document.title='ready';</script></body></html>";
+        Activity activity = activityRule.getActivity();
+        AtomicReference<String> title = new AtomicReference<>("");
+        CefriumBrowser[] holder = new CefriumBrowser[1];
+        try (LocalMediaServer server = new LocalMediaServer(page)) {
+            activity.runOnUiThread(() -> {
+                CefriumBrowser b = track(new CefriumBrowser(400, 300, 1.0f));
+                b.setRenderHandler(new CefriumRenderHandler() {
+                    @Override
+                    public void onPaint(int width, int height, ByteBuffer px) {}
+                });
+                b.setMediaPlaybackRequiresUserGesture(false);
+                b.setOnTitleChangedListener(title::set);
+                b.loadUrl(server.url());
+                holder[0] = b;
+            });
+            long deadline = System.currentTimeMillis() + 20_000;
+            while (!"ready".equals(title.get()) && System.currentTimeMillis() < deadline) {
+                Thread.sleep(100);
+            }
+            Assert.assertEquals("ready", title.get());
+            Thread.sleep(2000);
+            activity.runOnUiThread(() -> holder[0].evaluateJavaScript(
+                    "a.play().catch(function(e){document.title='error:'+e.name;});"));
+            deadline = System.currentTimeMillis() + 15_000;
+            while (!"playing".equals(title.get()) && !title.get().startsWith("error:")
+                    && System.currentTimeMillis() < deadline) {
+                Thread.sleep(100);
+            }
+            Assert.assertEquals("playing", title.get());
+        }
+    }
+
     /**
      * Loads the page off-screen, taps it until it reports "playing", then
      * returns the loudest peak on the output mix over two seconds.
