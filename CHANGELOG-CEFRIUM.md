@@ -45,6 +45,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   `CefriumProfile.setDownloadObserver` reports every change to a download of
   the profile, whichever browser started it and whether or not it is still
   open.
+- `CefriumProfile.setProxyErrorListener`: told when a request of the
+  profile's browsers fails because of the proxy (unreachable, refused, asks
+  for credentials, a SOCKS or PAC failure), with the browser, the URL and the
+  error, so an app can tell its user that Tor or its VPN is down.
 - `Cefrium.setSecureDns(mode, templates)`: Chrome's secure DNS (DNS over
   HTTPS) for every browser of the app, off, automatic or secure with the
   app's own servers. In secure mode names that the servers cannot resolve do

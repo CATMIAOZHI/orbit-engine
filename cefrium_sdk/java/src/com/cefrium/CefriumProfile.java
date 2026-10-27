@@ -274,6 +274,50 @@ public final class CefriumProfile {
         return nativeSetPreference(mIncognito, mName, name, json);
     }
 
+    // ----- Proxy errors -----
+
+    /** Told when a request fails because of the proxy, on the main thread. */
+    public interface ProxyErrorListener {
+        /**
+         * @param browser   the browser the request belongs to.
+         * @param url       the request's URL.
+         * @param error     the net error, as CEF's {@code cef_errorcode_t}: for
+         *                  example -130 when the proxy cannot be reached,
+         *                  -120 when a SOCKS proxy fails to connect.
+         * @param mainFrame true for a page load, false for a part of a page.
+         */
+        void onProxyError(CefriumBrowser browser, String url, int error, boolean mainFrame);
+    }
+
+    private static final Map<CefriumProfile, ProxyErrorListener> sProxyErrorListeners =
+            new HashMap<>();
+
+    /**
+     * Tells {@code listener} about every request of this profile's browsers
+     * that fails because of the proxy (the proxy cannot be reached, refuses
+     * the connection, asks for credentials, ...), so an app can tell its
+     * user that Tor or the VPN is down. Requests that fail this way are not
+     * retried without the proxy. Incognito browsers report to
+     * {@link #incognito()}'s listener. Pass null to stop.
+     */
+    public void setProxyErrorListener(ProxyErrorListener listener) {
+        synchronized (CefriumProfile.class) {
+            if (listener == null) {
+                sProxyErrorListeners.remove(this);
+            } else {
+                sProxyErrorListeners.put(this, listener);
+            }
+        }
+    }
+
+    void dispatchProxyError(CefriumBrowser browser, String url, int error, boolean mainFrame) {
+        ProxyErrorListener listener;
+        synchronized (CefriumProfile.class) {
+            listener = sProxyErrorListeners.get(this);
+        }
+        if (listener != null) listener.onProxyError(browser, url, error, mainFrame);
+    }
+
     // ----- Downloads -----
 
     /** {@link Download#getState()}: still running, or paused. */

@@ -177,6 +177,9 @@ public class CefriumBrowser {
         mIncognito = profile.isIncognito();
         mNativePtr = nativeCreate(width, height, scale, profile.isIncognito(),
                 profile.getName());
+        // As createWithSurface does: events that do not depend on the app
+        // listening to this browser (creation, proxy errors) reach it.
+        if (mNativePtr != 0) nativeBindJavaBrowser(mNativePtr, this);
         CefriumProfile.browserOpened(profile);
     }
 
@@ -3606,6 +3609,14 @@ public class CefriumBrowser {
     private void onResourceLoadComplete(String url, int statusCode, long receivedBytes) {
         CefriumRequestHandler h = mRequestHandler;
         if (h != null) h.onResourceLoadComplete(url, statusCode, receivedBytes);
+    }
+    // Called by native code on the IO thread: a request failed because of the
+    // proxy. Reported to the profile's listener on the main thread.
+    @SuppressWarnings("unused")
+    private void onProxyError(String url, int error, boolean mainFrame) {
+        final CefriumProfile profile = mProfile;
+        new android.os.Handler(android.os.Looper.getMainLooper())
+                .post(() -> profile.dispatchProxyError(this, url, error, mainFrame));
     }
     private void onResponseData(String url, java.nio.ByteBuffer chunk) {
         CefriumRequestHandler h = mRequestHandler;
