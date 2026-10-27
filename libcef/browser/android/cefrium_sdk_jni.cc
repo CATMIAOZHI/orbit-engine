@@ -51,6 +51,7 @@
 #include "cef/include/wrapper/cef_closure_task.h"
 #include "cef/include/wrapper/cef_message_router.h"
 #include "cef/libcef/browser/android/cefrium_bridge_constants.h"
+#include "cef/libcef/browser/android/cefrium_profiles.h"
 #include "cef/include/cef_resource_request_handler.h"
 #include "cef/include/cef_resource_handler.h"
 #include "cef/include/cef_response.h"
@@ -248,6 +249,19 @@ CefRefPtr<CefRequestContext> ProfileContext(const std::string& name) {
 }
 
 }  // namespace
+
+namespace cefrium {
+
+CefRefPtr<CefRequestContext> ContextForProfile(bool incognito,
+                                               const std::string& name) {
+  if (incognito) {
+    return IncognitoContext();
+  }
+  return name.empty() ? CefRequestContext::GetGlobalContext()
+                      : ProfileContext(name);
+}
+
+}  // namespace cefrium
 
 // Document-start scripts, as Android WebView's addDocumentStartJavaScript:
 // components/js_injection's host hands each script to every frame of the
@@ -5549,12 +5563,8 @@ namespace {
 // browser, i.e. no data.
 CefRefPtr<CefRequestContext> SiteDataContext(JNIEnv* env, jboolean incognito,
                                              jstring profile) {
-  if (incognito == JNI_TRUE) {
-    return IncognitoContext();
-  }
-  const std::string name = JStr(env, profile).ToString();
-  return name.empty() ? CefRequestContext::GetGlobalContext()
-                      : ProfileContext(name);
+  return cefrium::ContextForProfile(incognito == JNI_TRUE,
+                                    JStr(env, profile).ToString());
 }
 
 std::string OwnerString(const BrowsingDataModel::DataOwner& owner) {

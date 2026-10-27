@@ -274,6 +274,172 @@ public final class CefriumProfile {
         return nativeSetPreference(mIncognito, mName, name, json);
     }
 
+    // ----- Downloads -----
+
+    /** {@link Download#getState()}: still running, or paused. */
+    public static final int DOWNLOAD_IN_PROGRESS = 0;
+    /** {@link Download#getState()}: finished. */
+    public static final int DOWNLOAD_COMPLETE = 1;
+    /** {@link Download#getState()}: canceled; the partial file is gone. */
+    public static final int DOWNLOAD_CANCELED = 2;
+    /**
+     * {@link Download#getState()}: stopped on an error, or because the app
+     * was closed while it ran. {@link Download#canResume()} says whether it
+     * can continue.
+     */
+    public static final int DOWNLOAD_INTERRUPTED = 3;
+
+    /**
+     * A download of this profile as it was when reported. Downloads of a
+     * persistent profile are kept by the engine across runs, so the list
+     * includes earlier runs' downloads; one the app was closed in the middle
+     * of comes back interrupted, and can be resumed if the server allows it.
+     */
+    public final class Download {
+        private final String mGuid, mUrl, mPath, mMimeType;
+        private final int mState, mInterruptReason;
+        private final long mReceived, mTotal, mStart, mEnd;
+        private final boolean mPaused, mCanResume;
+
+        private Download(long[] n, String[] s) {
+            mState = (int) n[0];
+            mInterruptReason = (int) n[1];
+            mReceived = n[2];
+            mTotal = n[3];
+            mStart = n[4];
+            mEnd = n[5];
+            mPaused = n[6] != 0;
+            mCanResume = n[7] != 0;
+            mGuid = s[0];
+            mUrl = s[1];
+            mPath = s[2];
+            mMimeType = s[3];
+        }
+
+        /** Identifies the download in this profile, across runs. */
+        public String getGuid() { return mGuid; }
+        public String getUrl() { return mUrl; }
+        /** Where the file is saved; empty before that is decided. */
+        public String getPath() { return mPath; }
+        public String getMimeType() { return mMimeType; }
+        /** One of the {@code DOWNLOAD_*} states. */
+        public int getState() { return mState; }
+        /** CEF {@code cef_download_interrupt_reason_t}; 0 if none. */
+        public int getInterruptReason() { return mInterruptReason; }
+        public long getReceivedBytes() { return mReceived; }
+        /** -1 or 0 if the server did not say. */
+        public long getTotalBytes() { return mTotal; }
+        /** Milliseconds since the epoch. */
+        public long getStartTime() { return mStart; }
+        /** Milliseconds since the epoch; 0 while it has not ended. */
+        public long getEndTime() { return mEnd; }
+        public boolean isPaused() { return mPaused; }
+        /** Paused, or interrupted in a way it can continue from. */
+        public boolean canResume() { return mCanResume; }
+        /** The profile it belongs to. */
+        public CefriumProfile getProfile() { return CefriumProfile.this; }
+
+        /** Cancels it and deletes the partial file. */
+        public boolean cancel() { return control(0); }
+        public boolean pause() { return control(1); }
+        /** Continues a paused or interrupted download; false if it cannot. */
+        public boolean resume() { return control(2); }
+        /** Removes it from the list. The file is kept. */
+        public boolean remove() { return control(3); }
+
+        private boolean control(int action) {
+            return nativeControlDownload(mIncognito, nameForNative(), mGuid, action);
+        }
+    }
+
+    /** Receives {@link #getDownloads}'s result, on the UI thread. */
+    public interface DownloadsCallback {
+        void onDownloads(List<Download> downloads);
+    }
+
+    /** Receives every change to a download of a profile, on the UI thread. */
+    public interface DownloadObserver {
+        void onDownloadUpdated(Download download);
+    }
+
+    private static final Map<CefriumProfile, DownloadObserver> sDownloadObservers =
+            new HashMap<>();
+
+    /**
+     * Every download of this profile, newest last, including the downloads
+     * of earlier runs of a persistent profile. Call on the UI thread.
+     */
+    public void getDownloads(DownloadsCallback callback) {
+        if (callback == null) throw new IllegalArgumentException("callback must not be null");
+        root();
+        nativeGetDownloads(mIncognito, nameForNative(), register(callback));
+    }
+
+    /**
+     * Reports every change to a download of this profile, whichever browser
+     * started it and whether or not that browser is still open: a download
+     * resumed after a restart has none. Pass null to stop. Call on the UI
+     * thread.
+     *
+     * @return false if the profile is not available (incognito before any
+     *         private browser exists).
+     */
+    public boolean setDownloadObserver(DownloadObserver observer) {
+        root();
+        synchronized (CefriumProfile.class) {
+            if (observer == null) {
+                sDownloadObservers.remove(this);
+            } else {
+                sDownloadObservers.put(this, observer);
+            }
+        }
+        return nativeObserveDownloads(mIncognito, nameForNative(), observer != null);
+    }
+
+    private String nameForNative() {
+        return mName == null ? "" : mName;
+    }
+
+    // Called by native code on the UI thread: requestId 0 is a change for the
+    // profile's observer, any other a getDownloads answer. Per download, 8
+    // numbers and 4 strings (cefrium_downloads.cc).
+    @SuppressWarnings("unused")
+    private static void onDownloads(long requestId, boolean incognito, String name,
+                                    long[] numbers, String[] strings) {
+        CefriumProfile profile =
+                incognito ? INCOGNITO : name.isEmpty() ? DEFAULT : new CefriumProfile(name, false);
+        List<Download> downloads = new ArrayList<>();
+        for (int i = 0; i * 8 < numbers.length; i++) {
+            downloads.add(profile.new Download(
+                    java.util.Arrays.copyOfRange(numbers, i * 8, i * 8 + 8),
+                    java.util.Arrays.copyOfRange(strings, i * 4, i * 4 + 4)));
+        }
+        if (requestId == 0) {
+            DownloadObserver observer;
+            synchronized (CefriumProfile.class) {
+                observer = sDownloadObservers.get(profile);
+            }
+            if (observer != null) {
+                for (Download d : downloads) observer.onDownloadUpdated(d);
+            }
+            return;
+        }
+        Object callback;
+        synchronized (CefriumProfile.class) {
+            callback = sPending.remove(requestId);
+        }
+        if (callback instanceof DownloadsCallback) {
+            ((DownloadsCallback) callback).onDownloads(Collections.unmodifiableList(downloads));
+        }
+    }
+
+    private static native void nativeGetDownloads(boolean incognito, String profile,
+                                                  long requestId);
+    private static native boolean nativeObserveDownloads(boolean incognito, String profile,
+                                                         boolean observe);
+    private static native boolean nativeControlDownload(boolean incognito, String profile,
+                                                        String guid, int action);
+
     private static synchronized long register(Object callback) {
         long id = sNextRequest++;
         sPending.put(id, callback);
