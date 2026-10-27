@@ -539,32 +539,19 @@ void CefContext::OnContextInitialized() {
   CEF_REQUIRE_UIT();
 
   if (application_) {
-    auto notify = [](CefRefPtr<CefApp> app) {
-      CefRefPtr<CefBrowserProcessHandler> handler =
-          app->GetBrowserProcessHandler();
-      if (handler) {
-        handler->OnContextInitialized();
-      }
-    };
-
     // Notify the handler after the global browser context has initialized.
     CefRefPtr<CefRequestContext> request_context =
         CefRequestContext::GetGlobalContext();
     auto impl = static_cast<CefRequestContextImpl*>(request_context.get());
-    if (impl) {
-      impl->ExecuteWhenBrowserContextInitialized(
-          base::BindOnce(notify, application_));
-    } else {
-      // On Android the global request context is created lazily (on the
-      // initial-profile-added event), which has not fired at this point, so
-      // GetGlobalContext() returns null. Dereferencing it here crashed the
-      // browser process whenever a CefApp was set on CefInitialize. The CEF
-      // context itself is initialized, so notify the handler directly rather
-      // than crash; handlers that need a request context should obtain it via
-      // CefRequestContext::GetGlobalContext() / ExecuteWhenBrowserContext-
-      // Initialized when they actually use it.
-      notify(application_);
-    }
+    impl->ExecuteWhenBrowserContextInitialized(base::BindOnce(
+        [](CefRefPtr<CefApp> app) {
+          CefRefPtr<CefBrowserProcessHandler> handler =
+              app->GetBrowserProcessHandler();
+          if (handler) {
+            handler->OnContextInitialized();
+          }
+        },
+        application_));
   }
 }
 
