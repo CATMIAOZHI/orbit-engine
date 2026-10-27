@@ -3,12 +3,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "build/build_config.h"
 #include "cef/include/cef_browser.h"
 #include "cef/libcef/browser/alloy/alloy_browser_host_impl.h"
-#include "cef/libcef/browser/chrome/chrome_browser_host_impl.h"
-#include "cef/libcef/browser/chrome/views/chrome_child_window.h"
 #include "cef/libcef/browser/context.h"
 #include "cef/libcef/browser/thread_util.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "cef/libcef/browser/chrome/chrome_browser_host_impl.h"
+#include "cef/libcef/browser/chrome/views/chrome_child_window.h"
+#endif
 
 namespace {
 
@@ -178,6 +182,10 @@ bool CefBrowserCreateParams::IsChromeStyle(const CefWindowInfo* window_info) {
 }
 
 bool CefBrowserCreateParams::IsChromeStyle() const {
+#if BUILDFLAG(IS_ANDROID)
+  // Chrome style is not supported on Android.
+  return false;
+#else
   const bool chrome_style_via_window_info = IsChromeStyle(window_info.get());
 
   if (popup_with_alloy_style_opener) {
@@ -199,6 +207,7 @@ bool CefBrowserCreateParams::IsChromeStyle() const {
 
   // Chrome style does not support windowless rendering.
   return chrome_style_via_window_info && !IsWindowless();
+#endif
 }
 
 bool CefBrowserCreateParams::IsWindowless() const {
@@ -237,6 +246,11 @@ void CefBrowserCreateParams::MaybeSetWindowInfo(
   }
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+  // Chrome style is not supported on Android.
+  allow_chrome_style = false;
+#endif
+
   DCHECK(allow_alloy_style || allow_chrome_style);
 
   bool reset_style = false;
@@ -252,8 +266,12 @@ void CefBrowserCreateParams::MaybeSetWindowInfo(
 
   const bool is_chrome_style =
       allow_chrome_style && IsChromeStyle(&new_window_info);
+#if BUILDFLAG(IS_ANDROID)
+  if (!is_chrome_style) {
+#else
   if (!is_chrome_style ||
       chrome_child_window::HasParentHandle(new_window_info)) {
+#endif
     window_info = std::make_unique<CefWindowInfo>(new_window_info);
     if (!allow_chrome_style) {
       // Only Alloy style is allowed.
@@ -268,6 +286,7 @@ void CefBrowserCreateParams::MaybeSetWindowInfo(
 // static
 CefRefPtr<CefBrowserHostBase> CefBrowserHostBase::Create(
     CefBrowserCreateParams& create_params) {
+#if !BUILDFLAG(IS_ANDROID)
   if (create_params.IsChromeStyle()) {
     if (auto browser =
             chrome_child_window::MaybeCreateChildBrowser(create_params)) {
@@ -276,6 +295,7 @@ CefRefPtr<CefBrowserHostBase> CefBrowserHostBase::Create(
     auto browser = ChromeBrowserHostImpl::Create(create_params);
     return browser.get();
   }
+#endif
 
   auto browser = AlloyBrowserHostImpl::Create(create_params);
   return browser.get();
