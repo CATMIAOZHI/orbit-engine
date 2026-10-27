@@ -97,6 +97,7 @@ COMMON_ARGS='
   enable_jni_multiplexing = false
   use_hashed_jni_names = false
   v8_use_external_startup_data = false
+  disable_fieldtrial_testing_config = true
 '
 
 build_variant() {
