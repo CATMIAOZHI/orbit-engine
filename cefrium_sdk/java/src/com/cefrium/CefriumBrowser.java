@@ -714,6 +714,20 @@ public class CefriumBrowser {
     }
 
     /**
+     * Execute JavaScript in the frame that has focus (fire-and-forget), or in
+     * the main frame when none has. Use it to act on the focused field: in a
+     * field inside an iframe, the main frame's {@code document.activeElement}
+     * is the iframe, not the field. Uses CefBrowser::GetFocusedFrame.
+     *
+     * @param script JavaScript source to execute. Ignored if null.
+     */
+    public void evaluateJavaScriptInFocusedFrame(String script) {
+        if (script != null && checkNative("evaluateJavaScriptInFocusedFrame")) {
+            nativeEvaluateJavaScriptInFocusedFrame(mNativePtr, script);
+        }
+    }
+
+    /**
      * Handles JavaScript {@code window.cefriumQuery({request, onSuccess,
      * onFailure})} calls from page content (the JS &#8596; native bridge).
      *
@@ -3984,6 +3998,8 @@ public class CefriumBrowser {
     private static native void nativeRestoreNavigationState(long nativePtr, byte[] state);
     private static native void nativeLoadRestoredIfNecessary(long nativePtr);
     private static native void nativeEvaluateJavaScript(long nativePtr, String script);
+    private static native void nativeEvaluateJavaScriptInFocusedFrame(long nativePtr,
+            String script);
     private static native void nativeQueryResult(long nativePtr, long queryId,
             boolean success, String response, int errorCode, String errorMessage);
     private static native void nativeSetCookie(long nativePtr, String url, String name,
