@@ -529,10 +529,11 @@ engine's Google account, sync and optimization-guide backends are inert.
 
 ### Changing either default
 
-Both controls must be set before the engine initializes. The SDK initializes
-from a ContentProvider, which Android creates after
-`Application.attachBaseContext` and before `Application.onCreate`, so call them
-from `attachBaseContext` (the kiosk-pos sample does):
+Both controls must be set before the engine starts. It starts the first time
+the app uses it (a browser, a profile, a filter list), so `Application.onCreate`
+is early enough; `attachBaseContext` works too, and was required before 0.16.0,
+when the SDK started the engine from its ContentProvider (the kiosk-pos sample
+uses it):
 
 ```java
 @Override
