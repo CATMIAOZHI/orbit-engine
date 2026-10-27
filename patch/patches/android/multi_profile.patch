@@ -1,7 +1,35 @@
+diff --git chrome/browser/chrome_browser_main_android.cc chrome/browser/chrome_browser_main_android.cc
+index 91ca9fcee02c946e895b1c67da95b394977286d0..7e896fa227ae096a858f0385b7fc7046da23009c 100644
+--- chrome/browser/chrome_browser_main_android.cc
++++ chrome/browser/chrome_browser_main_android.cc
+@@ -62,8 +62,12 @@ int ChromeBrowserMainPartsAndroid::PreCreateThreads() {
+ 
+ void ChromeBrowserMainPartsAndroid::PostProfileInit(Profile* profile,
+                                                     bool is_initial_profile) {
+-  DCHECK(is_initial_profile);  // No multiprofile on Android, only the initial
+-                               // call should happen.
++  if (!is_initial_profile) {
++    // An embedder's additional disk profile. Chrome on Android has only the
++    // initial one, and the process-wide setup below already ran with it.
++    ChromeBrowserMainParts::PostProfileInit(profile, is_initial_profile);
++    return;
++  }
+ 
+   // Get the OS Data Saver setting. This will be needed later on, so we want to
+   // fetch this setting as soon as possible to avoid blocking on it.
 diff --git chrome/browser/profiles/profile_impl.cc chrome/browser/profiles/profile_impl.cc
+index 81e83a88483367ffb93434cd6223a080ee42593d..3d9c25be4a652d8fe267bc704aaa75b1314cce8f 100644
 --- chrome/browser/profiles/profile_impl.cc
 +++ chrome/browser/profiles/profile_impl.cc
-@@ -141,6 +141,7 @@
+@@ -40,6 +40,7 @@
+ #include "base/version.h"
+ #include "build/build_config.h"
+ #include "build/chromeos_buildflags.h"
++#include "cef/libcef/features/features.h"
+ #include "chrome/browser/background/background_contents_service_factory.h"
+ #include "chrome/browser/background_fetch/background_fetch_delegate_factory.h"
+ #include "chrome/browser/background_fetch/background_fetch_delegate_impl.h"
+@@ -140,6 +141,7 @@
  #include "components/keyed_service/core/simple_keyed_service_factory.h"
  #include "components/language/core/browser/pref_names.h"
  #include "components/language/core/common/locale_util.h"
@@ -9,7 +37,31 @@ diff --git chrome/browser/profiles/profile_impl.cc chrome/browser/profiles/profi
  #include "components/metrics/metrics_service.h"
  #include "components/omnibox/browser/autocomplete_classifier.h"
  #include "components/payments/core/payment_request_metrics.h"
-@@ -537,9 +538,23 @@ ProfileImpl::ProfileImpl(
+@@ -238,6 +240,10 @@
+ #include "chrome/browser/background/extensions/background_mode_manager.h"  // nogncheck crbug.com/40147906
+ #endif
+ 
++#if BUILDFLAG(ENABLE_CEF)
++#include "cef/libcef/browser/prefs/pref_names.h"
++#endif
++
+ #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+ #include "chrome/browser/extensions/chrome_content_browser_client_extensions_part.h"  // nogncheck crbug.com/40147906
+ #include "chrome/browser/extensions/extension_special_storage_policy.h"  // nogncheck crbug.com/40147906
+@@ -290,6 +296,12 @@ class ScopedAllowBlockingForProfile : public base::ScopedAllowBlocking {};
+ 
+ namespace {
+ 
++#if BUILDFLAG(ENABLE_CEF) && !BUILDFLAG(IS_ANDROID)
++BASE_FEATURE(kStorageNotificationService,
++             "StorageNotificationService",
++             base::FEATURE_ENABLED_BY_DEFAULT);
++#endif
++
+ #if BUILDFLAG(ENABLE_SESSION_SERVICE)
+ // Delay before we explicitly create the SessionService.
+ static constexpr base::TimeDelta kCreateSessionServiceDelay =
+@@ -526,9 +538,23 @@ ProfileImpl::ProfileImpl(
  
  #if BUILDFLAG(IS_ANDROID)
    auto* startup_data = g_browser_process->startup_data();
@@ -36,7 +88,31 @@ diff --git chrome/browser/profiles/profile_impl.cc chrome/browser/profiles/profi
  #else
    LoadPrefsForNormalStartup(async_prefs);
  #endif
-@@ -1512,6 +1527,9 @@ ProfileImpl::TakeDefaultProtoDatabaseProvider() {
+@@ -1079,7 +1105,9 @@ Profile* ProfileImpl::GetOffTheRecordProfile(const OTRProfileID& otr_profile_id,
+ 
+   otr_profiles_[otr_profile_id] = std::move(otr_profile);
+ 
+-  NotifyOffTheRecordProfileCreated(raw_otr_profile);
++  // With CEF we want to delay initialization.
++  if (!otr_profile_id.IsUniqueForCEF())
++    NotifyOffTheRecordProfileCreated(raw_otr_profile);
+ 
+   return raw_otr_profile;
+ }
+@@ -1425,6 +1453,12 @@ ProfileImpl::GetStorageNotificationService() {
+ #if BUILDFLAG(IS_ANDROID)
+   return nullptr;
+ #else
++#if BUILDFLAG(ENABLE_CEF)
++  if (!base::FeatureList::IsEnabled(kStorageNotificationService) ||
++      !GetPrefs()->GetBoolean(cef::prefs::kEnableStorageNotificationService)) {
++    return nullptr;
++  }
++#endif
+   return StorageNotificationServiceFactory::GetForBrowserContext(this);
+ #endif
+ }
+@@ -1493,6 +1527,9 @@ ProfileImpl::TakeDefaultProtoDatabaseProvider() {
  #if BUILDFLAG(IS_ANDROID)
    // On Android StartupData creates proto database provider for the profile
    // before profile is created, so move ownership to storage partition.
@@ -46,27 +122,8 @@ diff --git chrome/browser/profiles/profile_impl.cc chrome/browser/profiles/profi
    return g_browser_process->startup_data()->TakeProtoDatabaseProvider();
  #else
    return nullptr;
-diff --git chrome/browser/chrome_browser_main_android.cc chrome/browser/chrome_browser_main_android.cc
-index 91ca9fcee02c9..7e896fa227ae0 100644
---- chrome/browser/chrome_browser_main_android.cc
-+++ chrome/browser/chrome_browser_main_android.cc
-@@ -62,8 +62,12 @@ int ChromeBrowserMainPartsAndroid::PreCreateThreads() {
- 
- void ChromeBrowserMainPartsAndroid::PostProfileInit(Profile* profile,
-                                                     bool is_initial_profile) {
--  DCHECK(is_initial_profile);  // No multiprofile on Android, only the initial
--                               // call should happen.
-+  if (!is_initial_profile) {
-+    // An embedder's additional disk profile. Chrome on Android has only the
-+    // initial one, and the process-wide setup below already ran with it.
-+    ChromeBrowserMainParts::PostProfileInit(profile, is_initial_profile);
-+    return;
-+  }
- 
-   // Get the OS Data Saver setting. This will be needed later on, so we want to
-   // fetch this setting as soon as possible to avoid blocking on it.
 diff --git chrome/browser/profiles/profile_impl.h chrome/browser/profiles/profile_impl.h
-index 5fd22e22cbfe5..ec1e247cd4140 100644
+index 5fd22e22cbfe535d4100b2a40ee0e6b0b57b0526..ec1e247cd4140761c1f8ffc2f200f9e544a6aca3 100644
 --- chrome/browser/profiles/profile_impl.h
 +++ chrome/browser/profiles/profile_impl.h
 @@ -305,6 +305,13 @@ class ProfileImpl : public Profile {
@@ -83,8 +140,65 @@ index 5fd22e22cbfe5..ec1e247cd4140 100644
  #if BUILDFLAG(IS_CHROMEOS)
    std::unique_ptr<ash::Preferences> chromeos_preferences_;
  
+diff --git chrome/browser/safe_browsing/android/services_delegate_android.cc chrome/browser/safe_browsing/android/services_delegate_android.cc
+index 114c33179ad2ac1ffcece70434287cdd4bf31247..070ac570b519849bf74bf742cdf1385ad647b887 100644
+--- chrome/browser/safe_browsing/android/services_delegate_android.cc
++++ chrome/browser/safe_browsing/android/services_delegate_android.cc
+@@ -79,7 +79,7 @@ void ServicesDelegateAndroid::SetDatabaseManagerForTest(
+ }
+ 
+ void ServicesDelegateAndroid::ShutdownServices() {
+-  telemetry_service_.reset();
++  telemetry_services_.clear();
+   download_service_.reset();
+   ServicesDelegate::ShutdownServices();
+ }
+@@ -123,14 +123,14 @@ void ServicesDelegateAndroid::CreateTelemetryService(Profile* profile) {
+   if (profile->IsOffTheRecord())
+     return;
+ 
+-  DCHECK(!telemetry_service_);
+-  telemetry_service_ = std::make_unique<AndroidTelemetryService>(profile);
++  DCHECK(!telemetry_services_.contains(profile));
++  telemetry_services_[profile] =
++      std::make_unique<AndroidTelemetryService>(profile);
+ }
+ 
+ void ServicesDelegateAndroid::RemoveTelemetryService(Profile* profile) {
+   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+-  if (telemetry_service_ && telemetry_service_->profile() == profile)
+-    telemetry_service_.reset();
++  telemetry_services_.erase(profile);
+ }
+ 
+ DownloadProtectionService*
+diff --git chrome/browser/safe_browsing/android/services_delegate_android.h chrome/browser/safe_browsing/android/services_delegate_android.h
+index 6f09d8e52169456ff9d10dc7f5e8d0eb6ef441b2..067fb0723c044aba11195e96e3f385e259147652 100644
+--- chrome/browser/safe_browsing/android/services_delegate_android.h
++++ chrome/browser/safe_browsing/android/services_delegate_android.h
+@@ -5,6 +5,8 @@
+ #ifndef CHROME_BROWSER_SAFE_BROWSING_ANDROID_SERVICES_DELEGATE_ANDROID_H_
+ #define CHROME_BROWSER_SAFE_BROWSING_ANDROID_SERVICES_DELEGATE_ANDROID_H_
+ 
++#include <map>
++
+ #include "chrome/browser/safe_browsing/services_delegate.h"
+ #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+ 
+@@ -60,8 +62,9 @@ class ServicesDelegateAndroid : public ServicesDelegate {
+   // Notifies DownloadProtectionService of profile shutdown.
+   void OnProfileWillBeDestroyed(Profile* profile) override;
+ 
+-  // The telemetry service tied to the current profile.
+-  std::unique_ptr<AndroidTelemetryService> telemetry_service_;
++  // One telemetry service per profile: an embedder may have several.
++  std::map<Profile*, std::unique_ptr<AndroidTelemetryService>>
++      telemetry_services_;
+ 
+   std::unique_ptr<DownloadProtectionService> download_service_;
+ 
 diff --git components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
-index 721271eb26cb6..f0c635583d351 100644
+index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..f0c635583d3515e3ad68f27d869f01c178351cbc 100644
 --- components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
 +++ components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
 @@ -11,6 +11,7 @@ import org.jni_zero.JNINamespace;
@@ -278,7 +392,7 @@ index 721271eb26cb6..f0c635583d351 100644
  
      @NativeMethods
 diff --git components/gcm_driver/gcm_driver.cc components/gcm_driver/gcm_driver.cc
-index f9d36ac71a0cf..70fe166aae151 100644
+index f9d36ac71a0cfe1be306ab56d6ff00f25671fd0e..70fe166aae1518915a9af641dfe0f96541a181a5 100644
 --- components/gcm_driver/gcm_driver.cc
 +++ components/gcm_driver/gcm_driver.cc
 @@ -53,7 +53,8 @@ void InstanceIDHandler::DeleteAllTokensForApp(const std::string& app_id,
@@ -292,7 +406,7 @@ index f9d36ac71a0cf..70fe166aae151 100644
    // encryption capabilities of the GCMDriver class.
    if (blocking_task_runner)
 diff --git components/gcm_driver/gcm_driver.h components/gcm_driver/gcm_driver.h
-index 96eeebe5d5027..50e04da382811 100644
+index 96eeebe5d5027c49e14ecf6efc2f0f2fc6e87aee..50e04da382811cbb31b07c001dc5d7a078270f1e 100644
 --- components/gcm_driver/gcm_driver.h
 +++ components/gcm_driver/gcm_driver.h
 @@ -11,6 +11,7 @@
@@ -331,7 +445,7 @@ index 96eeebe5d5027..50e04da382811 100644
  };
  
 diff --git components/gcm_driver/gcm_driver_android.cc components/gcm_driver/gcm_driver_android.cc
-index 7201b3c75f07c..885689f5638ee 100644
+index 7201b3c75f07c810b4f003e992177c04abb29926..885689f5638ee7f8ea3515a8c564e47a0bf462f3 100644
 --- components/gcm_driver/gcm_driver_android.cc
 +++ components/gcm_driver/gcm_driver_android.cc
 @@ -11,6 +11,7 @@
@@ -355,7 +469,7 @@ index 7201b3c75f07c..885689f5638ee 100644
  
  GCMDriverAndroid::~GCMDriverAndroid() {
 diff --git components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java
-index 370ae28ef8e02..f5b8a4b550afc 100644
+index 370ae28ef8e02d00d536918aeb3cb23af2dc3f6b..f5b8a4b550afcd3b0a1458562952abd0d945b7c5 100644
 --- components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java
 +++ components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java
 @@ -4,6 +4,8 @@
@@ -424,10 +538,10 @@ index 370ae28ef8e02..f5b8a4b550afc 100644
                  } catch (IOException ex) {
                      return false;
 diff --git components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
-index ccbe7bb9eeea0..db2aa979ef7ba 100644
+index ccbe7bb9eeea05535b6456822528e857078bbfab..a5f78c344adf8474b6a9f042b51f479710717ea9 100644
 --- components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
 +++ components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
-@@ -40,6 +40,14 @@ public class InstanceIDWithSubtype {
+@@ -40,6 +40,27 @@ public class InstanceIDWithSubtype {
      /** Fake subclasses can set this so getInstance creates instances of them. */
      @VisibleForTesting protected static @Nullable FakeFactory sFakeFactoryForTesting;
  
@@ -439,11 +553,51 @@ index ccbe7bb9eeea0..db2aa979ef7ba 100644
 +        }
 +    }
 +
++    private static @Nullable Factory sFactory;
++
++    /**
++     * Makes getInstance() ask {@code factory} first, so an embedder can serve some subtypes with a
++     * push service other than GCM; null restores Google Play services for all of them.
++     */
++    public static void setFactory(@Nullable Factory factory) {
++        synchronized (sSubtypeInstancesLock) {
++            sFactory = factory;
++            sSubtypeInstances.clear();
++        }
++    }
++
      protected InstanceIDWithSubtype(InstanceID instanceID) {
          mInstanceID = instanceID;
      }
+@@ -58,7 +79,10 @@ public class InstanceIDWithSubtype {
+             if (existing == null) {
+                 if (sFakeFactoryForTesting != null) {
+                     existing = sFakeFactoryForTesting.create(subtype);
+-                } else {
++                } else if (sFactory != null) {
++                    existing = sFactory.create(subtype);
++                }
++                if (existing == null) {
+                     Bundle options = new Bundle();
+                     options.putCharSequence(OPTION_SUBTYPE, subtype);
+                     InstanceID instanceID =
+@@ -98,6 +122,14 @@ public class InstanceIDWithSubtype {
+         return mInstanceID.getToken(authorizedEntity, scope);
+     }
+ 
++    /**
++     * Supplies the instance for a subtype, or null to use Google Play services. An instance it
++     * returns is a subclass that overrides every public method and never touches InstanceID.
++     */
++    public interface Factory {
++        @Nullable InstanceIDWithSubtype create(String subtype);
++    }
++
+     /** Fake subclasses can set {@link #sFakeFactoryForTesting} to an implementation of this. */
+     @VisibleForTesting
+     public interface FakeFactory {
 diff --git components/gcm_driver/instance_id/instance_id_android.cc components/gcm_driver/instance_id/instance_id_android.cc
-index a2bf1dd93b350..140ff83337856 100644
+index a2bf1dd93b350f3009f263dec8c9d71b8a170292..140ff83337856dfb2a64ea2d32c802e631622a33 100644
 --- components/gcm_driver/instance_id/instance_id_android.cc
 +++ components/gcm_driver/instance_id/instance_id_android.cc
 @@ -15,6 +15,7 @@
