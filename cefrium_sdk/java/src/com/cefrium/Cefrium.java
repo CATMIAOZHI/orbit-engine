@@ -642,6 +642,10 @@ public final class Cefrium {
         // (www.google.com/async/folae, with locale and country) for every
         // profile. An embedded engine has no omnibox to offer it in.
         disableFeature("AimEnabled");
+        // Chrome keeps a connection open to the default search engine (Google)
+        // for omnibox searches, renewed on a timer. Nothing in an embedded
+        // engine searches from an omnibox.
+        disableFeature("PreconnectToSearch");
 
         // Android 17+ renderers run as native services when the app declares
         // them, which the com.cefrium Gradle plugin does when the app compiles
