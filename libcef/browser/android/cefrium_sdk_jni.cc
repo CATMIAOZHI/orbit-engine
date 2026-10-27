@@ -1468,6 +1468,31 @@ class SdkCookieAccessFilter : public CefCookieAccessFilter {
   jobject java_browser_;
 };
 
+// Errors that only a proxy causes: the request failed because of the proxy,
+// not the site.
+bool IsProxyError(cef_errorcode_t error) {
+  switch (error) {
+    case ERR_TUNNEL_CONNECTION_FAILED:
+    case ERR_PROXY_AUTH_UNSUPPORTED:
+    case ERR_SOCKS_CONNECTION_FAILED:
+    case ERR_SOCKS_CONNECTION_HOST_UNREACHABLE:
+    case ERR_PROXY_AUTH_REQUESTED:
+    case ERR_PROXY_CONNECTION_FAILED:
+    case ERR_MANDATORY_PROXY_CONFIGURATION_FAILED:
+    case ERR_PROXY_CERTIFICATE_INVALID:
+    case ERR_PROXY_UNABLE_TO_CONNECT_TO_DESTINATION:
+    case ERR_PAC_SCRIPT_FAILED:
+    case ERR_NO_SUPPORTED_PROXIES:
+    case ERR_PAC_NOT_IN_DHCP:
+    case ERR_PROXY_AUTH_REQUESTED_WITH_NO_CONNECTION:
+    case ERR_PROXY_HTTP_1_1_REQUIRED:
+    case ERR_PAC_SCRIPT_TERMINATED:
+      return true;
+    default:
+      return false;
+  }
+}
+
 class SdkResourceRequestHandler : public CefResourceRequestHandler {
  public:
   // Which Java listeners exist, from CefriumBrowser.updateRequestObservers().
@@ -1502,6 +1527,8 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
         env->GetMethodID(cls, "onResourceResponse", "(Ljava/lang/String;I)V");
     complete_ = env->GetMethodID(cls, "onResourceLoadComplete",
                                  "(Ljava/lang/String;IJ)V");
+    proxy_error_ =
+        env->GetMethodID(cls, "onProxyError", "(Ljava/lang/String;IZ)V");
     env->DeleteLocalRef(cls);
     if (env->ExceptionCheck()) {
       env->ExceptionClear();
@@ -1606,6 +1633,21 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
                               CefRefPtr<CefResponse> response,
                               URLRequestStatus status,
                               int64_t received_content_length) override {
+    // Reported whether or not anyone listens to the other events: it is rare,
+    // and an app needs it to know its proxy (Tor, a VPN's) is down.
+    jobject jb = java_browser_;
+    if (status == UR_FAILED && response && jb && proxy_error_ &&
+        IsProxyError(response->GetError())) {
+      JNIEnv* penv = base::android::AttachCurrentThread();
+      jstring ju = penv->NewStringUTF(request->GetURL().ToString().c_str());
+      penv->CallVoidMethod(
+          jb, proxy_error_, ju, static_cast<jint>(response->GetError()),
+          static_cast<jboolean>(request->GetResourceType() == RT_MAIN_FRAME));
+      penv->DeleteLocalRef(ju);
+      if (penv->ExceptionCheck()) {
+        penv->ExceptionClear();
+      }
+    }
     JNIEnv* env = ResourceEventsEnv();
     if (!env || !complete_) {
       return;
@@ -1682,6 +1724,7 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
   jmethodID redirect_ = nullptr;
   jmethodID response_ = nullptr;
   jmethodID complete_ = nullptr;
+  jmethodID proxy_error_ = nullptr;
   std::atomic<int> observers_{0};
   std::atomic<bool> adblock_enabled_{true};
   std::atomic<int> blocked_count_{0};
@@ -3836,19 +3879,27 @@ void SdkLifeSpanHandler::NotifyJavaBrowserCreated() {
   env->DeleteLocalRef(cls);
 }
 
-// Binds the Java browser to the life-span handler right after creation, so
-// the created notification never depends on the embedder registering a
-// listener (nativeSetDisplayCallback) first.
+// Binds the Java browser right after creation to the handlers whose events do
+// not depend on the embedder registering a listener (nativeSetDisplayCallback)
+// first: the created notification, and proxy errors, which are reported per
+// profile.
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeBindJavaBrowser(JNIEnv* env,
                                                       jclass clazz,
                                                       jlong native_ptr,
                                                       jobject java_browser) {
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
-  if (!data || !data->life_span_handler) {
+  if (!data) {
     return;
   }
-  data->life_span_handler->SetJavaBrowser(env, java_browser);
+  if (data->life_span_handler) {
+    data->life_span_handler->SetJavaBrowser(env, java_browser);
+  }
+  if (data->client && data->client->request_handler() &&
+      data->client->request_handler()->resource_request_handler()) {
+    data->client->request_handler()->resource_request_handler()->SetJavaBrowser(
+        env, java_browser);
+  }
 }
 
 // Out-of-line: needs the full SdkBrowserData definition (member access on data_).
