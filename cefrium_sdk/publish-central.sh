@@ -277,19 +277,12 @@ make_javadoc_jar() {
 # ---------------------------------------------------------------------------
 # Coordinates
 # ---------------------------------------------------------------------------
-SDK_DEPS='  <dependencies>
-    <dependency><groupId>androidx.appcompat</groupId><artifactId>appcompat</artifactId><version>1.7.0</version></dependency>
-    <dependency><groupId>androidx.mediarouter</groupId><artifactId>mediarouter</artifactId><version>1.7.0</version></dependency>
-    <dependency><groupId>androidx.core</groupId><artifactId>core</artifactId><version>1.16.0</version></dependency>
-    <dependency><groupId>androidx.browser</groupId><artifactId>browser</artifactId><version>1.8.0</version></dependency>
-    <dependency><groupId>androidx.datastore</groupId><artifactId>datastore-preferences</artifactId><version>1.1.1</version></dependency>
-'
-# The Maven libraries the AAR does not vendor, read from the AAR being published
-# so the POM matches its bytes (maven_vendored.py).
+# pom-deps.txt plus the Maven libraries the AAR does not vendor, read from the
+# AAR being published so the POM matches its bytes (maven_vendored.py).
 sdk_deps() {
   local libs
   libs="$(python3 "$SCRIPT_DIR/maven_vendored.py" --pom "$1")" || return 1
-  printf '%s\n%s\n  </dependencies>' "$SDK_DEPS" "$libs"
+  printf '  <dependencies>\n%s\n  </dependencies>' "$libs"
 }
 
 for v in cefrium-sdk cefrium-sdk-libre; do

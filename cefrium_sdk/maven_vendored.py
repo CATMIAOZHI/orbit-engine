@@ -16,7 +16,7 @@ result; a Chromium bump that changes it shows up as a diff of that file.
 
     maven_vendored.py --jar classes.jar --write maven-deps.txt
     maven_vendored.py --jar classes.jar --check maven-deps.txt
-  maven_vendored.py --pom cefrium-sdk.aar   # <dependency> lines for its POM
+    maven_vendored.py --pom cefrium-sdk.aar   # <dependency> lines for its POM
 """
 
 import argparse
@@ -36,6 +36,9 @@ DEPS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # Inside the AAR, for consumers that add it as a file and so never read the POM.
 # The com.cefrium Gradle plugin adds these as runtimeOnly dependencies.
 AAR_ENTRY = 'cefrium-maven-deps.txt'
+# The androidx libraries the POM declares besides these (compile scope).
+POM_DEPS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             'pom-deps.txt')
 # Not vendored and not owned by a vendored class, but R8 needs it to compile a
 # Chromium lambda the device calls back (see proguard.txt).
 EXTRA_RUNTIME = ('androidx.window.extensions.core:core:1.0.0',)
@@ -155,8 +158,12 @@ def runtime_dependencies(path=DEPS_FILE):
 
 
 def pom_dependencies(path=DEPS_FILE, indent='    '):
-    # runtime: the app does not compile against these, its R8 and APK need them.
     out = []
+    for c in read_deps(POM_DEPS_FILE):
+        g, a, v = c.split(':')
+        out.append('%s<dependency><groupId>%s</groupId><artifactId>%s</artifactId>'
+                   '<version>%s</version></dependency>' % (indent, g, a, v))
+    # runtime: the app does not compile against these, its R8 and APK need them.
     for c in runtime_dependencies(path):
         g, a, v = c.split(':')
         out.append('%s<dependency><groupId>%s</groupId><artifactId>%s</artifactId>'

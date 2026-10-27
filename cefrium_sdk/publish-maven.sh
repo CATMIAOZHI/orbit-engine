@@ -216,33 +216,6 @@ echo ""
 # into one multi-ABI AAR (cefrium-sdk.aar = codecs default, cefrium-sdk-libre.aar).
 # AGP packages all ABIs from the AAR and the consumer's APK/App Bundle delivers
 # only the device's ABI -- so a single coordinate works on arm64 and x86_64.
-# Runtime androidx dependencies the SDK references (from the content/embedder
-# layer) but does NOT vendor -- the consumer gets them transitively. The AAR is a
-# fat AAR (it vendors chrome_all_java's Material/Preference/Cast classes AND, since
-# compat_strings.xml is wired in, their string resources -- see FEATURE-038
-# Option A), so the consumer must NOT add material/preference itself (would
-# duplicate the vendored classes). Only the content-layer androidx below is
-# declared. This exact set was validated by a Maven-path consumer build: a project
-# that declares ONLY com.cefrium:cefrium-sdk builds to an APK (no duplicate-class,
-# no missing-resource).
-read -r -d '' SDK_DEPS <<'XML' || true
-  <dependencies>
-    <dependency><groupId>androidx.appcompat</groupId><artifactId>appcompat</artifactId><version>1.7.0</version></dependency>
-    <dependency><groupId>androidx.mediarouter</groupId><artifactId>mediarouter</artifactId><version>1.7.0</version></dependency>
-    <dependency><groupId>androidx.core</groupId><artifactId>core</artifactId><version>1.16.0</version></dependency>
-    <dependency><groupId>androidx.browser</groupId><artifactId>browser</artifactId><version>1.8.0</version></dependency>
-    <!-- The vendored Firebase classes (Installations/FCM-token path:
-         HeartBeatInfoStorage) need datastore-preferences, which the AAR does NOT
-         vendor. Without it FirebaseMessaging.getToken() hangs with
-         NoClassDefFoundError androidx/datastore/preferences/core/PreferencesKeys
-         (getId() still works). Declare it so consumers get it transitively.
-         Validated on Redmi Note 13 Pro / HyperOS / Android 16 (0.5.1).
-         NOTE: do NOT exclude okio here. slim_aar.py strips the orphaned okio from
-         the AAR (it had 0 references), so the consumer must get the single okio
-         from datastore's transitive okio-jvm. Same consumer-provides model the AAR
-         already uses for androidx/kotlin/kotlinx. No duplicate-class collision. -->
-    <dependency><groupId>androidx.datastore</groupId><artifactId>datastore-preferences</artifactId><version>1.1.1</version></dependency>
-XML
 
 published_any=0
 for artifact in cefrium-sdk cefrium-sdk-libre; do
@@ -252,10 +225,10 @@ for artifact in cefrium-sdk cefrium-sdk-libre; do
     continue
   fi
   echo "Publishing $artifact (multi-ABI)..."
-  # The Maven libraries the AAR does not vendor, read from this AAR so the POM
-  # matches its bytes (maven_vendored.py).
+  # pom-deps.txt plus the Maven libraries the AAR does not vendor, read from
+  # this AAR so the POM matches its bytes (maven_vendored.py).
   libs="$(python3 "$SCRIPT_DIR/maven_vendored.py" --pom "$aar")" || { echo "ERROR: no dependency list in $aar" >&2; exit 1; }
-  pom=$(generate_pom "$artifact" "Cefrium SDK -- CEF for Android (multi-ABI). Embeds Chromium $CHROMIUM_VERSION." "$(printf '%s\n%s\n  </dependencies>' "$SDK_DEPS" "$libs")")
+  pom=$(generate_pom "$artifact" "Cefrium SDK -- CEF for Android (multi-ABI). Embeds Chromium $CHROMIUM_VERSION." "$(printf '  <dependencies>\n%s\n  </dependencies>' "$libs")")
   upload "$artifact" "$pom"
   upload "$artifact" "$aar"
   rm -f "$pom"
