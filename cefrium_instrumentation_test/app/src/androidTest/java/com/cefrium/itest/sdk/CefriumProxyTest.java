@@ -33,6 +33,9 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Collections;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -60,6 +63,8 @@ public class CefriumProxyTest {
             CefriumProfile.get(NAMED).clearProxy();
             CefriumProfile.incognito().followDefaultProfile();
             CefriumProfile.getDefault().setWebRtcIpHandlingPolicy(CefriumProfile.WEBRTC_DEFAULT);
+            CefriumProfile.getDefault().setProxyErrorListener(null);
+            CefriumProfile.incognito().setProxyErrorListener(null);
             return true;
         });
     }
@@ -263,6 +268,103 @@ public class CefriumProxyTest {
             Assert.assertEquals("direct-ok", open(CefriumProfile.getDefault(), lan.url, null));
             Assert.assertTrue(onMain(() -> CefriumProfile.getDefault().setProxy("127.0.0.1:" + deadPort)));
             Assert.assertNotEquals("direct-ok", open(CefriumProfile.getDefault(), lan.url, null));
+        }
+    }
+
+    // ----- proxy errors --------------------------------------------------------
+
+    /** A proxy error as reported: browser, url, error, mainFrame. */
+    private static final class Reported {
+        final CefriumBrowser browser;
+        final String url;
+        final int error;
+        final boolean mainFrame;
+
+        Reported(CefriumBrowser browser, String url, int error, boolean mainFrame) {
+            this.browser = browser;
+            this.url = url;
+            this.error = error;
+            this.mainFrame = mainFrame;
+        }
+    }
+
+    /** Loads TARGET in a browser of `profile` that has no listener of its own. */
+    private CefriumBrowser loadWithoutListeners(CefriumProfile profile) {
+        AtomicReference<CefriumBrowser> holder = new AtomicReference<>();
+        CountDownLatch made = new CountDownLatch(1);
+        activityRule.getActivity().runOnUiThread(() -> {
+            CefriumBrowser b = browsers.track(new CefriumBrowser(200, 200, 1.0f, profile));
+            b.setRenderHandler(new CefriumRenderHandler() {
+                @Override
+                public void onPaint(int width, int height, ByteBuffer px) {}
+            });
+            b.loadUrl(TARGET);
+            holder.set(b);
+            made.countDown();
+        });
+        try {
+            made.await(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            throw new IllegalStateException(e);
+        }
+        return holder.get();
+    }
+
+    @Test
+    public void anUnreachableProxyIsReportedToItsProfile() throws Exception {
+        try (ServerSocket closed = new ServerSocket(0)) {
+            int deadPort = closed.getLocalPort();
+            closed.close();
+            LinkedBlockingQueue<Reported> reported = new LinkedBlockingQueue<>();
+            Assert.assertTrue(onMain(() -> {
+                CefriumProfile.getDefault().setProxyErrorListener(
+                        (b, url, error, mainFrame) -> reported.add(new Reported(b, url, error, mainFrame)));
+                return CefriumProfile.getDefault().setProxy("127.0.0.1:" + deadPort);
+            }));
+            CefriumBrowser b = loadWithoutListeners(CefriumProfile.getDefault());
+            Reported r = reported.poll(20, TimeUnit.SECONDS);
+            Assert.assertNotNull("the proxy error was not reported", r);
+            Assert.assertSame(b, r.browser);
+            Assert.assertEquals(TARGET, r.url);
+            Assert.assertEquals("ERR_PROXY_CONNECTION_FAILED", -130, r.error);
+            Assert.assertTrue(r.mainFrame);
+        }
+    }
+
+    @Test
+    public void aWorkingProxyReportsNothing() throws Exception {
+        try (LocalHttpServer proxy = proxyServer()) {
+            LinkedBlockingQueue<Reported> reported = new LinkedBlockingQueue<>();
+            Assert.assertTrue(onMain(() -> {
+                CefriumProfile.getDefault().setProxyErrorListener(
+                        (b, url, error, mainFrame) -> reported.add(new Reported(b, url, error, mainFrame)));
+                return CefriumProfile.getDefault().setProxy(proxyAddress(proxy));
+            }));
+            Assert.assertEquals("via-proxy", open(CefriumProfile.getDefault(), TARGET, null));
+            Assert.assertNull("a working proxy was reported", reported.poll(2, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    public void incognitoReportsToTheIncognitoProfile() throws Exception {
+        try (ServerSocket closed = new ServerSocket(0)) {
+            int deadPort = closed.getLocalPort();
+            closed.close();
+            LinkedBlockingQueue<Reported> toDefault = new LinkedBlockingQueue<>();
+            LinkedBlockingQueue<Reported> toIncognito = new LinkedBlockingQueue<>();
+            Assert.assertTrue(onMain(() -> {
+                CefriumProfile.getDefault().setProxyErrorListener(
+                        (b, url, error, mainFrame) -> toDefault.add(new Reported(b, url, error, mainFrame)));
+                CefriumProfile.incognito().setProxyErrorListener(
+                        (b, url, error, mainFrame) -> toIncognito.add(new Reported(b, url, error, mainFrame)));
+                // Incognito follows the default profile's proxy.
+                return CefriumProfile.getDefault().setProxy("127.0.0.1:" + deadPort);
+            }));
+            loadWithoutListeners(CefriumProfile.incognito());
+            Assert.assertNotNull("the incognito proxy error was not reported",
+                    toIncognito.poll(20, TimeUnit.SECONDS));
+            Assert.assertNull("it was reported to the default profile too",
+                    toDefault.poll(1, TimeUnit.SECONDS));
         }
     }
 
