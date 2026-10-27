@@ -125,10 +125,7 @@ public class CefriumBrowser {
 
     // Private marker constructor for factory methods — does NOT create native.
     private CefriumBrowser(boolean marker) {
-        if (!Cefrium.isInitialized()) {
-            throw new IllegalStateException(
-                    "Cefrium.initialize() must be called before creating browsers");
-        }
+        Cefrium.ensureInitialized();
         // mNativePtr set by factory method after construction.
     }
 
@@ -175,11 +172,7 @@ public class CefriumBrowser {
         if (profile == null) {
             throw new IllegalArgumentException("profile must not be null");
         }
-        // Lazy init: the SDK's CefriumInitProvider already ran the per-process
-        // setup at app launch, so initialize() can use the captured app context.
-        if (!Cefrium.isInitialized()) {
-            Cefrium.initialize();
-        }
+        Cefrium.ensureInitialized();
         mProfile = profile;
         mIncognito = profile.isIncognito();
         mNativePtr = nativeCreate(width, height, scale, profile.isIncognito(),
@@ -2109,6 +2102,7 @@ public class CefriumBrowser {
      * process count bounded. Safe no-op on shared-renderer devices.
      */
     public static void reapUnusedRenderers() {
+        if (!Cefrium.isInitialized()) return;
         nativeReapUnusedRenderers();
     }
 
@@ -2121,7 +2115,7 @@ public class CefriumBrowser {
      * {@code maxAlive}. Diagnostic; call on the main thread (returns -1 otherwise).
      */
     public static int activeRenderProcessCount() {
-        return nativeActiveRenderProcessCount();
+        return Cefrium.isInitialized() ? nativeActiveRenderProcessCount() : 0;
     }
 
     /**
@@ -2131,7 +2125,7 @@ public class CefriumBrowser {
      * Diagnostic.
      */
     public static int zeroFrameRenderProcessCount() {
-        return nativeZeroFrameRenderProcessCount();
+        return Cefrium.isInitialized() ? nativeZeroFrameRenderProcessCount() : 0;
     }
 
     /**
@@ -2141,7 +2135,7 @@ public class CefriumBrowser {
      * thread only (-1 otherwise). Diagnostic.
      */
     public static int totalRenderFrameHostCount() {
-        return nativeTotalRenderFrameHostCount();
+        return Cefrium.isInitialized() ? nativeTotalRenderFrameHostCount() : 0;
     }
 
     /**
@@ -2150,12 +2144,12 @@ public class CefriumBrowser {
      * browsers, {@link #close()} is not completing -- the page leaks. Diagnostic.
      */
     public static int closedBrowserCount() {
-        return nativeClosedBrowserCount();
+        return Cefrium.isInitialized() ? nativeClosedBrowserCount() : 0;
     }
 
     /** Live (not-yet-closed) browser instances. Diagnostic. */
     public static int liveBrowserCount() {
-        return nativeLiveBrowserCount();
+        return Cefrium.isInitialized() ? nativeLiveBrowserCount() : 0;
     }
 
     /**
@@ -2851,12 +2845,7 @@ public class CefriumBrowser {
         if (profile == null) {
             throw new IllegalArgumentException("profile must not be null");
         }
-        // Lazy init: no Application boilerplate or explicit initialize() needed.
-        // CefriumInitProvider ran the per-process setup at app launch; initialize()
-        // is idempotent and self-sufficient.
-        if (!Cefrium.isInitialized()) {
-            Cefrium.initialize(activity);
-        }
+        Cefrium.ensureInitialized();
 
         CefriumBrowser browser = new CefriumBrowser(true);
 

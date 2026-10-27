@@ -53,8 +53,9 @@ import org.chromium.ui.base.ResourceBundle;
  * <h3>Basic usage</h3>
  *
  * <p>No setup is required: the SDK's {@code CefriumInitProvider} performs the
- * per-process plumbing at app launch, and the engine initializes lazily the first
- * time a browser is created. Just create one:</p>
+ * per-process plumbing at app launch, and the engine starts the first time the
+ * app uses it, so a process woken for something else (a push message, a job)
+ * never loads it. Just create a browser:</p>
  *
  * <pre>
  * CefriumBrowser browser = CefriumBrowser.createWithSurface(activity);
@@ -64,9 +65,10 @@ import org.chromium.ui.base.ResourceBundle;
  * Cefrium.shutdown();
  * </pre>
  *
- * <p>Advanced: to control init timing (e.g. to pass command-line switches before
- * native init) call {@link #initialize(Context)} yourself before the first browser.
- * It is idempotent and self-sufficient — no custom {@code Application} needed.</p>
+ * <p>Advanced: to start the engine ahead of the first browser, or to pass
+ * command-line switches before it starts, call {@link #initialize(Context)}
+ * yourself. It is idempotent and self-sufficient; no custom
+ * {@code Application} is needed.</p>
  */
 public final class Cefrium {
     private static final String TAG = "Cefrium";
@@ -94,10 +96,9 @@ public final class Cefrium {
      * initializes, i.e. before {@link #initialize(Context)} and before the first
      * browser is created; afterwards it has no effect and logs a warning.
      *
-     * <p><b>Call it from {@code Application.attachBaseContext}</b>, not from
-     * {@code onCreate}. The SDK initializes the engine from a
-     * {@code ContentProvider}, and Android creates providers between those two
-     * callbacks, so a setter called in {@code onCreate} is already too late.</p>
+     * <p>The engine starts the first time the app uses it (a browser, a
+     * profile, a filter list), so {@code Application.onCreate} is early enough
+     * unless the app calls {@link #initialize(Context)} before that.</p>
      *
      * <p>When enabled (the default), Chromium's component updater contacts
      * {@code update.googleapis.com} and downloads data files the engine relies on:
@@ -184,14 +185,14 @@ public final class Cefrium {
      * read goes through the page cache only (sendfile to /dev/null), so it adds
      * no memory to the app.
      *
-     * <p>On by default. Call it from {@code Application.attachBaseContext}, not
-     * from {@code onCreate}: the SDK initializes from a ContentProvider, which
-     * Android creates in between. Later calls are ignored and log a warning.
+     * <p>On by default. Call it before the engine starts (see
+     * {@link #setComponentUpdatesEnabled}). Later calls are ignored and log a
+     * warning.
      */
     public static synchronized void setLibraryPrefetchEnabled(boolean enabled) {
         if (sInitialized) {
             android.util.Log.w(TAG, "setLibraryPrefetchEnabled() ignored: the engine is "
-                    + "already initialized. Call it from Application.attachBaseContext.");
+                    + "already initialized. Call it before the first browser is created.");
             return;
         }
         sLibraryPrefetchEnabled = enabled;
@@ -247,10 +248,7 @@ public final class Cefrium {
      * Run the GPU in its own process instead of inside the browser process.
      * Disabled by default. Must be called <b>before</b> {@link #initialize(Context)}
      * and before the first browser is created; afterwards it has no effect and logs
-     * a warning. Call it from {@code Application.attachBaseContext}, not from
-     * {@code onCreate}: the SDK initializes from a {@code ContentProvider}, which
-     * Android creates between those two callbacks. The kiosk-pos sample shows the
-     * shape.
+     * a warning. The kiosk-pos sample shows the shape.
      *
      * <p>By default Cefrium passes Chromium's {@code --in-process-gpu}, so GL
      * command buffers and the vendor's graphics driver run in the same process as
@@ -301,9 +299,7 @@ public final class Cefrium {
      * Chromium, where the feature is enabled by default on Android. Must be called
      * <b>before</b> the engine initializes, i.e. before {@link #initialize(Context)}
      * and before the first browser is created; afterwards it has no effect and logs
-     * a warning. Call it from {@code Application.attachBaseContext}, not from
-     * {@code onCreate}: the SDK initializes from a {@code ContentProvider}, which
-     * Android creates between those two callbacks.
+     * a warning.
      *
      * <p>When enabled, the engine performs an occasional request to
      * {@code http://clients2.google.com/time/1/current} (roughly daily by design) to
@@ -377,12 +373,10 @@ public final class Cefrium {
      * declares them, the Java ones otherwise, and how many the manifest has.
      * Use it to verify a build instead of reading engine internals.
      *
-     * @throws IllegalStateException before the engine is initialized.
+     * Starts the engine if it has not started.
      */
-    public static synchronized RendererServices getRendererServices() {
-        if (!sInitialized) {
-            throw new IllegalStateException("the engine is not initialized");
-        }
+    public static RendererServices getRendererServices() {
+        ensureInitialized();
         Context context = ContextUtils.getApplicationContext();
         boolean javaless = org.chromium.content.browser.ChildProcessCreationParamsImpl
                 .isNativeSandboxedServiceEnabled();
@@ -744,6 +738,38 @@ public final class Cefrium {
         return sInitialized;
     }
 
+    /**
+     * Starts the engine on first use, from every SDK entry point that needs it.
+     * Off the main thread it starts it there and waits. Must not be called
+     * while holding this class's lock: initialize() takes it on the main thread.
+     *
+     * @throws IllegalStateException if the engine cannot start.
+     */
+    static void ensureInitialized() {
+        if (sInitialized) return;
+        final Context context = ContextUtils.getApplicationContextUnsafe();
+        if (context == null) {
+            throw new IllegalStateException("Cefrium is not set up in this process");
+        }
+        boolean started;
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            started = initialize(context);
+        } else {
+            java.util.concurrent.FutureTask<Boolean> task =
+                    new java.util.concurrent.FutureTask<>(() -> initialize(context));
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(task);
+            try {
+                started = task.get();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("interrupted while the engine started", e);
+            } catch (java.util.concurrent.ExecutionException e) {
+                throw new IllegalStateException("the engine failed to start", e.getCause());
+            }
+        }
+        if (!started) throw new IllegalStateException("the engine failed to start");
+    }
+
     /** Cefrium SDK version. Kept in lockstep with the release by cut-release.sh. */
     public static final String VERSION = "0.15.0";
 
@@ -797,6 +823,7 @@ public final class Cefrium {
      * @return the list's rule count, or -1 if the file cannot be read.
      */
     public static int loadAdBlockList(String path) {
+        ensureInitialized();
         return nativeLoadAdBlockList(path, path);
     }
 
@@ -809,6 +836,7 @@ public final class Cefrium {
      * @return the rules added, 0 if they were already loaded.
      */
     public static int loadYouTubeAdRules() {
+        ensureInitialized();
         return nativeLoadYouTubeAdRules();
     }
 
@@ -835,6 +863,7 @@ public final class Cefrium {
             String url, AdBlockListCallback callback) {
         final java.io.File file = adBlockListFile(context, url);
         sAdBlockExecutor.execute(() -> {
+            ensureInitialized();
             if (file.exists()
                     && System.currentTimeMillis() - file.lastModified() < ADBLOCK_LIST_MAX_AGE_MS) {
                 report(callback, nativeLoadAdBlockList(url, file.getPath()), null);
