@@ -45,6 +45,9 @@ in the internal FEATURE-NNN.md working docs (not published).
   `CefriumProfile.setDownloadObserver` reports every change to a download of
   the profile, whichever browser started it and whether or not it is still
   open.
+- `CefriumProfile.setAdBlockExceptions(sites)`: sites where the profile's
+  browsers block nothing, by host (subdomains included) or by origin, as a
+  `@@||site^$document` rule would. Incognito has its own.
 - `CefriumProfile.setProxyErrorListener`: told when a request of the
   profile's browsers fails because of the proxy (unreachable, refused, asks
   for credentials, a SOCKS or PAC failure), with the browser, the URL and the

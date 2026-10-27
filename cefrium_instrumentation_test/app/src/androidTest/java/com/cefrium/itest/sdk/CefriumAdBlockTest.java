@@ -14,6 +14,7 @@ import androidx.test.rule.ActivityTestRule;
 
 import com.cefrium.Cefrium;
 import com.cefrium.CefriumBrowser;
+import com.cefrium.CefriumProfile;
 import com.cefrium.CefriumRenderHandler;
 
 import org.junit.After;
@@ -29,6 +30,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -59,6 +61,26 @@ public class CefriumAdBlockTest {
     @After
     public void clearTheList() throws Exception {
         load("");
+        onMain(() -> {
+            CefriumProfile.getDefault().setAdBlockExceptions(null);
+            CefriumProfile.incognito().setAdBlockExceptions(null);
+            return true;
+        });
+    }
+
+    private boolean onMain(java.util.concurrent.Callable<Boolean> call) throws Exception {
+        boolean[] result = new boolean[1];
+        java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        activityRule.getActivity().runOnUiThread(() -> {
+            try {
+                result[0] = call.call();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            done.countDown();
+        });
+        done.await(10, java.util.concurrent.TimeUnit.SECONDS);
+        return result[0];
     }
 
     private int load(String rules) throws Exception {
@@ -75,11 +97,16 @@ public class CefriumAdBlockTest {
     /** Opens the page fetching {@code path} on localhost; returns its title and blocked count. */
     private String fetch(LocalHttpServer server, String path,
             java.util.function.Consumer<CefriumBrowser> setup) throws Exception {
+        return fetch(CefriumProfile.getDefault(), server, path, setup);
+    }
+
+    private String fetch(CefriumProfile profile, LocalHttpServer server, String path,
+            java.util.function.Consumer<CefriumBrowser> setup) throws Exception {
         Activity activity = activityRule.getActivity();
         AtomicReference<String> title = new AtomicReference<>("");
         CefriumBrowser[] holder = new CefriumBrowser[1];
         activity.runOnUiThread(() -> {
-            CefriumBrowser b = browsers.track(new CefriumBrowser(200, 200, 1.0f));
+            CefriumBrowser b = browsers.track(new CefriumBrowser(200, 200, 1.0f, profile));
             b.setRenderHandler(new CefriumRenderHandler() {
                 @Override
                 public void onPaint(int width, int height, ByteBuffer px) {}
@@ -146,6 +173,46 @@ public class CefriumAdBlockTest {
         try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
             Assert.assertEquals("loaded count=0", fetch(server, "/ad/x", null));
         }
+    }
+
+    // The page is on 127.0.0.1 and fetches from localhost.
+    @Test
+    public void aSiteExceptionAllowsEverythingOnThatSite() throws Exception {
+        load("||localhost^");
+        try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
+            Assert.assertEquals("blocked count=1", fetch(server, "/ad/x", null));
+            Assert.assertTrue(onMain(() -> CefriumProfile.getDefault()
+                    .setAdBlockExceptions(Collections.singleton("127.0.0.1"))));
+            Assert.assertEquals("loaded count=0", fetch(server, "/ad/x", null));
+            Assert.assertTrue(onMain(() -> CefriumProfile.getDefault()
+                    .setAdBlockExceptions(Collections.singleton(server.origin()))));
+            Assert.assertEquals("loaded count=0", fetch(server, "/ad/x", null));
+            // An origin covers only its own port.
+            Assert.assertTrue(onMain(() -> CefriumProfile.getDefault()
+                    .setAdBlockExceptions(Collections.singleton("http://127.0.0.1:1"))));
+            Assert.assertEquals("blocked count=1", fetch(server, "/ad/x", null));
+        }
+    }
+
+    @Test
+    public void siteExceptionsBelongToTheirProfile() throws Exception {
+        load("||localhost^");
+        try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
+            Assert.assertTrue(onMain(() -> CefriumProfile.getDefault()
+                    .setAdBlockExceptions(Collections.singleton("127.0.0.1"))));
+            Assert.assertEquals("blocked count=1",
+                    fetch(CefriumProfile.incognito(), server, "/ad/x", null));
+        }
+    }
+
+    @Test
+    public void aSiteExceptionMustBeAHostOrAnOrigin() throws Exception {
+        for (String bad : new String[] {"example.com/ads", "https://example.com/ads", "", "a b"}) {
+            Assert.assertFalse(bad, onMain(() -> CefriumProfile.getDefault()
+                    .setAdBlockExceptions(Collections.singleton(bad))));
+        }
+        Assert.assertTrue(onMain(() -> CefriumProfile.getDefault()
+                .setAdBlockExceptions(java.util.Arrays.asList("Example.com", "https://example.org"))));
     }
 
     @Test
