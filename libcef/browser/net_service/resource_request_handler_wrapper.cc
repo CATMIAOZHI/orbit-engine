@@ -122,6 +122,8 @@ class InterceptedRequestHandlerWrapper : public InterceptedRequestHandler {
     bool request_was_redirected_ = false;
     bool was_custom_handled_ = false;
     bool accept_language_added_ = false;
+    // The response has been let through to the client.
+    bool response_started_ = false;
     CancelRequestCallback cancel_callback_;
   };
 
@@ -907,11 +909,14 @@ class InterceptedRequestHandlerWrapper : public InterceptedRequestHandler {
 
     if (!state->handler_) {
       // Cookies may come from a scheme handler.
-      MaybeSaveCookies(
-          request_id, state, headers,
-          base::BindOnce(
-              std::move(callback), ResponseMode::CONTINUE, nullptr,
-              redirect_info.has_value() ? redirect_info->new_url : GURL()));
+      auto continue_callback = base::BindOnce(
+          std::move(callback), ResponseMode::CONTINUE, nullptr,
+          redirect_info.has_value() ? redirect_info->new_url : GURL());
+      MaybeSaveCookies(request_id, state, headers,
+                       redirect_info.has_value()
+                           ? std::move(continue_callback)
+                           : MarkResponseStarted(request_id,
+                                                 std::move(continue_callback)));
       return;
     }
 
@@ -1006,7 +1011,28 @@ class InterceptedRequestHandlerWrapper : public InterceptedRequestHandler {
       return;
     }
 
+    if (new_url.is_empty()) {
+      exec_callback = MarkResponseStarted(request_id, std::move(exec_callback));
+    }
     MaybeSaveCookies(request_id, state, headers, std::move(exec_callback));
+  }
+
+  // A request whose response has been let through is not aborted when the
+  // browser goes away: its client may outlive the browser, as a download does
+  // in Chrome. Any other client of a closed browser closes its own end.
+  base::OnceClosure MarkResponseStarted(int32_t request_id,
+                                        base::OnceClosure callback) {
+    return base::BindOnce(
+        [](base::WeakPtr<InterceptedRequestHandlerWrapper> self,
+           int32_t request_id, base::OnceClosure callback) {
+          if (self) {
+            if (RequestState* state = self->GetState(request_id)) {
+              state->response_started_ = true;
+            }
+          }
+          std::move(callback).Run();
+        },
+        weak_ptr_factory_.GetWeakPtr(), request_id, std::move(callback));
   }
 
   void MaybeSaveCookies(int32_t request_id,
@@ -1312,8 +1338,10 @@ class InterceptedRequestHandlerWrapper : public InterceptedRequestHandler {
 
     // Notify handlers for in-progress requests.
     for (const auto& [key, value] : request_map) {
-      CallHandlerOnComplete(
-          value.get(), network::URLLoaderCompletionStatus(net::ERR_ABORTED));
+      if (!value->response_started_) {
+        CallHandlerOnComplete(
+            value.get(), network::URLLoaderCompletionStatus(net::ERR_ABORTED));
+      }
     }
 
     if (init_state_->browser_) {
@@ -1330,6 +1358,11 @@ class InterceptedRequestHandlerWrapper : public InterceptedRequestHandler {
 
     for (auto& [key, value] : request_map) {
       auto state = std::move(value);
+      if (state->response_started_) {
+        // Let it finish. OnRequestComplete finds no state and does nothing.
+        state->request_ = nullptr;
+        continue;
+      }
       if (state->cancel_callback_) {
         // The cancel callback may trigger a call to OnRequestComplete followed
         // by destruction of the InterceptedRequest that owns the

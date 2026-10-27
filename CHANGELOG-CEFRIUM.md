@@ -86,6 +86,9 @@ in the internal FEATURE-NNN.md working docs (not published).
 - Opening a named profile after a download had started killed the app
   (Safe Browsing kept one download telemetry service for all profiles and
   replaced it while it was in use). Patch `android/multi_profile`.
+- Closing a browser canceled the downloads it had started, as if the user
+  had: its network requests were aborted with it. A request whose response
+  is already on its way now finishes, so a download continues, as in Chrome.
 - Off-screen browsers fling: a quick swipe keeps scrolling after the finger
   lifts. Before, the fling never advanced, so the page stopped under the
   finger and the first tap after any scroll was taken as the one that stops
