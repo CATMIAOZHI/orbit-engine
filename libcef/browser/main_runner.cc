@@ -11,6 +11,7 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/message_loop/message_pump.h"
 #include "base/message_loop/message_pump_epoll.h"
+#include "content/browser/browser_main_loop.h"
 #include "third_party/jni_zero/jni_zero.h"
 #endif
 #include "base/debug/debugger.h"
@@ -377,6 +378,16 @@ int CefMainRunner::ContentMainRun(bool* initialized,
     *initialized = true;
     BeforeUIThreadInitialize();
     exit_code = content::ContentMainRun(main_runner_.get());
+#if BUILDFLAG(IS_ANDROID)
+    // BrowserMainLoop runs its startup tasks asynchronously on Android, so the
+    // browser and the initial profile do not exist yet. Run them now, as
+    // WebView's synchronous startup does, so that the global request context
+    // exists when CefInitialize returns, as on other platforms.
+    if (exit_code == content::RESULT_CODE_NORMAL_EXIT) {
+      content::BrowserMainLoop::GetInstance()->SynchronouslyFlushStartupTasks(
+          /*was_posted=*/false);
+    }
+#endif
   }
 
   if (exit_code == content::RESULT_CODE_NORMAL_EXIT) {
