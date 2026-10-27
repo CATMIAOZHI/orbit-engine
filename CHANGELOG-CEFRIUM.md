@@ -37,6 +37,14 @@ in the internal FEATURE-NNN.md working docs (not published).
   from revealing the device's address around a proxy.
 - `CefriumProfile.incognito().followDefaultProfile()` drops the incognito
   profile's own proxy and WebRTC settings.
+- `CefriumProfile.getDownloads(callback)`: every download of the profile,
+  including earlier runs' (the engine keeps them in the profile's history),
+  each with `pause()`, `resume()`, `cancel()` and `remove()`. A download the
+  app was closed in the middle of comes back interrupted and resumes from
+  where it stopped if the server allows it.
+  `CefriumProfile.setDownloadObserver` reports every change to a download of
+  the profile, whichever browser started it and whether or not it is still
+  open.
 - `DownloadItem.isInterrupted()`: the download stopped on an error, which
   `getInterruptReason()` names. Before, a failed download looked like one
   still in progress.
