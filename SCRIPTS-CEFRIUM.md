@@ -350,6 +350,7 @@ handler is never consulted). `--skip-build` for sample-only edits.
 |---|---|
 | Run the instrumentation suite as a gate | `cef/cefrium_sdk/run-instrumentation-suite.sh [<version>]` |
 | Same suite on the app minified with R8 | `cef/cefrium_sdk/run-instrumentation-suite.sh --minified [<version>]` |
+| Web Push through FCM on a device: repeated resubscribes per profile, two sites | `cef/cefrium_sdk/push-e2e.sh [<sdk.aar>]` |
 | Smoke the published artifact | `cef/cefrium_sdk/smoke-samples.sh --registry <version>` |
 | R8 consumer rules: Play's 25% bar + minified run | `cef/cefrium_sdk/smoke-minified.sh` |
 | Test a published release e2e | `cef/cefrium_sdk/test-published-release.sh <version>` |

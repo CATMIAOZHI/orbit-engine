@@ -415,6 +415,12 @@ if run suite; then hdr "instrumentation suite on device"
     echo "ERROR: the minified instrumentation suite did not pass. Nothing is published."
     echo "       Re-run it alone: cef/cefrium_sdk/run-instrumentation-suite.sh --minified"
     exit 1; }
+  # Web Push through FCM, which the suite can only fake: repeated subscribe /
+  # unsubscribe per profile, and two sites.
+  cef/cefrium_sdk/push-e2e.sh || {
+    echo "ERROR: Web Push end to end did not pass. Nothing is published."
+    echo "       Re-run it alone: cef/cefrium_sdk/push-e2e.sh"
+    exit 1; }
 fi
 
 if run publish; then hdr "publish to Maven (IMMUTABLE)"

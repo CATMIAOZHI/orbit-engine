@@ -184,6 +184,20 @@ for s in $SAMPLES; do
   # in the middle of a cut. The next run builds clean anyway.
   rm -rf "$d/app/build"
 done
+
+# Scenarios a launch cannot show, run on the samples just installed.
+# download-resume kills the app half way through a download and needs the
+# restarted app to resume it: a gap here once cancelled every download on
+# restart, and the suite cannot kill its own process.
+case " $SAMPLES " in *" java-sample "*)
+  if ADB="$ADB" "$ROOT/cefrium-sample/java-sample/download-resume/run.sh" >"$LOGDIR/download-resume.log" 2>&1; then
+    echo "  java-sample download-resume: OK"
+  else
+    echo "  java-sample download-resume: FAIL -- $(tail -1 "$LOGDIR/download-resume.log")"
+    echo "      log: $LOGDIR/download-resume.log"
+    fails=$((fails+1))
+  fi ;;
+esac
 echo "=== $((fails)) failure(s) ==="
 [ "$fails" -eq 0 ] || { echo "Sample smoke FAILED -- do not publish."; exit 1; }
 echo "All samples build + launch clean on device."
