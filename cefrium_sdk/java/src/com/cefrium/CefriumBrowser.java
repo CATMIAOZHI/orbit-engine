@@ -3290,7 +3290,9 @@ public class CefriumBrowser {
         /**
          * A download is about to start. Decide asynchronously whether to allow
          * it -- call {@code callback.allow(path)} to download (pass {@code null}
-         * to use the suggested path) or {@code callback.cancel()} to block it
+         * to save it under its suggested name in the app's own Downloads
+         * directory, {@code Context.getExternalFilesDir(DIRECTORY_DOWNLOADS)})
+         * or {@code callback.cancel()} to block it
          * (e.g. after an accidental click). The download does not begin until
          * one of the two is called; you may show a dialog first.
          */
@@ -3354,6 +3356,13 @@ public class CefriumBrowser {
         public boolean isPaused() { return mPaused; }
         /** CEF {@code cef_download_interrupt_reason_t} (0 = none). */
         public int getInterruptReason() { return mInterruptReason; }
+        /**
+         * The download stopped on an error and is neither complete nor
+         * canceled; {@link #getInterruptReason()} says why.
+         */
+        public boolean isInterrupted() {
+            return mInterruptReason != 0 && !mComplete && !mCanceled;
+        }
 
         /** Cancel this download. */
         public void cancel() { mBrowser.controlDownload(mId, 0); }

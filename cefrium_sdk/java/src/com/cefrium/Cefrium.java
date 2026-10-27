@@ -640,7 +640,7 @@ public final class Cefrium {
             cacheDir = root.getAbsolutePath();
         }
         String dataDir = appContext.getFilesDir().getAbsolutePath();
-        int result = nativeInitialize(cacheDir, dataDir);
+        int result = nativeInitialize(cacheDir, dataDir, downloadDir(appContext));
         if (result != 0) {
             return false;
         }
@@ -965,7 +965,18 @@ public final class Cefrium {
     }
 
     // Native methods implemented in libcef.so.
-    private static native int nativeInitialize(String cacheDir, String dataDir);
+    // Where a download the app allows without a path goes: the app's own
+    // Downloads directory, which needs no permission.
+    private static String downloadDir(Context context) {
+        java.io.File dir =
+                context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS);
+        if (dir == null) dir = new java.io.File(context.getFilesDir(), "Download");
+        dir.mkdirs();
+        return dir.getAbsolutePath();
+    }
+
+    private static native int nativeInitialize(String cacheDir, String dataDir,
+            String downloadDir);
 
     /** What a profile root holds that must survive, by Chromium's names. */
     private static final String[] PROFILE_ENTRIES = {"Default", "Local State"};
