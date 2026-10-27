@@ -4,6 +4,8 @@
 
 #include "cef/libcef/browser/prefs/browser_prefs.h"
 
+#include "base/values.h"
+#include "build/build_config.h"
 #include "cef/libcef/browser/browser_context.h"
 #include "cef/libcef/browser/context.h"
 #include "cef/libcef/browser/prefs/pref_names.h"
@@ -12,6 +14,7 @@
 #include "components/language/core/browser/pref_names.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/signin/public/base/signin_pref_names.h"
 
 namespace browser_prefs {
 
@@ -50,6 +53,13 @@ void RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
 void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(cef::prefs::kEnableStorageNotificationService,
                                 true);
+
+#if BUILDFLAG(IS_ANDROID)
+  // Sign-in is off in CEF (kSigninAllowedOnNextStartup defaults to false), but
+  // only DICE copies that into kSigninAllowed at startup, and Android uses
+  // Mirror. Without this the profile still fetches Gaia's ListAccounts.
+  registry->SetDefaultPrefValue(prefs::kSigninAllowed, base::Value(false));
+#endif
 
   pref_registrar::RegisterCustomPrefs(CEF_PREFERENCES_TYPE_REQUEST_CONTEXT,
                                       registry);

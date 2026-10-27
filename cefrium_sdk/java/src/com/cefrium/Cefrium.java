@@ -607,6 +607,10 @@ public final class Cefrium {
         if (!sNetworkTimeQueriesEnabled) {
             disableFeature("NetworkTimeServiceQuerying");
         }
+        // Chrome's omnibox AI Mode checks the user's eligibility with Google
+        // (www.google.com/async/folae, with locale and country) for every
+        // profile. An embedded engine has no omnibox to offer it in.
+        disableFeature("AimEnabled");
 
         // Android 17+ renderers run as native services when the app declares
         // them, which the com.cefrium Gradle plugin does when the app compiles
