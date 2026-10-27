@@ -274,6 +274,30 @@ public final class CefriumProfile {
         return nativeSetPreference(mIncognito, mName, name, json);
     }
 
+    // ----- Ad blocking -----
+
+    /**
+     * Sites where this profile's browsers block nothing, as an
+     * {@code @@||site^$document} filter rule does: a page on one of them loads
+     * every resource, from any host. A site is a host ({@code "example.com"},
+     * which covers its subdomains) or an origin
+     * ({@code "https://example.com"}, only that scheme, host and port).
+     * Replaces the profile's previous set; an empty one removes them all.
+     * Kept for this run only, so an app stores its own list and sets it at
+     * start. Incognito has its own set. Call on the main thread.
+     *
+     * @return false, and nothing changed, if an entry is neither a host nor
+     *         an origin.
+     */
+    public boolean setAdBlockExceptions(java.util.Collection<String> sites) {
+        root();
+        String[] array = sites == null ? new String[0] : sites.toArray(new String[0]);
+        return nativeSetAdBlockExceptions(mIncognito, nameForNative(), array);
+    }
+
+    private static native boolean nativeSetAdBlockExceptions(boolean incognito, String profile,
+                                                            String[] sites);
+
     // ----- Proxy errors -----
 
     /** Told when a request fails because of the proxy, on the main thread. */

@@ -104,10 +104,14 @@ webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, conte
 ### Cefrium (automatic, with progress)
 ```java
 browser.setOnDownloadListener((name, path, percent, complete, canceled) -> {
-    // Downloads handled automatically to /sdcard/Download/
+    // Saved in the app's own Downloads directory unless the app picks a path
     if (complete) Log.i("Download", "Saved: " + path);
 });
 ```
+
+Downloads belong to the profile, as in Chrome: they continue after the browser
+closes and are kept across runs. `CefriumProfile.getDownloads` lists them and
+resumes one the app was closed in the middle of.
 
 ## Lifecycle
 
@@ -169,7 +173,7 @@ CefriumWebView(
 | Pinned Chromium version | No (system) | Yes (156) |
 | Multi-process control | No | Yes |
 | Network request interception (full) | Partial (GET) | Yes (all) |
-| Ad blocking with filter lists | Via `shouldInterceptRequest`, by URL | Yes: load an EasyList-format list (`Cefrium.loadAdBlockList`); none is built in |
+| Ad blocking with filter lists | Via `shouldInterceptRequest`, by URL | Yes: load an EasyList-format list (`Cefrium.loadAdBlockList`); none is built in. Sites exempted per profile (`CefriumProfile.setAdBlockExceptions`) |
 | Find in page API | Yes (findAllAsync) | Yes (CefBrowserHost::Find) |
 | Context menu API | Limited | Full (CEF API) |
 | File dialog | Yes | Yes |
@@ -178,7 +182,9 @@ CefriumWebView(
 | WebAuthn / passkeys (web origin) | No | Yes (Credential Manager, 0.5.0+, Android 14+) |
 | Web Share | No (manual intent) | Yes (navigator.share, 0.5.0+) |
 | Clipboard read/write | Partial | Yes (navigator.clipboard) |
-| Proxy configuration | App-wide (`ProxyController`) | Per profile (`CefriumProfile.setProxy`), WebRTC policy too |
+| Proxy configuration | App-wide (`ProxyController`) | Per profile (`CefriumProfile.setProxy`), WebRTC policy too; failures reported (`setProxyErrorListener`) |
+| Secure DNS (DNS over HTTPS) | No | Yes (`Cefrium.setSecureDns`) |
+| Downloads kept across runs, resumable | No (the app downloads) | Yes (`CefriumProfile.getDownloads`) |
 
 ## What WebView has that Cefrium doesn't (yet)
 
