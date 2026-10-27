@@ -109,6 +109,13 @@ in the internal FEATURE-NNN.md working docs (not published).
   licence, since they are meant for upstream.
 
 ### Fixed
+- Web Push subscriptions no longer break when Android kills the app in the
+  middle of a subscribe or unsubscribe. A subscription's record was written
+  to disk on a timer: a new subscription could lose it, and its messages were
+  dropped and the site unsubscribed; or an old one kept it, and the next
+  subscription reused an ID already deleted on the push service, so it never
+  received anything. Both steps now continue only once the record is on disk
+  (patch `android/push_lost_subscriptions`).
 - Opening a named profile after a download had started killed the app
   (Safe Browsing kept one download telemetry service for all profiles and
   replaced it while it was in use). Patch `android/multi_profile`.
@@ -142,7 +149,7 @@ in the internal FEATURE-NNN.md working docs (not published).
 - A Web Push message that started the app could be dropped, and its
   subscription removed, when it arrived before Android's notification
   channels had been read: the permission looked unset. Messages now wait for
-  the content settings once (patch `android/push_wait_for_content_settings`).
+  the content settings once (patch `android/push_lost_subscriptions`).
 - An app that declares `android:zygotePreloadName` no longer has every
   renderer crash at start: the engine took the app zygote for the browser
   process and the renderers forked from it had no entry point.
