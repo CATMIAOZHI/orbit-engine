@@ -1,0 +1,122 @@
+diff --git chrome/browser/push_messaging/push_messaging_service_impl.cc chrome/browser/push_messaging/push_messaging_service_impl.cc
+index 5be307e9473c0c9c757347e7771794c18e1386b6..23bd534de0f88fe53825e84a1779ac1819dad23b 100644
+--- chrome/browser/push_messaging/push_messaging_service_impl.cc
++++ chrome/browser/push_messaging/push_messaging_service_impl.cc
+@@ -367,6 +367,19 @@ void PushMessagingServiceImpl::OnMessage(const std::string& app_id,
+   }
+ #endif
+ 
++  // Checked once: until then, a permission that is set could read as unset,
++  // and the message would be dropped and the subscription removed.
++  if (!content_settings_up_to_date_) {
++    messages_waiting_for_content_settings_.emplace(app_id, message);
++    if (messages_waiting_for_content_settings_.size() == 1) {
++      HostContentSettingsMapFactory::GetForProfile(profile_)
++          ->EnsureSettingsUpToDate(base::BindOnce(
++              &PushMessagingServiceImpl::OnContentSettingsUpToDate,
++              weak_factory_.GetWeakPtr()));
++    }
++    return;
++  }
++
+   refresher_.GotMessageFrom(app_id);
+ 
+   push_messaging::AppIdentifier app_identifier =
+@@ -409,6 +422,16 @@ void PushMessagingServiceImpl::OnMessage(const std::string& app_id,
+   }
+ }
+ 
++void PushMessagingServiceImpl::OnContentSettingsUpToDate() {
++  content_settings_up_to_date_ = true;
++  std::queue<PendingMessage> messages;
++  std::swap(messages, messages_waiting_for_content_settings_);
++  while (!messages.empty()) {
++    OnMessage(messages.front().app_id, messages.front().message);
++    messages.pop();
++  }
++}
++
+ void PushMessagingServiceImpl::CheckOriginAndDispatchNextMessage() {
+   if (messages_pending_permission_check_.empty())
+     return;
+@@ -1152,11 +1175,16 @@ void PushMessagingServiceImpl::DidSubscribeWithEncryptionInfo(
+ 
+   IncreasePushSubscriptionCount(1, false /* is_pending */);
+ 
+-  SubscribeEnd(std::move(callback), subscription_id, endpoint,
+-               app_identifier.expiration_time(),
+-               std::vector<uint8_t>(p256dh.begin(), p256dh.end()),
+-               std::vector<uint8_t>(auth_secret.begin(), auth_secret.end()),
+-               blink::mojom::PushRegistrationStatus::SUCCESS_FROM_PUSH_SERVICE);
++  // The caller stores the subscription in the Service Worker database. Do
++  // that only once the app id is on disk: if the process dies in between,
++  // messages for the stored subscription would arrive for an unknown app id
++  // and the subscription would be removed.
++  profile_->GetPrefs()->CommitPendingWrite(base::BindOnce(
++      std::move(callback), subscription_id, endpoint,
++      app_identifier.expiration_time(),
++      std::vector<uint8_t>(p256dh.begin(), p256dh.end()),
++      std::vector<uint8_t>(auth_secret.begin(), auth_secret.end()),
++      blink::mojom::PushRegistrationStatus::SUCCESS_FROM_PUSH_SERVICE));
+ }
+ 
+ // GetSubscriptionInfo methods -------------------------------------------------
+@@ -1361,6 +1389,19 @@ void PushMessagingServiceImpl::DidClearPushSubscriptionId(
+           ? blink::mojom::PushUnregistrationStatus::SUCCESS_UNREGISTERED
+           : blink::mojom::PushUnregistrationStatus::SUCCESS_WAS_NOT_REGISTERED);
+ 
++  // Unregister only once the app id is gone from disk. If the process dies
++  // before that, the next subscription reuses the app id, and its InstanceID
++  // must not have been deleted on the server.
++  profile_->GetPrefs()->CommitPendingWrite(
++      base::BindOnce(&PushMessagingServiceImpl::UnregisterAfterCommit,
++                     weak_factory_.GetWeakPtr(), app_id, sender_id,
++                     was_subscribed));
++}
++
++void PushMessagingServiceImpl::UnregisterAfterCommit(
++    const std::string& app_id,
++    const std::string& sender_id,
++    bool was_subscribed) {
+   if (push_messaging::AppIdentifier::UseInstanceID(app_id)) {
+     GetInstanceIDDriver()->GetInstanceID(app_id)->DeleteID(
+         base::BindOnce(&PushMessagingServiceImpl::DidDeleteID,
+diff --git chrome/browser/push_messaging/push_messaging_service_impl.h chrome/browser/push_messaging/push_messaging_service_impl.h
+index c6c7c83718927c394f671d92cd8cf2a0b08ea56e..3c2aaff61b0dee383bc8ec093ff8c73bcd4f2bca 100644
+--- chrome/browser/push_messaging/push_messaging_service_impl.h
++++ chrome/browser/push_messaging/push_messaging_service_impl.h
+@@ -279,6 +279,10 @@ class PushMessagingServiceImpl : public content::PushMessagingService,
+ 
+   void CheckOriginAndDispatchNextMessage();
+ 
++  // Delivers the messages that arrived before content settings were up to
++  // date.
++  void OnContentSettingsUpToDate();
++
+   // Subscribe methods ---------------------------------------------------------
+ 
+   void DoSubscribe(push_messaging::AppIdentifier app_identifier,
+@@ -348,6 +352,10 @@ class PushMessagingServiceImpl : public content::PushMessagingService,
+                                   const std::string& sender_id,
+                                   UnregisterCallback callback);
+ 
++  void UnregisterAfterCommit(const std::string& app_id,
++                             const std::string& sender_id,
++                             bool was_subscribed);
++
+   void DidUnregister(bool was_subscribed, gcm::GCMClient::Result result);
+   void DidDeleteID(const std::string& app_id,
+                    bool was_subscribed,
+@@ -488,6 +496,12 @@ class PushMessagingServiceImpl : public content::PushMessagingService,
+   std::unique_ptr<PermissionRevocationRequest> origin_revocation_request_;
+   std::queue<PendingMessage> messages_pending_permission_check_;
+ 
++  // Messages wait here until content settings are up to date: on Android the
++  // notification permission is read from notification channels after the
++  // profile starts, so a message that starts the browser can come first.
++  bool content_settings_up_to_date_ = false;
++  std::queue<PendingMessage> messages_waiting_for_content_settings_;
++
+   // {Origin, ServiceWokerRegistratonId} key for message delivery queue. This
+   // ensures that we only deliver one message at a time per ServiceWorker.
+   using MessageDeliveryQueueKey = std::pair<GURL, int64_t>;
