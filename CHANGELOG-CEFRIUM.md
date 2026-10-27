@@ -49,6 +49,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   `Cefrium.setLibraryPrefetchEnabled(false)` turns it off.
 - arm64 builds use the PGO profile Chrome ships: `libcef.so` is 15 MB
   smaller, and a cold start 50-100 ms faster on the slower of the two phones.
+- Renderers fork from an app zygote that has `libcef.so` loaded, as in
+  Chrome, and share the relocated library: 4-8 MB less memory per renderer
+  on a W90. An app with its own `android:zygotePreloadName` keeps it with
+  `tools:replace`.
 
 - `Cefrium.getRendererServices()`: which renderer services the engine
   launches on this device (native javaless ones on Android 17+, or the Java
