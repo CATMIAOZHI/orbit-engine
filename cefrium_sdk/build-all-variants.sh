@@ -96,7 +96,6 @@ COMMON_ARGS='
   is_clang = true
   enable_jni_multiplexing = false
   use_hashed_jni_names = false
-  chrome_pgo_phase = 0
   v8_use_external_startup_data = false
 '
 
@@ -121,6 +120,24 @@ build_variant() {
   echo "  CPU: $target_cpu  Codecs: $codec"
   echo "============================================"
   echo ""
+
+  # PGO with the profile Chrome ships in the tree, arm64 only (there is none
+  # for x64). V8's builtins profile comes from the checkout_pgo_profiles hook.
+  local pgo_args='
+  chrome_pgo_phase = 0
+'
+  if [ "$cpu" = "arm64" ]; then
+    if [ ! -f "$SRC_DIR/v8/tools/builtins-pgo/profiles/x64.profile" ]; then
+      echo "ERROR: V8 builtins PGO profile missing. Set \"checkout_pgo_profiles\": True"
+      echo "  in .gclient custom_vars and run gclient runhooks, or from chromium/src:"
+      echo "  python3 v8/tools/builtins-pgo/download_profiles.py download --depot-tools <depot_tools>"
+      return 1
+    fi
+    pgo_args='
+  chrome_pgo_phase = 2
+  pgo_data_path = "//chrome/android/orderfiles/arm64/pgo_profile.arm64.profdata"
+'
+  fi
 
   local codec_args=""
   if [ "$codec" = "codecs" ]; then
@@ -165,6 +182,7 @@ build_variant() {
 target_os = "android"
 target_cpu = "${target_cpu}"
 ${COMMON_ARGS}
+${pgo_args}
 ${codec_args}
 EOF
 

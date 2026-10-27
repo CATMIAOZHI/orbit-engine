@@ -100,13 +100,17 @@ depot_tools/gn gen out/Official_android_arm64_codecs --args='
   is_clang = true
   enable_jni_multiplexing = false
   use_hashed_jni_names = false
-  chrome_pgo_phase = 0
+  chrome_pgo_phase = 2
+  pgo_data_path = "//chrome/android/orderfiles/arm64/pgo_profile.arm64.profdata"
   v8_use_external_startup_data = false
   proprietary_codecs = true
   ffmpeg_branding = "Chrome"
 '
 # For the libre variant: proprietary_codecs = false, no ffmpeg_branding.
-# Use target_cpu = "x64" for emulator builds.
+# Use target_cpu = "x64" for emulator builds, with chrome_pgo_phase = 0 and no
+# pgo_data_path: the tree has a PGO profile for arm64 only.
+# arm64 also needs V8's builtins profile: "checkout_pgo_profiles": True in the
+# .gclient custom_vars, then gclient runhooks.
 
 # Build libcef.so + AAR
 ninja -C out/Official_android_arm64_codecs cef:libcef cef/cefrium_sdk:cefrium_aar
