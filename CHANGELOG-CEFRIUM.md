@@ -45,6 +45,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   `CefriumProfile.setDownloadObserver` reports every change to a download of
   the profile, whichever browser started it and whether or not it is still
   open.
+- `Cefrium.setSecureDns(mode, templates)`: Chrome's secure DNS (DNS over
+  HTTPS) for every browser of the app, off, automatic or secure with the
+  app's own servers. In secure mode names that the servers cannot resolve do
+  not resolve at all.
 - `DownloadItem.isInterrupted()`: the download stopped on an error, which
   `getInterruptReason()` names. Before, a failed download looked like one
   still in progress.
