@@ -75,6 +75,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   licence, since they are meant for upstream.
 
 ### Fixed
+- A Web Push message that started the app could be dropped, and its
+  subscription removed, when it arrived before Android's notification
+  channels had been read: the permission looked unset. Messages now wait for
+  the content settings once (patch `android/push_wait_for_content_settings`).
 - An app that declares `android:zygotePreloadName` no longer has every
   renderer crash at start: the engine took the app zygote for the browser
   process and the renderers forked from it had no entry point.
