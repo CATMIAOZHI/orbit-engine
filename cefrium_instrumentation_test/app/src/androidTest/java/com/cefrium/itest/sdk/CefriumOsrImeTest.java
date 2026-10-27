@@ -130,6 +130,52 @@ public class CefriumOsrImeTest {
         });
     }
 
+    // A keyboard owned by the app, with a mirror field of its own (Flutter,
+    // for one): it shows the composition through the IME, then writes the
+    // field's whole value with JavaScript instead of committing it. The value
+    // written differs from the composition, so only the script can produce it.
+    private static final String SET_VALUE = "var e=document.activeElement;e.value='123';"
+            + "e.dispatchEvent(new Event('input',{bubbles:true}));"
+            + "e.dispatchEvent(new Event('change',{bubbles:true}));";
+
+    private void typeThroughAMirrorField(CefriumBrowser b, boolean focusedFrame) {
+        activityRule.getActivity().runOnUiThread(() -> {
+            b.imeSetComposition("12", 2, 2);
+            if (focusedFrame) {
+                b.evaluateJavaScriptInFocusedFrame(SET_VALUE);
+            } else {
+                b.evaluateJavaScript(SET_VALUE);
+            }
+        });
+    }
+
+    @Test
+    public void mirrorFieldValueReachesAFieldInAFrame() throws Exception {
+        AtomicReference<String> title = new AtomicReference<>("");
+        CefriumBrowser b = open(framePage(""), title);
+        typeThroughAMirrorField(b, true);
+        waitFor(title, "v:123");
+    }
+
+    @Test
+    public void mirrorFieldValueReachesAFieldInTheMainFrame() throws Exception {
+        AtomicReference<String> title = new AtomicReference<>("");
+        CefriumBrowser b = open(mainFramePage(""), title);
+        typeThroughAMirrorField(b, true);
+        waitFor(title, "v:123");
+    }
+
+    // Why the method above exists: the main frame's script cannot reach a
+    // field inside a frame (its activeElement is the frame).
+    @Test
+    public void mainFrameScriptDoesNotReachAFieldInAFrame() throws Exception {
+        AtomicReference<String> title = new AtomicReference<>("");
+        CefriumBrowser b = open(framePage(""), title);
+        typeThroughAMirrorField(b, false);
+        Thread.sleep(2000);
+        Assert.assertNotEquals("v:123", title.get());
+    }
+
     @Test
     public void mainFrame() throws Exception {
         AtomicReference<String> title = new AtomicReference<>("");

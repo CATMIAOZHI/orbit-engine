@@ -5489,6 +5489,19 @@ Java_com_cefrium_CefriumBrowser_nativeEvaluateJavaScript(
   env->ReleaseStringUTFChars(script_jstr, script);
 }
 
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeEvaluateJavaScriptInFocusedFrame(
+    JNIEnv* env, jclass clazz, jlong native_ptr, jstring script_jstr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return;
+  CefRefPtr<CefFrame> frame = data->browser->GetFocusedFrame();
+  if (!frame) frame = data->browser->GetMainFrame();
+  if (!frame) return;
+  const char* script = env->GetStringUTFChars(script_jstr, nullptr);
+  frame->ExecuteJavaScript(CefString(script), frame->GetURL(), 0);
+  env->ReleaseStringUTFChars(script_jstr, script);
+}
+
 // Resolves a bridge query on the browser UI thread. The lock + live-registry
 // check make this safe even if the browser was closed (data deleted) after the
 // async response was posted (FEATURE-023 step 4b).
