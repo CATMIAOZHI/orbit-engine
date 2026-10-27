@@ -47,6 +47,7 @@
 #include <set>
 
 #include "base/no_destructor.h"
+#include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"
 #include "cef/include/cef_request_handler.h"
 #include "cef/include/cef_task.h"
@@ -1468,6 +1469,84 @@ class SdkCookieAccessFilter : public CefCookieAccessFilter {
   jobject java_browser_;
 };
 
+// Sites where a profile's browsers block nothing, as @@||site^$document does:
+// a host covers its subdomains, an origin only itself. Written on the UI thread
+// by CefriumProfile.setAdBlockExceptions, read on the IO thread per request.
+class AdBlockExceptions {
+ public:
+  // False, and nothing changed, if an entry is neither a host nor an origin.
+  static bool Set(bool incognito,
+                  const std::string& profile,
+                  const std::vector<std::string>& sites) {
+    std::vector<std::string> hosts;
+    std::vector<url::Origin> origins;
+    for (const std::string& site : sites) {
+      if (site.find("://") != std::string::npos) {
+        GURL url(site);
+        if (!url.is_valid() || !url.has_host() ||
+            (url.has_path() && url.path() != "/") || url.has_query()) {
+          return false;
+        }
+        origins.push_back(url::Origin::Create(url));
+      } else {
+        GURL url("https://" + site + "/");
+        if (site.empty() || !url.is_valid() || url.host() != base::ToLowerASCII(site)) {
+          return false;
+        }
+        hosts.push_back(std::string(url.host()));
+      }
+    }
+    base::AutoLock lock(Lock());
+    Entry& entry = Map()[{incognito, profile}];
+    entry.hosts = std::move(hosts);
+    entry.origins = std::move(origins);
+    return true;
+  }
+
+  static bool Covers(bool incognito,
+                     const std::string& profile,
+                     const GURL& document) {
+    if (!document.is_valid() || !document.has_host()) {
+      return false;
+    }
+    base::AutoLock lock(Lock());
+    auto it = Map().find({incognito, profile});
+    if (it == Map().end()) {
+      return false;
+    }
+    const std::string_view host = document.host();
+    for (const std::string& h : it->second.hosts) {
+      if (host == h || (host.size() > h.size() &&
+                        host.ends_with(h) &&
+                        host[host.size() - h.size() - 1] == '.')) {
+        return true;
+      }
+    }
+    const url::Origin origin = url::Origin::Create(document);
+    for (const url::Origin& o : it->second.origins) {
+      if (o.IsSameOriginWith(origin)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+ private:
+  struct Entry {
+    std::vector<std::string> hosts;
+    std::vector<url::Origin> origins;
+  };
+  static base::Lock& Lock() {
+    static base::NoDestructor<base::Lock> lock;
+    return *lock;
+  }
+  static std::map<std::pair<bool, std::string>, Entry>& Map() {
+    static base::NoDestructor<std::map<std::pair<bool, std::string>, Entry>>
+        map;
+    return *map;
+  }
+};
+
 // Errors that only a proxy causes: the request failed because of the proxy,
 // not the site.
 bool IsProxyError(cef_errorcode_t error) {
@@ -1508,6 +1587,11 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
   void SetCookieFilterEnabled(bool e) { cookie_filter_enabled_ = e; }
   void SetObservers(int observers) { observers_ = observers; }
   void SetAdBlockEnabled(bool enabled) { adblock_enabled_ = enabled; }
+  // The profile whose ad-block exceptions apply; set once at creation.
+  void SetProfile(bool incognito, const std::string& profile) {
+    incognito_ = incognito;
+    profile_ = profile;
+  }
   int blocked_count() const { return blocked_count_; }
 
   // The Java browser is the same object for the browser's lifetime; the first
@@ -1549,9 +1633,13 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
     }
     const std::string url = request->GetURL().ToString();
 
-    bool blocked =
-        filter && filter->ShouldBlock(GURL(url), DocumentOf(frame, request),
-                                      request->GetResourceType());
+    bool blocked = false;
+    if (filter) {
+      const GURL document = DocumentOf(frame, request);
+      blocked = !AdBlockExceptions::Covers(incognito_, profile_, document) &&
+                filter->ShouldBlock(GURL(url), document,
+                                    request->GetResourceType());
+    }
 
     jobject jb = java_browser_;
     JNIEnv* env = jb ? base::android::AttachCurrentThread() : nullptr;
@@ -1727,6 +1815,8 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
   jmethodID proxy_error_ = nullptr;
   std::atomic<int> observers_{0};
   std::atomic<bool> adblock_enabled_{true};
+  bool incognito_ = false;
+  std::string profile_;
   std::atomic<int> blocked_count_{0};
   std::atomic<bool> response_tap_enabled_{false};
   std::atomic<bool> cookie_filter_enabled_{false};
@@ -4085,6 +4175,8 @@ Java_com_cefrium_CefriumBrowser_nativeCreate(
   data->life_span_handler->SetBrowserData(data);
   data->client = new SdkClient(data->render_handler, data->life_span_handler,
                                /*with_request_handler=*/true);
+  data->client->request_handler()->resource_request_handler()->SetProfile(
+      data->is_incognito, data->profile);
   LOGI("nativeCreate: %dx%d (browser not yet created, adblock active)", width, height);
   {
     base::AutoLock lock(BridgeDataLock());
@@ -5228,6 +5320,8 @@ Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
       nullptr,  // No render handler — ContentViewRenderView handles rendering
       data->life_span_handler,
       /*with_request_handler=*/true);
+  data->client->request_handler()->resource_request_handler()->SetProfile(
+      data->is_incognito, data->profile);
 
   LOGI("nativeCreateWithSurface: %dx%d (windowed mode, ContentViewRenderView)", width, height);
 
@@ -6062,6 +6156,26 @@ Java_com_cefrium_Cefrium_nativeLoadAdBlockList(
 extern "C" JNIEXPORT jint JNICALL
 Java_com_cefrium_Cefrium_nativeLoadYouTubeAdRules(JNIEnv* env, jclass clazz) {
   return AdBlockFilter::LoadYouTubeAdRules();
+}
+
+// CefriumProfile.setAdBlockExceptions: the sites, a host or an origin each.
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_cefrium_CefriumProfile_nativeSetAdBlockExceptions(JNIEnv* env,
+                                                         jclass clazz,
+                                                         jboolean incognito,
+                                                         jstring profile,
+                                                         jobjectArray sites_j) {
+  std::vector<std::string> sites;
+  const jsize n = sites_j ? env->GetArrayLength(sites_j) : 0;
+  for (jsize i = 0; i < n; ++i) {
+    auto site = static_cast<jstring>(env->GetObjectArrayElement(sites_j, i));
+    sites.push_back(JStr(env, site).ToString());
+    env->DeleteLocalRef(site);
+  }
+  return AdBlockExceptions::Set(incognito == JNI_TRUE,
+                                JStr(env, profile).ToString(), sites)
+             ? JNI_TRUE
+             : JNI_FALSE;
 }
 
 // Chrome's secure DNS settings, which apply to the whole browser. The templates
