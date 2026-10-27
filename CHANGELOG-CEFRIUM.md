@@ -92,6 +92,11 @@ in the internal FEATURE-NNN.md working docs (not published).
 - Closing a browser canceled the downloads it had started, as if the user
   had: its network requests were aborted with it. A request whose response
   is already on its way now finishes, so a download continues, as in Chrome.
+- Downloads restored from the profile's history at startup were canceled
+  for having no browser, which deleted the partial file of one a restart had
+  interrupted. A resumed download also keeps writing its own file; resumed
+  with no browser it was saved again, from the start, in the public
+  Downloads folder.
 - A download the app allows without a path (`callback.allow(null)`, or no
   download handler) is saved in the app's own Downloads directory,
   `getExternalFilesDir(DIRECTORY_DOWNLOADS)`. It went to `/sdcard/Download`
