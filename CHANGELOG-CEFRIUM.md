@@ -18,6 +18,11 @@ in the internal FEATURE-NNN.md working docs (not published).
 ## [Unreleased]
 
 ### Added
+- `CefriumBrowser.evaluateJavaScriptInFocusedFrame(script)` runs a script in
+  the frame that has focus. `evaluateJavaScript` runs in the main frame, whose
+  `document.activeElement` is the iframe when the focused field is inside
+  one, so an app that writes a field's value from its own text field could
+  not reach a field in a frame (issue #9).
 - `CefriumBrowser.setMediaPlaybackRequiresUserGesture(false)` lets a page
   start sound on its own, as the WebView setting of the same name. By default
   an unmuted `autoplay` or `play()` without a tap is rejected with
