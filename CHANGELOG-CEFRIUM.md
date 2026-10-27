@@ -87,6 +87,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   reading engine internals.
 
 ### Changed
+- The engine no longer turns on Chromium's field-trial testing config, the
+  experiments Chrome tries before shipping them: Chrome for Android never
+  applies it, and on Android it enabled 598 features Chrome does not. The
+  engine now behaves as Chrome's release does.
 - The YouTube ad heuristics are no longer added with the first list: call
   `Cefrium.loadYouTubeAdRules()` to keep them. They are also limited to
   YouTube's own hosts; as bare URL substrings they matched any site.
