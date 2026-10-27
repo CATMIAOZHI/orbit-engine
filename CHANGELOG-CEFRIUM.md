@@ -47,6 +47,8 @@ in the internal FEATURE-NNN.md working docs (not published).
   when `libcef.so` is not in the page cache, measured on two phones. A warm
   start is not slowed: the thread stops at once when the file is cached.
   `Cefrium.setLibraryPrefetchEnabled(false)` turns it off.
+- arm64 builds use the PGO profile Chrome ships: `libcef.so` is 15 MB
+  smaller, and a cold start 50-100 ms faster on the slower of the two phones.
 
 - `Cefrium.getRendererServices()`: which renderer services the engine
   launches on this device (native javaless ones on Android 17+, or the Java
