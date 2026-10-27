@@ -376,6 +376,13 @@ void CefDownloadManagerDelegateImpl::OnDownloadDestroyed(DownloadItem* item) {
 
 void CefDownloadManagerDelegateImpl::OnDownloadCreated(DownloadManager* manager,
                                                        DownloadItem* item) {
+  // A download restored from history has no browser. Leave it as it was, so
+  // that one a restart interrupted can still be resumed.
+  if (item->GetDownloadCreationType() ==
+      DownloadItem::TYPE_HISTORY_IMPORT) {
+    return;
+  }
+
   // This callback may arrive after DetermineDownloadTarget, so we allow
   // association from either method.
   CefRefPtr<CefBrowserHostBase> browser = GetOrAssociateBrowser(item);
@@ -410,6 +417,13 @@ void CefDownloadManagerDelegateImpl::ManagerGoingDown(
 bool CefDownloadManagerDelegateImpl::DetermineDownloadTarget(
     DownloadItem* item,
     download::DownloadTargetCallback* callback) {
+  // A resumed download keeps writing the file it had, also when it has no
+  // browser any more (e.g. resumed after a restart).
+  if (!item->GetTargetFilePath().empty()) {
+    RunDownloadTargetCallback(std::move(*callback), item->GetTargetFilePath());
+    return true;
+  }
+
   // This callback may arrive before OnDownloadCreated, so we allow association
   // from either method.
   CefRefPtr<CefBrowserHostBase> browser = GetOrAssociateBrowser(item);
