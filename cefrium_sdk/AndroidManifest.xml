@@ -48,7 +48,12 @@
         </intent>
     </queries>
 
-    <application>
+    <!-- The app zygote loads libcef.so once and renderers fork from it with
+         the library already relocated, as Chrome does: 4 to 8 MB less per
+         renderer on a W90. An app with its own zygotePreloadName keeps it
+         with tools:replace and loses this. -->
+    <application
+        android:zygotePreloadName="org.chromium.content_public.app.ZygotePreload">
         <!-- Zero-config init. The framework instantiates this provider at app
              launch (browser process, before any Activity); its onCreate runs the
              per-process Chromium plumbing so consumers need no custom Application
