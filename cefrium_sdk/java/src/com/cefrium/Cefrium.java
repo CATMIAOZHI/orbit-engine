@@ -85,6 +85,7 @@ public final class Cefrium {
     private static boolean sComponentUpdatesEnabled = true;
     private static boolean sLibraryPrefetchEnabled = true;
     private static boolean sNetworkTimeQueriesEnabled = false;
+    private static java.io.File sNetLogFile;
     private static boolean sGpuProcessEnabled = false;
     private static java.io.File sDataDirectory;
 
@@ -340,6 +341,32 @@ public final class Cefrium {
     /** @return whether engine network time queries are enabled (default false). */
     public static synchronized boolean areNetworkTimeQueriesEnabled() {
         return sNetworkTimeQueriesEnabled;
+    }
+
+    /**
+     * Records the engine's network activity to {@code file} in Chromium's NetLog
+     * format, from the engine's start until the process ends: every request, the
+     * proxy chosen for it, DNS lookups and each socket with its address and the
+     * bytes it carried. Open it with the NetLog viewer
+     * (https://netlog-viewer.appspot.com). Cookies and credentials are left out.
+     *
+     * <p>Events reach the file in batches, and a process that is killed rather
+     * than shut down leaves it without its closing brackets; the events written
+     * so far are complete lines.</p>
+     *
+     * <p>Call it before the engine starts (see
+     * {@link #setComponentUpdatesEnabled}); later calls are ignored and log a
+     * warning. Pass null to record nothing, the default.</p>
+     *
+     * @param file where to write the log; the app must be able to write it.
+     */
+    public static synchronized void setNetLogFile(java.io.File file) {
+        if (sInitialized) {
+            android.util.Log.w(TAG, "setNetLogFile() ignored: the engine is already "
+                    + "initialized. Call it before the first browser is created.");
+            return;
+        }
+        sNetLogFile = file;
     }
 
     // Add a feature to --disable-features without clobbering a value the embedder
@@ -606,6 +633,10 @@ public final class Cefrium {
         // and an embedder opts back IN. Upstream switch, so it survives engine bumps.
         if (!sNetworkTimeQueriesEnabled) {
             disableFeature("NetworkTimeServiceQuerying");
+        }
+        if (sNetLogFile != null) {
+            CommandLine.getInstance().appendSwitchWithValue(
+                    "log-net-log", sNetLogFile.getAbsolutePath());
         }
         // Chrome's omnibox AI Mode checks the user's eligibility with Google
         // (www.google.com/async/folae, with locale and country) for every
