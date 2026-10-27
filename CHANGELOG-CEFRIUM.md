@@ -125,6 +125,11 @@ against this release unchanged. Three things may need a change:
   licence, since they are meant for upstream.
 
 ### Fixed
+- The engine no longer contacts Google on its own. Every profile asked
+  accounts.google.com for its signed-in accounts (`ListAccounts`, for a sync
+  metric), and Chrome's AI Mode checked eligibility with www.google.com,
+  sending the locale and country. Google sign-in is now off by default on
+  Android, as CEF intends on desktop, and AI Mode is disabled.
 - Web Push subscriptions no longer break when Android kills the app in the
   middle of a subscribe or unsubscribe. A subscription's record was written
   to disk on a timer: a new subscription could lose it, and its messages were
