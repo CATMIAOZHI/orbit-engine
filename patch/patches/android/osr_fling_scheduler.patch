@@ -1,0 +1,124 @@
+diff --git content/browser/renderer_host/input/fling_scheduler_android.cc content/browser/renderer_host/input/fling_scheduler_android.cc
+index 796b8d683d0d7959c19147e68d7bc5d5a7134a1e..2755936a906cfdb4886e0039a5920cdcd70c304a 100644
+--- content/browser/renderer_host/input/fling_scheduler_android.cc
++++ content/browser/renderer_host/input/fling_scheduler_android.cc
+@@ -10,6 +10,7 @@
+ #include "content/browser/renderer_host/render_widget_host_view_android.h"
+ #include "content/public/common/content_features.h"
+ #include "ui/android/view_android.h"
++#include "ui/compositor/compositor.h"
+ #include "ui/base/ui_base_features.h"
+ 
+ namespace content {
+@@ -21,6 +22,7 @@ FlingSchedulerAndroid::FlingSchedulerAndroid(RenderWidgetHostImpl* host)
+ 
+ FlingSchedulerAndroid::~FlingSchedulerAndroid() {
+   RemoveCompositorTick();
++  RemoveAnimationObserver();
+ }
+ 
+ void FlingSchedulerAndroid::ScheduleFlingProgress(
+@@ -30,6 +32,15 @@ void FlingSchedulerAndroid::ScheduleFlingProgress(
+   if (observed_compositor_)
+     return;
+ 
++  // A view rendering off-screen has no WindowAndroid; tick from its compositor.
++  if (compositor_) {
++    if (!observed_ui_compositor_) {
++      compositor_->AddAnimationObserver(this);
++      observed_ui_compositor_ = compositor_;
++    }
++    return;
++  }
++
+   ui::WindowAndroid* window = GetRootWindow();
+   if (!window)
+     return;
+@@ -53,11 +64,15 @@ void FlingSchedulerAndroid::DidStopFlingingOnBrowser(
+     base::WeakPtr<input::FlingController> fling_controller) {
+   CHECK(fling_controller, base::NotFatalUntil::M152);
+   RemoveCompositorTick();
++  RemoveAnimationObserver();
+   fling_controller_ = nullptr;
+   host_->GetRenderInputRouter()->DidStopFlinging();
+ }
+ 
+ bool FlingSchedulerAndroid::ProgressFlingOnFlingStart() {
++  if (compositor_) {
++    return true;
++  }
+   ui::WindowAndroid* window = GetRootWindow();
+   // If the root window does not have a Compositor (happens on Android
+   // WebView), we'll never receive an OnAnimate call. In this case fall back
+@@ -82,7 +97,7 @@ void FlingSchedulerAndroid::ProgressFlingOnBeginFrameIfneeded(
+     base::TimeTicks current_time) {
+   // If a WindowAndroid is being observed, there is no need for BeginFrames
+   // coming from the host.
+-  if (observed_compositor_)
++  if (observed_compositor_ || observed_ui_compositor_)
+     return;
+   if (!fling_controller_)
+     return;
+@@ -181,4 +196,23 @@ void FlingSchedulerAndroid::OnBeginFrameSourceShuttingDown() {
+   }
+ }
+ 
++void FlingSchedulerAndroid::OnAnimationStep(base::TimeTicks timestamp) {
++  CHECK(observed_ui_compositor_, base::NotFatalUntil::M152);
++  if (fling_controller_)
++    fling_controller_->ProgressFling(timestamp);
++}
++
++void FlingSchedulerAndroid::OnCompositingShuttingDown(
++    ui::Compositor* compositor) {
++  CHECK_EQ(observed_ui_compositor_, compositor, base::NotFatalUntil::M152);
++  RemoveAnimationObserver();
++}
++
++void FlingSchedulerAndroid::RemoveAnimationObserver() {
++  if (!observed_ui_compositor_)
++    return;
++  observed_ui_compositor_->RemoveAnimationObserver(this);
++  observed_ui_compositor_ = nullptr;
++}
++
+ }  // namespace content
+diff --git content/browser/renderer_host/input/fling_scheduler_android.h content/browser/renderer_host/input/fling_scheduler_android.h
+index f621d448775e5ccc188e38aedfad20da834115ac..45228ebb5a3559e62fcc18ab1ce08a889c657768 100644
+--- content/browser/renderer_host/input/fling_scheduler_android.h
++++ content/browser/renderer_host/input/fling_scheduler_android.h
+@@ -12,6 +12,7 @@
+ #include "ui/android/view_android_observer.h"
+ #include "ui/android/window_android.h"
+ #include "ui/android/window_android_observer.h"
++#include "ui/compositor/compositor_animation_observer.h"
+ #include "ui/compositor/host_begin_frame_observer.h"
+ 
+ namespace content {
+@@ -22,7 +23,8 @@ class CONTENT_EXPORT FlingSchedulerAndroid
+     : public input::FlingSchedulerBase,
+       public ui::ViewAndroidObserver,
+       public ui::WindowAndroidObserver,
+-      public ui::HostBeginFrameObserver::SimpleBeginFrameObserver {
++      public ui::HostBeginFrameObserver::SimpleBeginFrameObserver,
++      public ui::CompositorAnimationObserver {
+  public:
+   explicit FlingSchedulerAndroid(RenderWidgetHostImpl* host);
+ 
+@@ -73,9 +75,16 @@ class CONTENT_EXPORT FlingSchedulerAndroid
+       std::optional<base::TimeTicks> first_coalesced_frame_begin_time) override;
+   void OnBeginFrameSourceShuttingDown() override;
+ 
++  // ui::CompositorAnimationObserver implementation, for a view that renders
++  // off-screen with the ui::Compositor given to SetCompositor().
++  void OnAnimationStep(base::TimeTicks timestamp) override;
++  void OnCompositingShuttingDown(ui::Compositor* compositor) override;
++  void RemoveAnimationObserver();
++
+   raw_ptr<ui::ViewAndroid> observed_view_ = nullptr;
+   raw_ptr<ui::WindowAndroid> observed_window_ = nullptr;
+   raw_ptr<CompositorImpl> observed_compositor_ = nullptr;
++  raw_ptr<ui::Compositor> observed_ui_compositor_ = nullptr;
+ };
+ 
+ }  // namespace content
