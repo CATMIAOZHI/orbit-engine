@@ -844,12 +844,17 @@ class SdkDisplayHandler : public CefDisplayHandler {
   jobject java_browser_ = nullptr;
 };
 
+// The app's own Downloads directory, set by Cefrium.initialize. A download the
+// app allows without a path is saved there.
+std::string& DefaultDownloadDir() {
+  static base::NoDestructor<std::string> dir;
+  return *dir;
+}
+
 // Download handler — saves files to the app's download directory.
 // Notifies Java of download progress via onDownloadUpdated callback.
 class SdkDownloadHandler : public CefDownloadHandler {
  public:
-  void SetDownloadDir(const std::string& dir) { download_dir_ = dir; }
-
   void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
     if (java_browser) java_browser_ = env->NewGlobalRef(java_browser);
   }
@@ -873,7 +878,8 @@ class SdkDownloadHandler : public CefDownloadHandler {
                         const CefString& suggested_name,
                         CefRefPtr<CefBeforeDownloadCallback> callback) override {
     uint32_t id = download_item->GetId();
-    std::string default_path = download_dir_ + "/" + suggested_name.ToString();
+    std::string default_path =
+        DefaultDownloadDir() + "/" + suggested_name.ToString();
     LOGI("Download: %s -> %s", download_item->GetURL().ToString().c_str(),
          default_path.c_str());
     // Backward compatibility: with no Java handler registered at all, keep the
@@ -1025,7 +1031,6 @@ class SdkDownloadHandler : public CefDownloadHandler {
 
   std::map<uint32_t, CefRefPtr<CefBeforeDownloadCallback>> pending_before_;
   std::map<uint32_t, CefRefPtr<CefDownloadItemCallback>> item_callbacks_;
-  std::string download_dir_;
   jobject java_browser_ = nullptr;
 };
 
@@ -3937,17 +3942,17 @@ void BindShareService(
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_cefrium_Cefrium_nativeInitialize(
-    JNIEnv* env, jclass clazz, jstring cache_dir_jstr, jstring data_dir_jstr) {
+    JNIEnv* env, jclass clazz, jstring cache_dir_jstr, jstring data_dir_jstr,
+    jstring download_dir_jstr) {
   const char* cache_dir = env->GetStringUTFChars(cache_dir_jstr, nullptr);
   const char* data_dir = env->GetStringUTFChars(data_dir_jstr, nullptr);
+  DefaultDownloadDir() =
+      base::android::ConvertJavaStringToUTF8(env, download_dir_jstr);
 
   static const char* argv[] = {"cefrium"};
   CefMainArgs main_args(1, const_cast<char**>(argv));
-  // FEATURE-023 Phase 1: the browser-process app is intentionally NOT set here.
-  // Passing a CefApp to CefInitialize crashes this port in
-  // CefRequestContextImpl::ExecuteWhenBrowserContextInitialized (Phase 2 to
-  // resolve). The renderer's CefRenderProcessHandler is driven by the child
-  // process's app registered in cef_jni_onload.cc, independent of this.
+  // No browser-process app: browser-side handlers live on the SdkClient, and
+  // the renderer's app is registered in cef_jni_onload.cc.
   int exit_code = CefExecuteProcess(main_args, nullptr, nullptr);
   if (exit_code >= 0) {
     env->ReleaseStringUTFChars(cache_dir_jstr, cache_dir);
@@ -5156,10 +5161,6 @@ Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
       nullptr,  // No render handler — ContentViewRenderView handles rendering
       data->life_span_handler,
       /*with_request_handler=*/true);
-
-  // Set download directory to app's external files/Download.
-  // TODO: get from Java instead of hardcoding.
-  data->client->download_handler()->SetDownloadDir("/sdcard/Download");
 
   LOGI("nativeCreateWithSurface: %dx%d (windowed mode, ContentViewRenderView)", width, height);
 

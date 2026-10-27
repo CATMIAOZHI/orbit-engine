@@ -37,6 +37,9 @@ in the internal FEATURE-NNN.md working docs (not published).
   from revealing the device's address around a proxy.
 - `CefriumProfile.incognito().followDefaultProfile()` drops the incognito
   profile's own proxy and WebRTC settings.
+- `DownloadItem.isInterrupted()`: the download stopped on an error, which
+  `getInterruptReason()` names. Before, a failed download looked like one
+  still in progress.
 - `CefriumBrowser.addDocumentStartJavaScript(script, allowedOriginRules)`
   runs a script in every matching frame before the page's own scripts, as
   the WebView method of the same name. It is kept across navigations and
@@ -89,6 +92,11 @@ in the internal FEATURE-NNN.md working docs (not published).
 - Closing a browser canceled the downloads it had started, as if the user
   had: its network requests were aborted with it. A request whose response
   is already on its way now finishes, so a download continues, as in Chrome.
+- A download the app allows without a path (`callback.allow(null)`, or no
+  download handler) is saved in the app's own Downloads directory,
+  `getExternalFilesDir(DIRECTORY_DOWNLOADS)`. It went to `/sdcard/Download`
+  on-screen and to the filesystem root off-screen, where the app may not
+  write, so it failed.
 - Off-screen browsers fling: a quick swipe keeps scrolling after the finger
   lifts. Before, the fling never advanced, so the page stopped under the
   finger and the first tap after any scroll was taken as the one that stops
