@@ -88,6 +88,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   finger and the first tap after any scroll was taken as the one that stops
   the fling and was lost, e.g. on a field reached by scrolling (issue #9).
   Patch `android/osr_fling_scheduler`.
+- `CefBrowserHost::CreateBrowser`, `CreateBrowserSync` and
+  `GetBrowserByIdentifier` are CEF's own on Android instead of stand-ins:
+  `CreateBrowser` waits for the profile and creates the browser
+  asynchronously, and `GetBrowserByIdentifier` no longer returns null.
 - A Web Push message that started the app could be dropped, and its
   subscription removed, when it arrived before Android's notification
   channels had been read: the permission looked unset. Messages now wait for

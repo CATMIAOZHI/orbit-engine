@@ -1263,7 +1263,6 @@ source_set("libcef_static") {
       "libcef/browser/media_router/media_sink_impl.h",
       "libcef/browser/media_router/media_source_impl.cc",
       "libcef/browser/media_router/media_source_impl.h",
-      "libcef/browser/browser_host_create.cc",
       "libcef/browser/chrome/chrome_browser_host_impl.cc",
       "libcef/browser/chrome/chrome_browser_host_impl.h",
       "libcef/browser/chrome/chrome_browser_delegate.cc",

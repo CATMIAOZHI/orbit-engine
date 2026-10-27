@@ -4054,8 +4054,9 @@ Java_com_cefrium_CefriumBrowser_nativeLoadUrl(
     browser_settings.background_color = data->background_color;
 
     data->pending_url = url;
-    CefBrowserHost::CreateBrowser(window_info, data->client, CefString(url),
-                                  browser_settings, nullptr, ContextFor(data));
+    CefBrowserHost::CreateBrowserSync(window_info, data->client, CefString(url),
+                                      browser_settings, nullptr,
+                                      ContextFor(data));
     LOGI("CreateBrowser with URL: %s", url);
   } else {
     data->browser->GetMainFrame()->LoadURL(CefString(url));
@@ -4227,9 +4228,9 @@ Java_com_cefrium_CefriumBrowser_nativeLoadDataWithBaseUrl(
     CefBrowserSettings browser_settings;
     browser_settings.background_color = data->background_color;
     data->pending_url = served_url;
-    CefBrowserHost::CreateBrowser(window_info, data->client,
-                                  CefString(served_url), browser_settings,
-                                  nullptr, ContextFor(data));
+    CefBrowserHost::CreateBrowserSync(window_info, data->client,
+                                      CefString(served_url), browser_settings,
+                                      nullptr, ContextFor(data));
     LOGI("CreateBrowser (data-with-base served origin=%s)", served_url.c_str());
   } else {
     data->browser->GetMainFrame()->LoadURL(served_url);
@@ -5121,10 +5122,10 @@ Java_com_cefrium_CefriumBrowser_nativeClose(
     // See SdkLifeSpanHandler::OnBeforeClose and the Android platform delegate.
     data->browser->GetHost()->CloseBrowser(true);
   } else {
-    // Browser creation failed. CreateBrowser is synchronous on Android
-    // (android_stubs.cc), so a created browser always has data->browser set by
-    // the time Java can call close(); without one, OnAfterCreated will never
-    // run and no close will fire, so clean up synchronously here.
+    // Browser creation failed. The browser is created with CreateBrowserSync,
+    // so a created browser always has data->browser set by the time Java can
+    // call close(); without one, OnAfterCreated will never run and no close
+    // will fire, so clean up synchronously here.
     {
       base::AutoLock lock(BridgeDataLock());
       LiveBridgeData().erase(native_ptr);
@@ -5173,8 +5174,9 @@ Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
 
   // Incognito tabs share one off-the-record context (isolated + in-memory), a
   // named profile has its own persistent one, and the rest use the global.
-  CefBrowserHost::CreateBrowser(window_info, data->client, CefString(""),
-                                browser_settings, nullptr, ContextFor(data));
+  CefBrowserHost::CreateBrowserSync(window_info, data->client, CefString(""),
+                                    browser_settings, nullptr,
+                                    ContextFor(data));
 
   {
     base::AutoLock lock(BridgeDataLock());
