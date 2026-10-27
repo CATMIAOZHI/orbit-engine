@@ -64,9 +64,10 @@ public interface CefriumRenderHandler {
      *                    which case value/placeholder/type are empty).
      * @param value       The field's current value (already-typed text).
      * @param placeholder The field's {@code placeholder} attribute, or "".
-     * @param type        The input {@code type} attribute (e.g. "text",
-     *                    "password", "email"), or the tag name for non-input
-     *                    editables (e.g. "textarea"), or "".
+     * @param type        The input {@code type} attribute in lower case (e.g.
+     *                    "text", "password", "email"; "text" when absent), or
+     *                    the lower-case tag name of any other editable (e.g.
+     *                    "textarea"), or "".
      */
     default void onFocusedNodeChanged(boolean editable, String value,
                                       String placeholder, String type) {}

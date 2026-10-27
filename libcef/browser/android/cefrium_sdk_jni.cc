@@ -448,7 +448,7 @@ class SdkRenderHandler : public CefRenderHandler {
   }
 
   // FEATURE-062 (issue #9): OSR virtual keyboard. Fired when the focused
-  // editable node changes. |input_mode| == CEF_TEXT_INPUT_MODE_NONE (0) means
+  // editable node changes. |input_mode| == CEF_TEXT_INPUT_MODE_NONE (1) means
   // no editable is focused (hide the soft keyboard); any other value means an
   // editable gained focus (show it). Forwarded to Java so the hosting View can
   // drive InputMethodManager.
