@@ -4,16 +4,17 @@
 
 // JNI_OnLoad for libcef.so on Android.
 //
-// Called in EVERY process (browser, renderer, GPU, utility) when
-// libcef.so is loaded. In child processes, registers a ContentMainDelegate
+// Initialization happens in NativeInitializationHook(), which
+// base::android::LibraryLoaded() calls in every process once its type is
+// known, as Chrome does. Child processes register a ContentMainDelegate there
 // so that ContentMain.start() can find it. In the browser process,
 // CefMainRunner handles delegate creation during CefInitialize().
 //
-// Javaless renderers (Android 17+) have no JVM and never call JNI_OnLoad;
-// they call NativeInitializationHook() instead.
+// JNI_OnLoad itself must not decide the process type: an app zygote loads the
+// library before forking renderers from it, and is not a renderer itself.
+// Javaless renderers (Android 17+) have no JVM and call the hook directly.
 
 #include <jni.h>
-#include <unistd.h>
 
 #include "base/android/jni_android.h"
 #include "base/android/library_loader/library_loader_hooks.h"
@@ -23,34 +24,22 @@
 #include "content/public/app/content_main.h"
 #include "ui/base/resource/resource_bundle_android.h"
 
-namespace {
-
-// Check if this is a child process by examining /proc/self/cmdline.
-// Child processes have ":" in their process name (e.g., ":sandboxed_process0").
-bool IsChildProcess() {
-  char buf[256] = {};
-  FILE* f = fopen("/proc/self/cmdline", "r");
-  if (f) {
-    fread(buf, 1, sizeof(buf) - 1, f);
-    fclose(f);
+bool NativeInitializationHook(
+    base::android::LibraryProcessType library_process_type) {
+  static bool initialized = false;
+  if (initialized) {
+    return true;
   }
-  return strstr(buf, ":") != nullptr;
-}
-
-bool InitLibrary(bool is_child_process) {
   if (!content::android::OnJNIOnLoadInit()) {
     return false;
   }
+  initialized = true;
 
   // Tell Chromium that locale paks are stored as APK assets.
   // Must be set before InitializeICU() which is called by libraryLoaded().
   ui::SetLocalePaksStoredInApk(true);
 
-  if (is_child_process) {
-    // Child processes (renderer, GPU, utility) need a ContentMainDelegate
-    // before ContentMain.start() is called. The browser process handles
-    // this in CefMainRunner::ContentMainInitialize() with actual
-    // runner/settings values.
+  if (library_process_type == base::android::PROCESS_CHILD) {
     content::SetContentMainDelegate(
         new ChromeMainDelegateCef(/*runner=*/nullptr, /*settings=*/nullptr,
                                   /*application=*/new CefriumApp()));
@@ -58,25 +47,12 @@ bool InitLibrary(bool is_child_process) {
   return true;
 }
 
-}  // namespace
-
-// Overrides the weak default in content/app/android/
-// javaless_child_process_service.cc, which only ever runs in a child.
-bool NativeInitializationHook(
-    base::android::LibraryProcessType library_process_type) {
-  return InitLibrary(/*is_child_process=*/true);
-}
-
 extern "C" {
 
 __attribute__((visibility("default")))
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   base::android::InitVM(vm);
-
-  if (!InitLibrary(IsChildProcess())) {
-    return -1;
-  }
-
+  base::android::SetNativeInitializationHook(NativeInitializationHook);
   return JNI_VERSION_1_4;
 }
 
