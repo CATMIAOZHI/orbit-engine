@@ -17,6 +17,17 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+### Upgrading from 0.15.0
+The public API only grows: an app built against 0.15.0 builds and links
+against this release unchanged. Three things may need a change:
+- An app that blocks YouTube ads calls `Cefrium.loadYouTubeAdRules()`: the
+  rules are no longer added with the first filter list.
+- An app that declares its own `android:zygotePreloadName` keeps it with
+  `tools:replace="android:zygotePreloadName"`, since the SDK now declares one.
+- `onFocusedNodeChanged` reports `text` for an `<input>` without a `type`,
+  and every type in lower case; code that compared it with `"INPUT"` needs
+  the new value.
+
 ### Added
 - `CefriumBrowser.evaluateJavaScriptInFocusedFrame(script)` runs a script in
   the frame that has focus. `evaluateJavaScript` runs in the main frame, whose
