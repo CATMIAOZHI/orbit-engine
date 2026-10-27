@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Base64;
+import android.util.Log;
 
 import org.chromium.components.gcm_driver.GCMDriver;
 import org.chromium.components.gcm_driver.GCMMessage;
@@ -58,6 +59,8 @@ public final class CefriumPush {
     private static final String RELAY_PARTS = "cefrium_relay_parts";
     // FCM keeps a message 28 days at most; a part older than that is orphaned.
     private static final long RELAY_PART_LIFETIME_MS = 28L * 24 * 60 * 60 * 1000;
+
+    private static final String TAG = "CefriumPush";
 
     private CefriumPush() {}
 
@@ -189,11 +192,31 @@ public final class CefriumPush {
         return whole == null ? null : whole.toString();
     }
 
+    // Waits until the engine has the message: the engine starts on first use,
+    // and a messaging service that returned first could leave a process that
+    // Android freezes or reclaims before the service worker runs.
     private static void dispatch(Context context, GCMMessage message) {
-        final Context app = context.getApplicationContext();
-        new Handler(Looper.getMainLooper()).post(() -> {
-            if (!Cefrium.isInitialized()) Cefrium.initialize(app);
+        Runnable deliver = () -> {
+            Cefrium.ensureInitialized();
             GCMDriver.dispatchMessage(message);
-        });
+        };
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            deliver.run();
+            return;
+        }
+        java.util.concurrent.FutureTask<Void> task =
+                new java.util.concurrent.FutureTask<>(deliver, null);
+        new Handler(Looper.getMainLooper()).post(task);
+        try {
+            task.get(DISPATCH_TIMEOUT_S, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (java.util.concurrent.ExecutionException
+                | java.util.concurrent.TimeoutException e) {
+            Log.w(TAG, "push message not handed to the engine: " + e);
+        }
     }
+
+    // Firebase stops the service about 20 s after onMessageReceived starts.
+    private static final long DISPATCH_TIMEOUT_S = 15;
 }

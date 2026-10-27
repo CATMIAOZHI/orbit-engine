@@ -53,6 +53,14 @@ in the internal FEATURE-NNN.md working docs (not published).
   Chrome, and share the relocated library: 4-8 MB less memory per renderer
   on a W90. An app with its own `android:zygotePreloadName` keeps it with
   `tools:replace`.
+- The engine starts the first time the app uses it (a browser, a profile, a
+  filter list) instead of at every process start. A process woken for a
+  push message, a job or a broadcast that opens no browser no longer loads
+  it: on a W90 it starts in 85 ms with 20 MB instead of 550 ms with 160 MB.
+  A cold start to the first page is unchanged. `Cefrium.initialize(context)`
+  still starts it ahead, and the settings that must precede it
+  (`setComponentUpdatesEnabled` and the like) now also work from
+  `Application.onCreate`.
 
 - `Cefrium.getRendererServices()`: which renderer services the engine
   launches on this device (native javaless ones on Android 17+, or the Java

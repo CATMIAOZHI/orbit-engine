@@ -97,7 +97,7 @@ public final class CefriumProfile {
      * @return where this profile's data lives: the engine's data directory for
      *         the default profile, {@code profile-<name>} under it for a named
      *         one, null for incognito.
-     * @throws IllegalStateException before the engine is initialized.
+     * @throws IllegalStateException if the engine cannot start.
      */
     public File getDirectory() {
         File root = root();
@@ -113,9 +113,14 @@ public final class CefriumProfile {
      *         open and the data is deleted on the next start, before the
      *         engine opens anything.
      * @throws IllegalStateException if a browser of this profile is open, or
-     *         before the engine is initialized.
+     *         if the engine cannot start.
      */
-    public static synchronized boolean delete(String name) {
+    public static boolean delete(String name) {
+        Cefrium.ensureInitialized();
+        return deleteStarted(name);
+    }
+
+    private static synchronized boolean deleteStarted(String name) {
         CefriumProfile profile = get(name);
         Integer open = sOpenBrowsers.get(name);
         if (open != null && open > 0) {
@@ -163,7 +168,7 @@ public final class CefriumProfile {
      * Lists every site that has data in this profile, with its size and
      * cookie count: the same figures Chrome's per-site storage screen shows.
      *
-     * @throws IllegalStateException before the engine is initialized.
+     * @throws IllegalStateException if the engine cannot start.
      */
     public void listSiteData(SiteDataCallback callback) {
         if (callback == null) throw new IllegalArgumentException("callback must not be null");
@@ -180,7 +185,7 @@ public final class CefriumProfile {
      * the data Chromium keeps under that host.
      *
      * @param done runs on the UI thread once the data is gone; may be null.
-     * @throws IllegalStateException before the engine is initialized.
+     * @throws IllegalStateException if the engine cannot start.
      */
     public void clearSiteData(String site, Runnable done) {
         if (site == null || site.isEmpty()) throw new IllegalArgumentException("site must not be empty");
@@ -355,11 +360,16 @@ public final class CefriumProfile {
         list.delete();
     }
 
-    private static synchronized File root() {
-        if (sRoot == null) {
-            throw new IllegalStateException("The engine is not initialized yet");
+    // Starts the engine first; callers holding this class's lock must have
+    // started it already (onDataRoot takes the lock on the main thread).
+    private static File root() {
+        Cefrium.ensureInitialized();
+        synchronized (CefriumProfile.class) {
+            if (sRoot == null) {
+                throw new IllegalStateException("The engine did not report its data root");
+            }
+            return sRoot;
         }
-        return sRoot;
     }
 
     private static void schedule(File dir) {
