@@ -840,6 +840,39 @@ public final class Cefrium {
         return nativeLoadYouTubeAdRules();
     }
 
+    /** Secure DNS off: the system resolver, as Chrome's "off". */
+    public static final String SECURE_DNS_OFF = "off";
+    /**
+     * Use DNS over HTTPS when the system's resolver has a provider that offers
+     * it, and the system resolver otherwise; Chrome's default.
+     */
+    public static final String SECURE_DNS_AUTOMATIC = "automatic";
+    /**
+     * Only DNS over HTTPS through the given servers: if they cannot be reached,
+     * names do not resolve.
+     */
+    public static final String SECURE_DNS_SECURE = "secure";
+
+    /**
+     * Chrome's secure DNS (DNS over HTTPS) setting, for every browser of the
+     * app. It is kept across runs, and can be changed at any time.
+     *
+     * @param mode      {@link #SECURE_DNS_OFF}, {@link #SECURE_DNS_AUTOMATIC} or
+     *                  {@link #SECURE_DNS_SECURE}.
+     * @param templates DoH server URI templates (RFC 8484), separated by
+     *                  spaces, e.g. {@code "https://dns.example/dns-query{?dns}"};
+     *                  null or empty for none. Required for secure mode.
+     * @return false if the mode or a template is not valid.
+     * @throws IllegalStateException if not called on the main thread.
+     */
+    public static boolean setSecureDns(String mode, String templates) {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            throw new IllegalStateException("setSecureDns must be called on the main thread");
+        }
+        ensureInitialized();
+        return nativeSetSecureDns(mode == null ? "" : mode, templates == null ? "" : templates);
+    }
+
     /** {@link #downloadAndLoadAdBlockList} for {@link #EASYLIST_URL}. */
     public static void downloadAndLoadEasyList(android.content.Context context) {
         downloadAndLoadAdBlockList(context, EASYLIST_URL, null);
@@ -1034,5 +1067,6 @@ public final class Cefrium {
     private static native void nativeShutdown();
     private static native int nativeLoadAdBlockList(String list, String path);
     private static native int nativeLoadYouTubeAdRules();
+    private static native boolean nativeSetSecureDns(String mode, String templates);
     private static native void nativeFetchAdBlockList(String url, long id);
 }

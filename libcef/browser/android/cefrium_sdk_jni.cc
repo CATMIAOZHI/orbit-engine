@@ -22,11 +22,13 @@
 #include "cef/include/cef_cookie.h"
 #include "cef/include/cef_request.h"
 #include "cef/include/cef_parser.h"
+#include "cef/include/cef_preference.h"
 #include "cef/include/cef_request_context.h"
 #include "cef/include/cef_urlrequest.h"
 #include "components/js_injection/browser/js_communication_host.h"
 #include "components/js_injection/common/enum.mojom.h"
 #include "components/origin_matcher/origin_matcher.h"
+#include "net/dns/public/dns_over_https_config.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "cef/include/cef_values.h"
 #include "cef/include/cef_version.h"
@@ -6009,6 +6011,41 @@ Java_com_cefrium_Cefrium_nativeLoadAdBlockList(
 extern "C" JNIEXPORT jint JNICALL
 Java_com_cefrium_Cefrium_nativeLoadYouTubeAdRules(JNIEnv* env, jclass clazz) {
   return AdBlockFilter::LoadYouTubeAdRules();
+}
+
+// Chrome's secure DNS settings, which apply to the whole browser. The templates
+// are checked as Chrome checks them; secure mode needs at least one.
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_cefrium_Cefrium_nativeSetSecureDns(JNIEnv* env,
+                                            jclass clazz,
+                                            jstring mode_j,
+                                            jstring templates_j) {
+  const std::string mode = JStr(env, mode_j).ToString();
+  const std::string templates = JStr(env, templates_j).ToString();
+  if (mode != "off" && mode != "automatic" && mode != "secure") {
+    return JNI_FALSE;
+  }
+  if (!templates.empty() &&
+      !net::DnsOverHttpsConfig::FromString(templates).has_value()) {
+    return JNI_FALSE;
+  }
+  if (mode == "secure" && templates.empty()) {
+    return JNI_FALSE;
+  }
+  CefRefPtr<CefPreferenceManager> prefs =
+      CefPreferenceManager::GetGlobalPreferenceManager();
+  CefString error;
+  for (const auto& [name, value] :
+       {std::make_pair("dns_over_https.templates", templates),
+        std::make_pair("dns_over_https.mode", mode)}) {
+    CefRefPtr<CefValue> v = CefValue::Create();
+    v->SetString(value);
+    if (!prefs->SetPreference(name, v, error)) {
+      LOG(ERROR) << "setSecureDns: " << name << ": " << error.ToString();
+      return JNI_FALSE;
+    }
+  }
+  return JNI_TRUE;
 }
 
 namespace {
