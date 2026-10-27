@@ -103,6 +103,7 @@ depot_tools/gn gen out/Official_android_arm64_codecs --args='
   chrome_pgo_phase = 2
   pgo_data_path = "//chrome/android/orderfiles/arm64/pgo_profile.arm64.profdata"
   v8_use_external_startup_data = false
+  disable_fieldtrial_testing_config = true
   proprietary_codecs = true
   ffmpeg_branding = "Chrome"
 '
