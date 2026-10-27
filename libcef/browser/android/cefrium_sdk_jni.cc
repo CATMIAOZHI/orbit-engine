@@ -6086,9 +6086,14 @@ Java_com_cefrium_Cefrium_nativeSetSecureDns(JNIEnv* env,
   CefRefPtr<CefPreferenceManager> prefs =
       CefPreferenceManager::GetGlobalPreferenceManager();
   CefString error;
-  for (const auto& [name, value] :
-       {std::make_pair("dns_over_https.templates", templates),
-        std::make_pair("dns_over_https.mode", mode)}) {
+  // Each change applies at once, so the order matters: the servers must not
+  // meet the previous mode. Turning it off sets the mode first; otherwise the
+  // servers are in place before the mode that uses them.
+  auto templates_pref = std::make_pair("dns_over_https.templates", templates);
+  auto mode_pref = std::make_pair("dns_over_https.mode", mode);
+  const bool off = mode == "off";
+  for (const auto& [name, value] : {off ? mode_pref : templates_pref,
+                                    off ? templates_pref : mode_pref}) {
     CefRefPtr<CefValue> v = CefValue::Create();
     v->SetString(value);
     if (!prefs->SetPreference(name, v, error)) {
