@@ -109,9 +109,6 @@ in the internal FEATURE-NNN.md working docs (not published).
   licence, since they are meant for upstream.
 
 ### Fixed
-- `setMediaPlaybackRequiresUserGesture(false)` could be lost for a page:
-  Chrome sets the autoplay policy again after every navigation, so a page
-  sometimes still needed a tap before playing with sound.
 - Opening a named profile after a download had started killed the app
   (Safe Browsing kept one download telemetry service for all profiles and
   replaced it while it was in use). Patch `android/multi_profile`.
@@ -135,6 +132,9 @@ in the internal FEATURE-NNN.md working docs (not published).
   Patch `android/osr_fling_scheduler`.
 - `onFocusedNodeChanged` reports `text` for an `<input>` without a `type`,
   and lower-case names throughout, as documented. It reported `INPUT`.
+- A `CefApp` given to `CefInitialize` no longer crashes the browser process:
+  its `CefBrowserProcessHandler` gets `OnContextInitialized` as on other
+  platforms.
 - `CefBrowserHost::CreateBrowser`, `CreateBrowserSync` and
   `GetBrowserByIdentifier` are CEF's own on Android instead of stand-ins:
   `CreateBrowser` waits for the profile and creates the browser
