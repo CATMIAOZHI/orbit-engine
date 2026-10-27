@@ -18,7 +18,7 @@ One script runs all of it. The phases, in order, and what each one is for:
 | 5 | `plugin` | Check the Gradle plugin jar | - |
 | 6 | `stats` | Derive every figure README.md, QUICKSTART-CEFRIUM.md, MIGRATION-CEFRIUM.md and BUILD-GUIDE-CEFRIUM.md state (patch counts, engine, SDK version, service slots, toolchain and JDK floors), commit them, then assert what was committed; also assert that every API name, Cefrium type, script path and doc link in those four and in FEATURES/CHANGELOG/SCRIPTS/RELEASING/PATCHING still resolves; also assert the changelog has this version's section as its newest entry | `update-doc-figures.py` |
 | 7 | `sanity` | Build a REAL consumer against the fresh AAR, before anything immutable | - |
-| 8 | `suite` | The 46-test on-device suite, read from the result files, not from Gradle's exit status | `run-instrumentation-suite.sh` |
+| 8 | `suite` | The on-device suite, read from the result files, not from Gradle's exit status | `run-instrumentation-suite.sh` |
 | 9 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
 | 10 | `central` | Upload to Maven Central, the channel adopters actually pin | `publish-central.sh` |
 | 11 | `flagship` | Build the browser APK against this exact SDK | - |
