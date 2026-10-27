@@ -29,6 +29,11 @@ against this release unchanged. Three things may need a change:
   the new value.
 
 ### Added
+- `Cefrium.setNetLogFile(file)` records the engine's network activity in
+  Chromium's NetLog format: each request, the proxy chosen for it, DNS lookups
+  and every socket with its address and bytes. Cookies and credentials are
+  left out. The network-privacy sample uses it to check that nothing goes
+  around a proxy.
 - `CefriumBrowser.evaluateJavaScriptInFocusedFrame(script)` runs a script in
   the frame that has focus. `evaluateJavaScript` runs in the main frame, whose
   `document.activeElement` is the iframe when the focused field is inside
