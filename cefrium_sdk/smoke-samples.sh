@@ -46,10 +46,10 @@ N="$("$ADB" devices 2>/dev/null | grep -c 'device$')"
 REGISTRY_VERSION=""
 [ "${1:-}" = "--registry" ] && { REGISTRY_VERSION="${2:?--registry needs a version}"; shift 2; }
 
-SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive kiosk-automotive-v2 kiosk-signage loaddata-baseurl osr-hud firebase-coexistence nested-scroll kotlin-arrow-sample profiles"
+SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive kiosk-automotive-v2 kiosk-signage loaddata-baseurl osr-hud firebase-coexistence nested-scroll kotlin-arrow-sample profiles network-privacy document-start"
 # Samples that write files/verdict.txt: launching without a crash is not enough
 # for them, the verdict must read PASS.
-VERDICT_SAMPLES="firebase-coexistence nested-scroll profiles"
+VERDICT_SAMPLES="firebase-coexistence nested-scroll profiles network-privacy document-start"
 LOGDIR="$ROOT/tmp/smoke-samples"
 mkdir -p "$LOGDIR"
 
