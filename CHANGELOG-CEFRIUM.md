@@ -83,6 +83,11 @@ in the internal FEATURE-NNN.md working docs (not published).
   licence, since they are meant for upstream.
 
 ### Fixed
+- Off-screen browsers fling: a quick swipe keeps scrolling after the finger
+  lifts. Before, the fling never advanced, so the page stopped under the
+  finger and the first tap after any scroll was taken as the one that stops
+  the fling and was lost, e.g. on a field reached by scrolling (issue #9).
+  Patch `android/osr_fling_scheduler`.
 - A Web Push message that started the app could be dropped, and its
   subscription removed, when it arrived before Android's notification
   channels had been read: the permission looked unset. Messages now wait for
