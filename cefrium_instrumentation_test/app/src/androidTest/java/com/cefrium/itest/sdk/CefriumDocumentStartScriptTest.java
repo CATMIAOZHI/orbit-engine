@@ -40,7 +40,8 @@ public class CefriumDocumentStartScriptTest {
 
     private static final String SCRIPT = "window.__inj = 1;";
     private static final String PAGE = "<html><body><script>"
-            + "document.title='seen:'+(window.__inj===1)+':'+location.host;</script></body></html>";
+            + "document.title='seen:'+(window.__inj===1)+':'+location.host+location.search;"
+            + "</script></body></html>";
     private static final Set<String> ANY = Collections.singleton("*");
 
     private CefriumBrowser mBrowser;
@@ -78,6 +79,24 @@ public class CefriumDocumentStartScriptTest {
         return mTitle.get();
     }
 
+    /**
+     * The title of the PAGE loaded from {@code url}. Waiting for "seen:" alone
+     * can return the previous document's title: its title event may arrive
+     * after a new load has started.
+     */
+    private String waitFor(String url) throws Exception {
+        android.net.Uri u = android.net.Uri.parse(url);
+        String doc = ":" + u.getHost() + (u.getPort() > 0 ? ":" + u.getPort() : "")
+                + (u.getQuery() != null ? "?" + u.getQuery() : "");
+        long deadline = System.currentTimeMillis() + 20_000;
+        while (System.currentTimeMillis() < deadline) {
+            String t = mTitle.get();
+            if (t.startsWith("seen:") && t.endsWith(doc)) return t;
+            Thread.sleep(50);
+        }
+        return mTitle.get();
+    }
+
     private void load(String url) throws Exception {
         mTitle.set("");
         onMain(() -> mBrowser.loadUrl(url));
@@ -87,7 +106,8 @@ public class CefriumDocumentStartScriptTest {
     public void runsBeforeThePagesOwnScripts() throws Exception {
         try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
             create(b -> b.addDocumentStartJavaScript(SCRIPT, ANY), server.url());
-            Assert.assertTrue(waitTitle("seen:"), waitTitle("seen:").startsWith("seen:true"));
+            String title = waitFor(server.url());
+            Assert.assertTrue(title, title.startsWith("seen:true"));
         }
     }
 
@@ -96,9 +116,10 @@ public class CefriumDocumentStartScriptTest {
         try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
             Set<String> only = Collections.singleton(server.origin());
             create(b -> b.addDocumentStartJavaScript(SCRIPT, only), server.url());
-            Assert.assertTrue(waitTitle("seen:").startsWith("seen:true"));
+            Assert.assertTrue(waitFor(server.url()).startsWith("seen:true"));
             load(server.localhostUrl());
-            Assert.assertTrue(waitTitle("seen:"), waitTitle("seen:").startsWith("seen:false"));
+            String title = waitFor(server.localhostUrl());
+            Assert.assertTrue(title, title.startsWith("seen:false"));
         }
     }
 
@@ -107,9 +128,10 @@ public class CefriumDocumentStartScriptTest {
     public void followsTheBrowserToAnotherSite() throws Exception {
         try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
             create(b -> b.addDocumentStartJavaScript(SCRIPT, ANY), server.url());
-            Assert.assertTrue(waitTitle("seen:").startsWith("seen:true"));
+            Assert.assertTrue(waitFor(server.url()).startsWith("seen:true"));
             load(server.localhostUrl());
-            Assert.assertTrue(waitTitle("seen:"), waitTitle("seen:").startsWith("seen:true:localhost"));
+            String title = waitFor(server.localhostUrl());
+            Assert.assertTrue(title, title.startsWith("seen:true:localhost"));
         }
     }
 
@@ -117,10 +139,11 @@ public class CefriumDocumentStartScriptTest {
     public void addedAfterALoadAppliesToTheNextDocument() throws Exception {
         try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
             create(null, server.url());
-            Assert.assertTrue(waitTitle("seen:").startsWith("seen:false"));
+            Assert.assertTrue(waitFor(server.url()).startsWith("seen:false"));
             onMain(() -> mBrowser.addDocumentStartJavaScript(SCRIPT, ANY));
             load(server.url() + "?again");
-            Assert.assertTrue(waitTitle("seen:"), waitTitle("seen:").startsWith("seen:true"));
+            String title = waitFor(server.url() + "?again");
+            Assert.assertTrue(title, title.startsWith("seen:true"));
         }
     }
 
@@ -129,10 +152,11 @@ public class CefriumDocumentStartScriptTest {
         try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
             AtomicReference<CefriumBrowser.ScriptHandler> handler = new AtomicReference<>();
             create(b -> handler.set(b.addDocumentStartJavaScript(SCRIPT, ANY)), server.url());
-            Assert.assertTrue(waitTitle("seen:").startsWith("seen:true"));
+            Assert.assertTrue(waitFor(server.url()).startsWith("seen:true"));
             onMain(() -> handler.get().remove());
             load(server.url() + "?again");
-            Assert.assertTrue(waitTitle("seen:"), waitTitle("seen:").startsWith("seen:false"));
+            String title = waitFor(server.url() + "?again");
+            Assert.assertTrue(title, title.startsWith("seen:false"));
         }
     }
 
@@ -173,7 +197,8 @@ public class CefriumDocumentStartScriptTest {
                 b.setOnTitleChangedListener(mTitle::set);
                 b.loadUrl(server.url());
             });
-            Assert.assertTrue(waitTitle("seen:"), waitTitle("seen:").startsWith("seen:true"));
+            String title = waitFor(server.url());
+            Assert.assertTrue(title, title.startsWith("seen:true"));
         }
     }
 
