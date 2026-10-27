@@ -3,6 +3,7 @@
 
 #include "cef/libcef/browser/android/cefrium_app.h"
 
+#include "base/strings/string_util.h"
 #include "cef/include/cef_dom.h"
 #include "cef/include/cef_process_message.h"
 #include "cef/include/cef_values.h"
@@ -56,10 +57,16 @@ void CefriumApp::OnFocusedNodeChanged(CefRefPtr<CefBrowser> browser,
     editable = true;
     value = node->GetValue().ToString();
     placeholder = node->GetElementAttribute("placeholder").ToString();
+    // What the documentation promises: the type, "text" for an <input>
+    // without one, or the tag name of any other editable, all lower case.
     type = node->GetElementAttribute("type").ToString();
     if (type.empty()) {
       type = node->GetElementTagName().ToString();
+      if (base::EqualsCaseInsensitiveASCII(type, "input")) {
+        type = "text";
+      }
     }
+    type = base::ToLowerASCII(type);
   }
   CefRefPtr<CefProcessMessage> msg =
       CefProcessMessage::Create(cefrium_bridge::kFocusNodeMessage);

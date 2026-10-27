@@ -88,6 +88,8 @@ in the internal FEATURE-NNN.md working docs (not published).
   finger and the first tap after any scroll was taken as the one that stops
   the fling and was lost, e.g. on a field reached by scrolling (issue #9).
   Patch `android/osr_fling_scheduler`.
+- `onFocusedNodeChanged` reports `text` for an `<input>` without a `type`,
+  and lower-case names throughout, as documented. It reported `INPUT`.
 - `CefBrowserHost::CreateBrowser`, `CreateBrowserSync` and
   `GetBrowserByIdentifier` are CEF's own on Android instead of stand-ins:
   `CreateBrowser` waits for the profile and creates the browser
