@@ -71,6 +71,9 @@ in the internal FEATURE-NNN.md working docs (not published).
   licence, since they are meant for upstream.
 
 ### Fixed
+- An app that declares `android:zygotePreloadName` no longer has every
+  renderer crash at start: the engine took the app zygote for the browser
+  process and the renderers forked from it had no entry point.
 - A proxy set on the default profile now covers private browsers too, as in
   Chrome: the incognito profile ignored it and connected directly. It follows
   the default profile's proxy and WebRTC policy unless given its own.
