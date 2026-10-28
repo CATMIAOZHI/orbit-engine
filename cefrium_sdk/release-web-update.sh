@@ -214,16 +214,21 @@ else
     function strong(s,  out){ out=""
       while(match(s,/\*\*[^*]+\*\*/)){ out=out substr(s,1,RSTART-1) "<strong>" substr(s,RSTART+2,RLENGTH-4) "</strong>"; s=substr(s,RSTART+RLENGTH) }
       return out s }
-    function flush(){ if(btext!=""){ printf "            <li>%s</li>\n", code(strong(esc(btext))); btext="" } }
-    function closecat(){ if(incat){ flush(); print "          </ul>"; print "        </div>"; incat=0 } }
+    # A paragraph in a section (prose, not a bullet) becomes a <p>: dropping it
+    # lost the sentence of the 0.16.0 Privacy note that said what had changed.
+    function flush(){
+      if(btext!=""){ if(!inul){ print "          <ul>"; inul=1 } printf "            <li>%s</li>\n", code(strong(esc(btext))); btext="" }
+      if(ptext!=""){ if(inul){ print "          </ul>"; inul=0 } printf "          <p>%s</p>\n", code(strong(esc(ptext))); ptext="" } }
+    function closecat(){ if(incat){ flush(); if(inul) print "          </ul>"; print "        </div>"; incat=0; inul=0 } }
     $0 ~ "^## \\[" ver "\\]" {inblk=1; next}
     inblk && /^## \[/ {exit}
     !inblk {next}
-    /^### / {closecat(); lbl=$0; sub(/^### /,"",lbl); printf "        <div class=\"cat\">\n          <span class=\"lbl\">%s</span>\n          <ul>\n", lbl; incat=1; next}
+    /^### / {closecat(); lbl=$0; sub(/^### /,"",lbl); printf "        <div class=\"cat\">\n          <span class=\"lbl\">%s</span>\n", lbl; incat=1; next}
     /^- / {flush(); btext=$0; sub(/^- /,"",btext); next}
     /^  - / {flush(); next}
     /^[[:space:]]*$/ {flush(); next}
     /^  +[^ ]/ { if(btext!=""){c=$0; sub(/^ +/,"",c); btext=btext" "c} next }
+    incat { if(btext!="") flush(); ptext=(ptext==""?$0:ptext" "$0); next }
     END {closecat()}
   ' "$CHANGELOG")"
   [ -n "$CATS" ] || CATS="        <div class=\"cat\"><span class=\"lbl\">Notes</span>

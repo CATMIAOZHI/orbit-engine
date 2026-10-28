@@ -18,8 +18,8 @@ in the internal FEATURE-NNN.md working docs (not published).
 ## [0.16.0] - 2026-10-28
 
 ### Privacy
-Earlier versions of the engine contacted Google on their own in three ways
-our network audit had missed:
+The engine no longer contacts Google on its own. Earlier versions did, in
+three ways our network audit had missed:
 - every profile asked accounts.google.com which Google accounts its cookies
   held, for a sync metric (Gaia's ListAccounts);
 - Chrome's AI Mode asked www.google.com whether the user was eligible,
@@ -27,12 +27,11 @@ our network audit had missed:
 - the engine kept a connection open to www.google.com, the default search
   engine, for omnibox searches, renewed on a timer.
 
-None served any purpose in an embedded engine, and this release does none of
-them: Google sign-in is off on Android, as CEF intends, and AI Mode and the
-search engine preconnect are disabled. Updating is all it takes. With a proxy
-set, all three went through it. Each release now checks, with the engine's
-own NetLog, that the engine contacts nothing but the documented component
-updates.
+0.16.0 does none of these: Google sign-in is off on Android, as CEF intends,
+and AI Mode and the search engine preconnect are disabled. Updating is all it
+takes. With a proxy set, all three went through it. Each release now checks,
+with the engine's own NetLog, that the engine contacts nothing but the
+documented component updates.
 
 ### Upgrading from 0.15.0
 The public API only grows: an app built against 0.15.0 builds and links
