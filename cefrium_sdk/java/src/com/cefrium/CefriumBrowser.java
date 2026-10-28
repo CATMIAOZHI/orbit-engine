@@ -2303,13 +2303,14 @@ public class CefriumBrowser {
     }
 
     // Called from native (SdkRenderHandler::OnTouchHandleStateChanged, OSR).
-    private void onTouchHandleStateChanged(int orientation, int x, int y,
-                                           boolean enabled) {
+    private void onTouchHandleStateChanged(int id, int orientation, boolean mirrorVertical,
+            boolean mirrorHorizontal, int x, int y, float alpha, boolean enabled) {
         final CefriumRenderHandler handler = mRenderHandler;
         if (handler == null) return;
+        final CefriumRenderHandler.TouchHandle handle = new CefriumRenderHandler.TouchHandle(
+                id, enabled, orientation, mirrorVertical, mirrorHorizontal, x, y, alpha);
         new android.os.Handler(android.os.Looper.getMainLooper())
-                .post(() -> handler.onTouchHandleStateChanged(
-                        orientation, x, y, enabled));
+                .post(() -> handler.onTouchHandleChanged(handle));
     }
 
     // ── Snapshot / capture ──

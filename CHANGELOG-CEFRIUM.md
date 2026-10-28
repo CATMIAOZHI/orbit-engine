@@ -17,6 +17,21 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+### Added
+- Off-screen browsers report text-selection handles whole:
+  `CefriumRenderHandler.onTouchHandleChanged(TouchHandle)` gives each handle's
+  id, orientation, position, opacity and whether to draw it, and
+  `TouchHandle.SIZE` is the area a touch must start in to drag it. Draw the
+  handles and forward touches with `sendTouchEvent`; a drag that starts on a
+  handle moves that end of the selection. The OSR IME sample draws them.
+
+### Fixed
+- `onTouchHandleStateChanged(orientation, x, y, enabled)` reported every
+  handle as hidden once it moved, and could not say which handle it was: the
+  engine sends one field per update and the others arrived as zero. It now
+  carries the handle's whole state; it is deprecated for
+  `onTouchHandleChanged`.
+
 ### Changed
 - The startup read-ahead of libcef.so reads, on arm64, only the parts of the
   file a cold start uses, in the order it uses them, from a list each release

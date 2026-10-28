@@ -446,20 +446,35 @@ class SdkRenderHandler : public CefRenderHandler {
   }
 
   // Bridge handle state so a consumer can draw the draggable selection handles.
+  // CEF reports one field per call (|flags|), so keep each handle's state and
+  // hand Java the whole of it.
   void OnTouchHandleStateChanged(CefRefPtr<CefBrowser> browser,
                                  const CefTouchHandleState& state) override {
+    TouchHandle& h = touch_handles_[state.touch_handle_id];
+    if (state.flags & CEF_THS_FLAG_ENABLED) h.enabled = state.enabled;
+    if (state.flags & CEF_THS_FLAG_ORIENTATION) {
+      h.orientation = state.orientation;
+      h.mirror_vertical = state.mirror_vertical;
+      h.mirror_horizontal = state.mirror_horizontal;
+    }
+    if (state.flags & CEF_THS_FLAG_ORIGIN) h.origin = state.origin;
+    if (state.flags & CEF_THS_FLAG_ALPHA) h.alpha = state.alpha;
+    // Ids only grow; the controller keeps three handles at most.
+    while (touch_handles_.size() > 8) touch_handles_.erase(touch_handles_.begin());
+
     if (!java_browser_) return;
     JNIEnv* env = base::android::AttachCurrentThread();
     if (!env) return;
     jclass cls = env->GetObjectClass(java_browser_);
     jmethodID method = env->GetMethodID(cls, "onTouchHandleStateChanged",
-                                        "(IIIZ)V");
+                                        "(IIZZIIFZ)V");
     if (method) {
-      // id/orientation, x, y, enabled.
-      env->CallVoidMethod(java_browser_, method,
-                          static_cast<jint>(state.orientation),
-                          state.origin.x, state.origin.y,
-                          state.enabled ? JNI_TRUE : JNI_FALSE);
+      env->CallVoidMethod(java_browser_, method, state.touch_handle_id,
+                          static_cast<jint>(h.orientation),
+                          h.mirror_vertical ? JNI_TRUE : JNI_FALSE,
+                          h.mirror_horizontal ? JNI_TRUE : JNI_FALSE,
+                          h.origin.x, h.origin.y, h.alpha,
+                          h.enabled ? JNI_TRUE : JNI_FALSE);
     }
     env->DeleteLocalRef(cls);
   }
@@ -499,6 +514,16 @@ class SdkRenderHandler : public CefRenderHandler {
   float scale_;
   jobject java_browser_ = nullptr;
   CefRect popup_rect_;  // FEATURE-063: last OSR popup geometry (for PET_POPUP).
+
+  struct TouchHandle {
+    bool enabled = false;
+    cef_horizontal_alignment_t orientation = CEF_HORIZONTAL_ALIGNMENT_LEFT;
+    bool mirror_vertical = false;
+    bool mirror_horizontal = false;
+    CefPoint origin;
+    float alpha = 0.f;
+  };
+  std::map<int, TouchHandle> touch_handles_;
 };
 
 // Life span handler that captures the browser when created.
