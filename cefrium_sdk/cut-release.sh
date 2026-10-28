@@ -233,7 +233,15 @@ if run patches; then hdr "patches + touch"
   # from committed source, and the release phase tags HEAD.
   pin_commit "Cefrium $VERSION" cefrium_sdk/java/src/com/cefrium/Cefrium.java
   # The changelog is hand-written before a cut and used to be hand-committed
-  # too, which is the same hazard one file over.
+  # too, which is the same hazard one file over. Its [Unreleased] section
+  # becomes this release (a re-run finds [$VERSION] already there).
+  CL="cef/CHANGELOG-CEFRIUM.md"
+  if ! grep -q "^## \[$VERSION\]" "$CL"; then
+    grep -q '^## \[Unreleased\]' "$CL" \
+      || { echo "ERROR: $CL has neither [$VERSION] nor [Unreleased]"; exit 1; }
+    perl -i -pe "s{^## \[Unreleased\]\$}{## [$VERSION] - $(date +%F)}" "$CL"
+    echo ">>> changelog: [Unreleased] -> [$VERSION]"
+  fi
   pin_commit "Changelog for $VERSION" CHANGELOG-CEFRIUM.md
   # Gate: every stored patch must be -p0 / no-prefix (patcher applies with -p0).
   # A git-default a/b-prefixed patch fails on a clean apply -- invisible on an
