@@ -348,7 +348,10 @@ public final class Cefrium {
      * format, from the engine's start until the process ends: every request, the
      * proxy chosen for it, DNS lookups and each socket with its address and the
      * bytes it carried. Open it with the NetLog viewer
-     * (https://netlog-viewer.appspot.com). Cookies and credentials are left out.
+     * (https://netlog-viewer.appspot.com). Cookies and credentials are left out,
+     * but every URL the user visits and every address the engine connects to
+     * is in it: treat the file as browsing history, and do not turn it on for a
+     * user's own browsing without their consent.
      *
      * <p>Events reach the file in batches, and a process that is killed rather
      * than shut down leaves it without its closing brackets; the events written
