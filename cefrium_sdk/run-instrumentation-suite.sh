@@ -17,8 +17,8 @@
 # CEFRIUM_SDK_AAR=<path> (no version) tests that SDK AAR instead, e.g. the
 # dev-iterate.sh output. Like CEFRIUM_TEST_CLASS, never set by a cut.
 #
-# CEFRIUM_TEST_CLASS=<SimpleName> runs only that class of com.cefrium.itest.sdk,
-# for iterating on one feature. It is not a gate: a cut never sets it, and the
+# CEFRIUM_TEST_CLASS=<SimpleName> runs only that class of com.cefrium.itest.sdk
+# (compose.<SimpleName> for the Compose tests), for iterating on one feature. It is not a gate: a cut never sets it, and the
 # declared-tests check then covers only that class. One class: AGP runs only the
 # first of a comma list.
 #
@@ -49,9 +49,13 @@ VERSION="${1:-}"
 ONLY="${CEFRIUM_TEST_CLASS:-}"
 if [ -n "$ONLY" ]; then
   case "$ONLY" in
+    compose.*) TEST_CLASS="com.cefrium.itest.$ONLY" ;;
+    *) TEST_CLASS="com.cefrium.itest.sdk.$ONLY" ;;
+  esac
+  case "${ONLY#compose.}" in
     *[!A-Za-z0-9_]*) echo "ERROR: CEFRIUM_TEST_CLASS takes one class name: $ONLY" >&2; exit 1 ;;
   esac
-  GRADLE_PROPS+=("-Pandroid.testInstrumentationRunnerArguments.class=com.cefrium.itest.sdk.$ONLY")
+  GRADLE_PROPS+=("-Pandroid.testInstrumentationRunnerArguments.class=$TEST_CLASS")
 fi
 
 if [ ! -f "$SRC/.gn" ]; then
@@ -120,7 +124,7 @@ import glob, os, re, sys
 import xml.etree.ElementTree as ET
 
 results, gradle_rc, sources = sys.argv[1], int(sys.argv[2]), sys.argv[3]
-only = sys.argv[4]
+only = sys.argv[4].split(".")[-1]
 
 # Every @Test in the sources must appear in the results. A crash of the test
 # process ends the run early, and gradle has been seen to exit 0 with a third
