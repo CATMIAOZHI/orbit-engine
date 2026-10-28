@@ -64,6 +64,13 @@ phase touches every patched file by design, so this saves less than it looks);
 `CEFRIUM_NO_PRUNE=1` and `CEFRIUM_NO_PLAY=1` skip those phases;
 `CEFRIUM_PLAY_TRACK` picks the Play track.
 
+Unattended runs: the outcome is the last line of `tmp/cut-<version>.status`
+(`CUT OK`, or `CUT FAILED rc=N in: <phase>`), one line per phase before it.
+Credential paths missing from the environment are loaded from
+`~/.config/cefrium/release.env` (override with `CEFRIUM_RELEASE_ENV`). Before
+building, the cut refuses to start if the signing key cannot sign (prime the
+card first) or a VPN interface is up (`CEFRIUM_ALLOW_VPN=1` to override).
+
 **The `play` phase ships the apps, and it runs last for a reason.** The browser
 apps resolve the SDK from the registry, so uploading before the coordinate is
 served would put an app built against the PREVIOUS engine in front of users --
