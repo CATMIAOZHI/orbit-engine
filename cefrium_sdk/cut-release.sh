@@ -6,7 +6,7 @@
 # Usage:
 #   cef/cefrium_sdk/cut-release.sh <version> <prev-version> [--from <phase>] [--notes "<html>"]
 # Phases (use --from to resume after a long build):
-#   patches build merge compose plugin stats sanity publish central flagship release web prune
+#   patches build hotranges merge compose plugin stats sanity publish central flagship release web prune
 #
 # Bypass the confirmation gates non-interactively with CEFRIUM_YES=1 (CI only);
 # a cut launched as a background job has no stdin and MUST set it, or it dies at
@@ -51,7 +51,7 @@ export JAVA_HOME="${JAVA_HOME:-$SRC/third_party/jdk/current}"
 export ANDROID_HOME="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}"
 export PATH="$ROOT/depot_tools:$PATH"
 export CEFRIUM_NINJA_JOBS="${CEFRIUM_NINJA_JOBS:-16}"
-PHASES="patches build merge compose plugin stats sanity suite publish central flagship release provenance web prune play"
+PHASES="patches build hotranges merge compose plugin stats sanity suite publish central flagship release provenance web prune play"
 # Variant scope. Default "all" = the 4 published variants (codecs/libre x arm64/x64).
 # CEFRIUM_VARIANTS="arm64:codecs" narrows to one variant. The 4-variant build
 # relinks libcef.so per variant and is the biggest time sink (~4x), which is why it
@@ -286,6 +286,17 @@ if run build;   then hdr "build 4 variants"
   # arm64-codecs dir was built (it is, for "all" and the default dev variant).
   [ -d out/Official_android_arm64_codecs ] && \
     cef/cefrium_sdk/regen-gen-jni.sh --check out/Official_android_arm64_codecs
+fi
+if run hotranges; then hdr "startup read-ahead list (arm64, on the device)"
+  # The SDK reads the parts of libcef.so a cold start used, in that order; the
+  # offsets belong to one link, so each arm64 variant gets its own list,
+  # recorded from its own AAR on the device. Records on ANDROID_SERIAL.
+  for codec in codecs libre; do
+    aar="out/release/cefrium-sdk-arm64-${codec}.aar"
+    [ -f "$aar" ] || continue
+    cef/cefrium_sdk/record-hot-ranges.sh "$aar" --inject \
+      || { echo "ERROR: could not record the read-ahead list for $aar"; exit 1; }
+  done
 fi
 if run merge;   then hdr "merge multi-ABI"
   if [ "$VARIANTS" = "all" ]; then

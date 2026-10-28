@@ -33,6 +33,7 @@ SRC="$(cd "$SCRIPT_DIR/../.." && pwd)"
 REL="$SRC/out/release"
 CEFJAVA="$SCRIPT_DIR/java/src/com/cefrium/Cefrium.java"
 JDK="$SRC/third_party/jdk/current/bin"
+READELF="$SRC/third_party/llvm-build/Release+Asserts/bin/llvm-readelf"
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 fail=0
 bad() { echo "  MISMATCH: $*"; fail=1; }
@@ -80,7 +81,20 @@ check_aar() { # <aar> <label> <expect-both-abis:yes|no>
     bad "$label has no jni/arm64-v8a/libcef.so to inspect"
   fi
 
-  # 3. The SDK version compiled into the Java must equal the release version.
+  # 3. The startup read-ahead list was recorded from this arm64 libcef.so. The
+  #    SDK would ignore a mismatched one, so a stale list costs the gain silently.
+  if [ -f "$d/jni/arm64-v8a/libcef.so" ]; then
+    local want have
+    want="$("$READELF" -n "$d/jni/arm64-v8a/libcef.so" 2>/dev/null | awk '!f && /Build ID:/ {print $3; f=1}')"
+    have="$(unzip -p "$aar" assets/cefrium/libcef-hot-ranges.txt 2>/dev/null | awk '!f && /^build-id / {print $2; f=1}')"
+    if [ -n "$want" ] && [ "$have" = "$want" ]; then
+      ok "$label read-ahead list matches libcef.so ($want)"
+    else
+      bad "$label read-ahead list is for '${have:-none}', libcef.so is '${want:-unreadable}'"
+    fi
+  fi
+
+  # 4. The SDK version compiled into the Java must equal the release version.
   #    This is what caught Cefrium.VERSION lagging across releases before.
   if unzip -o -q "$aar" classes.jar -d "$d" 2>/dev/null; then
     local v
