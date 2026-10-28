@@ -35,6 +35,7 @@ android_library("cefrium_java") {
     "java/src/com/cefrium/CefInterceptNavigationDelegateClient.java",
     "java/src/com/cefrium/CefModalDialogPresenter.java",
     "java/src/com/cefrium/CefWindowAndroid.java",
+    "java/src/com/cefrium/LibraryPrefetch.java",
     "java/src/com/cefrium/payments/CefPaymentInterfaceRegistrar.java",
     "java/src/com/cefrium/payments/CefPaymentRequestFactory.java",
     "java/src/com/cefrium/payments/CefPaymentRequestService.java",
