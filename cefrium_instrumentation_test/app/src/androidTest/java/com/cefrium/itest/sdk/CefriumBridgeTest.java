@@ -539,6 +539,15 @@ public class CefriumBridgeTest {
     /** Loads mainUrl under policy; returns "main=...|child=..." from its title. */
     private String framesUnder(String mainUrl, CefriumBrowser.QueryOriginPolicy policy,
                                AtomicInteger handlerCalls) throws Exception {
+        return framesUnder(mainUrl, policy, (queryId, request, origin, callback) -> {
+            handlerCalls.incrementAndGet();
+            callback.success("handled");
+            return true;
+        });
+    }
+
+    private String framesUnder(String mainUrl, CefriumBrowser.QueryOriginPolicy policy,
+                               CefriumBrowser.QueryHandler handler) throws Exception {
         Activity activity = activityRule.getActivity();
         final AtomicReference<String> verdict = new AtomicReference<>();
         final AtomicReference<CefriumBrowser> created = new AtomicReference<>();
@@ -547,11 +556,7 @@ public class CefriumBridgeTest {
             activity.runOnUiThread(() -> {
                 CefriumBrowser browser = browsers.createWithSurface(activity);
                 created.set(browser);
-                browser.setQueryHandler(policy, (queryId, request, origin, callback) -> {
-                    handlerCalls.incrementAndGet();
-                    callback.success("handled");
-                    return true;
-                });
+                browser.setQueryHandler(policy, handler);
                 browser.setOnTitleChangedListener(title -> {
                     if (title != null && title.startsWith("main=")) {
                         verdict.set(title);
@@ -582,6 +587,32 @@ public class CefriumBridgeTest {
                     framesUnder(main.url(), CefriumBrowser.QueryOriginPolicy.loopback(), calls));
         }
         Assert.assertEquals("only the main frame may reach the handler", 1, calls.get());
+    }
+
+    /** A handler that admits subframes can tell them from the main frame. */
+    @Test
+    public void handlerIsToldWhetherTheCallerIsTheMainFrame() throws Exception {
+        try (LocalHttpServer child = new LocalHttpServer(CHILD);
+             LocalHttpServer main = new LocalHttpServer(mainPage(child.url()))) {
+            Assert.assertEquals("main=ok:main|child=ok:sub",
+                    framesUnder(main.url(),
+                            CefriumBrowser.QueryOriginPolicy.loopback().withSubframes(),
+                            new CefriumBrowser.QueryHandler() {
+                                @Override
+                                public boolean onQuery(long queryId, String request,
+                                        String origin, CefriumBrowser.QueryCallback cb) {
+                                    throw new AssertionError("the frameless form was called");
+                                }
+
+                                @Override
+                                public boolean onQuery(long queryId, String request,
+                                        String origin, boolean isMainFrame,
+                                        CefriumBrowser.QueryCallback cb) {
+                                    cb.success(isMainFrame ? "main" : "sub");
+                                    return true;
+                                }
+                            }));
+        }
     }
 
     /** withSubframes() admits an iframe when its main frame is allowed too. */

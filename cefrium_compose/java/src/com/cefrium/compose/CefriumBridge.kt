@@ -31,4 +31,29 @@ import com.cefrium.CefriumBrowser
 class CefriumBridge(
     val origins: CefriumBrowser.QueryOriginPolicy,
     val onQuery: (request: String, origin: String, callback: CefriumBrowser.QueryCallback) -> Boolean,
-)
+) {
+    internal var onFrameQuery:
+        ((String, String, Boolean, CefriumBrowser.QueryCallback) -> Boolean)? = null
+        private set
+
+    companion object {
+        /**
+         * A bridge whose handler is also told whether the main frame called.
+         * Only a policy from [CefriumBrowser.QueryOriginPolicy.withSubframes]
+         * lets an iframe call at all.
+         */
+        @JvmStatic
+        fun withFrames(
+            origins: CefriumBrowser.QueryOriginPolicy,
+            onQuery: (
+                request: String,
+                origin: String,
+                isMainFrame: Boolean,
+                callback: CefriumBrowser.QueryCallback,
+            ) -> Boolean,
+        ): CefriumBridge =
+            CefriumBridge(origins) { request, origin, callback ->
+                onQuery(request, origin, true, callback)
+            }.also { it.onFrameQuery = onQuery }
+    }
+}

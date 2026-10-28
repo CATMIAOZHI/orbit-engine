@@ -1627,7 +1627,9 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
     }
     jclass cls = env->GetObjectClass(java_browser);
     should_block_ = env->GetMethodID(
-        cls, "onShouldBlockRequest", "(Ljava/lang/String;Ljava/lang/String;Z)Z");
+        cls, "onShouldBlockRequest",
+        "(Ljava/lang/String;Ljava/lang/String;ZILjava/lang/String;"
+        "Ljava/lang/String;)Z");
     intercepted_ = env->GetMethodID(
         cls, "onRequestIntercepted", "(Ljava/lang/String;Ljava/lang/String;Z)V");
     redirect_ = env->GetMethodID(cls, "onResourceRedirect",
@@ -1658,23 +1660,37 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
     }
     const std::string url = request->GetURL().ToString();
 
+    const cef_resource_type_t type = request->GetResourceType();
+    const GURL document = DocumentOf(frame, request);
     bool blocked = false;
     if (filter) {
-      const GURL document = DocumentOf(frame, request);
       blocked = !AdBlockExceptions::Covers(incognito_, profile_, document) &&
-                filter->ShouldBlock(GURL(url), document,
-                                    request->GetResourceType());
+                filter->ShouldBlock(GURL(url), document, type);
     }
 
     jobject jb = java_browser_;
     JNIEnv* env = jb ? base::android::AttachCurrentThread() : nullptr;
     if (!blocked && env && should_block_ && (observers & kInterceptor)) {
+      // A main-frame navigation is its own document and its own top page.
+      std::string doc = document.is_valid() ? document.spec() : std::string();
+      std::string top;
+      if (type == RT_MAIN_FRAME) {
+        doc = top = url;
+      } else if (CefRefPtr<CefFrame> main = browser ? browser->GetMainFrame()
+                                                    : nullptr) {
+        top = main->GetURL().ToString();
+      }
       jstring ju = env->NewStringUTF(url.c_str());
       jstring jm = env->NewStringUTF(request->GetMethod().ToString().c_str());
+      jstring jd = env->NewStringUTF(doc.c_str());
+      jstring jt = env->NewStringUTF(top.c_str());
       blocked = env->CallBooleanMethod(jb, should_block_, ju, jm,
-                                       frame && frame->IsMain());
+                                       frame && frame->IsMain(),
+                                       static_cast<jint>(type), jd, jt);
       env->DeleteLocalRef(ju);
       env->DeleteLocalRef(jm);
+      env->DeleteLocalRef(jd);
+      env->DeleteLocalRef(jt);
     }
     if (blocked) {
       blocked_count_++;

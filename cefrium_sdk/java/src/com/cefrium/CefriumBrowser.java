@@ -747,6 +747,19 @@ public class CefriumBrowser {
          */
         boolean onQuery(long queryId, String request, String origin,
                         QueryCallback callback);
+
+        /**
+         * The same, also saying whether the main frame called. Only a policy
+         * from {@link QueryOriginPolicy#withSubframes()} lets an iframe call at
+         * all; override this one to treat the two differently. The browser
+         * calls it, and by default it calls the four-argument form.
+         *
+         * @param isMainFrame Whether the calling frame is the main frame.
+         */
+        default boolean onQuery(long queryId, String request, String origin,
+                                boolean isMainFrame, QueryCallback callback) {
+            return onQuery(queryId, request, origin, callback);
+        }
     }
 
     /** Resolves a {@link QueryHandler} query back to JavaScript. */
@@ -1065,7 +1078,7 @@ public class CefriumBrowser {
                 }
             }
         };
-        if (!handler.onQuery(queryId, request, origin, callback)) {
+        if (!handler.onQuery(queryId, request, origin, isMainFrame, callback)) {
             nativeQueryResult(mNativePtr, queryId, false, null, -1,
                     "Query not handled");
         }
@@ -1294,6 +1307,76 @@ public class CefriumBrowser {
     public interface RequestInterceptor {
         /** Return true to block (cancel) this request. */
         boolean shouldBlockRequest(String url, String method, boolean isMainFrame);
+
+        /**
+         * Return true to block (cancel) this request. Override this one to see
+         * the resource type and the documents behind the request; the browser
+         * calls it, and by default it calls the three-argument form.
+         */
+        default boolean shouldBlockRequest(ResourceRequest request) {
+            return shouldBlockRequest(request.url, request.method, request.isMainFrame);
+        }
+    }
+
+    /** A request as {@link RequestInterceptor} sees it. */
+    public static final class ResourceRequest {
+        /** A page loaded into the main frame. */
+        public static final int TYPE_MAIN_FRAME = 0;
+        /** A page loaded into an iframe. */
+        public static final int TYPE_SUB_FRAME = 1;
+        public static final int TYPE_STYLESHEET = 2;
+        public static final int TYPE_SCRIPT = 3;
+        public static final int TYPE_IMAGE = 4;
+        public static final int TYPE_FONT = 5;
+        /** Anything else a page loads that has no type of its own. */
+        public static final int TYPE_SUB_RESOURCE = 6;
+        /** {@code <object>} and {@code <embed>}. */
+        public static final int TYPE_OBJECT = 7;
+        /** Audio and video. */
+        public static final int TYPE_MEDIA = 8;
+        public static final int TYPE_WORKER = 9;
+        public static final int TYPE_SHARED_WORKER = 10;
+        public static final int TYPE_PREFETCH = 11;
+        public static final int TYPE_FAVICON = 12;
+        /** {@code fetch()} and {@code XMLHttpRequest}. */
+        public static final int TYPE_XHR = 13;
+        /** {@code navigator.sendBeacon} and {@code <a ping>}. */
+        public static final int TYPE_PING = 14;
+        public static final int TYPE_SERVICE_WORKER = 15;
+        public static final int TYPE_CSP_REPORT = 16;
+        public static final int TYPE_PLUGIN_RESOURCE = 17;
+        public static final int TYPE_NAVIGATION_PRELOAD_MAIN_FRAME = 19;
+        public static final int TYPE_NAVIGATION_PRELOAD_SUB_FRAME = 20;
+
+        public final String url;
+        public final String method;
+        /** Whether the main frame made the request (true for its own navigation). */
+        public final boolean isMainFrame;
+        /** One of the {@code TYPE_} constants. */
+        public final int resourceType;
+        /**
+         * The document that made the request: for a subresource the page that
+         * loads it, for an iframe the page that holds it, for a main-frame
+         * navigation the request's own URL. Empty when unknown.
+         */
+        public final String documentUrl;
+        /**
+         * The page in the main frame: the request's own URL for a main-frame
+         * navigation, otherwise the main frame's URL when the request starts
+         * (during a navigation, a late request of the old page can carry the
+         * new page's URL). Empty when unknown.
+         */
+        public final String topLevelUrl;
+
+        ResourceRequest(String url, String method, boolean isMainFrame, int resourceType,
+                String documentUrl, String topLevelUrl) {
+            this.url = url;
+            this.method = method;
+            this.isMainFrame = isMainFrame;
+            this.resourceType = resourceType;
+            this.documentUrl = documentUrl;
+            this.topLevelUrl = topLevelUrl;
+        }
     }
 
     private volatile RequestInterceptor mRequestInterceptor;
@@ -1308,9 +1391,11 @@ public class CefriumBrowser {
     }
 
     // Called from native (IO thread) for every request not already ad-blocked.
-    private boolean onShouldBlockRequest(String url, String method, boolean isMainFrame) {
+    private boolean onShouldBlockRequest(String url, String method, boolean isMainFrame,
+            int resourceType, String documentUrl, String topLevelUrl) {
         RequestInterceptor i = mRequestInterceptor;
-        return i != null && i.shouldBlockRequest(url, method, isMainFrame);
+        return i != null && i.shouldBlockRequest(new ResourceRequest(
+                url, method, isMainFrame, resourceType, documentUrl, topLevelUrl));
     }
 
     // ─────────────── JS dialogs ───────────────

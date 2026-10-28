@@ -24,6 +24,15 @@ in the internal FEATURE-NNN.md working docs (not published).
   `TouchHandle.SIZE` is the area a touch must start in to drag it. Draw the
   handles and forward touches with `sendTouchEvent`; a drag that starts on a
   handle moves that end of the selection. The OSR IME sample draws them.
+- `RequestInterceptor.shouldBlockRequest(ResourceRequest)` gives the
+  request's resource type, the document that made it and the page in the
+  main frame. Override it instead of the three-argument form, which it calls
+  by default; an app no longer has to track the top page itself.
+- `QueryHandler.onQuery` has a form with `isMainFrame`, and Compose has
+  `CefriumBridge.withFrames`, so a handler whose policy admits iframes
+  (`withSubframes()`) can tell them from the page.
+- Guide: "Public API, not engine internals", the calls that replace the
+  Chromium internals apps reach for.
 
 ### Fixed
 - `onTouchHandleStateChanged(orientation, x, y, enabled)` reported every

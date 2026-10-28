@@ -87,9 +87,23 @@ fun CefriumView(
             // provides a bridge. Without it, queries fail with -1 --
             // a deliberate security default (the bridge is off unless asked for).
             if (bridge != null) {
-                b.setQueryHandler(bridge.origins) { _, request, origin, callback ->
-                    bridge.onQuery(request, origin, callback)
-                }
+                b.setQueryHandler(bridge.origins, object : CefriumBrowser.QueryHandler {
+                    override fun onQuery(
+                        queryId: Long,
+                        request: String,
+                        origin: String,
+                        callback: CefriumBrowser.QueryCallback,
+                    ) = bridge.onQuery(request, origin, callback)
+
+                    override fun onQuery(
+                        queryId: Long,
+                        request: String,
+                        origin: String,
+                        isMainFrame: Boolean,
+                        callback: CefriumBrowser.QueryCallback,
+                    ) = bridge.onFrameQuery?.invoke(request, origin, isMainFrame, callback)
+                        ?: bridge.onQuery(request, origin, callback)
+                })
             }
             onBrowserReady?.invoke(b)
         }
