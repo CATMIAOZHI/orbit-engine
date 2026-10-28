@@ -14,6 +14,14 @@
 # With a version it tests out/release/cefrium-sdk-<version>.aar instead, for
 # checking a release after the fact.
 #
+# CEFRIUM_SDK_AAR=<path> (no version) tests that SDK AAR instead, e.g. the
+# dev-iterate.sh output. Like CEFRIUM_TEST_CLASS, never set by a cut.
+#
+# CEFRIUM_TEST_CLASS=<SimpleName> runs only that class of com.cefrium.itest.sdk,
+# for iterating on one feature. It is not a gate: a cut never sets it, and the
+# declared-tests check then covers only that class. One class: AGP runs only the
+# first of a comma list.
+#
 # WHY THIS EXISTS: the suite is the only harness that exercises the SDK the way
 # a consumer does, and until now it was run by hand. A cut therefore shipped on
 # compile success plus one sample launch. That is not enough, and it has already
@@ -38,6 +46,13 @@ if [ "${1:-}" = "--minified" ]; then
   shift
 fi
 VERSION="${1:-}"
+ONLY="${CEFRIUM_TEST_CLASS:-}"
+if [ -n "$ONLY" ]; then
+  case "$ONLY" in
+    *[!A-Za-z0-9_]*) echo "ERROR: CEFRIUM_TEST_CLASS takes one class name: $ONLY" >&2; exit 1 ;;
+  esac
+  GRADLE_PROPS+=("-Pandroid.testInstrumentationRunnerArguments.class=com.cefrium.itest.sdk.$ONLY")
+fi
 
 if [ ! -f "$SRC/.gn" ]; then
   echo "ERROR: run this from chromium/src" >&2
@@ -50,7 +65,7 @@ if [ -n "$VERSION" ]; then
   SDK_AAR="$SRC/out/release/cefrium-sdk-$VERSION.aar"
   COMPOSE_AAR="$SRC/out/release/cefrium-compose-$VERSION.aar"
 else
-  SDK_AAR="$SRC/out/release/cefrium-sdk.aar"
+  SDK_AAR="${CEFRIUM_SDK_AAR:-$SRC/out/release/cefrium-sdk.aar}"
   COMPOSE_AAR="$SRC/cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar"
 fi
 for f in "$SDK_AAR" "$COMPOSE_AAR"; do
@@ -100,11 +115,12 @@ echo ">>> $TASK"
 GRADLE_RC=$?
 
 # Gradle's own status is necessary but not sufficient: read the result files.
-python3 - "$RESULTS" "$GRADLE_RC" "$ITEST/app/src/androidTest" <<'PY'
+python3 - "$RESULTS" "$GRADLE_RC" "$ITEST/app/src/androidTest" "$ONLY" <<'PY'
 import glob, os, re, sys
 import xml.etree.ElementTree as ET
 
 results, gradle_rc, sources = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+only = sys.argv[4]
 
 # Every @Test in the sources must appear in the results. A crash of the test
 # process ends the run early, and gradle has been seen to exit 0 with a third
@@ -113,6 +129,8 @@ declared = set()
 for src in glob.glob(os.path.join(sources, "**", "*.java"), recursive=True) + \
         glob.glob(os.path.join(sources, "**", "*.kt"), recursive=True):
     cls = os.path.splitext(os.path.basename(src))[0]
+    if only and cls != only:
+        continue
     text = open(src, encoding="utf-8").read()
     for m in re.finditer(r"@Test\b[^\n]*\n(?:\s*@[^\n]*\n)*\s*(?:public\s+)?(?:void|fun)\s+`?(\w+)", text):
         declared.add("%s.%s" % (cls, m.group(1)))
