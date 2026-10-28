@@ -45,7 +45,9 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC="$(cd "$SCRIPT_DIR/../.." && pwd)"                 # chromium/src
 ROOT="$(cd "$SRC/../.." && pwd)"                       # cef-dev
-export JAVA_HOME="${JAVA_HOME:-$ROOT/android-studio/android-studio/jbr}"
+# JDK 25 (Chromium's Temurin): the AAR is class-69 bytecode that JBR 21 cannot read.
+export JAVA_HOME="${JAVA_HOME:-$SRC/third_party/jdk/current}"
+[ -x "$JAVA_HOME/bin/java" ] || { echo "ERROR: no JDK at JAVA_HOME=$JAVA_HOME"; exit 1; }
 export ANDROID_HOME="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}"
 export PATH="$ROOT/depot_tools:$PATH"
 export CEFRIUM_NINJA_JOBS="${CEFRIUM_NINJA_JOBS:-16}"
@@ -64,7 +66,14 @@ idx() { local i=0; for p in $PHASES; do [ "$p" = "$1" ] && { echo $i; return; };
 FROM_I=$(idx "$FROM")
 active() { [ "$(idx "$1")" -ge "$FROM_I" ] && [ "$(idx "$1")" -ge "$FROM_I" ]; }
 run()  { [ "$(idx "$1")" -ge "$FROM_I" ]; }
-hdr()  { echo; echo "============================================================"; echo "  PHASE: $1"; echo "============================================================"; }
+# One line per phase, and the outcome at exit: wait for the process, then read
+# the last line, instead of watching the log.
+STATUS="$ROOT/tmp/cut-${VERSION:-unknown}.status"
+mkdir -p "$ROOT/tmp"
+CURRENT_PHASE="start"
+hdr()  { echo; echo "============================================================"; echo "  PHASE: $1"; echo "============================================================";
+         CURRENT_PHASE="$1"; echo "$(date +%F_%T) PHASE $1" >> "$STATUS"; }
+trap 'rc=$?; if [ $rc -eq 0 ]; then echo "$(date +%F_%T) CUT OK" >> "$STATUS"; else echo "$(date +%F_%T) CUT FAILED rc=$rc in: $CURRENT_PHASE" >> "$STATUS"; fi' EXIT
 
 gate() { # human confirmation for an irreversible step
   local what="$1"
@@ -87,6 +96,11 @@ gate() { # human confirmation for an irreversible step
 
 cd "$SRC"
 
+# Local and untracked: export lines naming the credential files (paths, never
+# the tokens). Loaded only for what the environment does not already set.
+CEFRIUM_RELEASE_ENV="${CEFRIUM_RELEASE_ENV:-$HOME/.config/cefrium/release.env}"
+[ -f "$CEFRIUM_RELEASE_ENV" ] && . "$CEFRIUM_RELEASE_ENV"
+
 # Credential preflight. The token PATHS are no longer hardcoded (a public repo
 # should not say where this machine keeps its credentials), so they come from
 # the environment -- and a missing variable must surface now, not six hours in
@@ -106,6 +120,33 @@ if run publish || run central || run release || run prune; then
     exit 1
   fi
   echo ">>> credentials: both token files present"
+fi
+
+# The signature comes hours in, at the release phase: find a key that cannot
+# sign (card not primed) now. A detached test signature fails fast and never
+# spends a PIN retry.
+if run release; then
+  t="$(mktemp -p "$ROOT/tmp" gpgcheck.XXXXXX)"
+  if gpg --batch --yes --detach-sign -o "$t.sig" "$t" >/dev/null 2>&1; then
+    echo ">>> signing key: signs"
+  else
+    rm -f "$t" "$t.sig"
+    echo "ERROR: the release signing key cannot sign. Prime the hardware key in a"
+    echo "       terminal that can show a pinentry prompt, then run the cut again."
+    exit 1
+  fi
+  rm -f "$t" "$t.sig"
+fi
+
+# Over a VPN the Central upload of the SDK bundles failed half way (HTTP 524)
+# and left a version partly published. Refuse before anything is built.
+if run central && [ "${CEFRIUM_ALLOW_VPN:-0}" != 1 ]; then
+  VPN_IF="$(ip -o link show up 2>/dev/null | awk -F': ' '$2 ~ /^(tun|wg|tap|ppp|proton)/ {print $2}' | tr '\n' ' ')"
+  if [ -n "$VPN_IF" ]; then
+    echo "ERROR: a VPN interface is up ($VPN_IF). Disconnect it for the Central"
+    echo "       upload, or set CEFRIUM_ALLOW_VPN=1 to go ahead anyway."
+    exit 1
+  fi
 fi
 
 # ---- release-pinned sources -------------------------------------------------
