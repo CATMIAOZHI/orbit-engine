@@ -15,6 +15,22 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [Unreleased]
+
+### Changed
+- The startup read-ahead of libcef.so reads, on arm64, only the parts of the
+  file a cold start uses, in the order it uses them, from a list each release
+  records on a device and ships in the AAR under the library's build-id; any
+  other library is read whole, as before. When Android starts the process to
+  show an Activity (Android 15+), the read begins at process start instead of
+  with the engine; a process started for a push message or a job still reads
+  nothing. Cold start to the first page, against 0.16.0: 200 ms sooner on a
+  phone with slow storage, 50-65 ms on one with fast storage; warm unchanged.
+- `setLibraryPrefetchEnabled(false)` before the engine starts also stops a
+  read already under way, so turning it off in `Application.onCreate` still
+  works now that the read can begin before it.
+- `setNetLogFile` documents that the file is browsing history.
+
 ## [0.16.0] - 2026-10-28
 
 ### Privacy
