@@ -146,4 +146,45 @@ class CefriumComposeViewTest {
 
         composeRule.runOnUiThread { state.close() }
     }
+
+    /** A bridge from withFrames is told which frame called. */
+    @Test
+    fun bridgeWithFramesTellsTheMainFrameFromAnIframe() {
+        val state = CefriumViewState("about:blank")
+        val navigator = CefriumNavigator()
+        val calls = CopyOnWriteArrayList<String>()
+        val probeFired = AtomicBoolean(false)
+
+        composeRule.setContent {
+            CefriumView(
+                state = state,
+                modifier = Modifier,
+                navigator = navigator,
+                bridge = CefriumBridge.withFrames(
+                    CefriumBrowser.QueryOriginPolicy.anyOrigin().withSubframes(),
+                ) { request, _, isMainFrame, callback ->
+                    calls.add("$request:$isMainFrame")
+                    callback.success("ok")
+                    true
+                },
+                onBrowserReady = { b ->
+                    b.setOnLoadingStateChangedListener { loading, _, _ ->
+                        if (!loading && probeFired.compareAndSet(false, true)) {
+                            navigator.evaluateJavaScript(
+                                "window.cefriumQuery({request:'top'});" +
+                                    "var f=document.createElement('iframe');" +
+                                    "f.srcdoc=\"<script>window.cefriumQuery({request:'sub'})<\\/script>\";" +
+                                    "document.body.appendChild(f);")
+                        }
+                    }
+                },
+            )
+        }
+
+        composeRule.waitUntil(20_000) { calls.size >= 2 }
+        Assert.assertTrue("calls: $calls", calls.contains("top:true"))
+        Assert.assertTrue("calls: $calls", calls.contains("sub:false"))
+
+        composeRule.runOnUiThread { state.close() }
+    }
 }
