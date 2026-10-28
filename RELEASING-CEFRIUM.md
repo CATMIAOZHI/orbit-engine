@@ -13,21 +13,22 @@ One script runs all of it. The phases, in order, and what each one is for:
 |---|-------|--------------|--------|
 | 1 | `patches` | Set `Cefrium.VERSION` **and commit it**, apply the CEF patches, touch their targets so ninja rebuilds | `apply-patches.py` |
 | 2 | `build` | The 4 variants: codecs/libre x arm64/x86_64 (~6.5 h cold on 24c/62G) | `build-all-variants.sh` |
-| 3 | `merge` | Fuse arm64 + x86_64 into the published fat AARs | `merge-multiabi.sh` |
-| 4 | `compose` | The Compose wrapper AAR | (gradle, in `cefrium_compose`) |
-| 5 | `plugin` | Check the Gradle plugin jar | - |
-| 6 | `stats` | Derive every figure README.md, QUICKSTART-CEFRIUM.md, MIGRATION-CEFRIUM.md and BUILD-GUIDE-CEFRIUM.md state (patch counts, engine, SDK version, service slots, toolchain and JDK floors), commit them, then assert what was committed; also assert that every API name, Cefrium type, script path and doc link in those four and in FEATURES/CHANGELOG/SCRIPTS/RELEASING/PATCHING still resolves; also assert the changelog has this version's section as its newest entry | `update-doc-figures.py` |
-| 7 | `sanity` | Build a REAL consumer against the fresh AAR, before anything immutable; launch every sample, read the verdict samples, run the scenarios a launch cannot show (download resumed after a kill) | `smoke-samples.sh`, `smoke-minified.sh` |
-| 8 | `suite` | The on-device suite, read from the result files, not from Gradle's exit status, plain and minified; then Web Push through FCM, which the suite can only fake | `run-instrumentation-suite.sh`, `push-e2e.sh` |
-| 9 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
-| 10 | `central` | Upload to Maven Central, the channel adopters actually pin | `publish-central.sh` |
-| 11 | `flagship` | Build the browser APK against this exact SDK | - |
-| 12 | `release` | Codeberg release: tag, assets, GPG-signed `SHA256SUMS` | `release-codeberg.sh` |
-| 13 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, re-assert the repo docs, then VERIFY and push the cef repo | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
-| 14 | `prune` | Drop superseded versions from the latest-only Codeberg mirror | `prune-old-versions.sh` |
-| 15 | `play` | Pin + version-bump the apps, rebuild every sample, upload to Play | `release-play.sh` |
+| 3 | `hotranges` | Record which parts of each arm64 `libcef.so` a cold start reads, on the device, and add the list to that AAR for the SDK's startup read-ahead | `record-hot-ranges.sh` |
+| 4 | `merge` | Fuse arm64 + x86_64 into the published fat AARs | `merge-multiabi.sh` |
+| 5 | `compose` | The Compose wrapper AAR | (gradle, in `cefrium_compose`) |
+| 6 | `plugin` | Check the Gradle plugin jar | - |
+| 7 | `stats` | Derive every figure README.md, QUICKSTART-CEFRIUM.md, MIGRATION-CEFRIUM.md and BUILD-GUIDE-CEFRIUM.md state (patch counts, engine, SDK version, service slots, toolchain and JDK floors), commit them, then assert what was committed; also assert that every API name, Cefrium type, script path and doc link in those four and in FEATURES/CHANGELOG/SCRIPTS/RELEASING/PATCHING still resolves; also assert the changelog has this version's section as its newest entry | `update-doc-figures.py` |
+| 8 | `sanity` | Build a REAL consumer against the fresh AAR, before anything immutable; launch every sample, read the verdict samples, run the scenarios a launch cannot show (download resumed after a kill) | `smoke-samples.sh`, `smoke-minified.sh` |
+| 9 | `suite` | The on-device suite, read from the result files, not from Gradle's exit status, plain and minified; then Web Push through FCM, which the suite can only fake | `run-instrumentation-suite.sh`, `push-e2e.sh` |
+| 10 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
+| 11 | `central` | Upload to Maven Central, the channel adopters actually pin | `publish-central.sh` |
+| 12 | `flagship` | Build the browser APK against this exact SDK | - |
+| 13 | `release` | Codeberg release: tag, assets, GPG-signed `SHA256SUMS` | `release-codeberg.sh` |
+| 14 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, re-assert the repo docs, then VERIFY and push the cef repo | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
+| 15 | `prune` | Drop superseded versions from the latest-only Codeberg mirror | `prune-old-versions.sh` |
+| 16 | `play` | Pin + version-bump the apps, rebuild every sample, upload to Play | `release-play.sh` |
 
-The order of 13 and 14 is deliberate and was learned the hard way. `prune`
+The order of 14 and 15 is deliberate and was learned the hard way. `prune`
 exits 1 when the release looks incomplete, and on the 0.10.2 cut "incomplete"
 only meant Maven Central had not propagated yet, which took six minutes. That
 exit used to happen before the push, so the source of a published release sat
@@ -39,7 +40,7 @@ Two things need a human and are not automated:
   Play reaches users. Each gate asks you to type the version. `CEFRIUM_YES=1`
   pre-authorizes them, which an unattended run MUST set -- a background job has
   no stdin and dies at the first gate otherwise.
-- **The hardware signing key**, for the GPG-signed `SHA256SUMS` in phase 11. Prime it in a
+- **The hardware signing key**, for the GPG-signed `SHA256SUMS` in phase 13 (`release`). Prime it in a
   terminal that can show a pinentry prompt before starting.
 
 Everything else, including the pushes, is scripted. The index of every script
@@ -54,7 +55,7 @@ prune):
 ```bash
 # The cut sets Cefrium.VERSION itself, and commits it:
 cef/cefrium_sdk/cut-release.sh <version> <prev-version> --notes "<releases-row HTML>"
-# Resume after a long build:  --from publish   (phases: patches build merge
+# Resume after a long build:  --from publish   (phases: patches build hotranges merge
 #   compose plugin stats sanity suite publish central flagship release
 #   provenance web prune play)
 ```

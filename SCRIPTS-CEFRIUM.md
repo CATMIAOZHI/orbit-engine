@@ -67,7 +67,7 @@ cef/cefrium_sdk/cut-release.sh <version> <prev> --from publish   # resume
 Outcome: last line of `tmp/cut-<version>.status`. The cut checks the signing
 key, the VPN and `JAVA_HOME` before it builds.
 
-Phases: `patches build merge compose plugin stats sanity suite publish central
+Phases: `patches build hotranges merge compose plugin stats sanity suite publish central
 flagship release provenance web prune play`. Flags that matter:
 `CEFRIUM_INCREMENTAL=1` (reuse out dirs), `CEFRIUM_YES=1` (pre-authorize the
 irreversible gates -- needed for an unattended run), `CEFRIUM_NO_PRUNE=1`,
@@ -359,6 +359,7 @@ handler is never consulted). `--skip-build` for sample-only edits.
 | Test a published release e2e | `cef/cefrium_sdk/test-published-release.sh <version>` |
 | Verify an artifact's engine/ABIs | `cef/cefrium_sdk/verify-release-artifacts.sh <version>` |
 | Audit the engine's network calls | `cef/cefrium_sdk/audit-engine-network.sh` |
+| Record the startup read-ahead list for an arm64 AAR (the cut's `hotranges` phase) | `ANDROID_SERIAL=<s> cef/cefrium_sdk/record-hot-ranges.sh <aar> [--inject]` |
 | Did it crash, and of what? | `cef/cefrium_sdk/why-died.sh [package]` |
 | Web Push end to end (real FCM) | `cefrium-sample/push-demo/e2e/webpush-e2e.py --serial <s> --profile default\|<name>` |
 
