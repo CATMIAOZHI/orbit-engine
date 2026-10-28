@@ -64,6 +64,9 @@ cef/cefrium_sdk/cut-release.sh <version> <prev-version>      # the whole thing
 cef/cefrium_sdk/cut-release.sh <version> <prev> --from publish   # resume
 ```
 
+Outcome: last line of `tmp/cut-<version>.status`. The cut checks the signing
+key, the VPN and `JAVA_HOME` before it builds.
+
 Phases: `patches build merge compose plugin stats sanity suite publish central
 flagship release provenance web prune play`. Flags that matter:
 `CEFRIUM_INCREMENTAL=1` (reuse out dirs), `CEFRIUM_YES=1` (pre-authorize the
