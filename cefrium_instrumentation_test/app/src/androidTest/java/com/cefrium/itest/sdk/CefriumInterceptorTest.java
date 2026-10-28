@@ -5,6 +5,7 @@ package com.cefrium.itest.sdk;
 
 import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
+import com.cefrium.itest.LocalHttpServer;
 
 import android.app.Activity;
 
@@ -71,5 +72,78 @@ public class CefriumInterceptorTest {
         }
         Assert.assertTrue("interceptor was never consulted for the subresource; "
                 + "saw: " + seen, found);
+    }
+
+    /**
+     * The interceptor learns what kind of request it is, which document made
+     * it and which page is on top: here a page on 127.0.0.1 framing one on
+     * localhost (another site), each with an image.
+     */
+    @Test
+    public void interceptorSeesTheRequestContext() throws Exception {
+        Activity act = activityRule.getActivity();
+        final CopyOnWriteArrayList<CefriumBrowser.ResourceRequest> seen =
+                new CopyOnWriteArrayList<>();
+        try (LocalHttpServer inner = new LocalHttpServer(
+                     "<html><body><img src='/pixel-INNER.png'></body></html>");
+             LocalHttpServer top = new LocalHttpServer("<html><body>"
+                     + "<iframe src='" + inner.localhostUrl() + "inner'></iframe>"
+                     + "<img src='/pixel-TOP.png'></body></html>")) {
+            act.runOnUiThread(() -> {
+                CefriumBrowser b = browsers.createWithSurface(act);
+                b.setRequestInterceptor(new CefriumBrowser.RequestInterceptor() {
+                    @Override
+                    public boolean shouldBlockRequest(String url, String method,
+                            boolean isMainFrame) {
+                        throw new AssertionError("the context-free form was called for " + url);
+                    }
+
+                    @Override
+                    public boolean shouldBlockRequest(CefriumBrowser.ResourceRequest r) {
+                        seen.add(r);
+                        return false;
+                    }
+                });
+                b.loadUrl(top.url());
+            });
+            String topUrl = top.url();
+            String innerUrl = inner.localhostUrl() + "inner";
+            CefriumBrowser.ResourceRequest page = await(seen, topUrl);
+            CefriumBrowser.ResourceRequest frame = await(seen, innerUrl);
+            CefriumBrowser.ResourceRequest topImg = await(seen, topUrl + "pixel-TOP.png");
+            CefriumBrowser.ResourceRequest innerImg =
+                    await(seen, inner.localhostUrl() + "pixel-INNER.png");
+
+            check(page, CefriumBrowser.ResourceRequest.TYPE_MAIN_FRAME, true, topUrl, topUrl);
+            check(frame, CefriumBrowser.ResourceRequest.TYPE_SUB_FRAME, false, topUrl, topUrl);
+            check(topImg, CefriumBrowser.ResourceRequest.TYPE_IMAGE, true, topUrl, topUrl);
+            check(innerImg, CefriumBrowser.ResourceRequest.TYPE_IMAGE, false, innerUrl, topUrl);
+            Assert.assertEquals("GET", innerImg.method);
+        }
+    }
+
+    private static CefriumBrowser.ResourceRequest await(
+            CopyOnWriteArrayList<CefriumBrowser.ResourceRequest> seen, String url)
+            throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 20000;
+        while (System.currentTimeMillis() < deadline) {
+            for (CefriumBrowser.ResourceRequest r : seen) {
+                if (r.url.equals(url)) return r;
+            }
+            Thread.sleep(100);
+        }
+        StringBuilder all = new StringBuilder();
+        for (CefriumBrowser.ResourceRequest r : seen) all.append("\n  ").append(r.url);
+        throw new AssertionError("no request for " + url + "; saw:" + all);
+    }
+
+    private static void check(CefriumBrowser.ResourceRequest r, int type, boolean mainFrame,
+            String document, String topLevel) {
+        String what = r.url + " type=" + r.resourceType + " main=" + r.isMainFrame
+                + " doc=" + r.documentUrl + " top=" + r.topLevelUrl;
+        Assert.assertEquals("type of " + what, type, r.resourceType);
+        Assert.assertEquals("isMainFrame of " + what, mainFrame, r.isMainFrame);
+        Assert.assertEquals("documentUrl of " + what, document, r.documentUrl);
+        Assert.assertEquals("topLevelUrl of " + what, topLevel, r.topLevelUrl);
     }
 }
