@@ -98,15 +98,79 @@ public interface CefriumRenderHandler {
     }
 
     /**
-     * Called (OSR) when a text-selection handle's state changes. Optional: draw
-     * draggable selection handles over your OSR view at ({@code x},{@code y}).
-     * The quick menu (onQuickMenu) works without drawing these.
+     * A text-selection handle of an off-screen browser, as
+     * {@link #onTouchHandleChanged} reports it. A selection has a start and an
+     * end handle; a caret in an editable field has one centered handle.
+     */
+    final class TouchHandle {
+        /** Orientation: the handle hangs to the left of its point (selection start). */
+        public static final int LEFT = 0;
+        /** Orientation: a caret handle, centered under its point. */
+        public static final int CENTER = 1;
+        /** Orientation: the handle hangs to the right of its point (selection end). */
+        public static final int RIGHT = 2;
+        /**
+         * Width and height of the area a touch must start in to drag the handle,
+         * in the coordinates {@link CefriumBrowser#sendTouchEvent} takes. Draw
+         * the handle to fill it.
+         */
+        public static final int SIZE = 40;
+
+        /** Identifies the handle across reports; each new handle gets a new one. */
+        public final int id;
+        /** Whether to draw it. */
+        public final boolean enabled;
+        /** {@link #LEFT}, {@link #CENTER} or {@link #RIGHT}. */
+        public final int orientation;
+        /** Draw the handle flipped top to bottom (the selection end is near the bottom edge). */
+        public final boolean mirrorVertical;
+        /** Draw the handle flipped left to right. */
+        public final boolean mirrorHorizontal;
+        /**
+         * Top-left corner of the handle, in the coordinates
+         * {@link CefriumBrowser#sendTouchEvent} takes. The handle spans
+         * {@link #SIZE} from here; a touch that starts inside it drags the handle.
+         */
+        public final int x;
+        public final int y;
+        /** Opacity, 0 to 1: the engine fades handles in and out. */
+        public final float alpha;
+
+        TouchHandle(int id, boolean enabled, int orientation, boolean mirrorVertical,
+                boolean mirrorHorizontal, int x, int y, float alpha) {
+            this.id = id;
+            this.enabled = enabled;
+            this.orientation = orientation;
+            this.mirrorVertical = mirrorVertical;
+            this.mirrorHorizontal = mirrorHorizontal;
+            this.x = x;
+            this.y = y;
+            this.alpha = alpha;
+        }
+    }
+
+    /**
+     * Called (OSR) when a text-selection handle appears, moves, fades or hides.
+     * Draw each enabled handle over your view and forward touches with
+     * {@link CefriumBrowser#sendTouchEvent}: a drag that starts on a handle moves
+     * that end of the selection. The quick menu ({@link #onQuickMenu}) works
+     * without drawing handles.
+     */
+    default void onTouchHandleChanged(TouchHandle handle) {
+        onTouchHandleStateChanged(handle.orientation, handle.x, handle.y, handle.enabled);
+    }
+
+    /**
+     * Called (OSR) when a text-selection handle's state changes.
      *
      * @param orientation Handle orientation (cef_horizontal_alignment_t).
-     * @param x           Handle origin x, view pixels.
-     * @param y           Handle origin y, view pixels.
+     * @param x           Handle origin x.
+     * @param y           Handle origin y.
      * @param enabled     Whether the handle is enabled/visible.
+     * @deprecated Does not say which handle changed; use
+     *             {@link #onTouchHandleChanged}.
      */
+    @Deprecated
     default void onTouchHandleStateChanged(int orientation, int x, int y,
                                            boolean enabled) {}
 
