@@ -275,6 +275,7 @@ $CATS
   NEWBLOCK="$NEWBLOCK" perl -0777 -i -pe 's{(<div class="rel-list">\n)}{$1 . "\n" . $ENV{NEWBLOCK} . "\n"}e' "$REL"
   if grep -qF "id=\"v$NEW\"" "$REL"; then
     echo "  releases: inserted v$NEW entry (prev v$PREV -> superseded)"; rm -f "$REL.bak"
+    "$SCRIPT_DIR/trim-releases-page.py" "$REL"
   else
     echo "  WARN: releases: insert anchor did not match -- file restored, edit manually."; mv "$REL.bak" "$REL"
   fi

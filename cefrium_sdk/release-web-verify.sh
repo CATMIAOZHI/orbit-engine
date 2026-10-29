@@ -148,6 +148,12 @@ if grep -qE "<td><strong>$NEW</strong></td>" releases/index.html; then
 else
   bad "releases: the 'Which version, and where' table does not recommend $NEW"
 fi
+# The page keeps the newest five; the rest of the history is the changelog.
+N="$(grep -c '<details class="rel"' releases/index.html || true)"
+[ "$N" -le 5 ] && ok "releases: $N entries (history in the changelog)" \
+               || bad "releases: $N entries, trim to 5 (trim-releases-page.py)"
+grep -qF 'CHANGELOG-CEFRIUM.md' releases/index.html \
+  && ok "releases: links the changelog" || bad "releases: no link to the changelog"
 
 # ---- 2. nothing still presents the OLD version as current ---------------
 # The /releases page legitimately keeps every past version in its history, so
@@ -321,6 +327,10 @@ if [ "$NONET" = "0" ]; then
     live_note "live releases has no row for $NEW yet"
   fi
 fi
+
+echo
+echo "shared top bar and footer"
+if "$SCRIPT_DIR/site-chrome.py" . --check; then ok "every content page"; else bad "pages differ"; fi
 
 echo
 if [ "$FAIL" = "0" ]; then
