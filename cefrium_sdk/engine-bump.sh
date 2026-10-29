@@ -146,7 +146,9 @@ fi
 if run sync; then hdr "gclient sync to $CTAG (DESTRUCTIVE: resets chromium/src working tree)"
   gate "reset chromium/src to clean $CTAG and gclient sync (downloads; ~hours)"
   echo "  reverting chromium/src patched files to clean state (patches are in cef/, safe)..."
-  git -C "$SRC" fetch --tags origin "refs/tags/$CTAG"
+  # Only the one tag: on this shallow clone `fetch --tags` makes Gerrit answer
+  # HTTP 400 ("expected 'acknowledgments'").
+  git -C "$SRC" fetch --no-tags origin "refs/tags/$CTAG:refs/tags/$CTAG"
   # -f is REQUIRED: after any build the tree carries our applied Chromium patches
   # (modified tracked files), so a plain checkout aborts with "local changes would
   # be overwritten". Forcing discards those working-tree mods -- safe because the
