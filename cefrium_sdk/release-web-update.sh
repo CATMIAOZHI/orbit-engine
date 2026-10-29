@@ -280,4 +280,12 @@ $CATS
   fi
 fi
 
+# A guide states the release it covers; a feature dated "(x.y.z)" stays as is.
+for g in "$WEB"/guides/*/index.html; do
+  if grep -qF "This guide covers $PREV." "$g"; then
+    perl -i -pe "s{This guide covers \Q$PREV\E\.}{This guide covers $NEW.}" "$g"
+    echo "  ${g#$WEB/}: covers $NEW"
+  fi
+done
+
 echo "Done. Review: git -C $WEB diff -- quickstart/index.html releases/index.html"
