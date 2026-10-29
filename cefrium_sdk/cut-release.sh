@@ -138,6 +138,22 @@ if run release; then
   rm -f "$t" "$t.sig"
 fi
 
+# The read-ahead list is recorded on an arm64 device, hours in. Pick it now:
+# ANDROID_SERIAL if set, else the one arm64 device connected.
+if run hotranges && [ -z "${ANDROID_SERIAL:-}" ]; then
+  a="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}/platform-tools/adb"
+  [ -x "$a" ] || a=adb
+  arm=$(for s in $("$a" devices | awk '/\tdevice$/{print $1}'); do
+          [ "$("$a" -s "$s" shell getprop ro.product.cpu.abi | tr -d '\r')" = arm64-v8a ] && echo "$s"
+        done)
+  if [ "$(echo "$arm" | grep -c .)" != 1 ]; then
+    echo "ERROR: connect exactly one arm64 device or set ANDROID_SERIAL (found: ${arm:-none})."
+    exit 1
+  fi
+  export ANDROID_SERIAL="$arm"
+  echo ">>> device: $ANDROID_SERIAL"
+fi
+
 # Over a VPN the Central upload of the SDK bundles failed half way (HTTP 524)
 # and left a version partly published. Refuse before anything is built.
 if run central && [ "${CEFRIUM_ALLOW_VPN:-0}" != 1 ]; then
