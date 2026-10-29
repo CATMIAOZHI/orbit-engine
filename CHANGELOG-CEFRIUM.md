@@ -17,6 +17,11 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+### Security
+- **Engine updated to Chromium 156.0.8078.73** (from 156.0.8078.17), the
+  version Debian ships, with the security fixes Chrome released for 156 since
+  0.16.0. Same CEF branch (8078); no API change.
+
 ### Added
 - Off-screen browsers report text-selection handles whole:
   `CefriumRenderHandler.onTouchHandleChanged(TouchHandle)` gives each handle's
