@@ -7,7 +7,7 @@
 **The full Chromium engine in your Android app, through the CEF C API.**
 
 [![SDK](https://img.shields.io/badge/SDK-0.16.0-22d3ee)](https://codeberg.org/cefrium/cef-android/releases)
-[![Chromium](https://img.shields.io/badge/Chromium-156.0.8078.17-4285f4)](https://cefrium.com/upstream/)
+[![Chromium](https://img.shields.io/badge/Chromium-156.0.8078.73-4285f4)](https://cefrium.com/upstream/)
 [![Android patches](https://img.shields.io/badge/Android%20patches-42-6b7280)](patch/patches/android)
 [![Maven Central](https://img.shields.io/badge/Maven%20Central-com.cefrium-1f6feb)](https://central.sonatype.com/namespace/com.cefrium)
 [![Min API](https://img.shields.io/badge/min%20API-29-3ddc84)](QUICKSTART-CEFRIUM.md)
@@ -196,7 +196,7 @@ Cefrium is built from three deliberately-tracked source inputs:
 - **Chromium** - upstream Google source,
   `https://chromium.googlesource.com/chromium/src.git`, via depot_tools/gclient.
   Pinned (in `.gclient`) to the **exact tag Debian packages**
-  (`apt-cache policy chromium`; currently `156.0.8078.17`) for **CVE parity** - we
+  (`apt-cache policy chromium`; currently `156.0.8078.73`) for **CVE parity** - we
   inherit the security fixes in that upstream release. The bytes are **vanilla
   upstream**, not Debian's patched source: we use Chromium's bundled deps + the
   Android NDK toolchain, *not* Debian's system libraries. (The sibling
@@ -220,7 +220,7 @@ Engine-version tracking and how to upgrade it (e.g. 148 -> 149) are in
 ## Building from source
 
 Prerequisites: a Chromium source tree at the pinned tag (see **Sources** above --
-currently `156.0.8078.17`), ~400 GB disk, 64 GB RAM.
+currently `156.0.8078.73`), ~400 GB disk, 64 GB RAM.
 
 ```bash
 cd chromium/src
@@ -328,8 +328,8 @@ cef/
 The authoritative on-device suite is `cefrium_instrumentation_test/`, a
 self-contained Gradle module (not part of the GN/ninja build) that consumes the
 built AARs and exercises the public SDK exactly as a consumer would, so a clone
-of this repo is self-verifying, independent of the samples repo: **48 test
-classes, 160 `@Test` methods** across the Java SDK (core, hardening, the
+of this repo is self-verifying, independent of the samples repo: **50 test
+classes, 174 `@Test` methods** across the Java SDK (core, hardening, the
 `window.cefriumQuery` JS bridge, navigation, cookies, settings, the request
 interceptor, permissions, PDF, media, popups, JS dialogs, nested scroll, SSL
 and HTTP auth) and the Compose API (`CefriumView` tab keep-alive,
@@ -352,7 +352,7 @@ Woodpecker CI that builds every sample and compiles the test APK on each push.
 
 ## Relationship to upstream CEF
 
-Fork of CEF branch 8078, tracking Chromium 156.0.8078.17.
+Fork of CEF branch 8078, tracking Chromium 156.0.8078.73.
 Branch `android-port` contains all Android changes.
 
 Upstream CEF's own README is kept verbatim in
@@ -426,7 +426,7 @@ are auditable in `patch/patches/android/`.
   Use R8/ProGuard, ABI splits, and AAB format to optimize delivery -- see
   [QUICKSTART-CEFRIUM.md](QUICKSTART-CEFRIUM.md#proguard-r8-and-apk-size).
 - **Security updates:** Cefrium tracks Debian Chromium releases for
-  CVE patches. Currently pinned to 156.0.8078.17.
+  CVE patches. Currently pinned to 156.0.8078.73.
 - **Not a WebView replacement:** Cefrium bundles its own Chromium.
   It does not reuse the system WebView. This is by design - it's what
   gives you version control and full API access.
