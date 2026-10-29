@@ -1525,7 +1525,46 @@ Chromium 149.0.7827.102 -- security respin.
 - Registry hygiene: superseded 0.3.2 and 0.4.0 pruned from the Maven registry
   (latest-only retention; older versions remain as GPG-signed Codeberg releases).
 
----
+## [0.4.0] -- 2026-06-08
 
-Earlier versions (0.1.0 - 0.3.2) predate this file; their history is in the git
-tags and Codeberg releases. Backfill here if needed.
+Chromium 149.0.7827.53 (CEF branch 7827).
+
+### Changed
+- Engine bump 148 -> 149 for CVE parity with Debian Chromium. 20 Android
+  patches; one AAR carries arm64-v8a and x86_64.
+
+## [0.3.2] -- 2026-06-08
+
+Chromium 148.0.7778.167 (CEF branch 7778).
+
+### Added
+- Web Notifications (service-worker `showNotification`) in the Android shade.
+- Native FCM push (bring your own Firebase).
+- Per-origin permissions via `setContentSetting` (View and Compose).
+
+## [0.3.1] -- 2026-06-06
+
+### Added
+- Maven-consumable fat AAR (resources and manifest included).
+- Zero-config init, no Application boilerplate.
+- SSL certificate-error and HTTP-auth handlers (WebView parity).
+
+## [0.3.0] -- 2026-06-05
+
+### Added
+- Web permissions, getUserMedia, system media controls, print to PDF, cookie
+  and dynamic-settings APIs.
+
+## [0.2.1] -- 2026-06-04
+
+### Changed
+- First multi-ABI artifact (arm64-v8a and x86_64 in one AAR).
+
+## [0.2.0] -- 2026-06-04
+
+### Changed
+- Per-architecture artifacts; superseded the same day by 0.2.1.
+
+## [0.1.0] -- 2026-05-26
+
+Chromium 148.0.7778.167 (CEF branch 7778). Early validation release.
