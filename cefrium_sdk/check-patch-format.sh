@@ -35,3 +35,44 @@ if [ "$bad" -gt 0 ]; then
   exit 1
 fi
 echo "All patches are -p0 / no-prefix format."
+
+# Where two patches touch the same file, a `patch_updater.py --resave` of one
+# diffs the file against pristine Chromium and absorbs the other's hunks; the
+# result no longer applies after the other patch on a clean tree (0.16.0's
+# multi_profile swallowed chrome_browser_profiles and push_transport, seen only
+# at the next sync). Fail if a patch adds lines another patch adds to the same
+# file.
+python3 - "$PATCHDIR" <<'PY' || exit 1
+import os, re, sys
+added = {}  # file -> {patch: set of distinctive added lines}
+root = sys.argv[1]
+for d, _, fs in os.walk(root):
+    for f in fs:
+        if not f.endswith('.patch'):
+            continue
+        name = os.path.relpath(os.path.join(d, f), root)[:-6]
+        cur = None
+        for line in open(os.path.join(d, f), errors='replace'):
+            m = re.match(r'diff --git (\S+) ', line)
+            if m:
+                cur = added.setdefault(m.group(1), {}).setdefault(name, set())
+            elif cur is not None and line.startswith('+') and not line.startswith('+++'):
+                t = line[1:].strip()
+                if len(t) > 12 and not t.startswith(('//', '#endif', '#else', '}')):
+                    cur.add(t)
+bad = 0
+for path, by in sorted(added.items()):
+    names = sorted(by)
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            common = by[a] & by[b]
+            if len(common) >= 3:
+                print(f"  ABSORBED: {a} and {b} both add {len(common)} lines to {path}, e.g.")
+                print(f"            {sorted(common)[0][:90]}")
+                bad += 1
+if bad:
+    print(f"FAIL: {bad} file(s) carry another patch's hunks. Restore the patch from")
+    print("      before the resave, or use resave-patches.sh (it skips shared files).")
+    sys.exit(1)
+print("No patch carries another patch's hunks.")
+PY
