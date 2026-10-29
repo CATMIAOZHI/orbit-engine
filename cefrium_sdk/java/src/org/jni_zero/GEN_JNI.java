@@ -532,8 +532,8 @@ public class GEN_JNI {
   public static native void org_chromium_chrome_browser_actor_ActorKeyedService_removePendingTask(
       long nativeActorKeyedServiceAndroid,
       Object contextId);
-  // Hashed name: Java_J_N_MTiaN1TN
-  public static native void org_chromium_chrome_browser_actor_ActorKeyedService_setPreparedBackgroundTab(
+  // Hashed name: Java_J_N_MrdCVQ_o
+  public static native void org_chromium_chrome_browser_actor_ActorKeyedService_setTabReady(
       long nativeActorKeyedServiceAndroid,
       Object tab,
       Object glicTriggerMessageId);
@@ -547,6 +547,9 @@ public class GEN_JNI {
       Object profile);
   // Hashed name: Java_J_N_Mxp1Wd30
   public static native Object org_chromium_chrome_browser_actor_ActorTask_getCurrentActionName(
+      long nativeActorTaskAndroid);
+  // Hashed name: Java_J_N_Mnm17sWX
+  public static native Object org_chromium_chrome_browser_actor_ActorTask_getGlicConversationId(
       long nativeActorTaskAndroid);
   // Hashed name: Java_J_N_MkocrMlR
   public static native Object org_chromium_chrome_browser_actor_ActorTask_getLastActedTabs(
