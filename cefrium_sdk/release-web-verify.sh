@@ -155,11 +155,13 @@ fi
 if [ -n "$PREV" ]; then
   echo
   echo "no stale '$PREV' outside the releases history"
-  # A guide may date a feature ("since 0.14.0", "Before 0.14.0 the SDK..."):
-  # that stays true after the bump, so those mentions are not stale.
+  # A guide may date a feature ("since 0.14.0", "Before 0.14.0 the SDK...",
+  # "Downloads (0.14.0)", "0.14.0 or later"): that stays true after the bump,
+  # so those mentions are not stale. "This guide covers 0.14.0." is.
+  P="$(printf %s "$PREV" | sed 's/\./\\./g')"
   STALE="$(grep -rF "$PREV" --include=*.html . 2>/dev/null \
             | grep -vE "^\./releases/|^\./docs/" \
-            | grep -viE "(since|before|from|until|start of) $(printf %s "$PREV" | sed 's/\./\\./g')" \
+            | grep -viE "(since|before|from|until|start of) $P|\($P\)|$P or later" \
             | cut -d: -f1 | sort -u || true)"
   if [ -z "$STALE" ]; then
     ok "no page still advertises $PREV"
