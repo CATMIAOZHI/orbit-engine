@@ -18,18 +18,9 @@ index 91ca9fcee02c946e895b1c67da95b394977286d0..7e896fa227ae096a858f0385b7fc7046
    // Get the OS Data Saver setting. This will be needed later on, so we want to
    // fetch this setting as soon as possible to avoid blocking on it.
 diff --git chrome/browser/profiles/profile_impl.cc chrome/browser/profiles/profile_impl.cc
-index 81e83a88483367ffb93434cd6223a080ee42593d..3d9c25be4a652d8fe267bc704aaa75b1314cce8f 100644
 --- chrome/browser/profiles/profile_impl.cc
 +++ chrome/browser/profiles/profile_impl.cc
-@@ -40,6 +40,7 @@
- #include "base/version.h"
- #include "build/build_config.h"
- #include "build/chromeos_buildflags.h"
-+#include "cef/libcef/features/features.h"
- #include "chrome/browser/background/background_contents_service_factory.h"
- #include "chrome/browser/background_fetch/background_fetch_delegate_factory.h"
- #include "chrome/browser/background_fetch/background_fetch_delegate_impl.h"
-@@ -140,6 +141,7 @@
+@@ -141,6 +141,7 @@
  #include "components/keyed_service/core/simple_keyed_service_factory.h"
  #include "components/language/core/browser/pref_names.h"
  #include "components/language/core/common/locale_util.h"
@@ -37,31 +28,7 @@ index 81e83a88483367ffb93434cd6223a080ee42593d..3d9c25be4a652d8fe267bc704aaa75b1
  #include "components/metrics/metrics_service.h"
  #include "components/omnibox/browser/autocomplete_classifier.h"
  #include "components/payments/core/payment_request_metrics.h"
-@@ -238,6 +240,10 @@
- #include "chrome/browser/background/extensions/background_mode_manager.h"  // nogncheck crbug.com/40147906
- #endif
- 
-+#if BUILDFLAG(ENABLE_CEF)
-+#include "cef/libcef/browser/prefs/pref_names.h"
-+#endif
-+
- #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
- #include "chrome/browser/extensions/chrome_content_browser_client_extensions_part.h"  // nogncheck crbug.com/40147906
- #include "chrome/browser/extensions/extension_special_storage_policy.h"  // nogncheck crbug.com/40147906
-@@ -290,6 +296,12 @@ class ScopedAllowBlockingForProfile : public base::ScopedAllowBlocking {};
- 
- namespace {
- 
-+#if BUILDFLAG(ENABLE_CEF) && !BUILDFLAG(IS_ANDROID)
-+BASE_FEATURE(kStorageNotificationService,
-+             "StorageNotificationService",
-+             base::FEATURE_ENABLED_BY_DEFAULT);
-+#endif
-+
- #if BUILDFLAG(ENABLE_SESSION_SERVICE)
- // Delay before we explicitly create the SessionService.
- static constexpr base::TimeDelta kCreateSessionServiceDelay =
-@@ -526,9 +538,23 @@ ProfileImpl::ProfileImpl(
+@@ -537,9 +538,23 @@ ProfileImpl::ProfileImpl(
  
  #if BUILDFLAG(IS_ANDROID)
    auto* startup_data = g_browser_process->startup_data();
@@ -88,31 +55,7 @@ index 81e83a88483367ffb93434cd6223a080ee42593d..3d9c25be4a652d8fe267bc704aaa75b1
  #else
    LoadPrefsForNormalStartup(async_prefs);
  #endif
-@@ -1079,7 +1105,9 @@ Profile* ProfileImpl::GetOffTheRecordProfile(const OTRProfileID& otr_profile_id,
- 
-   otr_profiles_[otr_profile_id] = std::move(otr_profile);
- 
--  NotifyOffTheRecordProfileCreated(raw_otr_profile);
-+  // With CEF we want to delay initialization.
-+  if (!otr_profile_id.IsUniqueForCEF())
-+    NotifyOffTheRecordProfileCreated(raw_otr_profile);
- 
-   return raw_otr_profile;
- }
-@@ -1425,6 +1453,12 @@ ProfileImpl::GetStorageNotificationService() {
- #if BUILDFLAG(IS_ANDROID)
-   return nullptr;
- #else
-+#if BUILDFLAG(ENABLE_CEF)
-+  if (!base::FeatureList::IsEnabled(kStorageNotificationService) ||
-+      !GetPrefs()->GetBoolean(cef::prefs::kEnableStorageNotificationService)) {
-+    return nullptr;
-+  }
-+#endif
-   return StorageNotificationServiceFactory::GetForBrowserContext(this);
- #endif
- }
-@@ -1493,6 +1527,9 @@ ProfileImpl::TakeDefaultProtoDatabaseProvider() {
+@@ -1512,6 +1527,9 @@ ProfileImpl::TakeDefaultProtoDatabaseProvider() {
  #if BUILDFLAG(IS_ANDROID)
    // On Android StartupData creates proto database provider for the profile
    // before profile is created, so move ownership to storage partition.
@@ -538,10 +481,10 @@ index 370ae28ef8e02d00d536918aeb3cb23af2dc3f6b..f5b8a4b550afcd3b0a1458562952abd0
                  } catch (IOException ex) {
                      return false;
 diff --git components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
-index ccbe7bb9eeea05535b6456822528e857078bbfab..a5f78c344adf8474b6a9f042b51f479710717ea9 100644
+index ccbe7bb9eeea0..db2aa979ef7ba 100644
 --- components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
 +++ components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
-@@ -40,6 +40,27 @@ public class InstanceIDWithSubtype {
+@@ -40,6 +40,14 @@ public class InstanceIDWithSubtype {
      /** Fake subclasses can set this so getInstance creates instances of them. */
      @VisibleForTesting protected static @Nullable FakeFactory sFakeFactoryForTesting;
  
@@ -553,49 +496,9 @@ index ccbe7bb9eeea05535b6456822528e857078bbfab..a5f78c344adf8474b6a9f042b51f4797
 +        }
 +    }
 +
-+    private static @Nullable Factory sFactory;
-+
-+    /**
-+     * Makes getInstance() ask {@code factory} first, so an embedder can serve some subtypes with a
-+     * push service other than GCM; null restores Google Play services for all of them.
-+     */
-+    public static void setFactory(@Nullable Factory factory) {
-+        synchronized (sSubtypeInstancesLock) {
-+            sFactory = factory;
-+            sSubtypeInstances.clear();
-+        }
-+    }
-+
      protected InstanceIDWithSubtype(InstanceID instanceID) {
          mInstanceID = instanceID;
      }
-@@ -58,7 +79,10 @@ public class InstanceIDWithSubtype {
-             if (existing == null) {
-                 if (sFakeFactoryForTesting != null) {
-                     existing = sFakeFactoryForTesting.create(subtype);
--                } else {
-+                } else if (sFactory != null) {
-+                    existing = sFactory.create(subtype);
-+                }
-+                if (existing == null) {
-                     Bundle options = new Bundle();
-                     options.putCharSequence(OPTION_SUBTYPE, subtype);
-                     InstanceID instanceID =
-@@ -98,6 +122,14 @@ public class InstanceIDWithSubtype {
-         return mInstanceID.getToken(authorizedEntity, scope);
-     }
- 
-+    /**
-+     * Supplies the instance for a subtype, or null to use Google Play services. An instance it
-+     * returns is a subclass that overrides every public method and never touches InstanceID.
-+     */
-+    public interface Factory {
-+        @Nullable InstanceIDWithSubtype create(String subtype);
-+    }
-+
-     /** Fake subclasses can set {@link #sFakeFactoryForTesting} to an implementation of this. */
-     @VisibleForTesting
-     public interface FakeFactory {
 diff --git components/gcm_driver/instance_id/instance_id_android.cc components/gcm_driver/instance_id/instance_id_android.cc
 index a2bf1dd93b350f3009f263dec8c9d71b8a170292..140ff83337856dfb2a64ea2d32c802e631622a33 100644
 --- components/gcm_driver/instance_id/instance_id_android.cc
