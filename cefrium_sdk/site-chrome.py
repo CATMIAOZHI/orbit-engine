@@ -12,12 +12,11 @@ import re
 import sys
 
 NAV = [('/quickstart/', 'Quickstart'), ('/guides/', 'Guides'), ('/docs/', 'API'),
-       ('/releases/', 'Releases'), ('/commercial/', 'Commercial'),
-       ('/about/', 'About'), ('https://codeberg.org/cefrium/cef-android', 'Source')]
+       ('/releases/', 'Releases'), ('/about/', 'About'), ('https://codeberg.org/cefrium/cef-android', 'Source')]
 FOOT = [[('/', 'Cefrium'), ('/quickstart/', 'Quickstart'), ('/guides/', 'Guides'),
          ('/docs/', 'API'), ('/releases/', 'Releases')],
         [('/kiosk/', 'Kiosks'), ('/benchmarks/', 'Benchmarks'), ('/upstream/', 'Upstream'),
-         ('/commercial/', 'Commercial'), ('/about/', 'About')],
+         ('/commercial/', 'Support &amp; consulting'), ('/about/', 'About')],
         [('/policy/', 'Trademark &amp; forks'), ('/privacy/', 'Browser privacy policy'),
          ('https://codeberg.org/cefrium/cef-android', 'Source')]]
 
