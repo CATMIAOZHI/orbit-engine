@@ -159,11 +159,10 @@ engine are answered in writing rather than on request: which Chromium each
 release carries and when it moves
 ([releases](https://cefrium.com/releases/)), what the engine contacts on a
 device you cannot inspect (the compliance view above), and what you are allowed
-to do with the code (LGPL-3.0-or-later, or commercial terms without those
-obligations).
+to do with the code (LGPL-3.0-or-later; a commercial alternative for the
+SDK files comes with the support plans).
 
-Priority support, a security-response commitment, alternative licence terms and
-sponsored engineering are arranged per case:
+Support contracts, a security-response commitment and sponsored engineering:
 [cefrium.com/commercial](https://cefrium.com/commercial/), or
 **cefrium@proton.me**. Cefrium is pre-1.0 and the public API still moves
 between minor releases -- say what you are building and you get a straight
@@ -451,8 +450,7 @@ with.
 
 [![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/cefrium/donate)
 
-If you are shipping a product on Cefrium, a support or licence arrangement
-funds the same work at a scale donations cannot, and gives you a commitment in
+If you are shipping a product on Cefrium, a support contract funds the same work at a scale donations cannot, and gives you a commitment in
 return rather than goodwill:
 [cefrium.com/commercial](https://cefrium.com/commercial/),
 **cefrium@proton.me**.
@@ -469,8 +467,11 @@ UnifiedPush, the relay and the Gradle plugin) is **dual-licensed - choose one:**
   library. Hardware you sell with the app installed also needs the
   installation information LGPLv3 asks for. Details:
   [cefrium.com/policy](https://cefrium.com/policy/).
-- **Cefrium Commercial License** - for closed-source / proprietary integration
-  without LGPL obligations. Contact: **cefrium@proton.me**
+- **Cefrium Commercial License** - for the SDK files above, when a product
+  cannot meet the LGPL terms (for example consumer devices without installation
+  information). Part of the Production and Fleet support plans
+  ([cefrium.com/commercial](https://cefrium.com/commercial/)). Third-party code
+  in `libcef.so`, such as FFmpeg (LGPL-2.1), keeps its own terms either way.
 
 The underlying **CEF and Chromium** code is **BSD** (inherited upstream) and is
 unaffected by the above. So is the Android platform code and the Chromium
