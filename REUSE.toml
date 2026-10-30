@@ -3,9 +3,9 @@ SPDX-PackageName = "cefrium"
 SPDX-PackageSupplier = "Juan Manuel Méndez Rey <cefrium@proton.me>"
 SPDX-PackageDownloadLocation = "https://codeberg.org/cefrium/cef-android"
 
-# Cefrium Android port — dual licensed: LGPL-3.0-or-later OR Commercial
-# Open source use: LGPL-3.0-or-later
-# Commercial use without copyleft: Cefrium Commercial License
+# Cefrium Android port: the SDK files are LGPL-3.0-or-later OR the Cefrium
+# Commercial License (part of the support plans; covers these files only,
+# not third-party code in libcef.so).
 # See LICENSES/ directory for full texts.
 
 # Fallback -- upstream CEF code. First, because the last matching annotation
@@ -52,7 +52,7 @@ path = [
 precedence = "override"
 SPDX-FileCopyrightText = "2026 Juan Manuel Méndez Rey <cefrium@proton.me>"
 SPDX-License-Identifier = "LGPL-3.0-or-later OR LicenseRef-Cefrium-Commercial"
-SPDX-FileComment = "Cefrium Android port. Dual licensed: LGPL v3 for open source use, Cefrium Commercial License for proprietary use. Contact cefrium@proton.me for commercial licensing."
+SPDX-FileComment = "Cefrium Android port. LGPL-3.0-or-later for everyone; the Cefrium Commercial License is an alternative for these files, part of the support plans. cefrium@proton.me"
 
 # Cefrium modifications to upstream CEF code: kept under CEF's BSD licence so
 # they can go upstream.

@@ -9,22 +9,27 @@ The Cefrium SDK (the Java/Kotlin SDK, its JNI bridge, the Compose
 wrapper, UnifiedPush, the relay and the Gradle plugin) is available under
 two licenses:
 
-### 1. LGPL v3 (Open Source)
+### 1. LGPL v3 (everyone)
 
-For open source projects. You may use, modify, and distribute
-Cefrium under the terms of the GNU Lesser General Public License
-version 3 or later. Changes to the Cefrium SDK itself must be
-shared under the same license. Your application code can remain
-proprietary if you dynamically link to Cefrium.
+Free for everyone, commercial and proprietary apps included. You may
+use, modify, and distribute Cefrium under the terms of the GNU Lesser
+General Public License version 3 or later. Changes to the Cefrium SDK
+itself must be shared under the same license. Your application code
+can remain proprietary.
 
 See `LICENSES/LGPL-3.0-or-later.txt` and `LICENSES/GPL-3.0-or-later.txt`.
 
 ### 2. Cefrium Commercial License
 
-For proprietary/commercial projects that cannot comply with LGPL
-obligations. Includes priority support, custom builds, and SLA.
+An alternative to the LGPL for the SDK files above only, for products
+that cannot meet its terms (for example, devices sold to consumers
+without Installation Information). It is part of the Production and
+Fleet support plans, not sold separately. It does not change the
+licenses of third-party code in `libcef.so`, such as FFmpeg
+(LGPL-2.1), whose obligations remain.
 
-See `LICENSES/LicenseRef-Cefrium-Commercial.txt`.
+See `LICENSES/LicenseRef-Cefrium-Commercial.txt` and
+https://cefrium.com/commercial/.
 
 Contact: cefrium@proton.me
 
