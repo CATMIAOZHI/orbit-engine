@@ -1,84 +1,84 @@
-Cefrium Commercial License Agreement
-Version 1.0
+Cefrium Commercial License
+Version 2.0
 
 Copyright (C) 2026 Juan Manuel Mendez Rey <cefrium@proton.me>
 
-IMPORTANT: This is a draft. Consult a lawyer before using commercially.
+This license is an alternative to LGPL-3.0-or-later for the files that
+REUSE.toml marks "LGPL-3.0-or-later OR LicenseRef-Cefrium-Commercial"
+(the "Cefrium Files": the Java/Kotlin SDK, its JNI bridge, the Compose
+wrapper, UnifiedPush, the relay, the Gradle plugin and their tests). It
+is granted as part of a Cefrium support agreement (Production or Fleet)
+and lasts as long as that agreement. It is not sold separately.
 
-1. GRANT OF LICENSE
+1. SCOPE
 
-   Subject to the terms of this Agreement and payment of applicable
-   fees, the Licensor grants the Licensee a non-exclusive,
-   non-transferable, worldwide license to:
+   a) It covers the Cefrium Files only. Code under the BSD 3-Clause
+      license (upstream CEF, the Android platform code, the Chromium
+      patches) needs no alternative license.
+   b) It does not cover third-party code in the Cefrium binaries. In
+      particular libcef.so contains Chromium's third-party components,
+      including FFmpeg under LGPL-2.1-or-later; their licenses apply
+      unchanged (see section 4).
 
-   a) Use the Cefrium SDK to develop commercial applications
-   b) Distribute the Cefrium SDK binary (AAR) as part of Licensee's
-      applications
-   c) Use the Cefrium SDK without the obligations of the LGPL v3
+2. GRANT
 
-2. RESTRICTIONS
+   Subject to this license and to a current support agreement, the
+   Licensor grants the Licensee a non-exclusive, non-transferable,
+   worldwide license to use, modify and distribute the Cefrium Files,
+   in source or object form, as part of the Licensee's applications
+   and devices, without the obligations of LGPL-3.0-or-later. In
+   particular the Licensee need not:
 
-   The Licensee may NOT:
+   a) publish modifications to the Cefrium Files;
+   b) keep the Cefrium Java/Kotlin code replaceable (it may be shrunk,
+      obfuscated or merged by R8 or a similar tool);
+   c) provide Installation Information (LGPL-3.0 section 4(e) and
+      GPL-3.0 section 6) for devices it distributes.
 
-   a) Sublicense, sell, or redistribute the Cefrium SDK separately
-      from Licensee's applications
-   b) Modify the Cefrium SDK and distribute the modifications without
-      a separate agreement
-   c) Use the Cefrium SDK to create a competing product (a browser
-      embedding SDK for Android)
-   d) Remove or alter copyright notices
+3. CONDITIONS
 
-3. FEES
+   a) Keep the copyright notices of the Cefrium Files.
+   b) Do not distribute the Cefrium Files, modified or not, as a
+      stand-alone SDK or library for third parties to build on.
 
-   License fees are determined by the type of use:
+4. THIRD-PARTY OBLIGATIONS THAT REMAIN
 
-   a) Per-developer seat: annual subscription per developer using
-      the SDK in their projects
-   b) Per-application: annual subscription per application distributed
-      with the SDK
-   c) Enterprise: custom pricing for large-scale deployments,
-      OEM/embedded, or per-device licensing
+   Because of the third-party components in section 1(b), a Licensee
+   that distributes libcef.so must still, among others:
 
-   Contact cefrium@proton.me for pricing.
+   a) ship libcef.so as a separate, replaceable library;
+   b) state where its corresponding source can be obtained;
+   c) not prohibit reverse engineering of it for debugging
+      modifications (LGPL-2.1 section 6).
 
-4. SUPPORT
-
-   Commercial licensees receive:
-
-   a) Priority issue resolution
-   b) Direct communication channel
-   c) Custom builds upon request (feature flags, Chromium version)
-   d) SLA for critical bugs (response time guarantee)
+   The Licensor will give written guidance on these on request, as
+   part of the support agreement.
 
 5. WARRANTY DISCLAIMER
 
-   THE SDK IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND.
-   THE LICENSOR DOES NOT WARRANT THAT THE SDK WILL BE ERROR-FREE
-   OR UNINTERRUPTED.
+   THE CEFRIUM FILES ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
+   EXCEPT AS THE SUPPORT AGREEMENT EXPRESSLY STATES.
 
 6. LIMITATION OF LIABILITY
 
-   IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY INDIRECT,
-   INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING FROM
-   THE USE OF THE SDK.
+   THE LICENSOR'S TOTAL LIABILITY UNDER THIS LICENSE IS LIMITED TO THE
+   FEES PAID UNDER THE SUPPORT AGREEMENT IN THE TWELVE MONTHS BEFORE THE
+   CLAIM. THE LICENSOR IS NOT LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL
+   OR CONSEQUENTIAL DAMAGES.
 
 7. TERM AND TERMINATION
 
-   a) This license is valid for the subscription period
-   b) The Licensor may terminate this license if the Licensee
-      breaches any term
-   c) Upon termination, the Licensee must cease distribution of
-      new applications containing the SDK
-   d) Applications already distributed to end users may continue
-      to function
+   a) This license ends when the support agreement ends, or if the
+      Licensee breaches it and does not cure the breach within 30 days
+      of notice.
+   b) After it ends, copies already distributed to end users may remain
+      in use. New distribution falls back to LGPL-3.0-or-later.
 
 8. GOVERNING LAW
 
-   This Agreement shall be governed by the laws of Spain and the
-   European Union. Disputes shall be resolved in the courts of
-   A Coruna, Spain.
+   Spanish law. Courts of A Coruna, Spain.
 
 ---
 
-For licensing inquiries: cefrium@proton.me
-Project: https://codeberg.org/cefrium
+Support plans: https://cefrium.com/commercial/
+Contact: cefrium@proton.me
