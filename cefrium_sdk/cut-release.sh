@@ -415,6 +415,9 @@ if run stats;   then hdr "consumer-doc figures"
   # Cefrium's own sources carry the dual-licence header; CEF-derived code
   # (libcef/, patch/) keeps CEF's BSD header and is not checked here.
   cef/cefrium_sdk/license-headers.py --check
+  # A framework call above minSdk without a version check crashes only on the
+  # older Android versions, which the release devices do not run (issue #17).
+  cef/cefrium_sdk/check-api-levels.sh
 fi
 if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   cp out/release/cefrium-sdk.aar "$ROOT/cefrium-sample/push-demo/app/libs/cefrium-sdk.aar"
@@ -437,6 +440,11 @@ if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   # configs the instrumented suite does not (compose, kiosk, push). A sample
   # crashing on a new engine must block the publish (the 0.4.0 flagship lesson).
   cef/cefrium_sdk/smoke-samples.sh
+
+  # One emulator per supported Android version (minSdk 29 .. newest): the app
+  # must start and show its Activity on each. 0.17.0 crashed at launch on
+  # Android 15 alone, and no release device ran 15 (issue #17).
+  cef/cefrium_sdk/smoke-api-levels.sh out/release/cefrium-sdk.aar
 
   # Minified gate: build the browser with R8 on against the fresh AAR, fail
   # below Play's 25% in any R8 category, and run it on the device. A missing
