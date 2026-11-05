@@ -15,7 +15,7 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
-## [Unreleased]
+## [0.17.1] - 2026-11-05
 
 ### Security
 - **Engine updated to Chromium 156.0.8078.80** (from 156.0.8078.73), the
