@@ -164,9 +164,10 @@ if [ -n "$PREV" ]; then
   # A guide may date a feature ("since 0.14.0", "Before 0.14.0 the SDK...",
   # "Downloads (0.14.0)", "0.14.0 or later"): that stays true after the bump,
   # so those mentions are not stale. "This guide covers 0.14.0." is.
+  # benchmarks/ names the release it was measured on (bench-page.py writes it).
   P="$(printf %s "$PREV" | sed 's/\./\\./g')"
   STALE="$(grep -rF "$PREV" --include=*.html . 2>/dev/null \
-            | grep -vE "^\./releases/|^\./docs/" \
+            | grep -vE "^\./releases/|^\./docs/|^\./benchmarks/" \
             | grep -viE "(since|before|from|until|start of) $P|\($P\)|$P or later" \
             | cut -d: -f1 | sort -u || true)"
   if [ -z "$STALE" ]; then
