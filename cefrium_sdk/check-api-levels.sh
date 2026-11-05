@@ -38,21 +38,34 @@ cat > "$WORK/lint.xml" <<'EOF'
 </lint>
 EOF
 
+# The Chromium Java files our Android patches touch: Chromium lints its own
+# code, but not with our hunks in it. Copied out so lint sees only those files.
+PATCHED="$WORK/patched-chromium-java"
+mkdir -p "$PATCHED"
+for p in "$SRC"/cef/patch/patches/android/*.patch; do
+  grep '^+++ ' "$p" | sed 's/^+++ //;s/\t.*//' | grep '\.java$' || true
+done | sort -u | while read -r f; do
+  [ -f "$SRC/$f" ] || continue
+  mkdir -p "$PATCHED/$(dirname "$f")"; cp "$SRC/$f" "$PATCHED/$f"
+done
+
 rc=0
-for dir in cef/cefrium_sdk/java/src cef/cefrium_compose/java; do
-  [ -d "$SRC/$dir" ] || { echo "FAIL: no sources at $dir"; exit 1; }
+for dir in cef/cefrium_sdk/java/src cef/cefrium_compose/java "$PATCHED"; do
+  case "$dir" in /*) ;; *) dir="$SRC/$dir" ;; esac
+  [ -d "$dir" ] || { echo "FAIL: no sources at $dir"; exit 1; }
   # Lint treats an empty source set as clean; make sure it saw files.
-  n=$(find "$SRC/$dir" -name '*.java' -o -name '*.kt' | wc -l)
+  n=$(find "$dir" -name '*.java' -o -name '*.kt' | wc -l)
   [ "$n" -gt 0 ] || { echo "FAIL: no .java/.kt under $dir"; exit 1; }
   "$LINT" --sdk-home "$SDK" --config "$WORK/lint.xml" \
-      --sources "$SRC/$dir" --classpath "$ANDROID_JAR:$ANNOTATIONS" \
+      --sources "$dir" --classpath "$ANDROID_JAR:$ANNOTATIONS" \
       --compile-sdk-version "$COMPILE_SDK" --text "$WORK/report.txt" \
       --exitcode "$WORK" > "$WORK/lint.log" 2>&1
   r=$?
+  label="${dir#$SRC/}"; [ "$dir" = "$PATCHED" ] && label="Chromium Java touched by our patches"
   if [ "$r" -eq 0 ]; then
-    echo "OK   $dir ($n files, minSdk $MIN_SDK)"
+    echo "OK   $label ($n files, minSdk $MIN_SDK)"
   else
-    echo "FAIL $dir: framework API above minSdk $MIN_SDK without a version check"
+    echo "FAIL $label: framework API above minSdk $MIN_SDK without a version check"
     grep -E 'Error|^\s' "$WORK/report.txt" | sed 's/^/    /'
     [ -s "$WORK/report.txt" ] || tail -20 "$WORK/lint.log" | sed 's/^/    /'
     rc=1
