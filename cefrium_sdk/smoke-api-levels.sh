@@ -25,7 +25,7 @@ EMU="$ANDROID_HOME/emulator/emulator"
 AVDM="$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
 
 AAR="$SRC/out/release/cefrium-sdk.aar"
-LEVELS="29 30 33 34 35 36 37"
+LEVELS="29 30 31 33 34 35 36 37"
 while [ $# -gt 0 ]; do
   case "$1" in
     --levels) LEVELS="$2"; shift 2 ;;
