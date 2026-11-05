@@ -8,6 +8,8 @@ import android.app.ApplicationStartInfo;
 import android.content.Context;
 import android.os.Build;
 
+import androidx.annotation.RequiresApi;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -62,14 +64,29 @@ final class LibraryPrefetch {
         try {
             for (ApplicationStartInfo info : am.getHistoricalProcessStartReasons(4)) {
                 if (info.getStartupState() == ApplicationStartInfo.STARTUP_STATE_STARTED) {
-                    return info.getStartComponent()
-                            == ApplicationStartInfo.START_COMPONENT_ACTIVITY;
+                    return isActivityStart(info);
                 }
             }
         } catch (RuntimeException e) {
             // Not available on this build: start when the engine does.
         }
         return false;
+    }
+
+    // getStartComponent() is Android 16; on 15 the start reason says the same.
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    private static boolean isActivityStart(ApplicationStartInfo info) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+            return info.getStartComponent() == ApplicationStartInfo.START_COMPONENT_ACTIVITY;
+        }
+        switch (info.getReason()) {
+            case ApplicationStartInfo.START_REASON_LAUNCHER:
+            case ApplicationStartInfo.START_REASON_LAUNCHER_RECENTS:
+            case ApplicationStartInfo.START_REASON_START_ACTIVITY:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /** Starts the read once per process; later calls do nothing. */
