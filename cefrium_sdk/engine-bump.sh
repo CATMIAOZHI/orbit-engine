@@ -129,6 +129,7 @@ if run pin; then hdr "pin new version (config only, non-destructive)"
   # still states the previous engine.
   PINS="CHROMIUM_BUILD_COMPATIBILITY.txt
 cefrium_sdk/java/src/com/cefrium/Cefrium.java
+SECURITY.md
 README.md
 QUICKSTART-CEFRIUM.md
 MIGRATION-CEFRIUM.md
@@ -337,14 +338,23 @@ if run report; then hdr "patch conflict report"
     elif git apply -p0 --check "$p" 2>/dev/null; then
       echo "    PENDING  $name (applies clean, not yet applied)"
     else
-      echo "    CONFLICT $name  -> regenerate (project methodology):"
-      echo "             # 1) apply the surviving hunks, fix the rest by hand in the target files"
-      echo "             # 2) cd \$workdir && git diff > cef/patch/patches/android/$name.patch"
+      # Reverse-apply fails for an APPLIED patch whose lines a later patch
+      # touched (multi_profile vs push_transport), so it cannot say "conflict".
+      echo "    UNCONFIRMED $name (reverse-apply cannot tell; content check below)"
       conflict=$((conflict+1))
     fi
   done
   echo
-  echo "  Summary: $clean applied, $conflict conflicting (need manual regeneration)."
+  echo "  Summary: $clean confirmed by reverse-apply, $conflict left to the content check."
+  if [ "$conflict" -gt 0 ]; then
+    if cef/cefrium_sdk/check-patches-applied.sh; then
+      echo "  Content check: every patch is present -- the $conflict above are applied, not conflicts."
+    else
+      echo "  CONFLICT: content is missing (named above). Regenerate those patches:"
+      echo "    1) apply the surviving hunks, fix the rest by hand in the target files"
+      echo "    2) python3 cef/tools/patch_updater.py --resave --patch android/<name>"
+    fi
+  fi
   [ -f "$log" ] && echo "  Full patcher log: $log"
   echo
 
