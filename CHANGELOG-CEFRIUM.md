@@ -29,6 +29,13 @@ in the internal FEATURE-NNN.md working docs (not published).
   uses the start reason, so the read-ahead still runs for an Activity start.
   Thanks to Kairlec for the report and the analysis.
 
+### Known issues
+- Web Push in a named profile: a subscription made right after unsubscribing
+  can be dead at FCM from the start (every push answers 410), about 1 in 4
+  times on our test device. Also in 0.17.0; the default profile is not
+  affected. Subscribing again worked every time in our runs. Fix planned for
+  0.17.2.
+
 ## [0.17.0] - 2026-10-29
 
 ### Security
