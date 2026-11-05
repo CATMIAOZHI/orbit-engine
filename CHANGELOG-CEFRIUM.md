@@ -17,6 +17,11 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+### Security
+- **Engine updated to Chromium 156.0.8078.80** (from 156.0.8078.73), the
+  newest build on CEF branch 8078, with the fixes Chrome released since
+  0.17.0. Same CEF branch; no API change.
+
 ### Fixed
 - Apps crashed at launch on Android 15 with `NoSuchMethodError:
   ApplicationStartInfo.getStartComponent()` (issue #17). The startup
