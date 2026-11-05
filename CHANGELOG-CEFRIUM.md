@@ -15,6 +15,15 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [Unreleased]
+
+### Fixed
+- Apps crashed at launch on Android 15 with `NoSuchMethodError:
+  ApplicationStartInfo.getStartComponent()` (issue #17). The startup
+  read-ahead added in 0.17.0 called an Android 16 method on 15. On 15 it now
+  uses the start reason, so the read-ahead still runs for an Activity start.
+  Thanks to Kairlec for the report and the analysis.
+
 ## [0.17.0] - 2026-10-29
 
 ### Security
