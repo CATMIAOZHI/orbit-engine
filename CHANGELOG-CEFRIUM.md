@@ -53,6 +53,20 @@ in the internal FEATURE-NNN.md working docs (not published).
   `targetSdkVersion`, so the manifest merger took it for a library older than
   API 4 and added the permissions such a library implies. Apps that declared
   them for themselves keep them.
+- With media controls on (`setMediaSessionEnabled(true)`), an app that had
+  removed `FOREGROUND_SERVICE` from its manifest (or, on Android 14 and newer,
+  `FOREGROUND_SERVICE_MEDIA_PLAYBACK`) was killed a few seconds after a page
+  started sound. The sound now plays without the system controls.
+- Web notifications were never shown in an app that adds the SDK AAR as a
+  file: `showNotification()` resolved, but the engine failed on a class from
+  `androidx.browser`, which only the Maven POM declared. The AAR now carries
+  the POM's androidx list and the Gradle plugin adds it, as it already did for
+  the other libraries.
+- A `window.cefriumQuery` call made while a page or iframe was loading could
+  fail with error -403 although the policy allowed the page: the call can
+  reach the app before the browser has seen the page commit, and was judged
+  as coming from the previous document. It is now judged once the commit
+  arrives.
 - Unsubscribing from Web Push left the subscription's message route behind
   in the app's preferences.
 - A request interceptor (and ad-block site exceptions) could see an empty
