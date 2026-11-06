@@ -54,6 +54,18 @@ in the internal FEATURE-NNN.md working docs (not published).
   they can start before the browser has seen the page commit. The document
   is now checked against the origin the request came from, and reported as
   that origin when they differ.
+- The Gradle plugin stops a compile on a JDK older than 25 with a message
+  that names the JDK and links the toolchain guide, instead of javac's
+  "class file has wrong version 69.0" among "cannot find symbol" errors.
+- Using Cefrium from another process of the app (`android:process`) threw
+  "Cefrium is not set up in this process". The message now names the process,
+  says the engine runs in the main process only and links the guide.
+
+### Documentation
+- WebView and Cefrium in one process: both run if WebView's engine loads
+  first (`WebSettings.getDefaultUserAgent(context)` before any Cefrium call);
+  if Cefrium starts first, the first `new WebView()` kills the app. The
+  `webview-first` sample runs the three orders.
 
 ## [0.17.1] - 2026-11-05
 

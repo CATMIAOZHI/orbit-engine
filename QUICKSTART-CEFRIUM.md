@@ -368,9 +368,11 @@ process (an Activity or Service declared with `android:process=":something"`).
 Cefrium's child services have their own class names since the release after
 0.10.2, so WebView's renderer service can no longer be handed to Cefrium. On
 0.10.2 and earlier the page stayed blank and logcat showed `cr_ChildProcessConn:
-Child process's classpath doesn't match`; update the SDK. WebView and Cefrium
-in the SAME process are not supported: both are Chromium, and their native
-libraries and Java classes collide.
+Child process's classpath doesn't match`; update the SDK. In the SAME process
+the order decides: if WebView's engine loads first (for example
+`WebSettings.getDefaultUserAgent(context)` before any Cefrium call), both run;
+if Cefrium starts first, the first `new WebView()` kills the app. See
+https://cefrium.com/guides/adopting-cefrium/#webview.
 
 **JDK error:** For 0.8.0+ use **JDK 25** (Gradle 9.7.1 / AGP 9.4). A `cannot
 access CefriumBrowser` or `Unsupported class file major version 69` error means
