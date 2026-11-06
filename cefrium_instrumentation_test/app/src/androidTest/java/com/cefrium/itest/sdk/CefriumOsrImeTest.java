@@ -138,9 +138,13 @@ public class CefriumOsrImeTest {
             + "e.dispatchEvent(new Event('input',{bubbles:true}));"
             + "e.dispatchEvent(new Event('change',{bubbles:true}));";
 
-    private void typeThroughAMirrorField(CefriumBrowser b, boolean focusedFrame) {
+    // The composition and the script travel on different channels: wait for
+    // the composition to reach the field, or the script can overtake it.
+    private void typeThroughAMirrorField(CefriumBrowser b, boolean focusedFrame,
+            AtomicReference<String> title) throws Exception {
+        activityRule.getActivity().runOnUiThread(() -> b.imeSetComposition("12", 2, 2));
+        waitFor(title, "v:12");
         activityRule.getActivity().runOnUiThread(() -> {
-            b.imeSetComposition("12", 2, 2);
             if (focusedFrame) {
                 b.evaluateJavaScriptInFocusedFrame(SET_VALUE);
             } else {
@@ -153,7 +157,7 @@ public class CefriumOsrImeTest {
     public void mirrorFieldValueReachesAFieldInAFrame() throws Exception {
         AtomicReference<String> title = new AtomicReference<>("");
         CefriumBrowser b = open(framePage(""), title);
-        typeThroughAMirrorField(b, true);
+        typeThroughAMirrorField(b, true, title);
         waitFor(title, "v:123");
     }
 
@@ -161,7 +165,7 @@ public class CefriumOsrImeTest {
     public void mirrorFieldValueReachesAFieldInTheMainFrame() throws Exception {
         AtomicReference<String> title = new AtomicReference<>("");
         CefriumBrowser b = open(mainFramePage(""), title);
-        typeThroughAMirrorField(b, true);
+        typeThroughAMirrorField(b, true, title);
         waitFor(title, "v:123");
     }
 
@@ -171,7 +175,7 @@ public class CefriumOsrImeTest {
     public void mainFrameScriptDoesNotReachAFieldInAFrame() throws Exception {
         AtomicReference<String> title = new AtomicReference<>("");
         CefriumBrowser b = open(framePage(""), title);
-        typeThroughAMirrorField(b, false);
+        typeThroughAMirrorField(b, false, title);
         Thread.sleep(2000);
         Assert.assertNotEquals("v:123", title.get());
     }
