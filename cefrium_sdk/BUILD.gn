@@ -201,6 +201,7 @@ action("cefrium_sdk") {
   ]
   inputs = [
     "$root_build_dir/cefrium-raw.aar",
+    "java/src/org/chromium/build/BuildConfig.java",
     "maven-deps.txt",
     "maven_vendored.py",
   ]

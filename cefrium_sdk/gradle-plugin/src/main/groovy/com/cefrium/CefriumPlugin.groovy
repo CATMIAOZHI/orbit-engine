@@ -74,10 +74,11 @@ class CefriumPlugin implements Plugin<Project> {
     ]
 
     void apply(Project project) {
-        // Ensure Chromium's mmap'd assets stay uncompressed.
+        // Ensure Chromium's mmap'd assets stay uncompressed. Since 0.18.0 their
+        // names end in BuildConfig.APK_ASSETS_SUFFIX ("+com.cefrium+").
         project.afterEvaluate {
             project.android.androidResources {
-                noCompress 'dat', 'pak', 'bin'
+                noCompress 'dat', 'pak', 'bin', '+com.cefrium+'
             }
         }
 

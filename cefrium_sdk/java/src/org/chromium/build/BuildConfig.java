@@ -32,8 +32,19 @@ public class BuildConfig {
     public static boolean CRONET_FOR_AOSP_BUILD;
     public static boolean WRITE_CLANG_PROFILING_DATA;
     public static boolean ENABLE_DEBUG_LOGS;
-    public static String[] APK_ASSETS_SUFFIXED_LIST = {};
-    public static String APK_ASSETS_SUFFIX = null;
+    // The engine's assets carry a suffix so they cannot resolve to WebView's:
+    // WebView adds its APK to the host app's AssetManager. Sorted (binary
+    // search); slim_aar.py renames the files and checks this list.
+    public static String[] APK_ASSETS_SUFFIXED_LIST = {
+        "assets/chrome_100_percent.pak",
+        "assets/chrome_200_percent.pak",
+        "assets/icudtl.dat",
+        "assets/resources.pak",
+        "assets/snapshot_blob_64.bin",
+        "assets/stored-locales/en-US.pak",
+        "assets/v8_context_snapshot_64.bin",
+    };
+    public static String APK_ASSETS_SUFFIX = "+com.cefrium+";
     // Use in conjunction with FEATURE_PC check to limit desktop-only
     // features to devices with build flag. Should only be used in
     // DeviceInfo.java since this is the source of truth for isDesktop check.

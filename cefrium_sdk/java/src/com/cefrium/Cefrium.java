@@ -672,6 +672,15 @@ public final class Cefrium {
         CommandLine.getInstance().appendSwitchWithValue(
                 "force-device-scale-factor", String.valueOf(density));
 
+        // The engine maps its assets; a compressed one stops it in native code
+        // with no message.
+        if (!org.chromium.base.ApkAssets.exists("assets/icudtl.dat")) {
+            throw new IllegalStateException("Cefrium's engine assets are missing or"
+                    + " compressed in this APK. Apply the com.cefrium Gradle plugin at the"
+                    + " SDK's version (" + getVersion() + "). See"
+                    + " https://cefrium.com/guides/adopting-cefrium/#plugin");
+        }
+
         try {
             LibraryLoader.getInstance().ensureInitialized();
         } catch (Exception e) {
