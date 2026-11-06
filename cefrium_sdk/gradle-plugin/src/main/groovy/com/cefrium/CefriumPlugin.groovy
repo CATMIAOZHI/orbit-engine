@@ -136,8 +136,9 @@ class CefriumPlugin implements Plugin<Project> {
         }
 
         // The SDK does not vendor the Maven libraries Chromium uses (Guava,
-        // Material, GMS, Firebase, ...); its POM declares them. An app that adds
-        // the AAR as a file never reads that POM, so add the list the AAR carries.
+        // Material, GMS, Firebase, androidx, ...); its POM declares them. An app
+        // that adds the AAR as a file never reads that POM, so add the lists the
+        // AAR carries. Without androidx.browser, web notifications fail silently.
         project.afterEvaluate {
             def coords = [] as LinkedHashSet
             ['implementation', 'api'].each { name ->
@@ -146,10 +147,12 @@ class CefriumPlugin implements Plugin<Project> {
                 conf.dependencies.withType(org.gradle.api.artifacts.FileCollectionDependency).each { dep ->
                     dep.files.files.findAll { it.isFile() && it.name ==~ /cefrium-sdk.*\.aar/ }.each { aar ->
                         new java.util.zip.ZipFile(aar).withCloseable { z ->
-                            def e = z.getEntry('cefrium-maven-deps.txt')
-                            if (e != null) {
-                                z.getInputStream(e).getText('UTF-8').readLines()*.trim()
-                                    .findAll { it && !it.startsWith('#') }.each { coords << it }
+                            ['cefrium-pom-deps.txt', 'cefrium-maven-deps.txt'].each { entry ->
+                                def e = z.getEntry(entry)
+                                if (e != null) {
+                                    z.getInputStream(e).getText('UTF-8').readLines()*.trim()
+                                        .findAll { it && !it.startsWith('#') }.each { coords << it }
+                                }
                             }
                         }
                     }
