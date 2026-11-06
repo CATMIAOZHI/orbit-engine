@@ -105,6 +105,18 @@ check_aar() { # <aar> <label> <expect-both-abis:yes|no>
   else
     bad "$label has no classes.jar"
   fi
+
+  # 5. The manifest declares a targetSdkVersion. Without one, every app's
+  #    manifest merger treats the SDK as older than API 4 and adds
+  #    READ_PHONE_STATE and READ/WRITE_EXTERNAL_STORAGE to the app (0.17.1 and
+  #    earlier shipped that way).
+  local m
+  m="$(unzip -p "$aar" AndroidManifest.xml 2>/dev/null)"
+  if [[ "$m" == *"<uses-sdk"*"android:targetSdkVersion="* ]]; then
+    ok "$label manifest declares a targetSdkVersion"
+  else
+    bad "$label manifest has no targetSdkVersion -- apps would get READ_PHONE_STATE and storage permissions"
+  fi
 }
 
 echo "--- SDK AARs (what gets published) ---"

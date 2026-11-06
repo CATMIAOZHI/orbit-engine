@@ -4,6 +4,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.cefrium">
 
+    <!-- Without a targetSdkVersion the app's manifest merger takes this library
+         for one older than API 4 and adds WRITE_EXTERNAL_STORAGE,
+         READ_EXTERNAL_STORAGE and READ_PHONE_STATE to every app. No
+         minSdkVersion: an app below 29 that falls back to the System WebView
+         must still merge. -->
+    <uses-sdk android:targetSdkVersion="29" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Chromium's network stack queries connectivity at startup
          (DataSaverOSSetting.isDataSaverEnabled -> ConnectivityManager, and
