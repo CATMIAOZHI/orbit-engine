@@ -6,6 +6,7 @@ package com.cefrium.itest.sdk;
 import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 import com.cefrium.itest.LocalHttpServer;
+import com.cefrium.itest.NotificationPermission;
 
 import android.Manifest;
 import android.app.Activity;
@@ -23,6 +24,7 @@ import org.chromium.components.gcm_driver.instance_id.InstanceIDWithSubtype;
 
 import org.junit.Assert;
 import org.junit.Rule;
+import org.junit.rules.TestRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -42,8 +44,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class CefriumWebPushTest {
 
     @Rule(order = 0)
-    public GrantPermissionRule notifications =
-            GrantPermissionRule.grant(Manifest.permission.POST_NOTIFICATIONS);
+    public TestRule notifications = NotificationPermission.grant();
 
     @Rule(order = 1)
     public ActivityTestRule<HostActivity> activityRule =
@@ -194,6 +195,59 @@ public class CefriumWebPushTest {
             appOwn.putString("title", "the app's own message");
             Assert.assertFalse("an app message was taken for Web Push",
                     CefriumPush.handleMessage(activityRule.getActivity(), "sender", appOwn));
+        }
+    }
+
+    private static final String UNSUBSCRIBE_PAGE = "<html><body><script>"
+            + "async function go(){"
+            + "var reg=await navigator.serviceWorker.register('/sw.js');"
+            + "await navigator.serviceWorker.ready;"
+            + "var key=Uint8Array.from(atob('" + SERVER_KEY + "'.replace(/-/g,'+').replace(/_/g,'/')),"
+            + "function(c){return c.charCodeAt(0);});"
+            + "var sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});"
+            + "document.title='subscribed';"
+            + "await new Promise(function(r){setTimeout(r,3000);});"
+            + "await sub.unsubscribe();"
+            + "document.title='unsubscribed';}"
+            + "go().catch(function(e){document.title='error:'+e;});"
+            + "</script></body></html>";
+
+    // The engine's routes live in the app's default preferences (what
+    // ContextUtils.getAppSharedPreferences returns); read them through the
+    // public API, which R8 does not rename.
+    private static String routeOf(String appId) {
+        return android.preference.PreferenceManager.getDefaultSharedPreferences(
+                        androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+                                .getTargetContext().getApplicationContext())
+                .getString("gcm_driver_route." + appId, null);
+    }
+
+    /** Unsubscribing removes the subscription's message route. */
+    @Test
+    public void unsubscribeClearsTheRoute() throws Exception {
+        sTokens.clear();
+        sDeleted.clear();
+        InstanceIDWithSubtype.setFakeFactoryForTesting(FakeInstanceID::new);
+        try {
+            CefriumProfile p = CefriumProfile.get("push-u-" + UUID.randomUUID().toString().substring(0, 8));
+            try (LocalHttpServer server = new LocalHttpServer(UNSUBSCRIBE_PAGE, "/sw.js", SW)) {
+                AtomicReference<String> title = new AtomicReference<>();
+                open(p, server.url(), title, "subscribed");
+                Assert.assertEquals("did not register with FCM", 1, sTokens.size());
+                String appId = sTokens.get(0);
+                Assert.assertNotNull("subscribing recorded no route", routeOf(appId));
+
+                long deadline = System.currentTimeMillis() + 20_000;
+                while (!(sDeleted.contains(appId) && routeOf(appId) == null)
+                        && System.currentTimeMillis() < deadline) {
+                    Thread.sleep(200);
+                }
+                Assert.assertEquals("page did not unsubscribe", "unsubscribed", title.get());
+                Assert.assertTrue("the FCM registration was not deleted", sDeleted.contains(appId));
+                Assert.assertNull("the route outlived the subscription", routeOf(appId));
+            }
+        } finally {
+            InstanceIDWithSubtype.setFakeFactoryForTesting(null);
         }
     }
 }
