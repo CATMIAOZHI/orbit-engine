@@ -5,6 +5,7 @@ package com.cefrium.itest.sdk;
 
 import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
+import com.cefrium.itest.NotificationPermission;
 
 import android.app.Activity;
 
@@ -16,6 +17,7 @@ import com.cefrium.CefriumBrowser;
 
 import org.junit.Assert;
 import org.junit.Rule;
+import org.junit.rules.TestRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -40,8 +42,7 @@ public class CefriumMediaSessionTest {
     public final BrowserRule browsers = new BrowserRule();
 
     @Rule
-    public GrantPermissionRule notifPerm = GrantPermissionRule.grant(
-            "android.permission.POST_NOTIFICATIONS");
+    public TestRule notifPerm = NotificationPermission.grant();
 
     @Test
     public void testMediaSessionBridgeInitializes() throws Exception {

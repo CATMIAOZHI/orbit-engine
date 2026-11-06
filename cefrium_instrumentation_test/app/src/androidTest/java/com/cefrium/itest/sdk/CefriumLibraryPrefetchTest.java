@@ -50,17 +50,48 @@ public class CefriumLibraryPrefetchTest {
 
     @Test
     public void buildIdIsTheOneReadelfReports() throws Exception {
-        Process p = new ProcessBuilder("readelf", "-n", mLib.getPath()).start();
-        String out = new Scanner(p.getInputStream(), "UTF-8").useDelimiter("\\A").next();
-        String expected = null;
-        for (String line : out.split("\n")) {
-            if (line.contains("NT_GNU_BUILD_ID")) {
-                String[] f = line.trim().split("\\s+");
-                expected = f[f.length - 1];
+        String expected;
+        String out;
+        try {
+            Process p = new ProcessBuilder("readelf", "-n", mLib.getPath()).start();
+            out = new Scanner(p.getInputStream(), "UTF-8").useDelimiter("\\A").next();
+            expected = null;
+            for (String line : out.split("\n")) {
+                if (line.contains("NT_GNU_BUILD_ID")) {
+                    String[] f = line.trim().split("\\s+");
+                    expected = f[f.length - 1];
+                }
             }
+        } catch (java.io.IOException noReadelf) {
+            // Android 10 has no readelf an app can run. Find the note by its
+            // bytes instead, which shares no code with the program-header walk
+            // under test.
+            out = "byte scan";
+            expected = scanForBuildIdNote(mLib);
         }
-        Assert.assertNotNull("readelf printed no build-id:\n" + out, expected);
+        Assert.assertNotNull("no build-id found (" + out + ")", expected);
         Assert.assertEquals(expected, mBuildId.invoke(null, mLib));
+    }
+
+    // namesz=4, descsz=20, type=NT_GNU_BUILD_ID, "GNU\0", then the 20-byte id.
+    private static String scanForBuildIdNote(File elf) throws Exception {
+        byte[] head = new byte[64 * 1024];
+        int n;
+        try (java.io.FileInputStream in = new java.io.FileInputStream(elf)) {
+            n = in.read(head);
+        }
+        byte[] sig = {4, 0, 0, 0, 20, 0, 0, 0, 3, 0, 0, 0, 'G', 'N', 'U', 0};
+        for (int i = 0; i + sig.length + 20 <= n; i++) {
+            int k = 0;
+            while (k < sig.length && head[i + k] == sig[k]) k++;
+            if (k < sig.length) continue;
+            StringBuilder hex = new StringBuilder();
+            for (int b = 0; b < 20; b++) {
+                hex.append(String.format("%02x", head[i + sig.length + b] & 0xff));
+            }
+            return hex.toString();
+        }
+        return null;
     }
 
     @Test
