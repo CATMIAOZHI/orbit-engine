@@ -701,9 +701,8 @@ public class CefriumBrowser {
 
     /**
      * Execute JavaScript in the browser's main frame (fire-and-forget).
-     * Uses CefFrame::ExecuteJavaScript. The script's return value is not
-     * delivered back to the caller; a result-returning JS bridge is a
-     * separate feature built on CefMessageRouter.
+     * Uses CefFrame::ExecuteJavaScript. To get the script's value back, use
+     * {@link #evaluateJavaScript(String, android.webkit.ValueCallback)}.
      *
      * @param script JavaScript source to execute. Ignored if null.
      */
@@ -724,6 +723,159 @@ public class CefriumBrowser {
     public void evaluateJavaScriptInFocusedFrame(String script) {
         if (script != null && checkNative("evaluateJavaScriptInFocusedFrame")) {
             nativeEvaluateJavaScriptInFocusedFrame(mNativePtr, script);
+        }
+    }
+
+    /**
+     * Evaluates JavaScript in the main frame and returns its value, like
+     * {@code WebView.evaluateJavascript}. The callback gets the value as JSON
+     * ({@code "2"}, {@code "\"text\""}, {@code "{\"a\":1}"}), {@code "null"}
+     * for undefined or a value JSON cannot hold, and Java {@code null} when the
+     * script threw or could not run. A Promise is not awaited. Runs through
+     * the DevTools protocol ({@code Runtime.evaluate}), so the page's Content
+     * Security Policy does not block it.
+     *
+     * @param script         JavaScript source. Ignored if null.
+     * @param resultCallback invoked on the UI thread; may be null.
+     */
+    public void evaluateJavaScript(String script,
+            android.webkit.ValueCallback<String> resultCallback) {
+        if (script == null) return;
+        if (resultCallback == null) {
+            evaluateJavaScript(script);
+            return;
+        }
+        String params;
+        try {
+            params = new org.json.JSONObject()
+                    .put("expression", script)
+                    .put("returnByValue", true)
+                    .toString();
+        } catch (org.json.JSONException e) {
+            throw new IllegalStateException(e);
+        }
+        executeDevToolsMethod("Runtime.evaluate", params,
+                (success, json) -> resultCallback.onReceiveValue(
+                        success ? evaluateResultValue(json) : null));
+    }
+
+    // The JSON of a Runtime.evaluate result's value; null if it threw.
+    static String evaluateResultValue(String resultJson) {
+        try {
+            org.json.JSONObject r = new org.json.JSONObject(resultJson);
+            if (r.has("exceptionDetails")) return null;
+            org.json.JSONObject result = r.optJSONObject("result");
+            if (result == null || !result.has("value")) return "null";
+            Object value = result.get("value");
+            if (value instanceof String) return org.json.JSONObject.quote((String) value);
+            return value == org.json.JSONObject.NULL ? "null" : value.toString();
+        } catch (org.json.JSONException e) {
+            return null;
+        }
+    }
+
+    // ─────────────── DevTools protocol (FEATURE-082) ───────────────
+
+    /** Result of {@link #executeDevToolsMethod}. Invoked on the UI thread. */
+    public interface DevToolsCallback {
+        /**
+         * @param success    whether the method succeeded
+         * @param resultJson on success the method's {@code result} object as
+         *                   JSON, otherwise its {@code error} object, which has
+         *                   a {@code message}
+         */
+        void onDevToolsResult(boolean success, String resultJson);
+    }
+
+    /** DevTools protocol events of this browser. Invoked on the UI thread. */
+    public interface DevToolsEventListener {
+        /**
+         * @param method     the event, e.g. {@code Page.loadEventFired}
+         * @param paramsJson its parameters as a JSON object
+         */
+        void onDevToolsEvent(String method, String paramsJson);
+    }
+
+    private final java.util.concurrent.ConcurrentHashMap<Integer, DevToolsCallback>
+            mDevToolsCallbacks = new java.util.concurrent.ConcurrentHashMap<>();
+    // The SDK's own internal DevTools calls use ids below 1000.
+    private final java.util.concurrent.atomic.AtomicInteger mDevToolsId =
+            new java.util.concurrent.atomic.AtomicInteger(1000);
+    private volatile DevToolsEventListener mDevToolsEventListener;
+
+    /**
+     * Calls a Chrome DevTools Protocol method on this browser, in process: no
+     * remote debugging port is opened. For example
+     * {@code executeDevToolsMethod("Page.navigate", "{\"url\":\"https://example.com\"}", cb)}.
+     * Domains that send events (Page, Network, Runtime, ...) report them to
+     * the {@link #setDevToolsEventListener listener} once enabled with their
+     * {@code enable} method. Uses CefBrowserHost::ExecuteDevToolsMethod.
+     *
+     * <p>Works once the browser exists: right away for a surface browser,
+     * after the first load for an off-screen one. Before that, and after
+     * {@link #close()}, the callback gets an error.
+     *
+     * @param method     e.g. {@code Runtime.evaluate}
+     * @param paramsJson the parameters as a JSON object, or null for none
+     * @param callback   invoked once on the UI thread; may be null
+     */
+    public void executeDevToolsMethod(String method, String paramsJson,
+            DevToolsCallback callback) {
+        if (method == null) throw new IllegalArgumentException("method is null");
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            new android.os.Handler(android.os.Looper.getMainLooper())
+                    .post(() -> executeDevToolsMethod(method, paramsJson, callback));
+            return;
+        }
+        int id = mDevToolsId.getAndIncrement();
+        if (callback != null) mDevToolsCallbacks.put(id, callback);
+        int rc = mNativePtr == 0 ? 1
+                : nativeExecuteDevToolsMethod(mNativePtr, this, id, method, paramsJson,
+                        mDevToolsEventListener != null);
+        if (rc != 0) {
+            onDevToolsResult(id, false, devToolsError(rc == 2
+                    ? "paramsJson is not a JSON object"
+                    : rc == 3 ? "the method was not accepted"
+                              : "the browser does not exist yet or is closed"));
+        }
+    }
+
+    /**
+     * Receives every DevTools protocol event of this browser; null stops
+     * them. Events flow only for domains enabled through
+     * {@link #executeDevToolsMethod}.
+     */
+    public void setDevToolsEventListener(DevToolsEventListener listener) {
+        mDevToolsEventListener = listener;
+        if (mNativePtr != 0) {
+            nativeSetDevToolsEventsEnabled(mNativePtr, this, listener != null);
+        }
+    }
+
+    private static String devToolsError(String message) {
+        try {
+            return new org.json.JSONObject().put("message", message).toString();
+        } catch (org.json.JSONException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    // Called from native (UI thread).
+    private void onDevToolsResult(int id, boolean success, String resultJson) {
+        DevToolsCallback cb = mDevToolsCallbacks.remove(id);
+        if (cb != null) cb.onDevToolsResult(success, resultJson);
+    }
+
+    // Called from native (UI thread).
+    private void onDevToolsEvent(String method, String paramsJson) {
+        DevToolsEventListener l = mDevToolsEventListener;
+        if (l != null) l.onDevToolsEvent(method, paramsJson);
+    }
+
+    // Pending calls never get an answer once the browser is gone.
+    private void failPendingDevToolsCalls() {
+        for (Integer id : new java.util.ArrayList<>(mDevToolsCallbacks.keySet())) {
+            onDevToolsResult(id, false, devToolsError("the browser was closed"));
         }
     }
 
@@ -2289,6 +2441,7 @@ public class CefriumBrowser {
      */
     private void onNativeBrowserClosed() {
         mNativePtr = 0;
+        failPendingDevToolsCalls();
         // The container may stay on screen after close (an app closing the
         // visible tab). Remove both views before destroying anything, as
         // content_shell's removeShell does: a ContentViewRenderView left in the
@@ -4105,6 +4258,10 @@ public class CefriumBrowser {
     private static native void nativeFlushCookies(long nativePtr);
     private static native void nativeClearCache(long nativePtr);
     private static native void nativePrintToPdf(long nativePtr, CefriumBrowser browser, String filePath, long requestId);
+    private static native int nativeExecuteDevToolsMethod(long nativePtr, CefriumBrowser browser,
+            int id, String method, String paramsJson, boolean events);
+    private static native void nativeSetDevToolsEventsEnabled(long nativePtr,
+            CefriumBrowser browser, boolean enabled);
     private static native void nativeSetUserAgentOverride(long nativePtr, String userAgent);
     private static native void nativeSetJavaScriptEnabled(long nativePtr, boolean enabled);
     private static native void nativeSetMediaPlaybackRequiresUserGesture(long nativePtr, boolean required);

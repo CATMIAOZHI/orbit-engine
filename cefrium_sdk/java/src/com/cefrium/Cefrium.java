@@ -879,6 +879,27 @@ public final class Cefrium {
         return nativeSetSecureDns(mode == null ? "" : mode, templates == null ? "" : templates);
     }
 
+    /**
+     * Lets Chrome's DevTools inspect this app's pages over adb, like
+     * {@code WebView.setWebContentsDebuggingEnabled}: the engine listens on the
+     * abstract socket {@code <package>_devtools_remote}, which
+     * {@code chrome://inspect} on a connected computer lists. Only adb (the
+     * shell user), root and apps signed with this app's key may connect.
+     * Off by default; anyone with adb access to the device can read and drive
+     * every page while it is on, so do not ship it on in a release build.
+     *
+     * @throws IllegalStateException if not called on the main thread.
+     */
+    public static void setRemoteDebuggingEnabled(boolean enabled) {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            throw new IllegalStateException(
+                    "setRemoteDebuggingEnabled must be called on the main thread");
+        }
+        ensureInitialized();
+        nativeSetRemoteDebuggingEnabled(enabled,
+                ContextUtils.getApplicationContext().getPackageName());
+    }
+
     /** {@link #downloadAndLoadAdBlockList} for {@link #EASYLIST_URL}. */
     public static void downloadAndLoadEasyList(android.content.Context context) {
         downloadAndLoadAdBlockList(context, EASYLIST_URL, null);
@@ -1074,5 +1095,6 @@ public final class Cefrium {
     private static native int nativeLoadAdBlockList(String list, String path);
     private static native int nativeLoadYouTubeAdRules();
     private static native boolean nativeSetSecureDns(String mode, String templates);
+    private static native void nativeSetRemoteDebuggingEnabled(boolean enabled, String prefix);
     private static native void nativeFetchAdBlockList(String url, long id);
 }
