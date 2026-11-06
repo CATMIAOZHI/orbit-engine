@@ -3,10 +3,12 @@
 
 package com.cefrium;
 
+import android.Manifest;
 import android.app.Notification;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.IBinder;
 
@@ -31,6 +33,10 @@ public class CefriumMediaService extends Service {
     static final int NOTIFICATION_ID = 0xCEF1;
 
     static void show(Context context, Notification notification) {
+        // startForegroundService() obliges the service to call startForeground()
+        // within seconds; without these permissions that call throws and the
+        // system then kills the app. Play on without the controls instead.
+        if (!mayStartForeground(context)) return;
         Intent i = new Intent(context, CefriumMediaService.class)
                 .setAction(ACTION_SHOW);
         try {
@@ -47,6 +53,19 @@ public class CefriumMediaService extends Service {
         }
         // The notification itself is fetched from the active session in
         // onStartCommand to avoid passing a large Parcelable through the intent.
+    }
+
+    private static boolean mayStartForeground(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                && !granted(context, Manifest.permission.FOREGROUND_SERVICE)) {
+            return false;
+        }
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                || granted(context, Manifest.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK);
+    }
+
+    private static boolean granted(Context context, String permission) {
+        return context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
     }
 
     static void stop(Context context) {

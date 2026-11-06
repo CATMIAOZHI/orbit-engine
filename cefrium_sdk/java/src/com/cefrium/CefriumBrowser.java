@@ -3225,9 +3225,9 @@ public class CefriumBrowser {
 
     /**
      * Enables system media controls (lock-screen + notification shade) for this
-     * browser's playback, driven by the page's {@code navigator.mediaSession}
-     *. Requires the {@code POST_NOTIFICATIONS} runtime permission
-     * on Android 13+. Safe to call before or after the page loads.
+     * browser's playback, driven by the page's {@code navigator.mediaSession}.
+     * Requires the {@code POST_NOTIFICATIONS} runtime permission on Android
+     * 13+. Safe to call before or after the page loads.
      */
     public void setMediaSessionEnabled(boolean enabled) {
         mMediaSessionEnabled = enabled;
