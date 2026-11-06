@@ -85,6 +85,7 @@ public final class Cefrium {
     private static boolean sComponentUpdatesEnabled = true;
     private static boolean sLibraryPrefetchEnabled = true;
     private static boolean sNetworkTimeQueriesEnabled = false;
+    private static boolean sDrmPreprovisioningAtStartup = false;
     private static java.io.File sNetLogFile;
     private static boolean sGpuProcessEnabled = false;
     private static java.io.File sDataDirectory;
@@ -305,6 +306,40 @@ public final class Cefrium {
     /** @return whether engine network time queries are enabled (default false). */
     public static synchronized boolean areNetworkTimeQueriesEnabled() {
         return sNetworkTimeQueriesEnabled;
+    }
+
+    /**
+     * Control whether the engine prepares Widevine DRM one minute after start.
+     * <b>Disabled by default in Cefrium</b>; Chromium enables it. When enabled,
+     * the engine asks Google's provisioning service
+     * ({@code www.googleapis.com/certificateprovisioning}) for two Widevine
+     * origin IDs about a minute after the profile loads, whether or not any
+     * page plays protected media.
+     *
+     * <p>Disabled, DRM still works: the engine provisions when a page first
+     * uses Encrypted Media Extensions, so only an app that plays protected
+     * media contacts the service, and only then. Enable it if the first
+     * protected video must start without that round trip.</p>
+     *
+     * <p>Call it before the engine initializes; afterwards it has no effect and
+     * logs a warning. Implemented by disabling Chromium's
+     * {@code MediaDrmPreprovisioningAtStartup} feature.</p>
+     *
+     * @param enabled true to pre-provision at startup, as Chromium does.
+     */
+    public static synchronized void setDrmPreprovisioningAtStartupEnabled(boolean enabled) {
+        if (sInitialized) {
+            android.util.Log.w(TAG, "setDrmPreprovisioningAtStartupEnabled() ignored: the "
+                    + "engine is already initialized. Call it before the first browser "
+                    + "is created.");
+            return;
+        }
+        sDrmPreprovisioningAtStartup = enabled;
+    }
+
+    /** @return whether DRM pre-provisioning at startup is enabled (default false). */
+    public static synchronized boolean isDrmPreprovisioningAtStartupEnabled() {
+        return sDrmPreprovisioningAtStartup;
     }
 
     /**
@@ -600,6 +635,11 @@ public final class Cefrium {
         // and an embedder opts back IN. Upstream switch, so it survives engine bumps.
         if (!sNetworkTimeQueriesEnabled) {
             disableFeature("NetworkTimeServiceQuerying");
+        }
+        // Widevine origin IDs are otherwise fetched from Google a minute after
+        // start in every app; on demand, only apps that play DRM media do it.
+        if (!sDrmPreprovisioningAtStartup) {
+            disableFeature("MediaDrmPreprovisioningAtStartup");
         }
         if (sNetLogFile != null) {
             CommandLine.getInstance().appendSwitchWithValue(
