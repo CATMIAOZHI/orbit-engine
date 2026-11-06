@@ -34,6 +34,11 @@ package com.cefrium;
  * browser.loadUrl("https://example.com");
  * </pre>
  *
+ * <p>Input, resize and script results are public calls here; do not reach into
+ * {@code org.chromium.*} for them. See
+ * <a href="https://cefrium.com/guides/public-api/">the public API guide</a> and
+ * <a href="https://cefrium.com/llms.txt">cefrium.com/llms.txt</a>.</p>
+ *
  * @see Cefrium#initialize(android.content.Context)
  * @see CefriumRenderHandler
  */
