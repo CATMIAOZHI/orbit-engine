@@ -356,6 +356,7 @@ handler is never consulted). `--skip-build` for sample-only edits.
 | One test class against a dev AAR, while iterating (not a gate) | `CEFRIUM_TEST_CLASS=<Class> CEFRIUM_SDK_AAR=out/<variant>/cefrium-sdk.aar cef/cefrium_sdk/run-instrumentation-suite.sh` |
 | Web Push through FCM on a device: repeated resubscribes per profile, two sites | `cef/cefrium_sdk/push-e2e.sh [<sdk.aar>]` |
 | Smoke the published artifact | `cef/cefrium_sdk/smoke-samples.sh --registry <version>` |
+| Smoke one sample (iterating, not a gate) | `CEFRIUM_SMOKE_ONLY=<sample> cef/cefrium_sdk/smoke-samples.sh [--registry <version>]` |
 | App starts on every supported Android version (one x86_64 emulator per API level 29, 30, 31, 33..37; the cut's `sanity` phase) | `cef/cefrium_sdk/smoke-api-levels.sh [<sdk.aar>] [--levels "35 36"]` |
 | No framework call above minSdk without a version check (lint NewApi/InlinedApi, SDK + Compose; the cut's `patches` phase) | `cef/cefrium_sdk/check-api-levels.sh` |
 | R8 consumer rules: Play's 25% bar + minified run | `cef/cefrium_sdk/smoke-minified.sh` |

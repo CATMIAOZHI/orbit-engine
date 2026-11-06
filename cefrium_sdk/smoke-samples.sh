@@ -46,10 +46,20 @@ N="$("$ADB" devices 2>/dev/null | grep -c 'device$')"
 REGISTRY_VERSION=""
 [ "${1:-}" = "--registry" ] && { REGISTRY_VERSION="${2:?--registry needs a version}"; shift 2; }
 
-SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive kiosk-automotive-v2 kiosk-signage loaddata-baseurl osr-hud firebase-coexistence nested-scroll kotlin-arrow-sample profiles network-privacy document-start engine-contacts"
+SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive kiosk-automotive-v2 kiosk-signage loaddata-baseurl osr-hud firebase-coexistence nested-scroll kotlin-arrow-sample profiles network-privacy document-start engine-contacts drm-provisioning"
 # Samples that write files/verdict.txt: launching without a crash is not enough
 # for them, the verdict must read PASS.
-VERDICT_SAMPLES="firebase-coexistence nested-scroll profiles network-privacy document-start engine-contacts"
+VERDICT_SAMPLES="firebase-coexistence nested-scroll profiles network-privacy document-start engine-contacts drm-provisioning"
+# Samples whose data is cleared before launch (see below).
+FRESH_SAMPLES="engine-contacts drm-provisioning"
+# CEFRIUM_SMOKE_ONLY=<sample> runs just that one, for iterating on it. Not a
+# gate: a cut never sets it.
+if [ -n "${CEFRIUM_SMOKE_ONLY:-}" ]; then
+  case " $SAMPLES " in
+    *" $CEFRIUM_SMOKE_ONLY "*) SAMPLES="$CEFRIUM_SMOKE_ONLY" ;;
+    *) echo "ERROR: CEFRIUM_SMOKE_ONLY: no sample '$CEFRIUM_SMOKE_ONLY'" >&2; exit 1 ;;
+  esac
+fi
 LOGDIR="$ROOT/tmp/smoke-samples"
 mkdir -p "$LOGDIR"
 
@@ -122,6 +132,10 @@ for s in $SAMPLES; do
   pkg="$("$AAPT" dump badging "$apk" 2>/dev/null | grep -oP "package: name='\K[^']+")"
   act="$("$AAPT" dump badging "$apk" 2>/dev/null | grep -oP "launchable-activity: name='\K[^']+")"
   "$ADB" install -r "$apk" >/dev/null 2>&1
+  # engine-contacts measures a first start: with data from an earlier run the
+  # engine has its Widevine origin IDs already and contacts nothing for them,
+  # so it would pass for the wrong reason.
+  case " $FRESH_SAMPLES " in *" $s "*) "$ADB" shell pm clear "$pkg" >/dev/null 2>&1 ;; esac
   for p in POST_NOTIFICATIONS CAMERA RECORD_AUDIO ACCESS_FINE_LOCATION; do "$ADB" shell pm grant "$pkg" android.permission.$p >/dev/null 2>&1; done
   "$ADB" shell am force-stop "$pkg" >/dev/null 2>&1; "$ADB" logcat -c >/dev/null 2>&1
   # Release cached memory from the PREVIOUS heavy sample so this one starts with
@@ -143,12 +157,15 @@ for s in $SAMPLES; do
   verdict=""
   case " $VERDICT_SAMPLES " in *" $s "*)
     # The W90 takes 15-20 s to spawn a renderer; give the verdict a minute.
-    for _ in $(seq 1 24); do
+    # engine-contacts watches 90 s (past the engine's one-minute timers).
+    rounds=24
+    [ "$s" = engine-contacts ] && rounds=48
+    for _ in $(seq 1 "$rounds"); do
       verdict="$("$ADB" shell run-as "$pkg" cat files/verdict.txt 2>/dev/null | tr -d '\r')"
       [ -n "$verdict" ] && break
       sleep 2.5
     done
-    verdict="${verdict:-NONE (no verdict written in 72 s)}" ;;
+    verdict="${verdict:-NONE (no verdict written in $((12 + rounds * 5 / 2)) s)}" ;;
   esac
   after="$("$ADB" shell dumpsys activity exit-info "$pkg" 2>/dev/null | grep -cE "process=$pkg reason=(4|5|6) ")"
   # Also catch a Java FATAL surfacing in logcat (cleared per-sample above).
