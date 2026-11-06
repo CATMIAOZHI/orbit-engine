@@ -148,6 +148,24 @@ def merge_values_xml(existing_xml, new_xml, global_names, config):
                        xml_declaration=True)
 
 
+BUILD_CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'java', 'src', 'org', 'chromium', 'build',
+                            'BuildConfig.java')
+
+
+def read_asset_suffix():
+    """Returns (APK_ASSETS_SUFFIX, APK_ASSETS_SUFFIXED_LIST) from BuildConfig."""
+    src = open(BUILD_CONFIG).read()
+    suffix = re.search(r'APK_ASSETS_SUFFIX = "([^"]+)";', src)
+    listed = re.search(r'APK_ASSETS_SUFFIXED_LIST = \{([^}]*)\};', src)
+    if not suffix or not listed:
+        sys.exit('slim_aar: no asset suffix in %s' % BUILD_CONFIG)
+    names = re.findall(r'"([^"]+)"', listed.group(1))
+    if names != sorted(names):
+        sys.exit('slim_aar: APK_ASSETS_SUFFIXED_LIST is not sorted')
+    return suffix.group(1), names
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', required=True)
@@ -403,11 +421,20 @@ def main():
                if not os.path.exists(os.path.join(build_dir, r))]
     if missing:
         sys.exit('slim_aar: %s not found next to %s' % (missing, args.input))
+    # The engine reads these through ApkAssets, which appends
+    # BuildConfig.APK_ASSETS_SUFFIX to the names in APK_ASSETS_SUFFIXED_LIST
+    # (as WebView does for its own): an older WebView adds its APK to the host
+    # app's AssetManager, and its icudtl.dat would otherwise win the lookup.
+    suffix, suffixed = read_asset_suffix()
+    unlisted = sorted(set(assets.values()) - set(suffixed))
+    if unlisted:
+        sys.exit('slim_aar: %s missing from APK_ASSETS_SUFFIXED_LIST in %s'
+                 % (unlisted, BUILD_CONFIG))
     with zipfile.ZipFile(args.output, 'a') as zout:
         for src, dst in assets.items():
             path = os.path.join(build_dir, src)
             if os.path.exists(path):
-                zout.writestr(dst, open(path, 'rb').read(),
+                zout.writestr(dst + suffix, open(path, 'rb').read(),
                               compress_type=zipfile.ZIP_STORED)
 
     in_size = os.path.getsize(args.input)
