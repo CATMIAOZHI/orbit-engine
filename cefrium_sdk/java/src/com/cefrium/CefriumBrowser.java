@@ -1357,7 +1357,11 @@ public class CefriumBrowser {
         /**
          * The document that made the request: for a subresource the page that
          * loads it, for an iframe the page that holds it, for a main-frame
-         * navigation the request's own URL. Empty when unknown.
+         * navigation the request's own URL. For a subresource, only the
+         * page's origin ({@code https://host/}) when the page has no URL of
+         * its own (an iframe {@code srcdoc}) or when the request starts before
+         * the browser has seen the page commit, as a page's first requests
+         * can. Empty when unknown.
          */
         public final String documentUrl;
         /**
