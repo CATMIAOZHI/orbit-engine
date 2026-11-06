@@ -143,7 +143,58 @@ public class CefriumInterceptorTest {
                 + " doc=" + r.documentUrl + " top=" + r.topLevelUrl;
         Assert.assertEquals("type of " + what, type, r.resourceType);
         Assert.assertEquals("isMainFrame of " + what, mainFrame, r.isMainFrame);
-        Assert.assertEquals("documentUrl of " + what, document, r.documentUrl);
+        // A subresource that starts before the browser has seen its page commit
+        // gets only the page's origin (see ResourceRequest.documentUrl).
+        boolean originOnly = type != CefriumBrowser.ResourceRequest.TYPE_MAIN_FRAME
+                && type != CefriumBrowser.ResourceRequest.TYPE_SUB_FRAME
+                && originOf(document).equals(r.documentUrl);
+        if (!originOnly) {
+            Assert.assertEquals("documentUrl of " + what, document, r.documentUrl);
+        }
         Assert.assertEquals("topLevelUrl of " + what, topLevel, r.topLevelUrl);
+    }
+
+    // "http://host:port/" for any URL on that origin.
+    private static String originOf(String url) {
+        android.net.Uri u = android.net.Uri.parse(url);
+        return u.getScheme() + "://" + u.getAuthority() + "/";
+    }
+
+    /**
+     * A page with no URL of its own (an iframe srcdoc document is
+     * about:srcdoc) is reported by the origin its requests come from: what a
+     * blocking policy can use. Takes the same path as a subresource that
+     * starts before its page's commit reached the browser.
+     */
+    @Test
+    public void aSrcdocFramesRequestsCarryItsOrigin() throws Exception {
+        Activity act = activityRule.getActivity();
+        final CopyOnWriteArrayList<CefriumBrowser.ResourceRequest> seen =
+                new CopyOnWriteArrayList<>();
+        try (LocalHttpServer top = new LocalHttpServer("<html><body>"
+                + "<iframe srcdoc=\"<img src='/pixel-SRCDOC.png'>\"></iframe></body></html>")) {
+            act.runOnUiThread(() -> {
+                CefriumBrowser b = browsers.createWithSurface(act);
+                b.setRequestInterceptor(new CefriumBrowser.RequestInterceptor() {
+                    @Override
+                    public boolean shouldBlockRequest(String url, String method,
+                            boolean isMainFrame) {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean shouldBlockRequest(CefriumBrowser.ResourceRequest r) {
+                        seen.add(r);
+                        return false;
+                    }
+                });
+                b.loadUrl(top.url());
+            });
+            CefriumBrowser.ResourceRequest img = await(seen, top.url() + "pixel-SRCDOC.png");
+            Assert.assertEquals("documentUrl of the srcdoc frame's image",
+                    originOf(top.url()), img.documentUrl);
+            Assert.assertEquals(top.url(), img.topLevelUrl);
+            Assert.assertFalse(img.isMainFrame);
+        }
     }
 }
