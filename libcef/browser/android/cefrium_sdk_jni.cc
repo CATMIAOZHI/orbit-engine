@@ -92,6 +92,7 @@
 #include "url/gurl.h"
 #include "base/barrier_closure.h"
 #include "cef/libcef/browser/request_context_impl.h"
+#include "chrome/browser/android/devtools_server.h"
 #include "chrome/browser/browsing_data/chrome_browsing_data_model_delegate.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/browsing_data/content/browsing_data_model.h"
@@ -3885,8 +3886,89 @@ Java_com_cefrium_CefriumBrowser_nativePickerColorResult(JNIEnv* env,
                           static_cast<int64_t>(id), chosen));
 }
 
+namespace {
+
+// FEATURE-082: hands DevTools protocol results and events to Java
+// (onDevToolsResult, onDevToolsEvent). Ids below kFirstAppDevToolsId belong to
+// the SDK's own calls and are not reported. UI thread.
+constexpr int kFirstAppDevToolsId = 1000;
+
+class SdkDevToolsObserver : public CefDevToolsMessageObserver {
+ public:
+  explicit SdkDevToolsObserver(jobject java_browser_global)
+      : java_browser_(java_browser_global) {}
+
+  void set_events_enabled(bool enabled) { events_enabled_ = enabled; }
+
+  void OnDevToolsMethodResult(CefRefPtr<CefBrowser> browser,
+                              int message_id,
+                              bool success,
+                              const void* result,
+                              size_t result_size) override {
+    if (message_id < kFirstAppDevToolsId) {
+      return;
+    }
+    Call("onDevToolsResult", "(IZLjava/lang/String;)V", message_id, success,
+         std::string_view(static_cast<const char*>(result), result_size));
+  }
+
+  void OnDevToolsEvent(CefRefPtr<CefBrowser> browser,
+                       const CefString& method,
+                       const void* params,
+                       size_t params_size) override {
+    if (!events_enabled_) {
+      return;
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(
+        cls, "onDevToolsEvent", "(Ljava/lang/String;Ljava/lang/String;)V");
+    if (mid) {
+      auto jm = base::android::ConvertUTF8ToJavaString(env, method.ToString());
+      auto jp = base::android::ConvertUTF8ToJavaString(
+          env, std::string_view(static_cast<const char*>(params), params_size));
+      env->CallVoidMethod(java_browser_, mid, jm.obj(), jp.obj());
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  ~SdkDevToolsObserver() override {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    if (env) {
+      env->DeleteGlobalRef(java_browser_);
+    }
+  }
+
+ private:
+  void Call(const char* name,
+            const char* signature,
+            int id,
+            bool success,
+            std::string_view json) {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(cls, name, signature);
+    if (mid) {
+      auto jj = base::android::ConvertUTF8ToJavaString(env, json);
+      env->CallVoidMethod(java_browser_, mid, static_cast<jint>(id),
+                          success ? JNI_TRUE : JNI_FALSE, jj.obj());
+    }
+    env->DeleteLocalRef(cls);
+  }
+
+  jobject java_browser_;
+  bool events_enabled_ = false;
+  IMPLEMENT_REFCOUNTING(SdkDevToolsObserver);
+};
+
+}  // namespace
+
 struct SdkBrowserData {
   CefRefPtr<CefBrowser> browser;
+  // FEATURE-082: created on the first DevTools call from Java; releasing the
+  // registration removes the observer.
+  CefRefPtr<SdkDevToolsObserver> devtools_observer;
+  CefRefPtr<CefRegistration> devtools_registration;
   // Background of an off-screen browser, applied when it is created at the
   // first load. A fully transparent colour makes transparent page areas come
   // back with alpha 0 in OnPaint (measured on 156).
@@ -4141,6 +4223,8 @@ void SdkLifeSpanHandler::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   // The browser has now actually closed -- safe to tear down. (Doing this in
   // nativeClose, before the async close completed, orphaned the WebContents.)
   data_->surface_bridge.reset();
+  data_->devtools_registration = nullptr;
+  data_->devtools_observer = nullptr;
   {
     base::AutoLock lock(BridgeDataLock());
     LiveBridgeData().erase(reinterpret_cast<jlong>(data_));
@@ -5843,6 +5927,66 @@ Java_com_cefrium_CefriumBrowser_nativeClearCache(
   }
 }
 
+// FEATURE-082: the DevTools observer of |data|, registered on first use.
+// Null when the browser does not exist (yet). UI thread.
+namespace {
+SdkDevToolsObserver* DevToolsObserverFor(JNIEnv* env,
+                                         SdkBrowserData* data,
+                                         jobject browser_j) {
+  if (!CEF_CURRENTLY_ON_UIT() || !data || !data->browser ||
+      !data->browser->GetHost()) {
+    return nullptr;
+  }
+  if (!data->devtools_observer) {
+    data->devtools_observer =
+        new SdkDevToolsObserver(env->NewGlobalRef(browser_j));
+    data->devtools_registration =
+        data->browser->GetHost()->AddDevToolsMessageObserver(
+            data->devtools_observer);
+  }
+  return data->devtools_observer.get();
+}
+}  // namespace
+
+// Returns 0 when submitted (the result then reaches onDevToolsResult), 1 when
+// the browser does not exist, 2 for params that are not a JSON object, 3 when
+// CEF did not accept the call.
+extern "C" JNIEXPORT jint JNICALL
+Java_com_cefrium_CefriumBrowser_nativeExecuteDevToolsMethod(
+    JNIEnv* env, jclass, jlong native_ptr, jobject browser_j, jint id,
+    jstring method_j, jstring params_j, jboolean events) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  SdkDevToolsObserver* observer = DevToolsObserverFor(env, data, browser_j);
+  if (!observer) {
+    return 1;
+  }
+  observer->set_events_enabled(events);
+  CefRefPtr<CefDictionaryValue> params;
+  if (params_j) {
+    CefRefPtr<CefValue> value =
+        CefParseJSON(JStr(env, params_j), JSON_PARSER_RFC);
+    if (!value || value->GetType() != VTYPE_DICTIONARY) {
+      return 2;
+    }
+    params = value->GetDictionary();
+  }
+  return data->browser->GetHost()->ExecuteDevToolsMethod(
+             id, JStr(env, method_j), params) == id
+             ? 0
+             : 3;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetDevToolsEventsEnabled(
+    JNIEnv* env, jclass, jlong native_ptr, jobject browser_j,
+    jboolean enabled) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (SdkDevToolsObserver* observer =
+          DevToolsObserverFor(env, data, browser_j)) {
+    observer->set_events_enabled(enabled);
+  }
+}
+
 // FEATURE-071: per-site data of a profile, through Chromium's
 // BrowsingDataModel (what Chrome's per-site storage screen uses). Listing
 // reports each data owner (host or origin) with its storage size and cookie
@@ -6360,6 +6504,26 @@ Java_com_cefrium_Cefrium_nativeSetSecureDns(JNIEnv* env,
     }
   }
   return JNI_TRUE;
+}
+
+// FEATURE-082: Chrome's own remote debugging server on the abstract socket
+// <prefix>_devtools_remote, as Chrome and WebView run it. UI thread.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_Cefrium_nativeSetRemoteDebuggingEnabled(JNIEnv* env,
+                                                         jclass clazz,
+                                                         jboolean enabled,
+                                                         jstring prefix_j) {
+  static base::NoDestructor<std::unique_ptr<DevToolsServer>> server;
+  if (!enabled) {
+    if (*server) {
+      (*server)->Stop();
+    }
+    return;
+  }
+  if (!*server) {
+    *server = std::make_unique<DevToolsServer>(JStr(env, prefix_j).ToString());
+  }
+  (*server)->Start(/*allow_debug_permission=*/false);
 }
 
 namespace {
