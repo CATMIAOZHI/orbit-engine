@@ -204,6 +204,7 @@ action("cefrium_sdk") {
     "java/src/org/chromium/build/BuildConfig.java",
     "maven-deps.txt",
     "maven_vendored.py",
+    "pom-deps.txt",
   ]
   outputs = [ "$root_build_dir/cefrium-sdk.aar" ]
   args = [
