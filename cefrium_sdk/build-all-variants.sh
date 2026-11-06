@@ -98,6 +98,10 @@ COMMON_ARGS='
   use_hashed_jni_names = false
   v8_use_external_startup_data = false
   disable_fieldtrial_testing_config = true
+  # A release is a stable channel build. "default" reports Channel::UNKNOWN,
+  # and Chromium then hands Web Push subscriptions the FCM staging endpoint
+  # (jmt17.google.com) instead of fcm.googleapis.com.
+  android_channel = "stable"
 '
 
 build_variant() {
