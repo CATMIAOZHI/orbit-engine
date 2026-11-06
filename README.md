@@ -271,6 +271,13 @@ The Application class, the manifest entries and the first Activity are set out
 step by step in **[QUICKSTART-CEFRIUM.md](QUICKSTART-CEFRIUM.md)**, which also
 covers app size, ABI splits, ProGuard/R8 and the build errors that come up most.
 
+Use the `com.cefrium` API only, never `org.chromium.*`:
+[the public API guide](https://cefrium.com/guides/public-api/) lists the call
+for each internal apps reach for. A coding agent working in your repository
+reads your `AGENTS.md`, so paste
+[this block](https://cefrium.com/guides/adopting-cefrium/#agents) into it. A
+summary of the docs for tools: [cefrium.com/llms.txt](https://cefrium.com/llms.txt).
+
 ### Direct download
 
 Alternatively, download the AAR directly from

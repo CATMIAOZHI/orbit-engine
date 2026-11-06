@@ -21,6 +21,10 @@ import org.chromium.ui.base.ResourceBundle;
 /**
  * Entry point for the Cefrium SDK. Initialize once before creating browsers.
  *
+ * <p>Use this package only, not {@code org.chromium.*}: see
+ * <a href="https://cefrium.com/guides/public-api/">the public API guide</a> and
+ * <a href="https://cefrium.com/llms.txt">cefrium.com/llms.txt</a>.</p>
+ *
  * <h3>User-Agent</h3>
  *
  * <p>Cefrium identifies itself as Chrome (because it IS Chromium) with a
