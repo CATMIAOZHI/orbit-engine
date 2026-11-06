@@ -6,6 +6,7 @@ package com.cefrium.itest.sdk;
 import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 import com.cefrium.itest.LocalHttpServer;
+import com.cefrium.itest.NotificationPermission;
 
 import android.Manifest;
 import android.app.Activity;
@@ -24,6 +25,7 @@ import com.cefrium.CefriumRelayTransport;
 import org.json.JSONObject;
 import org.junit.Assert;
 import org.junit.Rule;
+import org.junit.rules.TestRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -60,8 +62,7 @@ import javax.crypto.spec.SecretKeySpec;
 public class CefriumRelayTransportTest {
 
     @Rule(order = 0)
-    public GrantPermissionRule notifications =
-            GrantPermissionRule.grant(Manifest.permission.POST_NOTIFICATIONS);
+    public TestRule notifications = NotificationPermission.grant();
 
     @Rule(order = 1)
     public ActivityTestRule<HostActivity> activityRule =

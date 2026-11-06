@@ -101,20 +101,37 @@ public class CefriumJsDialogTest {
             act.runOnUiThread(() -> {
                 CefriumBrowser b = browsers.createWithSurface(act);
                 act.setContentView(b.getSurfaceContainer());
+                // Input that arrives before the renderer has taken the answer
+                // is dropped, as while the dialog shows; a slow device can take
+                // longer than any fixed delay. So repeat each input every
+                // second until the page sees it: the bug this guards against
+                // (input never reaching the page again) fails every repeat.
+                final Runnable[] clickUntilSeen = new Runnable[1];
+                clickUntilSeen[0] = () -> {
+                    if (clicked.getCount() == 0) return;
+                    b.sendLeftClick(150, 300);
+                    main.postDelayed(clickUntilSeen[0], 1000);
+                };
+                final Runnable[] tapUntilSeen = new Runnable[1];
+                tapUntilSeen[0] = () -> {
+                    if (tapped.getCount() == 0) return;
+                    b.sendTap(150, 300);
+                    main.postDelayed(tapUntilSeen[0], 1000);
+                };
                 b.setJsDialogHandler((type, message, defaultPrompt, cb) -> {
                     cb.continueDialog(true, null);
                     answered.countDown();
                     // Inject only after the dialog has been answered.
-                    main.postDelayed(() -> b.sendLeftClick(150, 300), 500);
+                    main.postDelayed(clickUntilSeen[0], 500);
                     return true;
                 });
                 b.setOnTitleChangedListener(title -> {
                     if (title == null) return;
                     last.set(title);
-                    if (title.startsWith("c1t0")) {
+                    if (title.startsWith("c") && title.endsWith("t0") && clicked.getCount() > 0) {
                         clicked.countDown();
-                        main.postDelayed(() -> b.sendTap(150, 300), 300);
-                    } else if (title.startsWith("c") && title.contains("t1")) {
+                        main.postDelayed(tapUntilSeen[0], 300);
+                    } else if (title.startsWith("c") && !title.endsWith("t0")) {
                         tapped.countDown();
                     }
                 });
