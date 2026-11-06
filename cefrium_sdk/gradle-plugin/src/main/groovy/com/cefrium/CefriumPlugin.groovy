@@ -81,6 +81,27 @@ class CefriumPlugin implements Plugin<Project> {
             }
         }
 
+        // The SDK is Java 25 bytecode. An older javac stops on it with "class file
+        // has wrong version 69.0" buried among "cannot find symbol" errors; say
+        // what to change instead. Reads each task's own compiler, so a project
+        // that sets a JDK 25 toolchain on an older Gradle JVM is not flagged.
+        project.tasks.withType(org.gradle.api.tasks.compile.JavaCompile).configureEach { t ->
+            t.doFirst {
+                Integer version = null
+                try {
+                    version = t.javaCompiler.get().metadata.languageVersion.asInt()
+                } catch (Throwable ignore) {
+                    return  // cannot tell: let javac speak
+                }
+                if (version < 25) {
+                    throw new org.gradle.api.GradleException(
+                        "Cefrium needs JDK 25 to compile against the SDK; this task uses " +
+                        "JDK ${version}. Run Gradle on JDK 25 or set a Java 25 toolchain. " +
+                        "See https://cefrium.com/guides/adopting-cefrium/#toolchain")
+                }
+            }
+        }
+
         // Configure-time lint for a silent AGP 9 pitfall: registering a shared
         // source root via sourceSets.main.java.srcDir(...) does NOT feed those
         // files to AGP 9's built-in Kotlin compiler -- kotlin.srcDir(...) must be

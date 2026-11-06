@@ -799,7 +799,9 @@ public final class Cefrium {
         if (sInitialized) return;
         final Context context = ContextUtils.getApplicationContextUnsafe();
         if (context == null) {
-            throw new IllegalStateException("Cefrium is not set up in this process");
+            throw new IllegalStateException("Cefrium is not set up in process '"
+                    + android.app.Application.getProcessName() + "': it runs in the app's main"
+                    + " process only. See https://cefrium.com/guides/memory-and-processes/#main-process");
         }
         boolean started;
         if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
