@@ -88,10 +88,6 @@ android {
         minSdk 29
         targetSdk 34
     }
-    // Chromium assets must be uncompressed
-    androidResources {
-        noCompress 'dat', 'pak', 'bin'
-    }
     // Chromium reads its native libraries from disk (AGP 9 requires this in the
     // build script rather than android:extractNativeLibs in the manifest).
     packaging {
@@ -363,16 +359,15 @@ until then a page could neither paint nor accept input. The connection now
 happens as soon as the native browser exists. If you still see a white screen,
 it is a page or network problem, not the engine warming up.
 
-**The system WebView in the same package:** supported in a separate
-process (an Activity or Service declared with `android:process=":something"`).
+**The system WebView in the same package:** supported in the same process
+since 0.18.0, in either order, and in a separate process (an Activity or
+Service declared with `android:process=":something"`).
 Cefrium's child services have their own class names since the release after
 0.10.2, so WebView's renderer service can no longer be handed to Cefrium. On
 0.10.2 and earlier the page stayed blank and logcat showed `cr_ChildProcessConn:
-Child process's classpath doesn't match`; update the SDK. In the SAME process
-the order decides: if WebView's engine loads first (for example
-`WebSettings.getDefaultUserAgent(context)` before any Cefrium call), both run;
-if Cefrium starts first, the first `new WebView()` kills the app. See
-https://cefrium.com/guides/adopting-cefrium/#webview.
+Child process's classpath doesn't match`; update the SDK. Before 0.18.0, in
+the SAME process, Cefrium first killed the app at the first `new WebView()`;
+see https://cefrium.com/guides/adopting-cefrium/#webview.
 
 **JDK error:** For 0.8.0+ use **JDK 25** (Gradle 9.7.1 / AGP 9.4). A `cannot
 access CefriumBrowser` or `Unsupported class file major version 69` error means

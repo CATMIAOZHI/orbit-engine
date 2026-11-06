@@ -30,6 +30,12 @@ in the internal FEATURE-NNN.md working docs (not published).
   default.
 
 ### Changed
+- **Update the `com.cefrium` Gradle plugin together with the SDK.** The
+  engine's assets are renamed (`icudtl.dat+com.cefrium+` and so on), and the
+  0.18.0 plugin keeps the new names uncompressed. With an older plugin,
+  `Cefrium.initialize()` throws an `IllegalStateException` that says so. The
+  `noCompress 'dat', 'pak', 'bin'` block in an app's build is no longer
+  needed.
 - The engine is built as a stable channel release. Web Push subscriptions
   now point at `fcm.googleapis.com`; before, every subscription got FCM's
   staging endpoint (`jmt17.google.com`), because the build reported an
@@ -57,15 +63,18 @@ in the internal FEATURE-NNN.md working docs (not published).
 - The Gradle plugin stops a compile on a JDK older than 25 with a message
   that names the JDK and links the toolchain guide, instead of javac's
   "class file has wrong version 69.0" among "cannot find symbol" errors.
+- Android WebView and Cefrium now run in one process in either order. With
+  Cefrium first, the first `new WebView()` killed the app: the engine hooks
+  `FindClass` on the main thread (Chromium does it for the Cardboard SDK) and
+  the hook answered WebView's class lookups with the engine's own classes. It
+  now asks the caller's class loader first. With WebView first, an older
+  WebView (74 in our test) added its own `icudtl.dat` to the app's assets and
+  Cefrium read it and stopped at start; the engine's assets now carry a
+  suffix, as WebView's do. The `webview-same-process` sample runs each order.
 - Using Cefrium from another process of the app (`android:process`) threw
   "Cefrium is not set up in this process". The message now names the process,
   says the engine runs in the main process only and links the guide.
 
-### Documentation
-- WebView and Cefrium in one process: both run if WebView's engine loads
-  first (`WebSettings.getDefaultUserAgent(context)` before any Cefrium call);
-  if Cefrium starts first, the first `new WebView()` kills the app. The
-  `webview-first` sample runs the three orders.
 
 ## [0.17.1] - 2026-11-05
 
