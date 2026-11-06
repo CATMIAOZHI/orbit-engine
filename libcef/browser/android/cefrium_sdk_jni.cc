@@ -1652,6 +1652,16 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
       CefRefPtr<CefFrame> frame,
       CefRefPtr<CefRequest> request,
       CefRefPtr<CefCallback> callback) override {
+    return BeforeResourceLoad(browser, frame, request, std::string());
+  }
+
+  // |initiator| is the origin of the document that made the request, as the
+  // network stack has it; empty when unknown.
+  CefResourceRequestHandler::ReturnValue BeforeResourceLoad(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request,
+      const std::string& initiator) {
     const int observers = observers_;
     std::shared_ptr<const AdBlockFilter> filter =
         adblock_enabled_ ? AdBlockFilter::Current() : nullptr;
@@ -1661,7 +1671,7 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
     const std::string url = request->GetURL().ToString();
 
     const cef_resource_type_t type = request->GetResourceType();
-    const GURL document = DocumentOf(frame, request);
+    const GURL document = DocumentOf(frame, request, initiator);
     bool blocked = false;
     if (filter) {
       blocked = !AdBlockExceptions::Covers(incognito_, profile_, document) &&
@@ -1676,6 +1686,8 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
       std::string top;
       if (type == RT_MAIN_FRAME) {
         doc = top = url;
+      } else if (frame && frame->IsMain()) {
+        top = doc;
       } else if (CefRefPtr<CefFrame> main = browser ? browser->GetMainFrame()
                                                     : nullptr) {
         top = main->GetURL().ToString();
@@ -1826,7 +1838,8 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
   // The document a request is made for: the parent page for an iframe
   // navigation, otherwise the frame's own page.
   static GURL DocumentOf(CefRefPtr<CefFrame> frame,
-                         CefRefPtr<CefRequest> request) {
+                         CefRefPtr<CefRequest> request,
+                         const std::string& initiator) {
     if (!frame) {
       return GURL(request->GetReferrerURL().ToString());
     }
@@ -1835,7 +1848,17 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
         return GURL(parent->GetURL().ToString());
       }
     }
-    return GURL(frame->GetURL().ToString());
+    const GURL document(frame->GetURL().ToString());
+    // The frame's URL is refreshed only once the browser has processed the
+    // commit, after the new document's first requests: until then it is the
+    // previous page's, or empty for a new frame. Use it only when it matches
+    // the origin the request came from, otherwise report that origin.
+    const GURL origin(initiator);
+    if (origin.is_valid() &&
+        !url::Origin::Create(document).IsSameOriginWith(origin)) {
+      return origin;
+    }
+    return document;
   }
 
   // Checked before any jmethodID is read: they are written before
@@ -1863,6 +1886,69 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
   std::atomic<bool> cookie_filter_enabled_{false};
 };
 
+// A subresource request's handler: the shared one, plus the request's
+// initiator, which only GetResourceRequestHandler is given.
+class SdkSubresourceRequestHandler : public CefResourceRequestHandler {
+ public:
+  SdkSubresourceRequestHandler(CefRefPtr<SdkResourceRequestHandler> shared,
+                               const std::string& initiator)
+      : shared_(shared), initiator_(initiator) {}
+
+  ReturnValue OnBeforeResourceLoad(CefRefPtr<CefBrowser> browser,
+                                   CefRefPtr<CefFrame> frame,
+                                   CefRefPtr<CefRequest> request,
+                                   CefRefPtr<CefCallback> callback) override {
+    return shared_->BeforeResourceLoad(browser, frame, request, initiator_);
+  }
+  CefRefPtr<CefResourceHandler> GetResourceHandler(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request) override {
+    return shared_->GetResourceHandler(browser, frame, request);
+  }
+  void OnResourceRedirect(CefRefPtr<CefBrowser> browser,
+                          CefRefPtr<CefFrame> frame,
+                          CefRefPtr<CefRequest> request,
+                          CefRefPtr<CefResponse> response,
+                          CefString& new_url) override {
+    shared_->OnResourceRedirect(browser, frame, request, response, new_url);
+  }
+  bool OnResourceResponse(CefRefPtr<CefBrowser> browser,
+                          CefRefPtr<CefFrame> frame,
+                          CefRefPtr<CefRequest> request,
+                          CefRefPtr<CefResponse> response) override {
+    return shared_->OnResourceResponse(browser, frame, request, response);
+  }
+  void OnResourceLoadComplete(CefRefPtr<CefBrowser> browser,
+                              CefRefPtr<CefFrame> frame,
+                              CefRefPtr<CefRequest> request,
+                              CefRefPtr<CefResponse> response,
+                              URLRequestStatus status,
+                              int64_t received_content_length) override {
+    shared_->OnResourceLoadComplete(browser, frame, request, response, status,
+                                    received_content_length);
+  }
+  CefRefPtr<CefResponseFilter> GetResourceResponseFilter(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request,
+      CefRefPtr<CefResponse> response) override {
+    return shared_->GetResourceResponseFilter(browser, frame, request,
+                                              response);
+  }
+  CefRefPtr<CefCookieAccessFilter> GetCookieAccessFilter(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request) override {
+    return shared_->GetCookieAccessFilter(browser, frame, request);
+  }
+
+ private:
+  CefRefPtr<SdkResourceRequestHandler> shared_;
+  const std::string initiator_;
+  IMPLEMENT_REFCOUNTING(SdkSubresourceRequestHandler);
+};
+
 class SdkRequestHandler : public CefRequestHandler {
  public:
   SdkRequestHandler() : resource_handler_(new SdkResourceRequestHandler()) {}
@@ -1875,6 +1961,10 @@ class SdkRequestHandler : public CefRequestHandler {
       bool is_download,
       const CefString& request_initiator,
       bool& disable_default_handling) override {
+    if (!is_navigation && !request_initiator.empty()) {
+      return new SdkSubresourceRequestHandler(resource_handler_,
+                                              request_initiator.ToString());
+    }
     return resource_handler_;
   }
 
