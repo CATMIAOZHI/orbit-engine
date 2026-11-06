@@ -1,0 +1,20 @@
+diff --git base/android/jni_android.cc base/android/jni_android.cc
+index 9f46f892f4b693d21e931b5e84cffe7dc65af770..9ff7462adbc808e97b88e4c1d60cef8304e149b1 100644
+--- base/android/jni_android.cc
++++ base/android/jni_android.cc
+@@ -68,7 +68,14 @@ jclass FindClassHook(JNIEnv* env, const char* class_name) {
+   //   normal Android apps.
+   // This hook is currently used only in Chrome for non-bootclasspath
+   // cases, so we do not bother with the / -> . translation.
+-  jclass clazz = jni_zero::GetClass(env, class_name).Release();
++  // The caller's own class loader goes first: another library in the process
++  // (e.g. WebView in a host app) may define classes with the same names.
++  jclass clazz = g_previous_functions->FindClass(env, class_name);
++  if (clazz) {
++    return clazz;
++  }
++  ClearException(env);
++  clazz = jni_zero::GetClass(env, class_name).Release();
+   if (clazz) {
+     return clazz;
+   }
