@@ -46,10 +46,10 @@ N="$("$ADB" devices 2>/dev/null | grep -c 'device$')"
 REGISTRY_VERSION=""
 [ "${1:-}" = "--registry" ] && { REGISTRY_VERSION="${2:?--registry needs a version}"; shift 2; }
 
-SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive kiosk-automotive-v2 kiosk-signage loaddata-baseurl osr-hud firebase-coexistence nested-scroll kotlin-arrow-sample profiles network-privacy document-start engine-contacts drm-provisioning webview-first other-process"
+SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive kiosk-automotive-v2 kiosk-signage loaddata-baseurl osr-hud firebase-coexistence nested-scroll kotlin-arrow-sample profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process"
 # Samples that write files/verdict.txt: launching without a crash is not enough
 # for them, the verdict must read PASS.
-VERDICT_SAMPLES="firebase-coexistence nested-scroll profiles network-privacy document-start engine-contacts drm-provisioning webview-first other-process"
+VERDICT_SAMPLES="firebase-coexistence nested-scroll profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process"
 # Samples whose data is cleared before launch (see below).
 FRESH_SAMPLES="engine-contacts drm-provisioning"
 # CEFRIUM_SMOKE_ONLY=<sample> runs just that one, for iterating on it. Not a
@@ -131,7 +131,11 @@ for s in $SAMPLES; do
   [ -n "$apk" ] || { echo "  $s: no APK"; fails=$((fails+1)); continue; }
   pkg="$("$AAPT" dump badging "$apk" 2>/dev/null | grep -oP "package: name='\K[^']+")"
   act="$("$AAPT" dump badging "$apk" 2>/dev/null | grep -oP "launchable-activity: name='\K[^']+")"
-  "$ADB" install -r "$apk" >/dev/null 2>&1
+  # A failed install (a full device) used to surface as "no verdict written".
+  if ! inst="$("$ADB" install -r "$apk" 2>&1)"; then
+    echo "  $s ($pkg): INSTALL FAIL -- $(echo "$inst" | grep -m1 -o 'INSTALL_[A-Z_]*\|Failure.*')"
+    fails=$((fails+1)); continue
+  fi
   # engine-contacts measures a first start: with data from an earlier run the
   # engine has its Widevine origin IDs already and contacts nothing for them,
   # so it would pass for the wrong reason.
