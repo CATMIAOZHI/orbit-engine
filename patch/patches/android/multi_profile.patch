@@ -412,7 +412,7 @@ index 7201b3c75f07c810b4f003e992177c04abb29926..885689f5638ee7f8ea3515a8c564e47a
  
  GCMDriverAndroid::~GCMDriverAndroid() {
 diff --git components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java
-index 370ae28ef8e02d00d536918aeb3cb23af2dc3f6b..f5b8a4b550afcd3b0a1458562952abd0d945b7c5 100644
+index 370ae28ef8e02..829ea0b3b0671 100644
 --- components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java
 +++ components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java
 @@ -4,6 +4,8 @@
@@ -476,6 +476,14 @@ index 370ae28ef8e02d00d536918aeb3cb23af2dc3f6b..f5b8a4b550afcd3b0a1458562952abd0
                      SubscriptionFlagManager.clearFlags(
                              SubscriptionFlagManager.buildSubscriptionUniqueId(
                                      mSubtype, authorizedEntity));
++                    GCMDriver.clearRoute(mSubtype);
+                     return true;
+                 } catch (IOException ex) {
+                     return false;
+@@ -186,6 +199,7 @@ public class InstanceIDBridge {
+             protected Boolean doBackgroundWork() {
+                 try {
+                     mInstanceID.deleteInstanceID();
 +                    GCMDriver.clearRoute(mSubtype);
                      return true;
                  } catch (IOException ex) {
