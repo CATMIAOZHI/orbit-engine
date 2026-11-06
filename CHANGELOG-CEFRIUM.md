@@ -33,7 +33,9 @@ in the internal FEATURE-NNN.md working docs (not published).
 - The engine is built as a stable channel release. Web Push subscriptions
   now point at `fcm.googleapis.com`; before, every subscription got FCM's
   staging endpoint (`jmt17.google.com`), because the build reported an
-  unknown channel.
+  unknown channel. An existing subscription reports the new endpoint from
+  `getSubscription()`; a server keeps the one it stored until the page sends
+  it again.
 - The engine no longer asks Google's provisioning service for Widevine origin
   IDs a minute after start. It provisions when a page first uses Encrypted
   Media Extensions, so only apps that play protected media contact it.
@@ -68,10 +70,11 @@ in the internal FEATURE-NNN.md working docs (not published).
   Thanks to Kairlec for the report and the analysis.
 
 ### Known issues
-- Web Push: a subscription made right after unsubscribing can be dead at FCM
-  (every push answers 410). Seen now and then on our test device, in both the
-  default and named profiles. Also in 0.17.0. Subscribing again worked every
-  time in our runs. Fix planned for 0.17.2.
+- Withdrawn. We reported that a Web Push subscription made right after
+  unsubscribing could be dead at FCM. The fault was in our test, not in the
+  SDK: a page left over from the previous test run sent its own subscription
+  to the next run, which then tested a subscription it had removed itself.
+  With the test fixed, every run passes. Apps need no change.
 
 ## [0.17.0] - 2026-10-29
 
