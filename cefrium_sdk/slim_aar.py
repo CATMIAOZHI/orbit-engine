@@ -392,6 +392,9 @@ def main():
         standard_entries['classes.jar'] = out_buf.getvalue()
         standard_entries[maven_vendored.AAR_ENTRY] = (
             '\n'.join(maven_vendored.runtime_dependencies()) + '\n').encode()
+        standard_entries[maven_vendored.POM_AAR_ENTRY] = (
+            '\n'.join(maven_vendored.read_deps(maven_vendored.POM_DEPS_FILE))
+            + '\n').encode()
 
     # Phase 7: Write compressed AAR.
     with zipfile.ZipFile(args.output, 'w') as zout:

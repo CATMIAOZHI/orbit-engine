@@ -39,6 +39,9 @@ AAR_ENTRY = 'cefrium-maven-deps.txt'
 # The androidx libraries the POM declares besides these (compile scope).
 POM_DEPS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              'pom-deps.txt')
+# The same list inside the AAR: an app that adds the AAR as a file gets them
+# from the plugin too.
+POM_AAR_ENTRY = 'cefrium-pom-deps.txt'
 # Not vendored and not owned by a vendored class, but R8 needs it to compile a
 # Chromium lambda the device calls back (see proguard.txt).
 EXTRA_RUNTIME = ('androidx.window.extensions.core:core:1.0.0',)
