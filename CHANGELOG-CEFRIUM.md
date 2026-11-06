@@ -15,6 +15,44 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [Unreleased]
+
+### Added
+- `CefriumBrowser.executeDevToolsMethod(method, paramsJson, callback)` and
+  `setDevToolsEventListener`: the Chrome DevTools Protocol in process, with
+  results and events, no remote debugging port. Built on CEF's
+  `ExecuteDevToolsMethod` and `AddDevToolsMessageObserver`.
+- `CefriumBrowser.evaluateJavaScript(script, ValueCallback<String>)` returns
+  the script's value as JSON, like `WebView.evaluateJavascript`.
+- `Cefrium.setDrmPreprovisioningAtStartupEnabled(boolean)`.
+- `Cefrium.setRemoteDebuggingEnabled(boolean)`: Chrome's DevTools over adb
+  (`chrome://inspect`), like `WebView.setWebContentsDebuggingEnabled`. Off by
+  default.
+
+### Changed
+- The engine is built as a stable channel release. Web Push subscriptions
+  now point at `fcm.googleapis.com`; before, every subscription got FCM's
+  staging endpoint (`jmt17.google.com`), because the build reported an
+  unknown channel.
+- The engine no longer asks Google's provisioning service for Widevine origin
+  IDs a minute after start. It provisions when a page first uses Encrypted
+  Media Extensions, so only apps that play protected media contact it.
+  `setDrmPreprovisioningAtStartupEnabled(true)` restores the old behaviour.
+
+### Fixed
+- Apps using the SDK got `READ_PHONE_STATE`, `READ_EXTERNAL_STORAGE` and
+  `WRITE_EXTERNAL_STORAGE` added to their manifest. The SDK's manifest had no
+  `targetSdkVersion`, so the manifest merger took it for a library older than
+  API 4 and added the permissions such a library implies. Apps that declared
+  them for themselves keep them.
+- Unsubscribing from Web Push left the subscription's message route behind
+  in the app's preferences.
+- A request interceptor (and ad-block site exceptions) could see an empty
+  `documentUrl`, or the previous page's, for a page's first subresources:
+  they can start before the browser has seen the page commit. The document
+  is now checked against the origin the request came from, and reported as
+  that origin when they differ.
+
 ## [0.17.1] - 2026-11-05
 
 ### Security
@@ -30,11 +68,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   Thanks to Kairlec for the report and the analysis.
 
 ### Known issues
-- Web Push in a named profile: a subscription made right after unsubscribing
-  can be dead at FCM from the start (every push answers 410), about 1 in 4
-  times on our test device. Also in 0.17.0; the default profile is not
-  affected. Subscribing again worked every time in our runs. Fix planned for
-  0.17.2.
+- Web Push: a subscription made right after unsubscribing can be dead at FCM
+  (every push answers 410). Seen now and then on our test device, in both the
+  default and named profiles. Also in 0.17.0. Subscribing again worked every
+  time in our runs. Fix planned for 0.17.2.
 
 ## [0.17.0] - 2026-10-29
 
