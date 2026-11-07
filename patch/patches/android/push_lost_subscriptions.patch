@@ -1,5 +1,5 @@
 diff --git chrome/browser/push_messaging/push_messaging_service_impl.cc chrome/browser/push_messaging/push_messaging_service_impl.cc
-index 5be307e9473c0c9c757347e7771794c18e1386b6..23bd534de0f88fe53825e84a1779ac1819dad23b 100644
+index 5be307e9473c0c9c757347e7771794c18e1386b6..b7f95e4643acba67802dd69c6bcdd15523a90a89 100644
 --- chrome/browser/push_messaging/push_messaging_service_impl.cc
 +++ chrome/browser/push_messaging/push_messaging_service_impl.cc
 @@ -367,6 +367,19 @@ void PushMessagingServiceImpl::OnMessage(const std::string& app_id,
@@ -61,17 +61,97 @@ index 5be307e9473c0c9c757347e7771794c18e1386b6..23bd534de0f88fe53825e84a1779ac18
  }
  
  // GetSubscriptionInfo methods -------------------------------------------------
-@@ -1361,6 +1389,19 @@ void PushMessagingServiceImpl::DidClearPushSubscriptionId(
+@@ -1276,35 +1304,45 @@ void PushMessagingServiceImpl::UnsubscribeInternal(
+ 
+   RecordUnsubscribeReason(reason);
+ 
++  // Delete the app id first, and the Service Worker's copy of the
++  // subscription only once that is on disk. If the process dies in between,
++  // the stored subscription has no app id and GetSubscription removes it. In
++  // the other order the app id outlived the subscription, and the next
++  // subscribe reused it: with another applicationServerKey, a dead one.
++  bool was_subscribed = !app_id.empty() && DeleteAppIdentifier(reason, app_id);
++  profile_->GetPrefs()->CommitPendingWrite(base::BindOnce(
++      &PushMessagingServiceImpl::ClearPushSubscriptionIdAfterCommit,
++      weak_factory_.GetWeakPtr(), origin, service_worker_registration_id,
++      app_id, sender_id, was_subscribed, std::move(callback)));
++
++  origins_requesting_user_visible_requirement_bypass.erase(origin);
++}
++
++void PushMessagingServiceImpl::ClearPushSubscriptionIdAfterCommit(
++    const GURL& origin,
++    int64_t service_worker_registration_id,
++    const std::string& app_id,
++    const std::string& sender_id,
++    bool was_subscribed,
++    UnregisterCallback callback) {
+   if (origin.is_empty() ||
+       service_worker_registration_id ==
+           -1 /* kInvalidServiceWorkerRegistrationId */) {
+     // Can't clear Service Worker database.
+-    DidClearPushSubscriptionId(reason, app_id, sender_id, std::move(callback));
++    DidClearPushSubscriptionId(app_id, sender_id, was_subscribed,
++                               std::move(callback));
+     return;
+   }
+   ClearPushSubscriptionId(
+       profile_, origin, service_worker_registration_id,
+       base::BindOnce(&PushMessagingServiceImpl::DidClearPushSubscriptionId,
+-                     weak_factory_.GetWeakPtr(), reason, app_id, sender_id,
+-                     std::move(callback)));
+-
+-  origins_requesting_user_visible_requirement_bypass.erase(origin);
++                     weak_factory_.GetWeakPtr(), app_id, sender_id,
++                     was_subscribed, std::move(callback)));
+ }
+ 
+-void PushMessagingServiceImpl::DidClearPushSubscriptionId(
++bool PushMessagingServiceImpl::DeleteAppIdentifier(
+     blink::mojom::PushUnregistrationReason reason,
+-    const std::string& app_id,
+-    const std::string& sender_id,
+-    UnregisterCallback callback) {
+-  if (app_id.empty()) {
+-    // Without an |app_id|, we can neither delete the subscription from the
+-    // push_messaging::AppIdentifier map, nor unsubscribe with the GCM Driver.
+-    std::move(callback).Run(
+-        blink::mojom::PushUnregistrationStatus::SUCCESS_WAS_NOT_REGISTERED);
+-    return;
+-  }
+-
++    const std::string& app_id) {
+   // Delete the mapping for this app_id, to guarantee that no messages get
+   // delivered in future (even if unregistration fails).
+   // TODO(johnme): Instead of deleting these app ids, store them elsewhere, and
+@@ -1348,6 +1386,21 @@ void PushMessagingServiceImpl::DidClearPushSubscriptionId(
+       }
+     }
+   }
++  return was_subscribed;
++}
++
++void PushMessagingServiceImpl::DidClearPushSubscriptionId(
++    const std::string& app_id,
++    const std::string& sender_id,
++    bool was_subscribed,
++    UnregisterCallback callback) {
++  if (app_id.empty()) {
++    // Without an |app_id|, we can neither delete the subscription from the
++    // push_messaging::AppIdentifier map, nor unsubscribe with the GCM Driver.
++    std::move(callback).Run(
++        blink::mojom::PushUnregistrationStatus::SUCCESS_WAS_NOT_REGISTERED);
++    return;
++  }
+ 
+   // Run the unsubscribe callback *before* asking the InstanceIDDriver/GCMDriver
+   // to unsubscribe, since that's a slow process involving network retries, and
+@@ -1361,6 +1414,14 @@ void PushMessagingServiceImpl::DidClearPushSubscriptionId(
            ? blink::mojom::PushUnregistrationStatus::SUCCESS_UNREGISTERED
            : blink::mojom::PushUnregistrationStatus::SUCCESS_WAS_NOT_REGISTERED);
  
-+  // Unregister only once the app id is gone from disk. If the process dies
-+  // before that, the next subscription reuses the app id, and its InstanceID
-+  // must not have been deleted on the server.
-+  profile_->GetPrefs()->CommitPendingWrite(
-+      base::BindOnce(&PushMessagingServiceImpl::UnregisterAfterCommit,
-+                     weak_factory_.GetWeakPtr(), app_id, sender_id,
-+                     was_subscribed));
++  // The app id is already gone from disk (UnsubscribeInternal).
++  UnregisterAfterCommit(app_id, sender_id, was_subscribed);
 +}
 +
 +void PushMessagingServiceImpl::UnregisterAfterCommit(
@@ -82,7 +162,7 @@ index 5be307e9473c0c9c757347e7771794c18e1386b6..23bd534de0f88fe53825e84a1779ac18
      GetInstanceIDDriver()->GetInstanceID(app_id)->DeleteID(
          base::BindOnce(&PushMessagingServiceImpl::DidDeleteID,
 diff --git chrome/browser/push_messaging/push_messaging_service_impl.h chrome/browser/push_messaging/push_messaging_service_impl.h
-index c6c7c83718927c394f671d92cd8cf2a0b08ea56e..3c2aaff61b0dee383bc8ec093ff8c73bcd4f2bca 100644
+index c6c7c83718927c394f671d92cd8cf2a0b08ea56e..79b081a1987e36901e1526dcc1a90952ce1525a6 100644
 --- chrome/browser/push_messaging/push_messaging_service_impl.h
 +++ chrome/browser/push_messaging/push_messaging_service_impl.h
 @@ -279,6 +279,10 @@ class PushMessagingServiceImpl : public content::PushMessagingService,
@@ -96,8 +176,26 @@ index c6c7c83718927c394f671d92cd8cf2a0b08ea56e..3c2aaff61b0dee383bc8ec093ff8c73b
    // Subscribe methods ---------------------------------------------------------
  
    void DoSubscribe(push_messaging::AppIdentifier app_identifier,
-@@ -348,6 +352,10 @@ class PushMessagingServiceImpl : public content::PushMessagingService,
+@@ -343,11 +347,26 @@ class PushMessagingServiceImpl : public content::PushMessagingService,
+                            const std::string& sender_id,
+                            UnregisterCallback callback);
+ 
+-  void DidClearPushSubscriptionId(blink::mojom::PushUnregistrationReason reason,
+-                                  const std::string& app_id,
++  // Removes |app_id| from the map; returns whether it was there.
++  bool DeleteAppIdentifier(blink::mojom::PushUnregistrationReason reason,
++                           const std::string& app_id);
++
++  void ClearPushSubscriptionIdAfterCommit(const GURL& origin,
++                                          int64_t service_worker_registration_id,
++                                          const std::string& app_id,
++                                          const std::string& sender_id,
++                                          bool was_subscribed,
++                                          UnregisterCallback callback);
++
++  void DidClearPushSubscriptionId(const std::string& app_id,
                                    const std::string& sender_id,
++                                  bool was_subscribed,
                                    UnregisterCallback callback);
  
 +  void UnregisterAfterCommit(const std::string& app_id,
@@ -107,7 +205,7 @@ index c6c7c83718927c394f671d92cd8cf2a0b08ea56e..3c2aaff61b0dee383bc8ec093ff8c73b
    void DidUnregister(bool was_subscribed, gcm::GCMClient::Result result);
    void DidDeleteID(const std::string& app_id,
                     bool was_subscribed,
-@@ -488,6 +496,12 @@ class PushMessagingServiceImpl : public content::PushMessagingService,
+@@ -488,6 +507,12 @@ class PushMessagingServiceImpl : public content::PushMessagingService,
    std::unique_ptr<PermissionRevocationRequest> origin_revocation_request_;
    std::queue<PendingMessage> messages_pending_permission_check_;
  
