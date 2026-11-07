@@ -71,6 +71,11 @@ for profile in default push; do
   for i in $(seq 1 "$RUNS"); do
     run "$profile-$i" "$DEMO/e2e/webpush-e2e.py" --profile "$profile"
   done
+  # An unsubscribe cut short by the process dying must not leave anything the
+  # next subscription reuses: it reused the app id, and with a new key it was
+  # dead (410 on every message).
+  run "$profile-killed" "$DEMO/e2e/webpush-e2e.py" --profile "$profile" --kill-after-unsubscribe
+  run "$profile-after-kill" "$DEMO/e2e/webpush-e2e.py" --profile "$profile"
 done
 run two-sites "$DEMO/e2e/two-sites-e2e.py"
 
