@@ -120,6 +120,35 @@ public class CefriumDevToolsTest {
         methodResultAndError(true);
     }
 
+    // Issue #18: User-Agent Client Hints (navigator.userAgentData), which
+    // setUserAgentOverride(String) does not change, set through CDP.
+    @Test
+    public void userAgentMetadataReachesThePage() throws Exception {
+        try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
+            CefriumBrowser b = open(true, server.url());
+            Result set = call(b, "Emulation.setUserAgentOverride", "{"
+                    + "\"userAgent\":\"Mozilla/5.0 (X11; Linux x86_64) CefriumTest/1\","
+                    + "\"userAgentMetadata\":{\"brands\":[{\"brand\":\"CefriumTest\",\"version\":\"1\"}],"
+                    + "\"fullVersion\":\"1.0\",\"platform\":\"Linux\",\"platformVersion\":\"6.0\","
+                    + "\"architecture\":\"x86\",\"model\":\"\",\"mobile\":false}}");
+            Assert.assertTrue("setUserAgentOverride failed: " + set.json, set.success);
+            Result reload = call(b, "Page.reload", null);
+            Assert.assertTrue("Page.reload failed: " + reload.json, reload.success);
+            String seen = null;
+            long deadline = System.currentTimeMillis() + 10_000;
+            while (System.currentTimeMillis() < deadline) {
+                seen = eval(b, "navigator.userAgentData.brands.map(x=>x.brand).join(',')"
+                        + "+'|'+navigator.userAgentData.mobile"
+                        + "+'|'+navigator.userAgentData.platform+'|'+navigator.userAgent");
+                if (seen != null) seen = seen.replace("\\/", "/");
+                if (seen != null && seen.contains("CefriumTest|false|Linux|")) break;
+                Thread.sleep(200);
+            }
+            Assert.assertTrue("seen=" + seen, seen != null
+                    && seen.contains("CefriumTest|false|Linux|Mozilla/5.0 (X11; Linux x86_64) CefriumTest/1"));
+        }
+    }
+
     @Test
     public void eventsReachTheListener() throws Exception {
         try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
