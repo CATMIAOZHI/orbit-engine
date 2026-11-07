@@ -354,24 +354,42 @@ public class CefriumBrowser {
      * now on, until removed. A rule is {@code "*"} (every origin), an origin
      * such as {@code "https://example.com"} or {@code "http://localhost:8080"},
      * or a subdomain pattern such as {@code "https://*.example.com"}. Can be
-     * called before the first load.
+     * called before the first load; added after a load starts, it runs from
+     * the next document on. Call it on the main thread.
      *
      * <p>To add CSS at document start (before the page has a {@code <head>}),
      * adopt a stylesheet:
      * {@code const s = new CSSStyleSheet(); s.replaceSync(css);
      * document.adoptedStyleSheets = [...document.adoptedStyleSheets, s];}
      *
-     * @throws IllegalArgumentException if a rule is not valid.
+     * @throws IllegalArgumentException if a rule is not valid, or there is no
+     *     rule: an empty set matches no origin.
+     * @throws IllegalStateException off the main thread, or after {@link #close}.
      */
     public ScriptHandler addDocumentStartJavaScript(String script,
             java.util.Set<String> allowedOriginRules) {
         if (script == null) throw new IllegalArgumentException("script must not be null");
+        if (allowedOriginRules == null || allowedOriginRules.isEmpty()) {
+            throw new IllegalArgumentException("allowedOriginRules is empty, so the script"
+                    + " would run nowhere. Pass \"*\" for every origin.");
+        }
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            throw new IllegalStateException(
+                    "addDocumentStartJavaScript must be called on the main thread");
+        }
         String[] rules = allowedOriginRules.toArray(new String[0]);
-        if (!checkNative("addDocumentStartJavaScript")) return () -> {};
+        if (mClosed || !checkNative("addDocumentStartJavaScript")) {
+            throw new IllegalStateException(
+                    "addDocumentStartJavaScript: the browser is closed or did not start");
+        }
         int id = nativeAddDocumentStartJavaScript(mNativePtr, script, rules);
         if (id < 0) {
             throw new IllegalArgumentException("allowedOriginRules " + rules[-id - 1]
                     + " is invalid");
+        }
+        if (id == 0) {
+            throw new IllegalStateException(
+                    "addDocumentStartJavaScript: the engine did not accept the script");
         }
         return () -> {
             if (id > 0 && mNativePtr != 0) nativeRemoveDocumentStartJavaScript(mNativePtr, id);

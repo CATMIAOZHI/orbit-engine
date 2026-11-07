@@ -111,6 +111,73 @@ public class CefriumDocumentStartScriptTest {
         }
     }
 
+    // Issue #18: an alert() from the script never reached the dialog handler.
+    @Test
+    public void anAlertFromTheScriptReachesTheDialogHandler() throws Exception {
+        final AtomicReference<String> dialog = new AtomicReference<>();
+        try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
+            create(b -> {
+                b.setJsDialogHandler((type, message, defaultPrompt, cb) -> {
+                    dialog.compareAndSet(null, message);
+                    cb.continueDialog(true, null);
+                    return true;
+                });
+                b.addDocumentStartJavaScript("alert('document-start'); " + SCRIPT, ANY);
+            }, server.url());
+            String title = waitFor(server.url());
+            Assert.assertEquals("title=" + title, "document-start", dialog.get());
+            Assert.assertTrue(title, title.startsWith("seen:true"));
+        }
+    }
+
+    // Issue #18: each of these used to return a handler that did nothing.
+    @Test
+    public void anEmptyRuleSetIsRejected() throws Exception {
+        assertRejected(IllegalArgumentException.class,
+                b -> b.addDocumentStartJavaScript(SCRIPT, Collections.emptySet()));
+    }
+
+    @Test
+    public void aCallAfterCloseIsRejected() throws Exception {
+        assertRejected(IllegalStateException.class, b -> {
+            b.close();
+            b.addDocumentStartJavaScript(SCRIPT, ANY);
+        });
+    }
+
+    @Test
+    public void aCallOffTheMainThreadIsRejected() throws Exception {
+        create(null, "about:blank");
+        onMain(() -> {});  // create() posts; let it run before the call below
+        Assert.assertNotNull("no browser", mBrowser);
+        final AtomicReference<Throwable> thrown = new AtomicReference<>();
+        Thread t = new Thread(() -> {
+            try {
+                mBrowser.addDocumentStartJavaScript(SCRIPT, ANY);
+            } catch (Throwable e) {
+                thrown.set(e);
+            }
+        });
+        t.start();
+        t.join();
+        Assert.assertTrue("thrown=" + thrown.get(),
+                thrown.get() instanceof IllegalStateException);
+    }
+
+    private void assertRejected(Class<? extends Throwable> type,
+            java.util.function.Consumer<CefriumBrowser> call) throws Exception {
+        final AtomicReference<Throwable> thrown = new AtomicReference<>();
+        onMain(() -> {
+            CefriumBrowser b = browsers.track(new CefriumBrowser(200, 200, 1.0f));
+            try {
+                call.accept(b);
+            } catch (Throwable e) {
+                thrown.set(e);
+            }
+        });
+        Assert.assertTrue("thrown=" + thrown.get(), type.isInstance(thrown.get()));
+    }
+
     @Test
     public void originRulesLimitWhereItRuns() throws Exception {
         try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
