@@ -15,7 +15,7 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
-## [0.18.0] - 2026-11-06
+## [0.18.0] - 2026-11-07
 
 ### Added
 - `CefriumBrowser.executeDevToolsMethod(method, paramsJson, callback)` and
@@ -36,6 +36,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   `Cefrium.initialize()` throws an `IllegalStateException` that says so. The
   `noCompress 'dat', 'pak', 'bin'` block in an app's build is no longer
   needed.
+- `addDocumentStartJavaScript` throws instead of failing silently or crashing:
+  `IllegalArgumentException` for an empty rule set (it matches no origin; pass
+  `"*"` for every origin), `IllegalStateException` off the main thread or
+  after `close()`. Both of those used to kill the app in native code (#18).
 - The engine is built as a stable channel release. Web Push subscriptions
   now point at `fcm.googleapis.com`; before, every subscription got FCM's
   staging endpoint (`jmt17.google.com`), because the build reported an
@@ -69,6 +73,14 @@ in the internal FEATURE-NNN.md working docs (not published).
   arrives.
 - Unsubscribing from Web Push left the subscription's message route behind
   in the app's preferences.
+- A Web Push subscription could be dead from the start (410 on every
+  message): when the app died while a page was unsubscribing, the
+  subscription's id outlived it, and the next subscription reused it. With
+  another `applicationServerKey`, that one never received anything. The id
+  is now removed first, and the subscription only once that is on disk.
+- The startup prefetch check catches a missing platform method too, so a
+  device whose system lacks one starts without the prefetch instead of
+  stopping at launch.
 - A request interceptor (and ad-block site exceptions) could see an empty
   `documentUrl`, or the previous page's, for a page's first subresources:
   they can start before the browser has seen the page commit. The document
@@ -105,11 +117,11 @@ in the internal FEATURE-NNN.md working docs (not published).
   Thanks to Kairlec for the report and the analysis.
 
 ### Known issues
-- Withdrawn. We reported that a Web Push subscription made right after
-  unsubscribing could be dead at FCM. The fault was in our test, not in the
-  SDK: a page left over from the previous test run sent its own subscription
-  to the next run, which then tested a subscription it had removed itself.
-  With the test fixed, every run passes. Apps need no change.
+- A Web Push subscription made after unsubscribing can be dead at FCM (410
+  on every message) when the app died while the page was unsubscribing and
+  the page then subscribes with another `applicationServerKey`. We first
+  withdrew this note as a fault in our test; the test had a second fault, but
+  this one is in the SDK. Fixed in 0.18.0.
 
 ## [0.17.0] - 2026-10-29
 
