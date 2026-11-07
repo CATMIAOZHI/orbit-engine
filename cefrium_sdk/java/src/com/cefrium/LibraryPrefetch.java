@@ -67,8 +67,9 @@ final class LibraryPrefetch {
                     return isActivityStart(info);
                 }
             }
-        } catch (RuntimeException e) {
-            // Not available on this build: start when the engine does.
+        } catch (RuntimeException | LinkageError e) {
+            // Not available on this build (a LinkageError when a vendor build
+            // lacks a method its API level has): start when the engine does.
         }
         return false;
     }
