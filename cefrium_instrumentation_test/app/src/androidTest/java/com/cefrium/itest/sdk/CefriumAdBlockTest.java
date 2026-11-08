@@ -121,7 +121,12 @@ public class CefriumAdBlockTest {
                 && System.currentTimeMillis() < deadline) {
             Thread.sleep(100);
         }
-        return title.get() + " count=" + holder[0].getBlockedCount();
+        int[] count = new int[1];
+        onMain(() -> {
+            count[0] = holder[0].getBlockedCount();  // main thread, as an app must
+            return true;
+        });
+        return title.get() + " count=" + count[0];
     }
 
     @Test
