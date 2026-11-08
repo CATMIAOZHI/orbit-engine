@@ -103,6 +103,56 @@ class CefriumPlugin implements Plugin<Project> {
             }
         }
 
+        // The engine ships as one native module per ABI. An app that packages
+        // arm64-v8a or x86_64 without that ABI's libcef.so starts and then dies
+        // with UnsatisfiedLinkError there (0.9.3 shipped like that): a release
+        // build stops, a debuggable one warns (a one-ABI development AAR is
+        // normal there). Other ABIs come from other libraries: not ours to check.
+        def debuggable = [:]
+        if (project.plugins.hasPlugin('com.android.application')) {
+            project.tasks.matching { it.name ==~ /merge\w*NativeLibs/ }.configureEach { t ->
+                t.doLast {
+                    def abis = [] as Set
+                    def engine = [] as Set
+                    t.outputs.files.files.each { out ->
+                        if (!out.isDirectory()) return  // the task also writes a report file
+                        out.eachFileRecurse { f ->
+                            if (!f.name.endsWith('.so')) return
+                            abis << f.parentFile.name
+                            if (f.name == 'libcef.so') engine << f.parentFile.name
+                        }
+                    }
+                    // abiFilters drop the other ABIs when packaging, after this merge.
+                    def filters = [] as Set
+                    try {
+                        filters.addAll(project.android.defaultConfig.ndk.abiFilters ?: [])
+                    } catch (Throwable ignore) {
+                        // no ndk block: every merged ABI is packaged
+                    }
+                    if (!filters.isEmpty()) abis.retainAll(filters)
+                    def missing = ['arm64-v8a', 'x86_64'].findAll { it in abis && !(it in engine) }
+                    if (engine.isEmpty()) {
+                        throw new org.gradle.api.GradleException(
+                            "Cefrium: the app packages no libcef.so. Depend on " +
+                            "com.cefrium:cefrium-sdk (or cefrium-sdk-libre), which brings " +
+                            "the engine for every ABI. See https://cefrium.com/quickstart/")
+                    }
+                    if (!missing.isEmpty()) {
+                        def message = "Cefrium: the app packages ${missing.join(', ')} but no " +
+                            "libcef.so for it, so Cefrium would fail to start there. Keep the " +
+                            "matching com.cefrium:cefrium-native-* module, or leave the ABI out " +
+                            "with ndk { abiFilters }. See https://cefrium.com/quickstart/"
+                        def name = (t.name - 'merge' - 'NativeLibs')
+                        name = name ? name[0].toLowerCase() + name.substring(1) : name
+                        def dbg = debuggable[name]
+                        if (dbg == null) dbg = name.toLowerCase().contains('debug')
+                        if (!dbg) throw new org.gradle.api.GradleException(message)
+                        project.logger.warn("WARNING: " + message)
+                    }
+                }
+            }
+        }
+
         // Configure-time lint for a silent AGP 9 pitfall: registering a shared
         // source root via sourceSets.main.java.srcDir(...) does NOT feed those
         // files to AGP 9's built-in Kotlin compiler -- kotlin.srcDir(...) must be
@@ -178,6 +228,11 @@ class CefriumPlugin implements Plugin<Project> {
 
         androidComponents.onVariants(androidComponents.selector().all()) { variant ->
             def variantName = variant.name
+            try {
+                debuggable[variantName] = variant.debuggable
+            } catch (Throwable ignore) {
+                // not an application variant, or an older API: the name decides
+            }
             def cap = variantName.capitalize()
 
             def genTask = project.tasks.register(
