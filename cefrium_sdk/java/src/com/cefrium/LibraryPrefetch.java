@@ -152,19 +152,22 @@ final class LibraryPrefetch {
         return matched && n > 0 ? Arrays.copyOf(out, n) : null;
     }
 
-    /** The GNU build-id of a 64-bit little-endian ELF file, in hex, or null. */
+    /** The GNU build-id of a little-endian ELF file (32- or 64-bit), in hex, or null. */
     static String buildId(File elf) throws IOException {
         try (RandomAccessFile f = new RandomAccessFile(elf, "r")) {
             ByteBuffer h = read(f, 0, 64);
-            if (h.getInt(0) != 0x464c457f || h.get(4) != 2 || h.get(5) != 1) return null;
-            long phoff = h.getLong(0x20);
-            int phentsize = h.getShort(0x36) & 0xffff;
-            int phnum = h.getShort(0x38) & 0xffff;
+            if (h.getInt(0) != 0x464c457f || h.get(5) != 1) return null;
+            boolean is64 = h.get(4) == 2;
+            if (!is64 && h.get(4) != 1) return null;
+            long phoff = is64 ? h.getLong(0x20) : h.getInt(0x1c) & 0xffffffffL;
+            int phentsize = h.getShort(is64 ? 0x36 : 0x2a) & 0xffff;
+            int phnum = h.getShort(is64 ? 0x38 : 0x2c) & 0xffff;
             for (int i = 0; i < phnum; i++) {
-                ByteBuffer ph = read(f, phoff + (long) i * phentsize, 56);
+                ByteBuffer ph = read(f, phoff + (long) i * phentsize, is64 ? 56 : 32);
                 if (ph.getInt(0) != 4) continue;  // PT_NOTE
-                long off = ph.getLong(8);
-                int len = (int) Math.min(ph.getLong(32), 1 << 16);
+                long off = is64 ? ph.getLong(8) : ph.getInt(4) & 0xffffffffL;
+                long size = is64 ? ph.getLong(32) : ph.getInt(16) & 0xffffffffL;
+                int len = (int) Math.min(size, 1 << 16);
                 ByteBuffer notes = read(f, off, len);
                 for (int p = 0; p + 12 <= len; ) {
                     int namesz = notes.getInt(p);

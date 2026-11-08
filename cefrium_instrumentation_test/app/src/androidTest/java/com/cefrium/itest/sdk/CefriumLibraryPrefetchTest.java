@@ -128,9 +128,12 @@ public class CefriumLibraryPrefetchTest {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         String id = (String) mBuildId.invoke(null, mLib);
         String asset = "cefrium/hot-ranges/" + id + ".txt";
-        if (!"arm64-v8a".equals(android.os.Build.SUPPORTED_ABIS[0])) {
+        // The process's ABI, not the device's: an arm64 device also runs 32-bit apps.
+        String abi = android.os.Process.is64Bit() ? android.os.Build.SUPPORTED_64_BIT_ABIS[0]
+                : android.os.Build.SUPPORTED_32_BIT_ABIS[0];
+        if (!"arm64-v8a".equals(abi)) {
             try (InputStream in = context.getAssets().open(asset)) {
-                Assert.fail("a list was shipped for the " + android.os.Build.SUPPORTED_ABIS[0]
+                Assert.fail("a list was shipped for the " + abi
                         + " library, which has none recorded");
             } catch (java.io.FileNotFoundException expected) {
                 return;
