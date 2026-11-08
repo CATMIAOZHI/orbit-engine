@@ -34,8 +34,22 @@ import java.util.regex.Pattern;
  * not copy or delete its directory yourself while the app runs: use
  * {@link #delete(String)}, and back a profile up only from a process that has
  * not opened it.</p>
+ *
+ * <p>Methods that return a result must be called on the main thread and
+ * throw {@link IllegalStateException} on another. Methods that take a callback
+ * may be called from any thread; the callback runs on the main thread.</p>
  */
 public final class CefriumProfile {
+    // As CefriumBrowser: the calls that return a result run on the main thread
+    // only; the ones with a callback post themselves there.
+    private static void checkThread(String method) {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            throw new IllegalStateException("CefriumProfile." + method
+                    + " must be called on the main thread, not on "
+                    + Thread.currentThread().getName());
+        }
+    }
+
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_-]{1,64}");
     private static final CefriumProfile DEFAULT = new CefriumProfile(null, false);
     private static final CefriumProfile INCOGNITO = new CefriumProfile(null, true);
@@ -208,6 +222,7 @@ public final class CefriumProfile {
      * so it follows the default profile's again. Does nothing on other profiles.
      */
     public void followDefaultProfile() {
+        checkThread("followDefaultProfile");
         if (!mIncognito) return;
         root();
         nativeFollowDefaultProfile();
@@ -228,6 +243,7 @@ public final class CefriumProfile {
      * @return false if the engine rejected the setting.
      */
     public boolean setProxy(String mode, String server) {
+        checkThread("setProxy");
         if (mode == null) throw new IllegalArgumentException("mode must not be null");
         StringBuilder json = new StringBuilder("{\"mode\":").append(org.json.JSONObject.quote(mode));
         if (server != null) {
@@ -265,6 +281,7 @@ public final class CefriumProfile {
      * @return false if the engine rejected the setting.
      */
     public boolean setWebRtcIpHandlingPolicy(String policy) {
+        checkThread("setWebRtcIpHandlingPolicy");
         if (policy == null) throw new IllegalArgumentException("policy must not be null");
         return setPreference("webrtc.ip_handling_policy", org.json.JSONObject.quote(policy));
     }
@@ -290,6 +307,7 @@ public final class CefriumProfile {
      *         an origin.
      */
     public boolean setAdBlockExceptions(java.util.Collection<String> sites) {
+        checkThread("setAdBlockExceptions");
         root();
         String[] array = sites == null ? new String[0] : sites.toArray(new String[0]);
         return nativeSetAdBlockExceptions(mIncognito, nameForNative(), array);
@@ -440,7 +458,8 @@ public final class CefriumProfile {
     public void getDownloads(DownloadsCallback callback) {
         if (callback == null) throw new IllegalArgumentException("callback must not be null");
         root();
-        nativeGetDownloads(mIncognito, nameForNative(), register(callback));
+        long id = register(callback);
+        sMain.post(() -> nativeGetDownloads(mIncognito, nameForNative(), id));
     }
 
     /**
@@ -453,6 +472,7 @@ public final class CefriumProfile {
      *         private browser exists).
      */
     public boolean setDownloadObserver(DownloadObserver observer) {
+        checkThread("setDownloadObserver");
         root();
         synchronized (CefriumProfile.class) {
             if (observer == null) {
