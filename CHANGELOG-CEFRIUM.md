@@ -17,6 +17,19 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+### Added
+- **Popups that keep their opener.** `PopupHandler.onCreateWindow(popup,
+  url, gesture)` gives a window the page opens a browser of its own, in the
+  opener's mode and profile; the page keeps `window.opener`, so sign-in and
+  payment popups can send their result back. `onCloseWindow` reports the
+  popup's `window.close()`. Without it a popup still loads in the same
+  browser and loses its opener (issue #20).
+- **FedCM sign-in** (`navigator.credentials.get({identity})`, used by
+  "Sign in with" prompts): the account chooser is shown, as a default dialog
+  on the browser's activity or by `CefriumBrowser.setIdentityHandler`. It
+  failed with `NetworkError` before (issue #20). New experimental CEF API:
+  `CefIdentityRequestHandler`, `CefClient::GetIdentityRequestHandler`.
+
 ### Changed
 - **The SDK is published as modules.** `cefrium-sdk-core` holds the Java API,
   resources and assets; `cefrium-native-codecs-<abi>` and
