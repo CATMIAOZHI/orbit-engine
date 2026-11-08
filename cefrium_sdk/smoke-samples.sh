@@ -70,9 +70,15 @@ if [ -n "$REGISTRY_VERSION" ]; then
   for art in cefrium-sdk cefrium-compose; do
     f="$PUB/$art.aar"
     if [ ! -s "$f" ]; then
-      url="https://repo1.maven.org/maven2/com/cefrium/$art/$REGISTRY_VERSION/$art-$REGISTRY_VERSION.aar"
-      echo "  fetching $art $REGISTRY_VERSION from Maven Central"
-      curl -sfL -o "$f" "$url" || { echo "FAIL: $art $REGISTRY_VERSION is not on Central ($url)"; exit 1; }
+      # Maven serves the SDK as modules (the browsers resolve those); the
+      # single-file AAR a file-based app uses is a release asset.
+      if [ "$art" = cefrium-sdk ]; then
+        url="https://codeberg.org/cefrium/cef-android/releases/download/v$REGISTRY_VERSION/$art-$REGISTRY_VERSION.aar"
+      else
+        url="https://repo1.maven.org/maven2/com/cefrium/$art/$REGISTRY_VERSION/$art-$REGISTRY_VERSION.aar"
+      fi
+      echo "  fetching $art $REGISTRY_VERSION ($url)"
+      curl -sfL -o "$f" "$url" || { echo "FAIL: $art $REGISTRY_VERSION is not published ($url)"; exit 1; }
     fi
     echo "  $art: $(du -h "$f" | cut -f1)"
   done

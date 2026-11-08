@@ -67,7 +67,7 @@ cef/cefrium_sdk/cut-release.sh <version> <prev> --from publish   # resume
 Outcome: last line of `tmp/cut-<version>.status`. The cut checks the signing
 key, the VPN and `JAVA_HOME` before it builds.
 
-Phases: `patches build hotranges merge compose plugin stats sanity suite publish central
+Phases: `patches build hotranges merge compose plugin stats sanity suite stage publish central
 flagship release provenance web prune play`. Flags that matter:
 `CEFRIUM_INCREMENTAL=1` (reuse out dirs), `CEFRIUM_YES=1` (pre-authorize the
 irreversible gates -- needed for an unattended run), `CEFRIUM_NO_PRUNE=1`,
@@ -89,6 +89,8 @@ Individual phases, runnable on their own:
 | Slim one raw AAR | `python3 cef/cefrium_sdk/slim_aar.py --input <raw.aar> --output <slim.aar>` |
 | Fuse arm64 + x86_64 | `cef/cefrium_sdk/merge-multiabi.sh` |
 | Publish to Codeberg Maven | `cef/cefrium_sdk/publish-maven.sh <version>` |
+| Split the two SDK AARs into the published modules | `python3 cef/cefrium_sdk/modular_artifacts.py build --codecs <aar> [--libre <aar>] --out <dir>` |
+| Write the Maven repository to a directory and run the consumer test on it (no upload) | `CEFRIUM_MAVEN_DIR=<dir> [CEFRIUM_RELEASE_DIR=<dir>] cef/cefrium_sdk/publish-maven.sh <version>` |
 | Publish to Maven Central | `cef/cefrium_sdk/publish-central.sh <version>` |
 | Codeberg release + GPG sums | `cef/cefrium_sdk/release-codeberg.sh <version> <apk>` |
 | Central serves the signed bytes | `cef/cefrium_sdk/verify-central-provenance.sh <version>` |
