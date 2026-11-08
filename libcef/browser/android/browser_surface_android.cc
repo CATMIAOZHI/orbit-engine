@@ -5,14 +5,8 @@
 #include "cef/libcef/browser/android/browser_surface_android.h"
 
 #include "base/logging.h"
-#include "content/browser/renderer_host/render_widget_host_view_android.h"
-#include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/public/browser/android/child_process_importance.h"
-#include "content/public/browser/render_widget_host.h"
-#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
-#include "content/public/common/page_visibility_state.h"
-#include "ui/android/delegated_frame_host_android.h"
 #include "ui/android/view_android.h"
 #include "ui/android/window_android.h"
 
@@ -145,62 +139,6 @@ void BrowserSurfaceAndroid::AttachWebContents(
   web_contents_->WasShown();
   SetSurfaceImportance(web_contents_, content::ChildProcessImportance::IMPORTANT);
   compositor_->SetNeedsComposite();
-}
-
-void BrowserSurfaceAndroid::TryAttachRWHVLayer() {
-  if (!web_contents_ || !compositor_) return;
-
-  auto* rwhv = web_contents_->GetRenderWidgetHostView();
-  if (!rwhv) {
-    LOG(INFO) << "BrowserSurfaceAndroid::TryAttachRWHVLayer: RWHV still null";
-    return;
-  }
-
-  gfx::Size size = compositor_->GetWindowBounds();
-
-  // 1. Show RWHV FIRST — sets is_showing_ = true. Chromium 150 removed the
-  //    public RenderWidgetHostView::Show(); go through the base class'
-  //    ShowWithVisibility() (what the old Show() forwarded to).
-  static_cast<content::RenderWidgetHostViewBase*>(rwhv)->ShowWithVisibility(
-      content::PageVisibilityState::kVisible);
-  web_contents_->WasShown();
-  SetSurfaceImportance(web_contents_, content::ChildProcessImportance::IMPORTANT);
-
-  // 2. Re-trigger OnAttachedToWindow on the RWHVA by removing and
-  //    re-adding its view. This time is_showing_ is true, so
-  //    StartObservingRootWindow() will be called, which calls
-  //    AttachToCompositor() and sets up BeginFrame routing.
-  auto* rwhv_view = rwhv->GetNativeView();
-  ui::ViewAndroid* wc_view = web_contents_->GetNativeView();
-  if (rwhv_view && wc_view) {
-    rwhv_view->RemoveFromParent();
-    wc_view->AddChild(rwhv_view);
-
-    // 3. Connect cc::Layer hierarchy — ViewAndroid::AddChild does NOT
-    //    connect layers. Without this, the content_layer (SurfaceLayer)
-    //    floats disconnected and CompositorFrames are invisible.
-    if (rwhv_view->GetLayer() && wc_view->GetLayer()) {
-      wc_view->GetLayer()->AddChild(rwhv_view->GetLayer());
-      rwhv_view->GetLayer()->SetBounds(size);
-    }
-  }
-
-  // 4. Size everything
-  if (!size.IsEmpty()) {
-    rwhv->SetSize(size);
-    web_contents_->Resize(gfx::Rect(size));
-  }
-
-  // 4. Tell renderer its viewport size — triggers first CompositorFrame
-  auto* rwh = rwhv->GetRenderWidgetHost();
-  if (rwh) {
-    rwh->SynchronizeVisualProperties();
-  }
-
-  compositor_->SetNeedsComposite();
-
-  LOG(INFO) << "BrowserSurfaceAndroid::TryAttachRWHVLayer done"
-            << " size=" << size.ToString();
 }
 
 // CompositorClient implementation.
