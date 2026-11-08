@@ -165,6 +165,9 @@ class ChromeContentBrowserClientCef : public ChromeContentBrowserClient {
   content::BluetoothDelegate* GetBluetoothDelegate() override;
   content::UsbDelegate* GetUsbDelegate() override;
   content::SerialDelegate* GetSerialDelegate() override;
+  std::unique_ptr<content::IdentityRequestDialogController>
+  CreateIdentityRequestDialogController(
+      content::WebContents* web_contents) override;
 
   CefRefPtr<CefRequestContextImpl> request_context() const;
 

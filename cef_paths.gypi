@@ -8,7 +8,7 @@
 # by hand. See the translator.README.txt file in the tools directory for
 # more information.
 #
-# $hash=c79c1eea442b76ada4514a56a60853c559b4b1f9$
+# $hash=7f42aa1d76f1b9a3c5ccf2ff23e7fe51622c4d3d$
 #
 
 {
@@ -43,6 +43,7 @@
       'include/cef_frame.h',
       'include/cef_frame_handler.h',
       'include/cef_i18n_util.h',
+      'include/cef_identity_request_handler.h',
       'include/cef_image.h',
       'include/cef_jsdialog_handler.h',
       'include/cef_keyboard_handler.h',
@@ -150,6 +151,7 @@
       'include/capi/cef_frame_capi.h',
       'include/capi/cef_frame_handler_capi.h',
       'include/capi/cef_i18n_util_capi.h',
+      'include/capi/cef_identity_request_handler_capi.h',
       'include/capi/cef_image_capi.h',
       'include/capi/cef_jsdialog_handler_capi.h',
       'include/capi/cef_keyboard_handler_capi.h',
@@ -257,6 +259,7 @@
       'include/capi/cef_frame_capi_versions.h',
       'include/capi/cef_frame_handler_capi_versions.h',
       'include/capi/cef_i18n_util_capi_versions.h',
+      'include/capi/cef_identity_request_handler_capi_versions.h',
       'include/capi/cef_image_capi_versions.h',
       'include/capi/cef_jsdialog_handler_capi_versions.h',
       'include/capi/cef_keyboard_handler_capi_versions.h',
@@ -471,6 +474,12 @@
       'libcef_dll/cpptoc/frame_cpptoc.h',
       'libcef_dll/ctocpp/frame_handler_ctocpp.cc',
       'libcef_dll/ctocpp/frame_handler_ctocpp.h',
+      'libcef_dll/cpptoc/identity_account_cpptoc.cc',
+      'libcef_dll/cpptoc/identity_account_cpptoc.h',
+      'libcef_dll/cpptoc/identity_request_callback_cpptoc.cc',
+      'libcef_dll/cpptoc/identity_request_callback_cpptoc.h',
+      'libcef_dll/ctocpp/identity_request_handler_ctocpp.cc',
+      'libcef_dll/ctocpp/identity_request_handler_ctocpp.h',
       'libcef_dll/cpptoc/image_cpptoc.cc',
       'libcef_dll/cpptoc/image_cpptoc.h',
       'libcef_dll/cpptoc/jsdialog_callback_cpptoc.cc',
@@ -847,6 +856,12 @@
       'libcef_dll/ctocpp/frame_ctocpp.h',
       'libcef_dll/cpptoc/frame_handler_cpptoc.cc',
       'libcef_dll/cpptoc/frame_handler_cpptoc.h',
+      'libcef_dll/ctocpp/identity_account_ctocpp.cc',
+      'libcef_dll/ctocpp/identity_account_ctocpp.h',
+      'libcef_dll/ctocpp/identity_request_callback_ctocpp.cc',
+      'libcef_dll/ctocpp/identity_request_callback_ctocpp.h',
+      'libcef_dll/cpptoc/identity_request_handler_cpptoc.cc',
+      'libcef_dll/cpptoc/identity_request_handler_cpptoc.h',
       'libcef_dll/ctocpp/image_ctocpp.cc',
       'libcef_dll/ctocpp/image_ctocpp.h',
       'libcef_dll/ctocpp/jsdialog_callback_ctocpp.cc',

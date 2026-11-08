@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=e3c3ec60c8b47eb2d812c6364db2403dba6844d3$
+// $hash=51b11a6ef695da2f9d9b228701412d07dd6c4076$
 //
 
 #include "libcef_dll/cpptoc/audio_handler_cpptoc.h"
@@ -24,6 +24,7 @@
 #include "libcef_dll/cpptoc/find_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/focus_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/frame_handler_cpptoc.h"
+#include "libcef_dll/cpptoc/identity_request_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/jsdialog_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/keyboard_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/life_span_handler_cpptoc.h"
@@ -99,6 +100,23 @@ struct _cef_device_chooser_handler_t* CEF_CALLBACK client_get_device_chooser_han
 
   // Return type: refptr_same
   return CefDeviceChooserHandlerCppToC_Wrap(_retval);
+}
+#endif  // CEF_API_ADDED(CEF_EXPERIMENTAL)
+
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+struct _cef_identity_request_handler_t* CEF_CALLBACK client_get_identity_request_handler(struct _cef_client_t* self) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return NULL;
+  }
+
+  // Execute
+  CefRefPtr<CefIdentityRequestHandler> _retval = CefClientCppToC::Get(self)->GetIdentityRequestHandler();
+
+  // Return type: refptr_same
+  return CefIdentityRequestHandlerCppToC_Wrap(_retval);
 }
 #endif  // CEF_API_ADDED(CEF_EXPERIMENTAL)
 
@@ -387,6 +405,9 @@ CefClientCppToC::CefClientCppToC() {
   GetStruct()->on_process_message_received = client_on_process_message_received;
 #if CEF_API_ADDED(CEF_EXPERIMENTAL)
   GetStruct()->get_device_chooser_handler = client_get_device_chooser_handler;
+#endif
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+  GetStruct()->get_identity_request_handler = client_get_identity_request_handler;
 #endif
 }
 

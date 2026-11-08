@@ -18,6 +18,7 @@
 #include "cef/libcef/browser/android/cef_share_service.h"
 #include "cef/libcef/browser/chrome/chrome_browser_main_extra_parts_cef.h"
 #include "cef/libcef/browser/chrome/device_chooser_impl.h"
+#include "cef/libcef/browser/chrome/identity_dialog_controller_impl.h"
 #include "cef/libcef/browser/context.h"
 #include "cef/libcef/browser/net/throttle_handler.h"
 #include "cef/libcef/browser/net_service/cookie_manager_impl.h"
@@ -899,6 +900,17 @@ content::SerialDelegate* ChromeContentBrowserClientCef::GetSerialDelegate() {
     cef_serial_delegate_ = std::make_unique<CefSerialDelegate>();
   }
   return cef_serial_delegate_.get();
+}
+
+std::unique_ptr<content::IdentityRequestDialogController>
+ChromeContentBrowserClientCef::CreateIdentityRequestDialogController(
+    content::WebContents* web_contents) {
+  // Route the FedCM account chooser to the embedder's
+  // CefIdentityRequestHandler, with Chrome's UI as the fallback.
+  return std::make_unique<CefIdentityDialogController>(
+      web_contents,
+      ChromeContentBrowserClient::CreateIdentityRequestDialogController(
+          web_contents));
 }
 
 CefRefPtr<CefRequestContextImpl>

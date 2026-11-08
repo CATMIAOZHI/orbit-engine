@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=118dbaa292ba7619f3d6ab6edb3d37689fe141bf$
+// $hash=f548e39cc92b94e480b40bffa6d9847b07e67b49$
 //
 
 #ifndef CEF_LIBCEF_DLL_CTOCPP_CLIENT_CTOCPP_H_
@@ -37,6 +37,7 @@ class CefClient_0_CToCpp
   CefRefPtr<CefCommandHandler> GetCommandHandler() override;
   CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override;
   CefRefPtr<CefDeviceChooserHandler> GetDeviceChooserHandler() override;
+  CefRefPtr<CefIdentityRequestHandler> GetIdentityRequestHandler() override;
   CefRefPtr<CefDialogHandler> GetDialogHandler() override;
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override;
   CefRefPtr<CefDownloadHandler> GetDownloadHandler() override;
@@ -68,6 +69,7 @@ class CefClient_999999_CToCpp
   CefRefPtr<CefCommandHandler> GetCommandHandler() override;
   CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override;
   CefRefPtr<CefDeviceChooserHandler> GetDeviceChooserHandler() override;
+  CefRefPtr<CefIdentityRequestHandler> GetIdentityRequestHandler() override;
   CefRefPtr<CefDialogHandler> GetDialogHandler() override;
   CefRefPtr<CefDisplayHandler> GetDisplayHandler() override;
   CefRefPtr<CefDownloadHandler> GetDownloadHandler() override;

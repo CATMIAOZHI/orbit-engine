@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=534423e013c5ddb80107731182e421b54fd959a1$
+// $hash=f49a8279ab897d28a36fc01bce1b960b1f97982f$
 //
 
 #include "include/cef_api_hash.h"
@@ -28,6 +28,7 @@
 #include "libcef_dll/ctocpp/find_handler_ctocpp.h"
 #include "libcef_dll/ctocpp/focus_handler_ctocpp.h"
 #include "libcef_dll/ctocpp/frame_handler_ctocpp.h"
+#include "libcef_dll/ctocpp/identity_request_handler_ctocpp.h"
 #include "libcef_dll/ctocpp/jsdialog_handler_ctocpp.h"
 #include "libcef_dll/ctocpp/keyboard_handler_ctocpp.h"
 #include "libcef_dll/ctocpp/life_span_handler_ctocpp.h"
@@ -110,6 +111,11 @@ NO_SANITIZE("cfi-icall") CefRefPtr<CefContextMenuHandler> CefClient_0_CToCpp::Ge
 }
 
 NO_SANITIZE("cfi-icall") CefRefPtr<CefDeviceChooserHandler> CefClient_0_CToCpp::GetDeviceChooserHandler() {
+  // AUTO-GENERATED CONTENT
+  NOTREACHED() << __func__ << " should not be called at version 0";
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefIdentityRequestHandler> CefClient_0_CToCpp::GetIdentityRequestHandler() {
   // AUTO-GENERATED CONTENT
   NOTREACHED() << __func__ << " should not be called at version 0";
 }
@@ -453,6 +459,21 @@ NO_SANITIZE("cfi-icall") CefRefPtr<CefDeviceChooserHandler> CefClient_999999_CTo
 
   // Return type: refptr_same
   return CefDeviceChooserHandlerCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefIdentityRequestHandler> CefClient_999999_CToCpp::GetIdentityRequestHandler() {
+  auto* _struct = GetStruct();
+  if (!_struct->get_identity_request_handler) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_identity_request_handler(_struct);
+
+  // Return type: refptr_same
+  return CefIdentityRequestHandlerCToCpp_Wrap(_retval);
 }
 
 NO_SANITIZE("cfi-icall") CefRefPtr<CefDialogHandler> CefClient_999999_CToCpp::GetDialogHandler() {

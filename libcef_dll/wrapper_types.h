@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=45a0f8b1a5951b2bbf8a9ade38afb5beca3e9f95$
+// $hash=2a8588108278138396613f804e27bf49523844b5$
 //
 
 #ifndef CEF_LIBCEF_DLL_WRAPPER_TYPES_H_
@@ -87,6 +87,9 @@ enum CefWrapperType {
   WT_FOCUS_HANDLER,
   WT_FRAME,
   WT_FRAME_HANDLER,
+  WT_IDENTITY_ACCOUNT,
+  WT_IDENTITY_REQUEST_CALLBACK,
+  WT_IDENTITY_REQUEST_HANDLER,
   WT_IMAGE,
   WT_JSDIALOG_CALLBACK,
   WT_JSDIALOG_HANDLER,
