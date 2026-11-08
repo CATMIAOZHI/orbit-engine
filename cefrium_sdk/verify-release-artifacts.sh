@@ -86,7 +86,7 @@ check_aar() { # <aar> <label> <expect-both-abis:yes|no>
   if [ -f "$d/jni/arm64-v8a/libcef.so" ]; then
     local want have
     want="$("$READELF" -n "$d/jni/arm64-v8a/libcef.so" 2>/dev/null | awk '!f && /Build ID:/ {print $3; f=1}')"
-    have="$(unzip -p "$aar" assets/cefrium/libcef-hot-ranges.txt 2>/dev/null | awk '!f && /^build-id / {print $2; f=1}')"
+    have="$(unzip -p "$aar" "assets/cefrium/hot-ranges/$want.txt" 2>/dev/null | awk '!f && /^build-id / {print $2; f=1}')"
     if [ -n "$want" ] && [ "$have" = "$want" ]; then
       ok "$label read-ahead list matches libcef.so ($want)"
     else
