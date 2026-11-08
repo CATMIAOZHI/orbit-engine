@@ -671,11 +671,6 @@ class SdkLoadHandler : public CefLoadHandler {
     env->DeleteLocalRef(cls);
   }
 
-  // Whose executeDevToolsMethod calls wait for the first main-frame commit.
-  void SetPendingDevToolsData(struct SdkBrowserData* data) {
-    devtools_data_ = data;
-  }
-
   // Runs on every committed cross-document navigation, any frame.
   void SetOnCommit(base::RepeatingClosure on_commit) {
     on_commit_ = std::move(on_commit);
@@ -686,8 +681,8 @@ class SdkLoadHandler : public CefLoadHandler {
                    CefRefPtr<CefFrame> frame,
                    TransitionType transition_type) override {
     if (on_commit_) on_commit_.Run();
-    if (frame->IsMain() && devtools_data_) {
-      RunPendingDevTools(devtools_data_, browser);
+    if (frame->IsMain() && data_) {
+      RunPendingDevTools(data_, browser);
     }
     if (!frame->IsMain() || !java_browser_) return;
     JNIEnv* env = base::android::AttachCurrentThread();
@@ -738,7 +733,6 @@ class SdkLoadHandler : public CefLoadHandler {
 
  private:
   struct SdkBrowserData* data_ = nullptr;
-  struct SdkBrowserData* devtools_data_ = nullptr;
   jobject java_browser_ = nullptr;
   base::RepeatingClosure on_commit_;
 };
@@ -3477,8 +3471,7 @@ class SdkClient : public CefClient {
  public:
   SdkClient(CefRefPtr<SdkRenderHandler> render_handler,
             CefRefPtr<SdkLifeSpanHandler> life_span_handler,
-            bool with_request_handler = false,
-            struct SdkBrowserData* browser_data = nullptr)
+            bool with_request_handler = false)
       : render_handler_(render_handler),
         life_span_handler_(life_span_handler),
         load_handler_(new SdkLoadHandler()),
@@ -3501,10 +3494,6 @@ class SdkClient : public CefClient {
       base::AutoLock lock(LiveLock());
       Live().insert(this);
     }
-    if (browser_data) {
-      load_handler_->SetBrowserData(browser_data);
-    }
-
     // FEATURE-023: browser-side JS bridge router for window.cefriumQuery. The
     // config MUST match the renderer side (shared constants).
     CefMessageRouterConfig config;
@@ -4390,9 +4379,6 @@ void SdkLoadHandler::OnLoadEnd(CefRefPtr<CefBrowser> browser,
   LOGI("OnLoadEnd: status %d, isMain=%d", httpStatusCode, frame->IsMain());
   if (frame->IsMain()) {
     browser->GetHost()->Invalidate(PET_VIEW);
-    if (data_ && data_->is_surface_mode && data_->surface_bridge) {
-      data_->surface_bridge->TryAttachRWHVLayer();
-    }
   }
 }
 
@@ -4524,7 +4510,7 @@ Java_com_cefrium_CefriumBrowser_nativeCreate(
   data->life_span_handler->SetBrowserData(data);
   data->client = new SdkClient(data->render_handler, data->life_span_handler,
                                /*with_request_handler=*/true);
-  data->client->load_handler_ref()->SetPendingDevToolsData(data);
+  data->client->load_handler_ref()->SetBrowserData(data);
   data->client->request_handler()->resource_request_handler()->SetProfile(
       data->is_incognito, data->profile);
   LOGI("nativeCreate: %dx%d (browser not yet created, adblock active)", width, height);
@@ -5676,7 +5662,7 @@ Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
       nullptr,  // No render handler — ContentViewRenderView handles rendering
       data->life_span_handler,
       /*with_request_handler=*/true);
-  data->client->load_handler_ref()->SetPendingDevToolsData(data);
+  data->client->load_handler_ref()->SetBrowserData(data);
   data->client->request_handler()->resource_request_handler()->SetProfile(
       data->is_incognito, data->profile);
 
