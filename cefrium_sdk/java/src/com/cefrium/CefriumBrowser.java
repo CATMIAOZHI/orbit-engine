@@ -834,9 +834,9 @@ public class CefriumBrowser {
      * the {@link #setDevToolsEventListener listener} once enabled with their
      * {@code enable} method. Uses CefBrowserHost::ExecuteDevToolsMethod.
      *
-     * <p>Works once the browser exists: right away for a surface browser,
-     * after the first load for an off-screen one. Before that, and after
-     * {@link #close()}, the callback gets an error.
+     * <p>Can be called right after the constructor: an off-screen browser is
+     * created asynchronously, and a call made before it exists runs as soon
+     * as it does. After {@link #close()} the callback gets an error.
      *
      * @param method     e.g. {@code Runtime.evaluate}
      * @param paramsJson the parameters as a JSON object, or null for none
@@ -859,7 +859,7 @@ public class CefriumBrowser {
             onDevToolsResult(id, false, devToolsError(rc == 2
                     ? "paramsJson is not a JSON object"
                     : rc == 3 ? "the method was not accepted"
-                              : "the browser does not exist yet or is closed"));
+                              : "the browser is closed"));
         }
     }
 
@@ -1358,12 +1358,22 @@ public class CefriumBrowser {
 
     // ──────────────────── Dynamic WebSettings ────────────────────
 
-    /** Overrides the User-Agent at runtime (Emulation.setUserAgentOverride). */
+    /**
+     * Overrides the User-Agent string (Emulation.setUserAgentOverride), for
+     * the documents loaded from now on. Can be called right after the
+     * constructor. It does not change User-Agent Client Hints
+     * ({@code navigator.userAgentData}); for those, call
+     * {@code Emulation.setUserAgentOverride} with {@code userAgentMetadata}
+     * through {@link #executeDevToolsMethod}.
+     */
     public void setUserAgentOverride(String userAgent) {
         if (mNativePtr != 0) nativeSetUserAgentOverride(mNativePtr, userAgent);
     }
 
-    /** Enables/disables JavaScript at runtime (Emulation.setScriptExecutionDisabled). */
+    /**
+     * Enables or disables JavaScript (Emulation.setScriptExecutionDisabled).
+     * Can be called right after the constructor.
+     */
     public void setJavaScriptEnabled(boolean enabled) {
         if (mNativePtr != 0) nativeSetJavaScriptEnabled(mNativePtr, enabled);
     }
