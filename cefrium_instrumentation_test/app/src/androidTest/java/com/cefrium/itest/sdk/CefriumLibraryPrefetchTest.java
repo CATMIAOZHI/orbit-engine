@@ -120,19 +120,25 @@ public class CefriumLibraryPrefetchTest {
     }
 
     /**
-     * A build ships a list recorded from its own arm64 libcef.so. On another
-     * ABI the same list belongs to the other library and must be ignored.
+     * A build ships the list recorded from its own arm64 libcef.so, named
+     * after that library's build-id. Another ABI's library has no list.
      */
     @Test
     public void theShippedListMatchesOnlyTheLibraryItWasRecordedFrom() throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        long[] ranges;
-        try (InputStream in = context.getAssets().open("cefrium/libcef-hot-ranges.txt")) {
-            ranges = (long[]) mPlan.invoke(null, mLib, in);
-        }
+        String id = (String) mBuildId.invoke(null, mLib);
+        String asset = "cefrium/hot-ranges/" + id + ".txt";
         if (!"arm64-v8a".equals(android.os.Build.SUPPORTED_ABIS[0])) {
-            Assert.assertNull("an arm64 list was used for another ABI's library", ranges);
-            return;
+            try (InputStream in = context.getAssets().open(asset)) {
+                Assert.fail("a list was shipped for the " + android.os.Build.SUPPORTED_ABIS[0]
+                        + " library, which has none recorded");
+            } catch (java.io.FileNotFoundException expected) {
+                return;
+            }
+        }
+        long[] ranges;
+        try (InputStream in = context.getAssets().open(asset)) {
+            ranges = (long[]) mPlan.invoke(null, mLib, in);
         }
         Assert.assertNotNull("the shipped list was not recorded from this libcef.so", ranges);
         long bytes = 0;

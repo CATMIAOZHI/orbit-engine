@@ -12,7 +12,7 @@
 # of libcef.so read until the first page ran, merged over the runs, become
 # ranges in first-read order (gaps of up to 64 KiB read as one), under the
 # build-id of the library recorded. --inject adds the list to the AAR as
-# assets/cefrium/libcef-hot-ranges.txt.
+# assets/cefrium/hot-ranges/<build-id>.txt.
 #
 # The offsets are only valid for that exact libcef.so, which is why the list
 # carries its build-id and the SDK ignores a list that does not match: never
@@ -36,7 +36,6 @@ TP="$SRC/third_party/perfetto/tools/trace_processor"
 BENCH="$ROOT/cefrium-sample/benchmark-suite/startup"
 PKG=com.cefrium.bench.startup
 FILES=/sdcard/Android/data/$PKG/files
-ASSET=assets/cefrium/libcef-hot-ranges.txt
 
 WORK="$(mktemp -d -p "$ROOT/tmp" hotranges.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
@@ -46,6 +45,8 @@ unzip -q -o "$AAR" jni/arm64-v8a/libcef.so -d "$WORK"
 ID="$("$READELF" -n "$WORK/jni/arm64-v8a/libcef.so" | awk '!f && /Build ID:/ {print $3; f=1}')"
 [ -n "$ID" ] || { echo "ERROR: no build-id in the AAR's arm64 libcef.so" >&2; exit 1; }
 echo ">>> libcef.so build-id $ID"
+# Named after the library, so each native module carries its own list.
+ASSET="assets/cefrium/hot-ranges/$ID.txt"
 
 # The bench, built on this AAR. push + pm install: some OEM builds refuse a
 # plain adb install of a new package.
@@ -139,7 +140,7 @@ print(f">>> {len(runs_)} ranges, {mb:.1f} MB")
 PY
 
 if [ "$INJECT" = "--inject" ]; then
-  mkdir -p "$WORK/assets/cefrium"
+  mkdir -p "$WORK/assets/cefrium/hot-ranges"
   cp "$OUT" "$WORK/$ASSET"
   ( cd "$WORK" && zip -q "$AAR" "$ASSET" )
   echo ">>> added $ASSET to $AAR"

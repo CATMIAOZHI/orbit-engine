@@ -30,12 +30,12 @@ import java.util.function.BooleanSupplier;
  * Reads libcef.so into the page cache on a background thread while the engine
  * starts. A start needs about half of the file, in an order a sequential read
  * does not follow, so the build ships the ranges a recorded start read, in
- * the order it read them (assets/cefrium/libcef-hot-ranges.txt). The list is
- * only used for the exact library it was recorded from; any other library is
- * read whole.
+ * the order it read them, named after the library's GNU build-id
+ * (assets/cefrium/hot-ranges/<build-id>.txt), so each native module carries
+ * the list of its own library. Any other library is read whole.
  */
 final class LibraryPrefetch {
-    static final String RANGES_ASSET = "cefrium/libcef-hot-ranges.txt";
+    static final String RANGES_DIR = "cefrium/hot-ranges/";
 
     // The kernel's own read-ahead advice (fadvise WILLNEED) did nothing on the
     // phone tried, and mapping the file to touch it keeps it in the app's
@@ -97,8 +97,14 @@ final class LibraryPrefetch {
         if (!lib.isFile()) return;  // loaded from inside the APK: nothing to read ahead
         Thread t = new Thread(() -> {
             long[] ranges = null;
-            try (InputStream list = appContext.getAssets().open(RANGES_ASSET)) {
-                ranges = plan(lib, list);
+            try {
+                String id = buildId(lib);
+                if (id != null) {
+                    try (InputStream list =
+                            appContext.getAssets().open(RANGES_DIR + id + ".txt")) {
+                        ranges = plan(lib, list);
+                    }
+                }
             } catch (IOException noList) {
                 // No list in this build: read the whole file.
             }
