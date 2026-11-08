@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=e20ed98d27134c9328af5698d0b30d27879b67bf$
+// $hash=7ce597ec3d7b45d116290e4e344a0bb4741b0ef7$
 //
 
 #include "libcef_dll/cpptoc/views/textfield_delegate_cpptoc.h"
@@ -304,6 +304,7 @@ NO_SANITIZE("cfi-icall") size_t CefTextfieldCToCpp::GetCursorPosition() {
   return _retval;
 }
 
+#if CEF_API_REMOVED(15000)
 NO_SANITIZE("cfi-icall") void CefTextfieldCToCpp::SetTextColor(cef_color_t color) {
   shutdown_checker::AssertNotShutdown();
 
@@ -318,7 +319,9 @@ NO_SANITIZE("cfi-icall") void CefTextfieldCToCpp::SetTextColor(cef_color_t color
   _struct->set_text_color(_struct,
       color);
 }
+#endif  // CEF_API_REMOVED(15000)
 
+#if CEF_API_REMOVED(15000)
 NO_SANITIZE("cfi-icall") cef_color_t CefTextfieldCToCpp::GetTextColor() {
   shutdown_checker::AssertNotShutdown();
 
@@ -335,7 +338,9 @@ NO_SANITIZE("cfi-icall") cef_color_t CefTextfieldCToCpp::GetTextColor() {
   // Return type: simple
   return _retval;
 }
+#endif  // CEF_API_REMOVED(15000)
 
+#if CEF_API_REMOVED(15000)
 NO_SANITIZE("cfi-icall") void CefTextfieldCToCpp::SetSelectionTextColor(cef_color_t color) {
   shutdown_checker::AssertNotShutdown();
 
@@ -350,7 +355,9 @@ NO_SANITIZE("cfi-icall") void CefTextfieldCToCpp::SetSelectionTextColor(cef_colo
   _struct->set_selection_text_color(_struct,
       color);
 }
+#endif  // CEF_API_REMOVED(15000)
 
+#if CEF_API_REMOVED(15000)
 NO_SANITIZE("cfi-icall") cef_color_t CefTextfieldCToCpp::GetSelectionTextColor() {
   shutdown_checker::AssertNotShutdown();
 
@@ -367,7 +374,9 @@ NO_SANITIZE("cfi-icall") cef_color_t CefTextfieldCToCpp::GetSelectionTextColor()
   // Return type: simple
   return _retval;
 }
+#endif  // CEF_API_REMOVED(15000)
 
+#if CEF_API_REMOVED(15000)
 NO_SANITIZE("cfi-icall") void CefTextfieldCToCpp::SetSelectionBackgroundColor(cef_color_t color) {
   shutdown_checker::AssertNotShutdown();
 
@@ -382,7 +391,9 @@ NO_SANITIZE("cfi-icall") void CefTextfieldCToCpp::SetSelectionBackgroundColor(ce
   _struct->set_selection_background_color(_struct,
       color);
 }
+#endif  // CEF_API_REMOVED(15000)
 
+#if CEF_API_REMOVED(15000)
 NO_SANITIZE("cfi-icall") cef_color_t CefTextfieldCToCpp::GetSelectionBackgroundColor() {
   shutdown_checker::AssertNotShutdown();
 
@@ -399,6 +410,7 @@ NO_SANITIZE("cfi-icall") cef_color_t CefTextfieldCToCpp::GetSelectionBackgroundC
   // Return type: simple
   return _retval;
 }
+#endif  // CEF_API_REMOVED(15000)
 
 NO_SANITIZE("cfi-icall") void CefTextfieldCToCpp::SetFontList(const CefString& font_list) {
   shutdown_checker::AssertNotShutdown();
@@ -541,6 +553,7 @@ NO_SANITIZE("cfi-icall") CefString CefTextfieldCToCpp::GetPlaceholderText() {
   return _retvalStr;
 }
 
+#if CEF_API_REMOVED(15000)
 NO_SANITIZE("cfi-icall") void CefTextfieldCToCpp::SetPlaceholderTextColor(cef_color_t color) {
   shutdown_checker::AssertNotShutdown();
 
@@ -555,6 +568,7 @@ NO_SANITIZE("cfi-icall") void CefTextfieldCToCpp::SetPlaceholderTextColor(cef_co
   _struct->set_placeholder_text_color(_struct,
       color);
 }
+#endif  // CEF_API_REMOVED(15000)
 
 NO_SANITIZE("cfi-icall") void CefTextfieldCToCpp::SetAccessibleName(const CefString& name) {
   shutdown_checker::AssertNotShutdown();

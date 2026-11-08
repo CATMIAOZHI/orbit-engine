@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=3959a93b13b3fe06f4d6777213f7311000cdd3e2$
+// $hash=9ff1a4b15d8baaf1ad58a7cffe06cdcc8e3cd864$
 //
 
 #ifndef CEF_LIBCEF_DLL_CPPTOC_VIEWS_TEXTFIELD_CPPTOC_H_
@@ -33,7 +33,17 @@ class CefTextfield_0_CppToC
   virtual ~CefTextfield_0_CppToC();
 };
 
-constexpr auto CefTextfieldCppToC_Wrap = CefTextfield_0_CppToC::Wrap;
-constexpr auto CefTextfieldCppToC_Unwrap = CefTextfield_0_CppToC::Unwrap;
+// Wrap a C++ class with a C structure at API version 15000.
+// This class may be instantiated and accessed DLL-side only.
+class CefTextfield_15000_CppToC
+    : public CefCppToCRefCounted<CefTextfield_15000_CppToC, CefTextfield, cef_textfield_15000_t> {
+ public:
+  CefTextfield_15000_CppToC();
+  virtual ~CefTextfield_15000_CppToC();
+};
+
+// Helpers to return objects at the globally configured API version.
+cef_textfield_0_t* CefTextfieldCppToC_Wrap(CefRefPtr<CefTextfield> c);
+CefRefPtr<CefTextfield> CefTextfieldCppToC_Unwrap(cef_textfield_0_t* s);
 
 #endif  // CEF_LIBCEF_DLL_CPPTOC_VIEWS_TEXTFIELD_CPPTOC_H_

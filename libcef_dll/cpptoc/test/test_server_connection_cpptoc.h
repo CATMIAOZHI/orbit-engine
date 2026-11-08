@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=5792968b866ada7a13c810db25917c64899b79f5$
+// $hash=43cf1f82a661a0defdf0778bb9554e9dd5447bd0$
 //
 
 #ifndef CEF_LIBCEF_DLL_CPPTOC_TEST_TEST_SERVER_CONNECTION_CPPTOC_H_
@@ -33,7 +33,17 @@ class CefTestServerConnection_0_CppToC
   virtual ~CefTestServerConnection_0_CppToC();
 };
 
-constexpr auto CefTestServerConnectionCppToC_Wrap = CefTestServerConnection_0_CppToC::Wrap;
-constexpr auto CefTestServerConnectionCppToC_Unwrap = CefTestServerConnection_0_CppToC::Unwrap;
+// Wrap a C++ class with a C structure at API version 15100.
+// This class may be instantiated and accessed DLL-side only.
+class CefTestServerConnection_15100_CppToC
+    : public CefCppToCRefCounted<CefTestServerConnection_15100_CppToC, CefTestServerConnection, cef_test_server_connection_15100_t> {
+ public:
+  CefTestServerConnection_15100_CppToC();
+  virtual ~CefTestServerConnection_15100_CppToC();
+};
+
+// Helpers to return objects at the globally configured API version.
+cef_test_server_connection_0_t* CefTestServerConnectionCppToC_Wrap(CefRefPtr<CefTestServerConnection> c);
+CefRefPtr<CefTestServerConnection> CefTestServerConnectionCppToC_Unwrap(cef_test_server_connection_0_t* s);
 
 #endif  // CEF_LIBCEF_DLL_CPPTOC_TEST_TEST_SERVER_CONNECTION_CPPTOC_H_

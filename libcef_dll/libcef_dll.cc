@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=4b0b95234a112833e4388943e16f617d7da34c92$
+// $hash=9f7d9d138b8e995c28b47f07a0945d9c693e4988$
 //
 
 #include "include/capi/cef_app_capi_versions.h"
@@ -41,6 +41,7 @@
 #include "include/cef_v8.h"
 #include "include/test/cef_test_helpers.h"
 #include "libcef_dll/cpptoc/binary_value_cpptoc.h"
+#include "libcef_dll/cpptoc/browser_cpptoc.h"
 #include "libcef_dll/cpptoc/command_line_cpptoc.h"
 #include "libcef_dll/cpptoc/frame_cpptoc.h"
 #include "libcef_dll/cpptoc/value_cpptoc.h"
@@ -915,6 +916,7 @@ CEF_EXPORT int64_t cef_now_from_system_trace_time() {
   return _retval;
 }
 
+#if CEF_API_REMOVED(15400)
 CEF_EXPORT int cef_register_extension(const cef_string_t* extension_name, const cef_string_t* javascript_code, struct _cef_v8_handler_0_t* handler) {
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
 
@@ -939,6 +941,7 @@ CEF_EXPORT int cef_register_extension(const cef_string_t* extension_name, const 
   // Return type: bool
   return _retval;
 }
+#endif  // CEF_API_REMOVED(15400)
 
 CEF_EXPORT void cef_execute_java_script_with_user_gesture_for_tests(struct _cef_frame_0_t* frame, const cef_string_t* javascript) {
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
@@ -986,4 +989,51 @@ CEF_EXPORT int cef_is_feature_enabled_for_tests(const cef_string_t* feature_name
   // Return type: bool
   return _retval;
 }
+
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+CEF_EXPORT int cef_get_chrome_browser_owned_widget_count_for_tests(struct _cef_browser_0_t* browser) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: browser; type: refptr_same
+  DCHECK(browser);
+  if (!browser) {
+    return 0;
+  }
+
+  // Execute
+  int _retval = CefGetChromeBrowserOwnedWidgetCountForTests(
+      CefBrowserCppToC_Unwrap(browser));
+
+  // Return type: simple
+  return _retval;
+}
+#endif  // CEF_API_ADDED(CEF_EXPERIMENTAL)
+
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+CEF_EXPORT void cef_clear_chrome_browser_password_dismissal_stats_for_tests(struct _cef_browser_0_t* browser, const cef_string_t* origin, struct _cef_completion_callback_0_t* callback) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: browser; type: refptr_same
+  DCHECK(browser);
+  if (!browser) {
+    return;
+  }
+  // Verify param: origin; type: string_byref_const
+  DCHECK(origin);
+  if (!origin) {
+    return;
+  }
+  // Verify param: callback; type: refptr_diff
+  DCHECK(callback);
+  if (!callback) {
+    return;
+  }
+
+  // Execute
+  CefClearChromeBrowserPasswordDismissalStatsForTests(
+      CefBrowserCppToC_Unwrap(browser),
+      CefString(origin),
+      CefCompletionCallbackCToCpp_Wrap(callback));
+}
+#endif  // CEF_API_ADDED(CEF_EXPERIMENTAL)
 

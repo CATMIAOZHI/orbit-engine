@@ -8,7 +8,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=1c71561d7050c838f91830514b2fd8062383482e$
+// $hash=a3a9716bab6b1829ff23ddd31859bc426333ac5d$
 //
 
 #ifndef CEF_INCLUDE_CAPI_TEST_CEF_TEST_HELPERS_CAPI_VERSIONS_H_
@@ -19,7 +19,9 @@
 #error This file can be included DLL-side only
 #endif
 
-#include "include/capi/cef_base_capi.h"
+#include "include/capi/cef_browser_capi_versions.h"
+#include "include/capi/cef_callback_capi_versions.h"
+#include "include/capi/cef_frame_capi_versions.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,6 +30,8 @@ extern "C" {
 CEF_EXPORT void cef_execute_java_script_with_user_gesture_for_tests(struct _cef_frame_0_t* frame, const cef_string_t* javascript);
 CEF_EXPORT void cef_set_data_directory_for_tests(const cef_string_t* dir);
 CEF_EXPORT int cef_is_feature_enabled_for_tests(const cef_string_t* feature_name);
+CEF_EXPORT int cef_get_chrome_browser_owned_widget_count_for_tests(struct _cef_browser_0_t* browser);
+CEF_EXPORT void cef_clear_chrome_browser_password_dismissal_stats_for_tests(struct _cef_browser_0_t* browser, const cef_string_t* origin, struct _cef_completion_callback_0_t* callback);
 
 #ifdef __cplusplus
 }

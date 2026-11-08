@@ -9,12 +9,70 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=716e01373a24eb9de6b56a0c8fe2733e7f0c0905$
+// $hash=20531290a1d62d13a5eb56d6acc7cb063883ea56$
 //
 
 #include "include/cef_api_hash.h"
 #include "libcef_dll/cpptoc/preference_registrar_cpptoc.h"
 #include "libcef_dll/cpptoc/value_cpptoc.h"
+
+// HELPER FUNCTIONS - Do not edit by hand.
+
+cef_preference_registrar_0_t* CefPreferenceRegistrarCppToC_WrapOwn(CefOwnPtr<CefPreferenceRegistrar> c) {
+  const int version = cef_api_version();
+  if (version >= 15600) {
+    return reinterpret_cast<cef_preference_registrar_0_t*>(CefPreferenceRegistrar_15600_CppToC::WrapOwn(std::move(c)));
+  }
+  if (version >= 0) {
+    return CefPreferenceRegistrar_0_CppToC::WrapOwn(std::move(c));
+  }
+  NOTREACHED() << __func__ << " called with invalid version " << version;
+}
+
+std::pair<CefOwnPtr<CefBaseScoped>, cef_preference_registrar_0_t*> CefPreferenceRegistrarCppToC_WrapRaw(CefRawPtr<CefPreferenceRegistrar> c) {
+  const int version = cef_api_version();
+  if (version >= 15600) {
+    auto [ownPtr, structPtr] = CefPreferenceRegistrar_15600_CppToC::WrapRaw(std::move(c));
+    return std::make_pair(std::move(ownPtr), reinterpret_cast<cef_preference_registrar_0_t*>(structPtr));
+  }
+  if (version >= 0) {
+    return CefPreferenceRegistrar_0_CppToC::WrapRaw(std::move(c));
+  }
+  NOTREACHED() << __func__ << " called with invalid version " << version;
+}
+
+CefOwnPtr<CefPreferenceRegistrar> CefPreferenceRegistrarCppToC_UnwrapOwn(cef_preference_registrar_0_t* s) {
+  const int version = cef_api_version();
+  if (version >= 15600) {
+    return CefPreferenceRegistrar_15600_CppToC::UnwrapOwn(reinterpret_cast<cef_preference_registrar_15600_t*>(s));
+  }
+  if (version >= 0) {
+    return CefPreferenceRegistrar_0_CppToC::UnwrapOwn(s);
+  }
+  NOTREACHED() << __func__ << " called with invalid version " << version;
+}
+
+CefRawPtr<CefPreferenceRegistrar> CefPreferenceRegistrarCppToC_UnwrapRaw(cef_preference_registrar_0_t* s) {
+  const int version = cef_api_version();
+  if (version >= 15600) {
+    return CefPreferenceRegistrar_15600_CppToC::UnwrapRaw(reinterpret_cast<cef_preference_registrar_15600_t*>(s));
+  }
+  if (version >= 0) {
+    return CefPreferenceRegistrar_0_CppToC::UnwrapRaw(s);
+  }
+  NOTREACHED() << __func__ << " called with invalid version " << version;
+}
+
+CefBaseScoped* CefPreferenceRegistrarCppToC_GetWrapper(cef_preference_registrar_0_t* s) {
+  const int version = cef_api_version();
+  if (version >= 15600) {
+    return CefPreferenceRegistrar_15600_CppToC::GetWrapper(reinterpret_cast<cef_preference_registrar_15600_t*>(s));
+  }
+  if (version >= 0) {
+    return CefPreferenceRegistrar_0_CppToC::GetWrapper(s);
+  }
+  NOTREACHED() << __func__ << " called with invalid version " << version;
+}
 
 namespace {
 
@@ -53,7 +111,7 @@ int CEF_CALLBACK preference_registrar_add_preference(struct _cef_preference_regi
 
 CefPreferenceRegistrar_0_CppToC::CefPreferenceRegistrar_0_CppToC() {
   const int version = cef_api_version();
-  LOG_IF(FATAL, version < 0) << __func__ << " called with invalid version " << version;
+  LOG_IF(FATAL, version < 0 || version >= 15600) << __func__ << " called with invalid version " << version;
 
   GetStruct()->add_preference = preference_registrar_add_preference;
 }
@@ -72,5 +130,121 @@ template<> CefRawPtr<CefPreferenceRegistrar> CefCppToCScoped<CefPreferenceRegist
 }
 
 template<> CefWrapperType CefCppToCScoped<CefPreferenceRegistrar_0_CppToC, CefPreferenceRegistrar, cef_preference_registrar_0_t>::kWrapperType = WT_PREFERENCE_REGISTRAR;
+
+namespace {
+
+// MEMBER FUNCTIONS FOR VERSION 15600 - Body may be edited by hand.
+
+int CEF_CALLBACK preference_registrar_add_preference_15600(struct _cef_preference_registrar_15600_t* self, const cef_string_t* name, struct _cef_value_0_t* default_value) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return 0;
+  }
+  // Verify param: name; type: string_byref_const
+  DCHECK(name);
+  if (!name) {
+    return 0;
+  }
+  // Verify param: default_value; type: refptr_same
+  DCHECK(default_value);
+  if (!default_value) {
+    return 0;
+  }
+
+  // Execute
+  bool _retval = CefPreferenceRegistrar_15600_CppToC::Get(self)->AddPreference(
+      CefString(name),
+      CefValueCppToC_Unwrap(default_value));
+
+  // Return type: bool
+  return _retval;
+}
+
+int CEF_CALLBACK preference_registrar_set_default_preference_15600(struct _cef_preference_registrar_15600_t* self, const cef_string_t* name, struct _cef_value_0_t* value, cef_string_t* error) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return 0;
+  }
+  // Verify param: name; type: string_byref_const
+  DCHECK(name);
+  if (!name) {
+    return 0;
+  }
+  // Verify param: value; type: refptr_same
+  DCHECK(value);
+  if (!value) {
+    return 0;
+  }
+  // Verify param: error; type: string_byref
+  DCHECK(error);
+  if (!error) {
+    return 0;
+  }
+
+  // Translate param: error; type: string_byref
+  CefString errorStr(error);
+
+  // Execute
+  bool _retval = CefPreferenceRegistrar_15600_CppToC::Get(self)->SetDefaultPreference(
+      CefString(name),
+      CefValueCppToC_Unwrap(value),
+      errorStr);
+
+  // Return type: bool
+  return _retval;
+}
+
+struct _cef_value_0_t* CEF_CALLBACK preference_registrar_get_default_preference_15600(struct _cef_preference_registrar_15600_t* self, const cef_string_t* name) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return NULL;
+  }
+  // Verify param: name; type: string_byref_const
+  DCHECK(name);
+  if (!name) {
+    return NULL;
+  }
+
+  // Execute
+  CefRefPtr<CefValue> _retval = CefPreferenceRegistrar_15600_CppToC::Get(self)->GetDefaultPreference(
+      CefString(name));
+
+  // Return type: refptr_same
+  return CefValueCppToC_Wrap(_retval);
+}
+
+}  // namespace
+
+// CONSTRUCTOR FOR VERSION 15600 - Do not edit by hand.
+
+CefPreferenceRegistrar_15600_CppToC::CefPreferenceRegistrar_15600_CppToC() {
+  const int version = cef_api_version();
+  LOG_IF(FATAL, version < 15600) << __func__ << " called with invalid version " << version;
+
+  GetStruct()->add_preference = preference_registrar_add_preference_15600;
+  GetStruct()->set_default_preference = preference_registrar_set_default_preference_15600;
+  GetStruct()->get_default_preference = preference_registrar_get_default_preference_15600;
+}
+
+// DESTRUCTOR FOR VERSION 15600 - Do not edit by hand.
+
+CefPreferenceRegistrar_15600_CppToC::~CefPreferenceRegistrar_15600_CppToC() {
+}
+
+template<> CefOwnPtr<CefPreferenceRegistrar> CefCppToCScoped<CefPreferenceRegistrar_15600_CppToC, CefPreferenceRegistrar, cef_preference_registrar_15600_t>::UnwrapDerivedOwn(CefWrapperType type, cef_preference_registrar_15600_t* s) {
+  NOTREACHED() << __func__ << " called with unexpected class type " << type;
+}
+
+template<> CefRawPtr<CefPreferenceRegistrar> CefCppToCScoped<CefPreferenceRegistrar_15600_CppToC, CefPreferenceRegistrar, cef_preference_registrar_15600_t>::UnwrapDerivedRaw(CefWrapperType type, cef_preference_registrar_15600_t* s) {
+  NOTREACHED() << __func__ << " called with unexpected class type " << type;
+}
+
+template<> CefWrapperType CefCppToCScoped<CefPreferenceRegistrar_15600_CppToC, CefPreferenceRegistrar, cef_preference_registrar_15600_t>::kWrapperType = WT_PREFERENCE_REGISTRAR;
 
 

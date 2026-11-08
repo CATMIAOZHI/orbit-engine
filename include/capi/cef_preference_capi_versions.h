@@ -8,7 +8,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=2a4c72d5edb1bdc12e5e09fe039ad2e43f00129a$
+// $hash=3b8b5f520c9b115a90206582f23393f0cbecb033$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_PREFERENCE_CAPI_VERSIONS_H_
@@ -31,6 +31,13 @@ typedef struct _cef_preference_registrar_0_t {
   cef_base_scoped_t base;
   int (CEF_CALLBACK *add_preference)(struct _cef_preference_registrar_0_t* self, const cef_string_t* name, struct _cef_value_0_t* default_value);
 } cef_preference_registrar_0_t;
+
+typedef struct _cef_preference_registrar_15600_t {
+  cef_base_scoped_t base;
+  int (CEF_CALLBACK *add_preference)(struct _cef_preference_registrar_15600_t* self, const cef_string_t* name, struct _cef_value_0_t* default_value);
+  int (CEF_CALLBACK *set_default_preference)(struct _cef_preference_registrar_15600_t* self, const cef_string_t* name, struct _cef_value_0_t* value, cef_string_t* error);
+  struct _cef_value_0_t* (CEF_CALLBACK *get_default_preference)(struct _cef_preference_registrar_15600_t* self, const cef_string_t* name);
+} cef_preference_registrar_15600_t;
 
 typedef struct _cef_preference_observer_13401_t {
   cef_base_ref_counted_t base;
