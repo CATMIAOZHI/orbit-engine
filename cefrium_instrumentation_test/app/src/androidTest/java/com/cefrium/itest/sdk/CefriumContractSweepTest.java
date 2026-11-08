@@ -52,6 +52,12 @@ public class CefriumContractSweepTest {
         Bundle args = InstrumentationRegistry.getArguments();
         String name = args.getString("method");
         String mode = args.getString("mode");
+        if ("profile".equals(args.getString("only"))) {
+            java.util.List<String> broken = new java.util.ArrayList<>();
+            profileContract(broken);
+            org.junit.Assert.assertTrue(String.join("\n", broken), broken.isEmpty());
+            return;
+        }
         if (name == null || mode == null) {
             contractHolds();
             return;
@@ -182,7 +188,49 @@ public class CefriumContractSweepTest {
                 }
             }
         }
+        profileContract(broken);
         org.junit.Assert.assertTrue(String.join("\n", broken), broken.isEmpty());
+    }
+
+    // CefriumProfile: the calls that return a result throw off the main thread;
+    // the ones with a callback post themselves and deliver on the main thread.
+    private void profileContract(java.util.List<String> broken) throws Exception {
+        final com.cefrium.CefriumProfile profile = com.cefrium.CefriumProfile.getDefault();
+        java.util.Map<String, Runnable> sync = new java.util.LinkedHashMap<>();
+        sync.put("setProxy", () -> profile.setProxy(CefriumBrowser.PROXY_DIRECT, null));
+        sync.put("clearProxy", profile::clearProxy);
+        sync.put("setWebRtcIpHandlingPolicy", () -> profile.setWebRtcIpHandlingPolicy("default"));
+        sync.put("setAdBlockExceptions", () -> profile.setAdBlockExceptions(null));
+        sync.put("setDownloadObserver", () -> profile.setDownloadObserver(null));
+        sync.put("followDefaultProfile",
+                () -> com.cefrium.CefriumProfile.incognito().followDefaultProfile());
+        for (java.util.Map.Entry<String, Runnable> e : sync.entrySet()) {
+            final AtomicReference<Throwable> thrown = new AtomicReference<>();
+            Thread t = new Thread(() -> {
+                try {
+                    e.getValue().run();
+                } catch (Throwable x) {
+                    thrown.set(x);
+                }
+            });
+            t.start();
+            t.join(10_000);
+            Throwable x = thrown.get();
+            if (!(x instanceof IllegalStateException) || !x.getMessage().contains("main thread")) {
+                broken.add("profile offmain " + e.getKey() + ": " + x);
+            }
+        }
+        final CountDownLatch delivered = new CountDownLatch(1);
+        final AtomicReference<Boolean> onMain = new AtomicReference<>();
+        Thread t = new Thread(() -> profile.getDownloads(downloads -> {
+            onMain.set(android.os.Looper.myLooper() == android.os.Looper.getMainLooper());
+            delivered.countDown();
+        }));
+        t.start();
+        if (!delivered.await(10, TimeUnit.SECONDS) || !Boolean.TRUE.equals(onMain.get())) {
+            broken.add("profile offmain getDownloads: delivered=" + delivered.getCount()
+                    + " onMain=" + onMain.get());
+        }
     }
 
     private static String invoke(Method m, CefriumBrowser b) {

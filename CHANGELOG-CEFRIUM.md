@@ -25,6 +25,13 @@ in the internal FEATURE-NNN.md working docs (not published).
   `stopMediaSession` crashed the app, and others could.
 - A method called after `close()` does nothing and logs a warning, instead of
   reaching the engine while the browser closes.
+- `CefriumProfile` methods that return a result throw `IllegalStateException`
+  off the main thread (`setDownloadObserver` crashed there; the proxy, WebRTC
+  and ad-block settings returned false). `getDownloads`, like `listSiteData`,
+  can be called from any thread and answers on the main thread.
+- Compose: `CefriumNavigator` and `CefriumBrowserPool` throw off the main
+  thread. A navigator call made before `CefriumView` has a browser now runs
+  once it does, instead of being dropped; input calls still need a page.
 - `setUserAgentOverride` and `setJavaScriptEnabled` are now browser settings,
   as in Android WebView, instead of DevTools emulation. The User-Agent holds
   for every later navigation, including the ones a page starts.
