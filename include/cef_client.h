@@ -49,6 +49,7 @@
 #include "include/cef_find_handler.h"
 #include "include/cef_focus_handler.h"
 #include "include/cef_frame_handler.h"
+#include "include/cef_identity_request_handler.h"
 #include "include/cef_jsdialog_handler.h"
 #include "include/cef_keyboard_handler.h"
 #include "include/cef_life_span_handler.h"
@@ -95,6 +96,15 @@ class CefClient : public virtual CefBaseRefCounted {
   ///
   /*--cef(added=experimental)--*/
   virtual CefRefPtr<CefDeviceChooserHandler> GetDeviceChooserHandler() {
+    return nullptr;
+  }
+
+  ///
+  /// Return the handler for FedCM account choosers
+  /// (navigator.credentials.get({identity})).
+  ///
+  /*--cef(added=experimental)--*/
+  virtual CefRefPtr<CefIdentityRequestHandler> GetIdentityRequestHandler() {
     return nullptr;
   }
 
