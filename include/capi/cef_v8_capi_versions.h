@@ -8,7 +8,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=e03509df0d1412dcc1e7beb129fe8a4680026b2e$
+// $hash=f75214fd49300f40f2cdfff66d26ccbbe710ba09$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_V8_CAPI_VERSIONS_H_
@@ -23,6 +23,7 @@
 #include "include/capi/cef_browser_capi_versions.h"
 #include "include/capi/cef_frame_capi_versions.h"
 #include "include/capi/cef_task_capi_versions.h"
+#include "include/cef_api_hash.h"
 
 #ifdef __cplusplus
 extern "C" {

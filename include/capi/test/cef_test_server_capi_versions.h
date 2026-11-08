@@ -8,7 +8,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=091b820c9041107892030d667f164a07ce6e33bc$
+// $hash=b6ed4d1edd66918eef1d491555d8ed5041f11aa1$
 //
 
 #ifndef CEF_INCLUDE_CAPI_TEST_CEF_TEST_SERVER_CAPI_VERSIONS_H_
@@ -27,6 +27,7 @@ extern "C" {
 #endif
 
 struct _cef_test_server_connection_0_t;
+struct _cef_test_server_connection_15100_t;
 struct _cef_test_server_handler_0_t;
 
 typedef struct _cef_test_server_0_t {
@@ -49,6 +50,15 @@ typedef struct _cef_test_server_connection_0_t {
   void (CEF_CALLBACK *send_http500_response)(struct _cef_test_server_connection_0_t* self, const cef_string_t* error_message);
   void (CEF_CALLBACK *send_http_response)(struct _cef_test_server_connection_0_t* self, int response_code, const cef_string_t* content_type, const void* data, size_t data_size, cef_string_multimap_t extra_headers);
 } cef_test_server_connection_0_t;
+
+typedef struct _cef_test_server_connection_15100_t {
+  cef_base_ref_counted_t base;
+  void (CEF_CALLBACK *send_http200_response)(struct _cef_test_server_connection_15100_t* self, const cef_string_t* content_type, const void* data, size_t data_size);
+  void (CEF_CALLBACK *send_http404_response)(struct _cef_test_server_connection_15100_t* self);
+  void (CEF_CALLBACK *send_http500_response)(struct _cef_test_server_connection_15100_t* self, const cef_string_t* error_message);
+  void (CEF_CALLBACK *send_http_response)(struct _cef_test_server_connection_15100_t* self, int response_code, const cef_string_t* content_type, const void* data, size_t data_size, cef_string_multimap_t extra_headers);
+  void (CEF_CALLBACK *send_http_response_with_raw_headers)(struct _cef_test_server_connection_15100_t* self, const void* header_data, size_t header_data_size, const void* response_data, size_t response_data_size);
+} cef_test_server_connection_15100_t;
 
 #ifdef __cplusplus
 }
