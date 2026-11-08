@@ -57,6 +57,9 @@ if [ -n "$ONLY" ]; then
   esac
   GRADLE_PROPS+=("-Pandroid.testInstrumentationRunnerArguments.class=$TEST_CLASS")
 fi
+# CEFRIUM_TEST_ABI=<abi> packages only that ABI, so the suite runs as that
+# process type (armeabi-v7a on an arm64 device that also runs 32-bit apps).
+[ -n "${CEFRIUM_TEST_ABI:-}" ] && GRADLE_PROPS+=("-PcefriumAbi=$CEFRIUM_TEST_ABI")
 
 if [ ! -f "$SRC/.gn" ]; then
   echo "ERROR: run this from chromium/src" >&2
