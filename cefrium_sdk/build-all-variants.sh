@@ -109,11 +109,11 @@ build_variant() {
   local codec="$2"
   local target_cpu
 
-  if [ "$cpu" = "arm64" ]; then
-    target_cpu="arm64"
-  else
-    target_cpu="x64"
-  fi
+  case "$cpu" in
+    arm64) target_cpu="arm64" ;;
+    arm)   target_cpu="arm" ;;    # armeabi-v7a (FEATURE-085)
+    *)     target_cpu="x64" ;;
+  esac
 
   local dir_name="Official_android_${cpu}_${codec}"
   local build_dir="out/$dir_name"
@@ -141,6 +141,11 @@ build_variant() {
     pgo_args='
   chrome_pgo_phase = 2
   pgo_data_path = "//chrome/android/orderfiles/arm64/pgo_profile.arm64.profdata"
+'
+  elif [ "$cpu" = "arm" ] && [ -f "$SRC_DIR/chrome/android/orderfiles/arm/pgo_profile.arm.profdata" ]; then
+    pgo_args='
+  chrome_pgo_phase = 2
+  pgo_data_path = "//chrome/android/orderfiles/arm/pgo_profile.arm.profdata"
 '
   fi
 
@@ -259,6 +264,11 @@ variants=()
 if [ "$ARCH" = "all" ] || [ "$ARCH" = "arm64" ]; then
   [ "$CODECS" = "all" ] || [ "$CODECS" = "codecs" ] && variants+=("arm64:codecs")
   [ "$CODECS" = "all" ] || [ "$CODECS" = "libre" ] && variants+=("arm64:libre")
+fi
+# armeabi-v7a only when asked for, until FEATURE-085 proves it.
+if [ "$ARCH" = "arm" ]; then
+  [ "$CODECS" = "all" ] || [ "$CODECS" = "codecs" ] && variants+=("arm:codecs")
+  [ "$CODECS" = "all" ] || [ "$CODECS" = "libre" ] && variants+=("arm:libre")
 fi
 if [ "$ARCH" = "all" ] || [ "$ARCH" = "x64" ]; then
   [ "$CODECS" = "all" ] || [ "$CODECS" = "codecs" ] && variants+=("x64:codecs")
