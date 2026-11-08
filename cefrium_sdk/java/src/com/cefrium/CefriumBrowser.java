@@ -174,6 +174,7 @@ public class CefriumBrowser {
      * cookies, storage and cache.
      */
     public CefriumBrowser(int width, int height, float scale, CefriumProfile profile) {
+        checkThread("CefriumBrowser");
         if (profile == null) {
             throw new IllegalArgumentException("profile must not be null");
         }
@@ -184,7 +185,7 @@ public class CefriumBrowser {
                 profile.getName());
         // As createWithSurface does: events that do not depend on the app
         // listening to this browser (creation, proxy errors) reach it.
-        if (mNativePtr != 0) nativeBindJavaBrowser(mNativePtr, this);
+        if (isLive()) nativeBindJavaBrowser(mNativePtr, this);
         CefriumProfile.browserOpened(profile);
     }
 
@@ -195,8 +196,31 @@ public class CefriumBrowser {
     // visible to short-circuit the stale-pointer use-after-free.
     private volatile boolean mClosed;
 
+    // FEATURE-084 contract for every public method: called on the main thread,
+    // as Android WebView requires, and nothing reaches native after close().
+    private void checkThread(String method) {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            throw new IllegalStateException("CefriumBrowser." + method
+                    + " must be called on the main thread, not on "
+                    + Thread.currentThread().getName());
+        }
+    }
+
+    private boolean mClosedCallLogged;
+
+    private boolean isLive() {
+        if (mClosed) {
+            if (!mClosedCallLogged) {
+                mClosedCallLogged = true;
+                android.util.Log.w(TAG, "a method was called after close(); ignored");
+            }
+            return false;
+        }
+        return mNativePtr != 0;
+    }
+
     private boolean checkNative(String method) {
-        if (mNativePtr == 0) {
+        if (mClosed || mNativePtr == 0) {
             if (mClosed) {
                 android.util.Log.e(TAG, method + "(): browser already closed. "
                         + "Do not call methods after close().");
@@ -218,6 +242,7 @@ public class CefriumBrowser {
      * @see CefriumRenderHandler#onPaint(int, int, java.nio.ByteBuffer)
      */
     public void setRenderHandler(CefriumRenderHandler handler) {
+        checkThread("setRenderHandler");
         mRenderHandler = handler;
         if (checkNative("setRenderHandler")) {
             nativeSetRenderHandler(mNativePtr, this);
@@ -232,6 +257,7 @@ public class CefriumBrowser {
      * @param url The URL to load.
      */
     public void loadUrl(String url) {
+        checkThread("loadUrl");
         if (!checkNative("loadUrl")) return;
         nativeLoadUrl(mNativePtr, url);
         // Surface mode connects the WebContents when the native browser exists
@@ -253,6 +279,7 @@ public class CefriumBrowser {
      *     background is not configurable.
      */
     public void setBackgroundColor(int argb) {
+        checkThread("setBackgroundColor");
         if (!checkNative("setBackgroundColor")) return;
         if (mSurfaceContainer != null) {
             throw new IllegalStateException(
@@ -268,6 +295,7 @@ public class CefriumBrowser {
      * Navigate back in history. No-op if {@link #canGoBack()} is false.
      */
     public void goBack() {
+        checkThread("goBack");
         if (checkNative("goBack")) nativeGoBack(mNativePtr);
     }
 
@@ -275,6 +303,7 @@ public class CefriumBrowser {
      * Navigate forward in history. No-op if there is no forward history.
      */
     public void goForward() {
+        checkThread("goForward");
         if (checkNative("goForward")) nativeGoForward(mNativePtr);
     }
 
@@ -284,6 +313,7 @@ public class CefriumBrowser {
      * at any time.
      */
     public void setPullToRefreshEnabled(boolean enabled) {
+        checkThread("setPullToRefreshEnabled");
         mPullToRefresh = enabled;
     }
 
@@ -320,7 +350,8 @@ public class CefriumBrowser {
      * @param dark true for dark mode, false for light mode.
      */
     public void setDarkMode(boolean dark) {
-        if (mNativePtr != 0) nativeSetDarkMode(mNativePtr, dark);
+        checkThread("setDarkMode");
+        if (isLive()) nativeSetDarkMode(mNativePtr, dark);
     }
 
     /**
@@ -331,12 +362,14 @@ public class CefriumBrowser {
      * start sound on their own. Can be called before the first load.
      */
     public void setMediaPlaybackRequiresUserGesture(boolean required) {
+        checkThread("setMediaPlaybackRequiresUserGesture");
         mMediaPlaybackRequiresUserGesture = required;
-        if (mNativePtr != 0) nativeSetMediaPlaybackRequiresUserGesture(mNativePtr, required);
+        if (isLive()) nativeSetMediaPlaybackRequiresUserGesture(mNativePtr, required);
     }
 
     /** The value last passed to {@link #setMediaPlaybackRequiresUserGesture}; true by default. */
     public boolean getMediaPlaybackRequiresUserGesture() {
+        checkThread("getMediaPlaybackRequiresUserGesture");
         return mMediaPlaybackRequiresUserGesture;
     }
 
@@ -368,6 +401,7 @@ public class CefriumBrowser {
      */
     public ScriptHandler addDocumentStartJavaScript(String script,
             java.util.Set<String> allowedOriginRules) {
+        checkThread("addDocumentStartJavaScript");
         if (script == null) throw new IllegalArgumentException("script must not be null");
         if (allowedOriginRules == null || allowedOriginRules.isEmpty()) {
             throw new IllegalArgumentException("allowedOriginRules is empty, so the script"
@@ -392,7 +426,7 @@ public class CefriumBrowser {
                     "addDocumentStartJavaScript: the engine did not accept the script");
         }
         return () -> {
-            if (id > 0 && mNativePtr != 0) nativeRemoveDocumentStartJavaScript(mNativePtr, id);
+            if (id > 0 && isLive()) nativeRemoveDocumentStartJavaScript(mNativePtr, id);
         };
     }
 
@@ -431,8 +465,9 @@ public class CefriumBrowser {
      * setOnXxxListener methods are also available for convenience.
      */
     public void setCallback(Callback callback) {
+        checkThread("setCallback");
         mCallback = callback;
-        if (mNativePtr != 0) {
+        if (isLive()) {
             nativeSetDisplayCallback(mNativePtr, this);
         }
         updateRequestObservers();
@@ -506,8 +541,9 @@ public class CefriumBrowser {
      * Set a listener for URL changes during navigation.
      */
     public void setOnUrlChangedListener(OnUrlChangedListener listener) {
+        checkThread("setOnUrlChangedListener");
         mUrlListener = listener;
-        if (mNativePtr != 0) {
+        if (isLive()) {
             nativeSetDisplayCallback(mNativePtr, this);
         }
     }
@@ -516,16 +552,18 @@ public class CefriumBrowser {
      * Set a listener for title changes.
      */
     public void setOnTitleChangedListener(OnTitleChangedListener listener) {
+        checkThread("setOnTitleChangedListener");
         mTitleListener = listener;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     /**
      * Set a listener for fullscreen mode changes.
      */
     public void setOnFullscreenChangedListener(OnFullscreenChangedListener listener) {
+        checkThread("setOnFullscreenChangedListener");
         mFullscreenListener = listener;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     /**
@@ -534,8 +572,9 @@ public class CefriumBrowser {
      * debugging, or custom request auditing.
      */
     public void setOnRequestInterceptedListener(OnRequestInterceptedListener listener) {
+        checkThread("setOnRequestInterceptedListener");
         mRequestListener = listener;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
         updateRequestObservers();
     }
 
@@ -591,6 +630,7 @@ public class CefriumBrowser {
 
     /** The current top-level URL, or {@code null} before the first navigation. */
     public String getUrl() {
+        checkThread("getUrl");
         return mCurrentUrl;
     }
 
@@ -602,6 +642,7 @@ public class CefriumBrowser {
      * {@link #restoreState} after recreating the browser.
      */
     public android.os.Bundle saveState() {
+        checkThread("saveState");
         android.os.Bundle state = new android.os.Bundle();
         if (mCurrentUrl != null) state.putString(STATE_URL, mCurrentUrl);
         return state;
@@ -612,6 +653,7 @@ public class CefriumBrowser {
      * the saved URL. No-op if {@code state} is null or holds no saved URL.
      */
     public void restoreState(android.os.Bundle state) {
+        checkThread("restoreState");
         if (state == null) return;
         String url = state.getString(STATE_URL);
         if (url != null && !url.isEmpty()) loadUrl(url);
@@ -628,6 +670,7 @@ public class CefriumBrowser {
      * first navigation.
      */
     public byte[] serializeNavigationState() {
+        checkThread("serializeNavigationState");
         return checkNative("serializeNavigationState")
                 ? nativeSerializeNavigationState(mNativePtr) : null;
     }
@@ -638,6 +681,7 @@ public class CefriumBrowser {
      * navigation; no-op for null/empty input.
      */
     public void restoreNavigationState(byte[] state) {
+        checkThread("restoreNavigationState");
         if (state != null && state.length > 0
                 && checkNative("restoreNavigationState")) {
             nativeRestoreNavigationState(mNativePtr, state);
@@ -658,8 +702,9 @@ public class CefriumBrowser {
      * Set a listener for loading state changes.
      */
     public void setOnLoadingStateChangedListener(OnLoadingStateChangedListener listener) {
+        checkThread("setOnLoadingStateChangedListener");
         mLoadingListener = listener;
-        if (mNativePtr != 0) {
+        if (isLive()) {
             nativeSetDisplayCallback(mNativePtr, this);
         }
     }
@@ -671,8 +716,9 @@ public class CefriumBrowser {
      */
     public void setOnRenderProcessTerminatedListener(
             OnRenderProcessTerminatedListener listener) {
+        checkThread("setOnRenderProcessTerminatedListener");
         mRenderProcessTerminatedListener = listener;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     // Called from native CefDisplayHandler::OnTitleChange.
@@ -719,6 +765,7 @@ public class CefriumBrowser {
      * Reload the current page. Uses CefBrowserHost::Reload (ignores cache).
      */
     public void reload() {
+        checkThread("reload");
         if (checkNative("reload")) nativeReload(mNativePtr);
     }
 
@@ -730,6 +777,7 @@ public class CefriumBrowser {
      * @param script JavaScript source to execute. Ignored if null.
      */
     public void evaluateJavaScript(String script) {
+        checkThread("evaluateJavaScript");
         if (script != null && checkNative("evaluateJavaScript")) {
             nativeEvaluateJavaScript(mNativePtr, script);
         }
@@ -744,6 +792,7 @@ public class CefriumBrowser {
      * @param script JavaScript source to execute. Ignored if null.
      */
     public void evaluateJavaScriptInFocusedFrame(String script) {
+        checkThread("evaluateJavaScriptInFocusedFrame");
         if (script != null && checkNative("evaluateJavaScriptInFocusedFrame")) {
             nativeEvaluateJavaScriptInFocusedFrame(mNativePtr, script);
         }
@@ -763,6 +812,7 @@ public class CefriumBrowser {
      */
     public void evaluateJavaScript(String script,
             android.webkit.ValueCallback<String> resultCallback) {
+        checkThread("evaluateJavaScript");
         if (script == null) return;
         if (resultCallback == null) {
             evaluateJavaScript(script);
@@ -869,8 +919,9 @@ public class CefriumBrowser {
      * {@link #executeDevToolsMethod}.
      */
     public void setDevToolsEventListener(DevToolsEventListener listener) {
+        checkThread("setDevToolsEventListener");
         mDevToolsEventListener = listener;
-        if (mNativePtr != 0) {
+        if (isLive()) {
             nativeSetDevToolsEventsEnabled(mNativePtr, this, listener != null);
         }
     }
@@ -1160,6 +1211,7 @@ public class CefriumBrowser {
      * @param handler the handler, or null to unregister.
      */
     public void setQueryHandler(QueryOriginPolicy policy, QueryHandler handler) {
+        checkThread("setQueryHandler");
         if (handler != null && policy == null) {
             throw new IllegalArgumentException(
                     "setQueryHandler needs a QueryOriginPolicy; pass "
@@ -1290,6 +1342,7 @@ public class CefriumBrowser {
 
     /** Sets a session cookie for {@code url} (domain/path inferred from the URL). */
     public void setCookie(String url, String name, String value) {
+        checkThread("setCookie");
         setCookie(url, name, value, false, false, SAME_SITE_UNSPECIFIED);
     }
 
@@ -1302,14 +1355,16 @@ public class CefriumBrowser {
      */
     public void setCookie(String url, String name, String value,
                           boolean secure, boolean httpOnly, int sameSite) {
-        if (mNativePtr != 0) {
+        checkThread("setCookie");
+        if (isLive()) {
             nativeSetCookie(mNativePtr, url, name, value, secure, httpOnly, sameSite);
         }
     }
 
     /** Reads cookies visible to {@code url}; the callback fires on the UI thread. */
     public void getCookies(String url, CookieCallback callback) {
-        if (mNativePtr == 0 || callback == null) return;
+        checkThread("getCookies");
+        if (!isLive() || callback == null) return;
         long reqId = mCookieReqId.getAndIncrement();
         mCookieCallbacks.put(reqId, callback);
         nativeGetCookies(mNativePtr, this, url, reqId);
@@ -1317,17 +1372,20 @@ public class CefriumBrowser {
 
     /** Deletes cookies for {@code url}; {@code name} null/empty = all for the URL. */
     public void deleteCookies(String url, String name) {
-        if (mNativePtr != 0) nativeDeleteCookies(mNativePtr, url, name == null ? "" : name);
+        checkThread("deleteCookies");
+        if (isLive()) nativeDeleteCookies(mNativePtr, url, name == null ? "" : name);
     }
 
     /** Persists the cookie store to disk. */
     public void flushCookies() {
-        if (mNativePtr != 0) nativeFlushCookies(mNativePtr);
+        checkThread("flushCookies");
+        if (isLive()) nativeFlushCookies(mNativePtr);
     }
 
     /** Clears the browser's HTTP cache. */
     public void clearCache() {
-        if (mNativePtr != 0) nativeClearCache(mNativePtr);
+        checkThread("clearCache");
+        if (isLive()) nativeClearCache(mNativePtr);
     }
 
     // ─────────────── Print to PDF ───────────────
@@ -1344,7 +1402,8 @@ public class CefriumBrowser {
 
     /** Renders the current page to a PDF at {@code filePath} (async). */
     public void printToPdf(String filePath, PdfCallback callback) {
-        if (mNativePtr == 0 || callback == null) return;
+        checkThread("printToPdf");
+        if (!isLive() || callback == null) return;
         long id = mPdfReqId.getAndIncrement();
         mPdfCallbacks.put(id, callback);
         nativePrintToPdf(mNativePtr, this, filePath, id);
@@ -1367,7 +1426,8 @@ public class CefriumBrowser {
      * through {@link #executeDevToolsMethod}.
      */
     public void setUserAgentOverride(String userAgent) {
-        if (mNativePtr != 0) nativeSetUserAgentOverride(mNativePtr, userAgent);
+        checkThread("setUserAgentOverride");
+        if (isLive()) nativeSetUserAgentOverride(mNativePtr, userAgent);
     }
 
     /**
@@ -1375,12 +1435,14 @@ public class CefriumBrowser {
      * Can be called right after the constructor.
      */
     public void setJavaScriptEnabled(boolean enabled) {
-        if (mNativePtr != 0) nativeSetJavaScriptEnabled(mNativePtr, enabled);
+        checkThread("setJavaScriptEnabled");
+        if (isLive()) nativeSetJavaScriptEnabled(mNativePtr, enabled);
     }
 
     /** Sets the zoom level (0 = 100%; factor = 1.2^level). */
     public void setZoomLevel(double zoomLevel) {
-        if (mNativePtr != 0) nativeSetZoomLevel(mNativePtr, zoomLevel);
+        checkThread("setZoomLevel");
+        if (isLive()) nativeSetZoomLevel(mNativePtr, zoomLevel);
     }
 
     /**
@@ -1402,16 +1464,18 @@ public class CefriumBrowser {
      * @param enabled true to allow zoom (default), false to disable it.
      */
     public void setPinchToZoomEnabled(boolean enabled) {
+        checkThread("setPinchToZoomEnabled");
         mPinchToZoomEnabled = enabled;
         // Apply immediately to the loaded document (no reload). Disabling injects
         // the neutralizer; enabling reverts it in-place.
-        if (mNativePtr != 0) {
+        if (isLive()) {
             evaluateJavaScript(enabled ? PINCH_ZOOM_ENABLE_JS : PINCH_ZOOM_DISABLE_JS);
         }
     }
 
     /** @return whether pinch/page zoom is currently enabled (default true). */
     public boolean isPinchToZoomEnabled() {
+        checkThread("isPinchToZoomEnabled");
         return mPinchToZoomEnabled;
     }
 
@@ -1425,7 +1489,8 @@ public class CefriumBrowser {
      * {@link QueryOriginPolicy#exactly} on it.
      */
     public void loadHtml(String html) {
-        if (mNativePtr == 0 || html == null) return;
+        checkThread("loadHtml");
+        if (!isLive() || html == null) return;
         String dataUrl = "data:text/html;charset=utf-8;base64," + android.util.Base64.encodeToString(
                 html.getBytes(java.nio.charset.StandardCharsets.UTF_8), android.util.Base64.NO_WRAP);
         nativeLoadUrl(mNativePtr, dataUrl);
@@ -1454,7 +1519,8 @@ public class CefriumBrowser {
      */
     public void loadDataWithBaseUrl(String baseUrl, String data, String mimeType,
                                     String encoding, String historyUrl) {
-        if (mNativePtr == 0 || baseUrl == null || data == null) return;
+        checkThread("loadDataWithBaseUrl");
+        if (!isLive() || baseUrl == null || data == null) return;
         nativeLoadDataWithBaseUrl(mNativePtr, baseUrl, data, mimeType, encoding, historyUrl);
     }
 
@@ -1468,17 +1534,20 @@ public class CefriumBrowser {
      * self-embedding). See {@link #loadDataWithBaseUrl}.
      */
     public void loadHtmlWithBaseUrl(String html, String baseUrl) {
+        checkThread("loadHtmlWithBaseUrl");
         loadDataWithBaseUrl(baseUrl, html, "text/html", "utf-8", baseUrl);
     }
 
     /** Loads {@code url} with an HTTP POST body. */
     public void postUrl(String url, byte[] postData) {
-        if (mNativePtr != 0) nativePostUrl(mNativePtr, url, postData);
+        checkThread("postUrl");
+        if (isLive()) nativePostUrl(mNativePtr, url, postData);
     }
 
     /** Stops the current load. */
     public void stopLoading() {
-        if (mNativePtr != 0) nativeStopLoading(mNativePtr);
+        checkThread("stopLoading");
+        if (isLive()) nativeStopLoading(mNativePtr);
     }
 
     // ─────────────── Request interceptor ───────────────
@@ -1572,10 +1641,11 @@ public class CefriumBrowser {
 
     /** Sets a programmatic request interceptor (null clears it). */
     public void setRequestInterceptor(RequestInterceptor interceptor) {
+        checkThread("setRequestInterceptor");
         mRequestInterceptor = interceptor;
         // Ensure native holds this Java ref so the resource handler can call
         // onShouldBlockRequest — independent of whether a display callback was set.
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
         updateRequestObservers();
     }
 
@@ -1628,8 +1698,9 @@ public class CefriumBrowser {
 
     /** Sets a custom JS-dialog handler (null = default Android AlertDialog). */
     public void setJsDialogHandler(JsDialogHandler handler) {
+        checkThread("setJsDialogHandler");
         mJsDialogHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     // Called from native (UI thread) when the page opens alert/confirm/prompt.
@@ -1657,6 +1728,7 @@ public class CefriumBrowser {
      * of an off-screen browser. See {@link CefriumPickerHandler}.
      */
     public void setPickerHandler(CefriumPickerHandler handler) {
+        checkThread("setPickerHandler");
         mPickerHandler = handler;
     }
 
@@ -1667,6 +1739,7 @@ public class CefriumBrowser {
      * cancelled. A surface browser uses its own activity.
      */
     public void setDialogActivity(android.app.Activity activity) {
+        checkThread("setDialogActivity");
         mDialogActivity = activity;
     }
 
@@ -1827,8 +1900,9 @@ public class CefriumBrowser {
 
     /** Sets the permission handler (null = deny all web permission requests). */
     public void setPermissionHandler(PermissionHandler handler) {
+        checkThread("setPermissionHandler");
         mPermissionHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     // Called from native (UI thread) when a page requests a permission.
@@ -1905,7 +1979,8 @@ public class CefriumBrowser {
      *     {@link #SETTING_DEFAULT})
      */
     public void setContentSetting(String requestingUrl, int permission, int value) {
-        if (mNativePtr != 0) {
+        checkThread("setContentSetting");
+        if (isLive()) {
             nativeSetContentSetting(mNativePtr, requestingUrl, permission, value);
         }
     }
@@ -1929,16 +2004,19 @@ public class CefriumBrowser {
      * @return false if the engine rejected the setting.
      */
     public boolean setProxy(String mode, String server) {
+        checkThread("setProxy");
         return mProfile.setProxy(mode, server);
     }
 
     /** Convenience: route all traffic through a fixed proxy {@code "host:port"}. */
     public boolean setProxy(String server) {
+        checkThread("setProxy");
         return setProxy(PROXY_FIXED, server);
     }
 
     /** Convenience: disable proxying (direct connection). */
     public boolean clearProxy() {
+        checkThread("clearProxy");
         return setProxy(PROXY_DIRECT, null);
     }
 
@@ -2020,8 +2098,9 @@ public class CefriumBrowser {
 
     /** Sets the device chooser handler (null = cancel all device requests). */
     public void setDeviceChooserHandler(DeviceChooserHandler handler) {
+        checkThread("setDeviceChooserHandler");
         mDeviceChooserHandler = handler;
-        if (mNativePtr != 0) {
+        if (isLive()) {
             nativeSetDisplayCallback(mNativePtr, this);
             nativeSetDeviceChooserHandler(mNativePtr, handler != null);
         }
@@ -2115,8 +2194,9 @@ public class CefriumBrowser {
 
     /** Sets the SSL/certificate error handler (null = cancel on every cert error). */
     public void setSslErrorHandler(SslErrorHandler handler) {
+        checkThread("setSslErrorHandler");
         mSslErrorHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     // Called from native (UI thread) when a certificate fails validation.
@@ -2161,8 +2241,9 @@ public class CefriumBrowser {
 
     /** Sets the HTTP auth handler (null = cancel every auth challenge). */
     public void setHttpAuthHandler(HttpAuthHandler handler) {
+        checkThread("setHttpAuthHandler");
         mHttpAuthHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     // Called from native (UI thread) on an HTTP/proxy auth challenge.
@@ -2221,8 +2302,9 @@ public class CefriumBrowser {
 
     /** Sets a popup handler (null = load popups in this browser). */
     public void setPopupHandler(PopupHandler handler) {
+        checkThread("setPopupHandler");
         mPopupHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     // Called from native (UI thread) when the page opens window.open / target=_blank.
@@ -2248,7 +2330,8 @@ public class CefriumBrowser {
      * @return true if the browser can navigate back.
      */
     public boolean canGoBack() {
-        return mNativePtr != 0 && nativeCanGoBack(mNativePtr);
+        checkThread("canGoBack");
+        return isLive() && nativeCanGoBack(mNativePtr);
     }
 
     // ---- Media / page lifecycle controls ----------------------------------
@@ -2270,6 +2353,7 @@ public class CefriumBrowser {
      * queued and never runs once backgrounded.
      */
     public void suspendMedia() {
+        checkThread("suspendMedia");
         org.chromium.content_public.browser.WebContents wc = webContents();
         if (wc != null) {
             org.chromium.content_public.browser.MediaSession ms =
@@ -2280,6 +2364,7 @@ public class CefriumBrowser {
 
     /** Resumes media suspended by {@link #suspendMedia()} (resumes where it left off). */
     public void resumeMedia() {
+        checkThread("resumeMedia");
         org.chromium.content_public.browser.WebContents wc = webContents();
         if (wc != null) {
             org.chromium.content_public.browser.MediaSession ms =
@@ -2294,12 +2379,14 @@ public class CefriumBrowser {
      * policy; use {@link #suspendMedia()} to actually pause.
      */
     public void setAudioMuted(boolean muted) {
+        checkThread("setAudioMuted");
         org.chromium.content_public.browser.WebContents wc = webContents();
         if (wc != null) wc.setAudioMuted(muted);
     }
 
     /** Whether the page's audio is currently muted via {@link #setAudioMuted}. */
     public boolean isAudioMuted() {
+        checkThread("isAudioMuted");
         org.chromium.content_public.browser.WebContents wc = webContents();
         return wc != null && wc.isAudioMuted();
     }
@@ -2312,6 +2399,7 @@ public class CefriumBrowser {
      * music or video). Returns {@code false} when media session is disabled.
      */
     public boolean isPlayingAudio() {
+        checkThread("isPlayingAudio");
         return mMediaSession != null && mMediaSession.isPlayingAudio();
     }
 
@@ -2321,6 +2409,7 @@ public class CefriumBrowser {
      * {@code visibilitychange}, but does NOT by itself stop audio.
      */
     public void setPageVisible(boolean visible) {
+        checkThread("setPageVisible");
         org.chromium.content_public.browser.WebContents wc = webContents();
         if (wc != null) {
             wc.updateWebContentsVisibility(visible
@@ -2335,6 +2424,7 @@ public class CefriumBrowser {
      * need to resume in place.
      */
     public void stopAllMedia() {
+        checkThread("stopAllMedia");
         org.chromium.content_public.browser.WebContents wc = webContents();
         if (wc != null) {
             wc.suspendAllMediaPlayers();
@@ -2350,6 +2440,7 @@ public class CefriumBrowser {
      * stops media in cross-origin iframes (e.g. a YouTube embed) that page JS cannot reach.
      */
     public void stopMediaSession() {
+        checkThread("stopMediaSession");
         org.chromium.content_public.browser.WebContents wc = webContents();
         if (wc != null) {
             org.chromium.content_public.browser.MediaSession ms =
@@ -2367,6 +2458,7 @@ public class CefriumBrowser {
      * automatically (see its {@code backgroundMediaPolicy}).
      */
     public void onPause() {
+        checkThread("onPause");
         setPageVisible(false);
         suspendMedia();
         setAudioMuted(true);
@@ -2378,6 +2470,7 @@ public class CefriumBrowser {
      * Activity.onResume()/onStart(); wired automatically by {@code CefriumView}.
      */
     public void onResume() {
+        checkThread("onResume");
         setAudioMuted(false);
         setPageVisible(true);
         resumeMedia();
@@ -2449,6 +2542,7 @@ public class CefriumBrowser {
      * For Surface mode, also removes the rendering views.
      */
     public void close() {
+        checkThread("close");
         if (mClosed) return;
         mClosed = true;
         CefriumProfile.browserClosed(mProfile);
@@ -2604,6 +2698,7 @@ public class CefriumBrowser {
      * {@code PixelCopy}. The callback receives null if capture is unavailable.
      */
     public void captureBitmap(BitmapCallback callback) {
+        checkThread("captureBitmap");
         if (callback == null) {
             return;
         }
@@ -2660,6 +2755,7 @@ public class CefriumBrowser {
      * @param height Viewport height in physical pixels.
      */
     public void setSize(int width, int height) {
+        checkThread("setSize");
         if (width <= 0 || height <= 0) {
             throw new IllegalArgumentException("width and height must be positive");
         }
@@ -2673,7 +2769,8 @@ public class CefriumBrowser {
      * an updated frame (e.g. after content changes).
      */
     public void invalidate() {
-        if (mNativePtr != 0) {
+        checkThread("invalidate");
+        if (isLive()) {
             nativeInvalidate(mNativePtr);
         }
     }
@@ -2693,7 +2790,8 @@ public class CefriumBrowser {
      * @param selEnd   Selection/caret end within {@code text}.
      */
     public void imeSetComposition(String text, int selStart, int selEnd) {
-        if (mNativePtr != 0) {
+        checkThread("imeSetComposition");
+        if (isLive()) {
             nativeImeSetComposition(mNativePtr, text == null ? "" : text,
                     selStart, selEnd);
         }
@@ -2708,7 +2806,8 @@ public class CefriumBrowser {
      *                          text ({@code 1} places the caret right after it).
      */
     public void imeCommitText(String text, int relativeCursorPos) {
-        if (mNativePtr != 0) {
+        checkThread("imeCommitText");
+        if (isLive()) {
             nativeImeCommitText(mNativePtr, text == null ? "" : text,
                     relativeCursorPos);
         }
@@ -2722,7 +2821,8 @@ public class CefriumBrowser {
      *                      finishing.
      */
     public void imeFinishComposingText(boolean keepSelection) {
-        if (mNativePtr != 0) {
+        checkThread("imeFinishComposingText");
+        if (isLive()) {
             nativeImeFinishComposingText(mNativePtr, keepSelection);
         }
     }
@@ -2731,7 +2831,8 @@ public class CefriumBrowser {
      * Cancel the current composition, discarding the composed text.
      */
     public void imeCancelComposition() {
-        if (mNativePtr != 0) {
+        checkThread("imeCancelComposition");
+        if (isLive()) {
             nativeImeCancelComposition(mNativePtr);
         }
     }
@@ -2786,7 +2887,8 @@ public class CefriumBrowser {
      */
     public void sendKeyEvent(int type, int modifiers, int windowsKeyCode,
                              int nativeKeyCode, char character) {
-        if (mNativePtr != 0) {
+        checkThread("sendKeyEvent");
+        if (isLive()) {
             nativeSendKeyEvent(mNativePtr, type, modifiers, windowsKeyCode,
                     nativeKeyCode, character);
         }
@@ -2827,7 +2929,8 @@ public class CefriumBrowser {
      * @param event the Android key event; ignored if {@code null}.
      */
     public void sendKeyEvent(android.view.KeyEvent event) {
-        if (mNativePtr == 0 || event == null) return;
+        checkThread("sendKeyEvent");
+        if (!isLive() || event == null) return;
         final int keyCode = event.getKeyCode();
         final int meta = event.getMetaState();
         switch (event.getAction()) {
@@ -2875,7 +2978,8 @@ public class CefriumBrowser {
      * @param pointerId Pointer ID for multi-touch
      */
     public void sendTouchEvent(int action, float x, float y, int pointerId) {
-        if (mNativePtr != 0) {
+        checkThread("sendTouchEvent");
+        if (isLive()) {
             nativeSendTouchEvent(mNativePtr, action, x, y, pointerId);
         }
     }
@@ -2892,18 +2996,22 @@ public class CefriumBrowser {
 
     /** Press a finger down at (x, y). Pair with {@link #sendTouchUp} (with
      * {@link #sendTouchMove} in between) for drags/swipes, or use {@link #sendTap}. */
-    public void sendTouchDown(float x, float y) { injectTouch(0, x, y); }
+    public void sendTouchDown(float x, float y) {
+        checkThread("sendTouchDown"); injectTouch(0, x, y); }
 
     /** Move the pressed finger to (x, y). */
-    public void sendTouchMove(float x, float y) { injectTouch(2, x, y); }
+    public void sendTouchMove(float x, float y) {
+        checkThread("sendTouchMove"); injectTouch(2, x, y); }
 
     /** Lift the finger at (x, y). */
-    public void sendTouchUp(float x, float y) { injectTouch(1, x, y); }
+    public void sendTouchUp(float x, float y) {
+        checkThread("sendTouchUp"); injectTouch(1, x, y); }
 
     /** Tap at (x, y): a finger down immediately followed by up. Synthesizes a
      * click on the element at that point (the touch-automation equivalent of
      * {@link #sendLeftClick}). */
     public void sendTap(float x, float y) {
+        checkThread("sendTap");
         sendTouchDown(x, y);
         sendTouchUp(x, y);
     }
@@ -2913,6 +3021,7 @@ public class CefriumBrowser {
      * drives scrolling/flinging. {@code steps} controls smoothness (>= 1).
      */
     public void sendSwipe(float x1, float y1, float x2, float y2, int steps) {
+        checkThread("sendSwipe");
         if (steps < 1) steps = 1;
         sendTouchDown(x1, y1);
         for (int i = 1; i <= steps; i++) {
@@ -2975,19 +3084,22 @@ public class CefriumBrowser {
      * @param y Y coordinate in browser-viewport pixels.
      */
     public void sendMouseMove(int x, int y) {
+        checkThread("sendMouseMove");
         sendMouseMove(x, y, 0);
     }
 
     /** Move the pointer to (x, y) with modifier keys held (see MOUSE_MODIFIER_*). */
     public void sendMouseMove(int x, int y, int modifiers) {
-        if (mNativePtr != 0) {
+        checkThread("sendMouseMove");
+        if (isLive()) {
             nativeSendMouseMoveEvent(mNativePtr, x, y, modifiers, false);
         }
     }
 
     /** Signal the pointer leaving the view at (x, y) (clears {@code :hover}). */
     public void sendMouseLeave(int x, int y) {
-        if (mNativePtr != 0) {
+        checkThread("sendMouseLeave");
+        if (isLive()) {
             nativeSendMouseMoveEvent(mNativePtr, x, y, 0, true);
         }
     }
@@ -2998,6 +3110,7 @@ public class CefriumBrowser {
      * @param button one of MOUSE_BUTTON_LEFT / MOUSE_BUTTON_MIDDLE / MOUSE_BUTTON_RIGHT.
      */
     public void sendMouseClick(int x, int y, int button) {
+        checkThread("sendMouseClick");
         sendMouseClick(x, y, button, 1, 0);
     }
 
@@ -3008,13 +3121,15 @@ public class CefriumBrowser {
      * @param modifiers OR of MOUSE_MODIFIER_* (0 = none).
      */
     public void sendMouseClick(int x, int y, int button, int clickCount, int modifiers) {
-        if (mNativePtr == 0) return;
+        checkThread("sendMouseClick");
+        if (!isLive()) return;
         nativeSendMouseClickEvent(mNativePtr, x, y, modifiers, button, false, clickCount);
         nativeSendMouseClickEvent(mNativePtr, x, y, modifiers, button, true, clickCount);
     }
 
     /** Left click at (x, y). */
     public void sendLeftClick(int x, int y) {
+        checkThread("sendLeftClick");
         sendMouseClick(x, y, MOUSE_BUTTON_LEFT, 1, 0);
     }
 
@@ -3023,11 +3138,13 @@ public class CefriumBrowser {
      * {@code CefContextMenuHandler} (see setOnContextMenuListener).
      */
     public void sendRightClick(int x, int y) {
+        checkThread("sendRightClick");
         sendMouseClick(x, y, MOUSE_BUTTON_RIGHT, 1, 0);
     }
 
     /** Double left click at (x, y). */
     public void sendDoubleClick(int x, int y) {
+        checkThread("sendDoubleClick");
         sendMouseClick(x, y, MOUSE_BUTTON_LEFT, 2, 0);
     }
 
@@ -3037,14 +3154,16 @@ public class CefriumBrowser {
      * synthesize a drag.
      */
     public void sendMouseDown(int x, int y, int button, int modifiers) {
-        if (mNativePtr != 0) {
+        checkThread("sendMouseDown");
+        if (isLive()) {
             nativeSendMouseClickEvent(mNativePtr, x, y, modifiers, button, false, 1);
         }
     }
 
     /** Release a mouse button at (x, y). */
     public void sendMouseUp(int x, int y, int button, int modifiers) {
-        if (mNativePtr != 0) {
+        checkThread("sendMouseUp");
+        if (isLive()) {
             nativeSendMouseClickEvent(mNativePtr, x, y, modifiers, button, true, 1);
         }
     }
@@ -3054,12 +3173,14 @@ public class CefriumBrowser {
      * scroll deltas in pixels (a typical wheel notch is ~120).
      */
     public void sendMouseWheel(int x, int y, int deltaX, int deltaY) {
+        checkThread("sendMouseWheel");
         sendMouseWheel(x, y, deltaX, deltaY, 0);
     }
 
     /** Scroll the mouse wheel at (x, y) with modifier keys held. */
     public void sendMouseWheel(int x, int y, int deltaX, int deltaY, int modifiers) {
-        if (mNativePtr != 0) {
+        checkThread("sendMouseWheel");
+        if (isLive()) {
             nativeSendMouseWheelEvent(mNativePtr, x, y, modifiers, deltaX, deltaY);
         }
     }
@@ -3070,7 +3191,8 @@ public class CefriumBrowser {
      * {@link Cefrium#loadAdBlockList} and {@link Cefrium#downloadAndLoadEasyList}).
      */
     public void setAdBlockEnabled(boolean enabled) {
-        if (mNativePtr != 0) nativeSetAdBlockEnabled(mNativePtr, enabled);
+        checkThread("setAdBlockEnabled");
+        if (isLive()) nativeSetAdBlockEnabled(mNativePtr, enabled);
     }
 
     /**
@@ -3081,7 +3203,8 @@ public class CefriumBrowser {
      * @return Number of blocked requests, or 0 if the browser is closed.
      */
     public int getBlockedCount() {
-        if (mNativePtr != 0) {
+        checkThread("getBlockedCount");
+        if (isLive()) {
             return nativeGetBlockedCount(mNativePtr);
         }
         return 0;
@@ -3218,11 +3341,13 @@ public class CefriumBrowser {
 
     /** @return true if this is a private (incognito) browser. */
     public boolean isIncognito() {
+        checkThread("isIncognito");
         return mIncognito;
     }
 
     /** @return the profile whose cookies, storage and cache this browser uses. */
     public CefriumProfile getProfile() {
+        checkThread("getProfile");
         return mProfile;
     }
 
@@ -3235,6 +3360,7 @@ public class CefriumBrowser {
      */
     public boolean onActivityResult(int requestCode, int resultCode,
                                     android.content.Intent data) {
+        checkThread("onActivityResult");
         if (mIntentTracker != null) {
             return mIntentTracker.onActivityResult(requestCode, resultCode, data);
         }
@@ -3248,6 +3374,7 @@ public class CefriumBrowser {
      * @return FrameLayout containing the browser surface.
      */
     public android.widget.FrameLayout getSurfaceContainer() {
+        checkThread("getSurfaceContainer");
         return mSurfaceContainer;
     }
 
@@ -3258,6 +3385,7 @@ public class CefriumBrowser {
      * 13+. Safe to call before or after the page loads.
      */
     public void setMediaSessionEnabled(boolean enabled) {
+        checkThread("setMediaSessionEnabled");
         mMediaSessionEnabled = enabled;
         if (enabled) {
             maybeCreateMediaSession();
@@ -3274,6 +3402,7 @@ public class CefriumBrowser {
      * Safe to call before or after the media session is created.
      */
     public void setMediaSessionActivity(android.app.PendingIntent activity) {
+        checkThread("setMediaSessionActivity");
         mMediaSessionActivity = activity;
         if (mMediaSession != null) mMediaSession.setActivity(activity);
     }
@@ -3497,8 +3626,9 @@ public class CefriumBrowser {
      * Set the listener for find-in-page results.
      */
     public void setOnFindResultListener(OnFindResultListener listener) {
+        checkThread("setOnFindResultListener");
         mFindListener = listener;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     /**
@@ -3511,6 +3641,7 @@ public class CefriumBrowser {
      * @param findNext true if continuing a previous search (next/prev).
      */
     public void find(String text, boolean forward, boolean matchCase, boolean findNext) {
+        checkThread("find");
         if (checkNative("find")) nativeFind(mNativePtr, text, forward, matchCase, findNext);
     }
 
@@ -3521,6 +3652,7 @@ public class CefriumBrowser {
      * @param clearSelection true to clear the selection highlight.
      */
     public void stopFinding(boolean clearSelection) {
+        checkThread("stopFinding");
         if (checkNative("stopFinding")) nativeStopFinding(mNativePtr, clearSelection);
     }
 
@@ -3555,8 +3687,9 @@ public class CefriumBrowser {
      * Set the listener for download progress updates.
      */
     public void setOnDownloadListener(OnDownloadListener listener) {
+        checkThread("setOnDownloadListener");
         mDownloadListener = listener;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     // Called from native CefDownloadHandler::OnDownloadUpdated.
@@ -3673,8 +3806,9 @@ public class CefriumBrowser {
      * legacy {@link OnDownloadListener}).
      */
     public void setDownloadHandler(CefriumDownloadHandler handler) {
+        checkThread("setDownloadHandler");
         mDownloadHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     void controlDownload(int id, int action) {
@@ -3687,13 +3821,16 @@ public class CefriumBrowser {
      * Useful to wire a "Cancel" action on a download notification without holding
      * the {@link DownloadItem}.
      */
-    public void cancelDownload(int id) { controlDownload(id, 0); }
+    public void cancelDownload(int id) {
+        checkThread("cancelDownload"); controlDownload(id, 0); }
 
     /** Pause an in-progress download by its id. See {@link #cancelDownload}. */
-    public void pauseDownload(int id) { controlDownload(id, 1); }
+    public void pauseDownload(int id) {
+        checkThread("pauseDownload"); controlDownload(id, 1); }
 
     /** Resume a paused download by its id. See {@link #cancelDownload}. */
-    public void resumeDownload(int id) { controlDownload(id, 2); }
+    public void resumeDownload(int id) {
+        checkThread("resumeDownload"); controlDownload(id, 2); }
 
     // Called from native SdkDownloadHandler::OnBeforeDownload (UI thread).
     @SuppressWarnings("unused")
@@ -3756,13 +3893,15 @@ public class CefriumBrowser {
 
     /** Sets the display handler (favicon, progress, console, status, media). */
     public void setDisplayHandler(CefriumDisplayHandler handler) {
+        checkThread("setDisplayHandler");
         mDisplayHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
     /** Sets the per-frame load handler (load start / error). */
     public void setLoadHandler(CefriumLoadHandler handler) {
+        checkThread("setLoadHandler");
         mLoadHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
     /** Sets the request handler (open-in-tab, hung renderer, client cert, resource events). */
     /**
@@ -3771,7 +3910,8 @@ public class CefriumBrowser {
      * (a hot path). Requires a request handler set to receive the data.
      */
     public void setResponseTapEnabled(boolean enabled) {
-        if (mNativePtr != 0) nativeSetResponseTapEnabled(mNativePtr, enabled);
+        checkThread("setResponseTapEnabled");
+        if (isLive()) nativeSetResponseTapEnabled(mNativePtr, enabled);
     }
 
     /**
@@ -3780,28 +3920,33 @@ public class CefriumBrowser {
      * Off by default; enabling it calls the handler per cookie (a hot path).
      */
     public void setCookieFilterEnabled(boolean enabled) {
-        if (mNativePtr != 0) nativeSetCookieFilterEnabled(mNativePtr, enabled);
+        checkThread("setCookieFilterEnabled");
+        if (isLive()) nativeSetCookieFilterEnabled(mNativePtr, enabled);
     }
 
     public void setRequestHandler(CefriumRequestHandler handler) {
+        checkThread("setRequestHandler");
         mRequestHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
         updateRequestObservers();
     }
     /** Sets the keyboard handler (intercept keys before the page). */
     public void setKeyboardHandler(CefriumKeyboardHandler handler) {
+        checkThread("setKeyboardHandler");
         mKeyboardHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
     /** Sets the focus handler. */
     public void setFocusHandler(CefriumFocusHandler handler) {
+        checkThread("setFocusHandler");
         mFocusHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
     /** Sets the drag handler. */
     public void setDragHandler(CefriumDragHandler handler) {
+        checkThread("setDragHandler");
         mDragHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
     /**
      * Sets the audio handler. OPT-IN and exclusive: a non-null handler REDIRECTS
@@ -3809,26 +3954,30 @@ public class CefriumBrowser {
      * to disable and restore normal playback.
      */
     public void setAudioHandler(CefriumAudioHandler handler) {
+        checkThread("setAudioHandler");
         mAudioHandler = handler;
-        if (mNativePtr != 0) {
+        if (isLive()) {
             nativeSetDisplayCallback(mNativePtr, this);
             nativeSetAudioCaptureEnabled(mNativePtr, handler != null);
         }
     }
     /** Sets the frame lifecycle handler. */
     public void setFrameHandler(CefriumFrameHandler handler) {
+        checkThread("setFrameHandler");
         mFrameHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
     /** Sets the Chrome command handler. */
     public void setCommandHandler(CefriumCommandHandler handler) {
+        checkThread("setCommandHandler");
         mCommandHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
     /** Sets the file-chooser dialog handler ({@code <input type=file>}). */
     public void setDialogHandler(CefriumDialogHandler handler) {
+        checkThread("setDialogHandler");
         mDialogHandler = handler;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     private void postMain(Runnable r) {
@@ -4083,7 +4232,8 @@ public class CefriumBrowser {
 
     /** Delivers a file-chooser selection (empty/null cancels). See {@link CefriumDialogHandler}. */
     public void fileDialogResult(long id, String[] paths) {
-        if (mNativePtr != 0) {
+        checkThread("fileDialogResult");
+        if (isLive()) {
             nativeFileDialogResult(mNativePtr, id, paths == null ? new String[0] : paths);
         }
     }
@@ -4127,7 +4277,8 @@ public class CefriumBrowser {
      * @param callback Delivered on the main thread; bitmap is null on failure.
      */
     public void downloadImage(String url, int maxSize, ImageCallback callback) {
-        if (mNativePtr == 0 || url == null) return;
+        checkThread("downloadImage");
+        if (!isLive() || url == null) return;
         if (callback != null) mPendingImages.put(url, callback);
         nativeDownloadImage(mNativePtr, url, this, maxSize);
     }
@@ -4170,15 +4321,18 @@ public class CefriumBrowser {
      * @param focus {@code true} to focus this browser, {@code false} to blur it.
      */
     public void setFocus(boolean focus) {
-        if (mNativePtr != 0) nativeSetFocus(mNativePtr, focus);
+        checkThread("setFocus");
+        if (isLive()) nativeSetFocus(mNativePtr, focus);
     }
     /** Programmatically exit HTML fullscreen (e.g. from the back button). */
     public void exitFullscreen() {
-        if (mNativePtr != 0) nativeExitFullscreen(mNativePtr, true);
+        checkThread("exitFullscreen");
+        if (isLive()) nativeExitFullscreen(mNativePtr, true);
     }
     /** Force a download of {@code url}. */
     public void startDownload(String url) {
-        if (mNativePtr != 0 && url != null) nativeStartDownload(mNativePtr, url);
+        checkThread("startDownload");
+        if (isLive() && url != null) nativeStartDownload(mNativePtr, url);
     }
 
     /** One entry in the navigation history. See {@link #getNavigationEntries()}. */
@@ -4201,8 +4355,9 @@ public class CefriumBrowser {
      * browser is not ready.
      */
     public java.util.List<NavigationEntry> getNavigationEntries() {
+        checkThread("getNavigationEntries");
         java.util.List<NavigationEntry> out = new java.util.ArrayList<>();
-        if (mNativePtr == 0) return out;
+        if (!isLive()) return out;
         String[] rows = nativeGetNavigationEntries(mNativePtr);
         if (rows == null) return out;
         for (String row : rows) {
@@ -4341,8 +4496,9 @@ public class CefriumBrowser {
      * Set the listener for context menu events.
      */
     public void setOnContextMenuListener(OnContextMenuListener listener) {
+        checkThread("setOnContextMenuListener");
         mContextMenuListener = listener;
-        if (mNativePtr != 0) nativeSetDisplayCallback(mNativePtr, this);
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
     /**
@@ -4352,7 +4508,8 @@ public class CefriumBrowser {
      * @param commandId The selected command ID, or -1 to cancel.
      */
     public void contextMenuCommand(int commandId) {
-        if (mNativePtr != 0) nativeContextMenuCommand(mNativePtr, commandId);
+        checkThread("contextMenuCommand");
+        if (isLive()) nativeContextMenuCommand(mNativePtr, commandId);
     }
 
     // Called from native to copy text to Android clipboard.
