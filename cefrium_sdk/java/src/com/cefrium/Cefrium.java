@@ -818,7 +818,7 @@ public final class Cefrium {
      * @throws IllegalStateException if the engine cannot start.
      */
     /** The ABIs a Cefrium engine module exists for. */
-    static final String ENGINE_ABIS = "arm64-v8a and x86_64";
+    static final String ENGINE_ABIS = "arm64-v8a, armeabi-v7a and x86_64";
 
     /**
      * The ABI this process runs as, when the APK carries no libcef.so for it;

@@ -62,6 +62,9 @@ check_aar() { # <aar> <label> <expect-both-abis:yes|no>
     case "$abis" in
       *x86_64*) ;; *) bad "$label has no x86_64 -- emulator users would get UnsatisfiedLinkError (got: ${abis:-none})" ;;
     esac
+    case "$abis" in
+      *armeabi-v7a*) ;; *) bad "$label has no armeabi-v7a -- 32-bit ARM devices get no engine (got: ${abis:-none})" ;;
+    esac
     [ -n "$abis" ] && ok "$label ABIs: $abis"
   fi
 
@@ -160,7 +163,8 @@ if [ -n "$APK" ]; then
       bad "APK is OLDER than cefrium-sdk.aar -- Gradle reused a stale build; run with clean"
     else ok "APK is newer than the SDK AAR it was built against"; fi
     abis="$(unzip -l "$APK" 2>/dev/null | grep -oE 'lib/[a-z0-9_-]+/libcef\.so' | sed 's|lib/||;s|/libcef.so||' | sort -u | tr '\n' ' ')"
-    case "$abis" in *x86_64*) ok "APK ABIs: $abis" ;; *) bad "APK has no x86_64 (got: ${abis:-none})" ;; esac
+    case "$abis" in *x86_64*) ;; *) bad "APK has no x86_64 (got: ${abis:-none})" ;; esac
+    case "$abis" in *armeabi-v7a*) ok "APK ABIs: $abis" ;; *) bad "APK has no armeabi-v7a (got: ${abis:-none})" ;; esac
     mkdir -p "$WORK/apk"
     if unzip -o -q "$APK" "lib/arm64-v8a/libcef.so" -d "$WORK/apk" 2>/dev/null; then
       ahits="$(strings -a "$WORK/apk/lib/arm64-v8a/libcef.so" 2>/dev/null | grep -cF "$ENGINE" || true)"

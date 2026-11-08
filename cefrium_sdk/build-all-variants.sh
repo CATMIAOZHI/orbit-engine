@@ -1,9 +1,9 @@
 #!/bin/bash
 # Build all Cefrium SDK variants.
-# Usage: cd chromium/src && cef/cefrium_sdk/build-all-variants.sh [arm64|x64|all] [codecs|libre|all] [--clean]
+# Usage: cd chromium/src && cef/cefrium_sdk/build-all-variants.sh [arm64|x64|arm|all] [codecs|libre|all] [--clean]
 #
 # Examples:
-#   cef/cefrium_sdk/build-all-variants.sh              # build all 4 variants (incremental: dev)
+#   cef/cefrium_sdk/build-all-variants.sh              # build all 6 variants (incremental: dev)
 #   cef/cefrium_sdk/build-all-variants.sh arm64         # arm64 codecs + libre
 #   cef/cefrium_sdk/build-all-variants.sh x64 codecs    # x64 with codecs only
 #   cef/cefrium_sdk/build-all-variants.sh all --clean   # fresh out dirs (release reproducibility)
@@ -12,7 +12,8 @@
 # fast, for DEV). --clean / CEFRIUM_CLEAN=1 forces a from-scratch build for RELEASE
 # reproducibility (cut-release sets it by default). See CLAUDE.md "Two flows".
 #
-# Output: out/release/cefrium-sdk-{arm64,x64}-{codecs,libre}.aar
+# Output: out/release/cefrium-sdk-{arm64,x64,arm}-{codecs,libre}.aar
+# (arm = armeabi-v7a, 32-bit ARM)
 #
 # Must be run from chromium/src/ directory.
 
@@ -265,8 +266,7 @@ if [ "$ARCH" = "all" ] || [ "$ARCH" = "arm64" ]; then
   [ "$CODECS" = "all" ] || [ "$CODECS" = "codecs" ] && variants+=("arm64:codecs")
   [ "$CODECS" = "all" ] || [ "$CODECS" = "libre" ] && variants+=("arm64:libre")
 fi
-# armeabi-v7a only when asked for, until FEATURE-085 proves it.
-if [ "$ARCH" = "arm" ]; then
+if [ "$ARCH" = "all" ] || [ "$ARCH" = "arm" ]; then
   [ "$CODECS" = "all" ] || [ "$CODECS" = "codecs" ] && variants+=("arm:codecs")
   [ "$CODECS" = "all" ] || [ "$CODECS" = "libre" ] && variants+=("arm:libre")
 fi
