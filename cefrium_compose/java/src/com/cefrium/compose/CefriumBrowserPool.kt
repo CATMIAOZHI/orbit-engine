@@ -67,11 +67,14 @@ class CefriumBrowserPool internal constructor(private val maxAlive: Int) : Remem
      * [maxAlive] closes and evicts the least-recently-used state. [url] is used
      * only when the state is first created for [key].
      */
-    fun stateFor(key: String, url: String): CefriumViewState =
-        states.getOrPut(key) { CefriumViewState(url) }
+    fun stateFor(key: String, url: String): CefriumViewState {
+        checkMainThread("stateFor")
+        return states.getOrPut(key) { CefriumViewState(url) }
+    }
 
     /** Closes and evicts the state for [key] (no-op if not pooled). */
     fun evict(key: String) {
+        checkMainThread("evict")
         states.remove(key)?.let {
             it.close()
             CefriumBrowser.reapUnusedRenderers()
@@ -80,6 +83,14 @@ class CefriumBrowserPool internal constructor(private val maxAlive: Int) : Remem
 
     /** Number of states currently held alive by the pool. */
     val size: Int get() = states.size
+
+    // As CefriumBrowser: the main thread only.
+    private fun checkMainThread(name: String) {
+        check(android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            "CefriumBrowserPool.$name must be called on the main thread, not on " +
+                Thread.currentThread().name
+        }
+    }
 
     override fun onRemembered() {}
     override fun onForgotten() = closeAll()
