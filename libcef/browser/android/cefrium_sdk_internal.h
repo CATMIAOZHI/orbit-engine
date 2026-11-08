@@ -71,6 +71,11 @@ struct SdkBrowserData {
   std::string profile;
   // Whether this browser holds an incognito reference to release on close.
   bool holds_incognito = false;
+  // A popup: OnBeforePopup of its opener gave CEF this client, so CEF creates
+  // the browser and a load must not. close_when_created: closed by the app
+  // before CEF created it.
+  bool popup_pending = false;
+  bool close_when_created = false;
 };
 
 namespace cefrium_sdk {
