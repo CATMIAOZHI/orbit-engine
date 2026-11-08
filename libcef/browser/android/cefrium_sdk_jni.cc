@@ -544,6 +544,8 @@ class SdkLifeSpanHandler : public CefLifeSpanHandler {
   // close completed. Defined out-of-line below: it needs the full
   // SdkBrowserData definition.
   void OnBeforeClose(CefRefPtr<CefBrowser> browser) override;
+  // OnBeforeClose's teardown: also what a popup CEF never created gets.
+  void Discard();
 
   void SetMessageRouter(CefRefPtr<CefMessageRouterBrowserSide> router) {
     message_router_ = router;
@@ -564,9 +566,9 @@ class SdkLifeSpanHandler : public CefLifeSpanHandler {
   bool browser_created_ = false;
   bool created_notified_ = false;
 
-  // FEATURE-029: window.open / target=_blank. Embedded single-surface model:
-  // never spawn a separate window. Ask the Java PopupHandler; if it doesn't
-  // take it, navigate the same browser to the target URL.
+  // FEATURE-029 / FEATURE-086: window.open / target=_blank. The app may give
+  // the popup a browser of its own (opener kept); otherwise the PopupHandler
+  // or this browser loads the URL. Defined out-of-line below.
   bool OnBeforePopup(CefRefPtr<CefBrowser> browser,
                      CefRefPtr<CefFrame> frame,
                      int popup_id,
@@ -579,29 +581,11 @@ class SdkLifeSpanHandler : public CefLifeSpanHandler {
                      CefRefPtr<CefClient>& client,
                      CefBrowserSettings& settings,
                      CefRefPtr<CefDictionaryValue>& extra_info,
-                     bool* no_javascript_access) override {
-    bool handled = false;
-    if (java_browser_) {
-      JNIEnv* env = base::android::AttachCurrentThread();
-      if (env) {
-        jclass cls = env->GetObjectClass(java_browser_);
-        jmethodID mid = env->GetMethodID(cls, "onOpenPopup",
-                                         "(Ljava/lang/String;Z)Z");
-        if (mid) {
-          jstring ju = env->NewStringUTF(target_url.ToString().c_str());
-          handled = env->CallBooleanMethod(java_browser_, mid, ju,
-                                           user_gesture ? JNI_TRUE : JNI_FALSE);
-          env->DeleteLocalRef(ju);
-        }
-        env->DeleteLocalRef(cls);
-      }
-    }
-    if (!handled && browser && browser->GetMainFrame() &&
-        !target_url.empty()) {
-      browser->GetMainFrame()->LoadURL(target_url);
-    }
-    return true;  // always cancel the separate popup window
-  }
+                     bool* no_javascript_access) override;
+  void OnBeforePopupAborted(CefRefPtr<CefBrowser> browser,
+                            int popup_id) override;
+  // Popups handed to CEF and not created yet, by popup_id.
+  std::map<int, SdkBrowserData*> pending_popups_;
 
   // FEATURE-063: window.close() / JS-initiated close. Notify Java; return false
   // for CEF's default close sequence.
@@ -4068,6 +4052,11 @@ void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
        browser->GetIdentifier(), data_ ? data_->is_surface_mode : 0);
   if (data_) {
     data_->browser = browser;
+    data_->popup_pending = false;
+    if (data_->close_when_created) {
+      browser->GetHost()->CloseBrowser(true);
+      return;
+    }
     auto pending_calls = std::move(data_->pending_calls);
     for (auto& call : pending_calls) {
       std::move(call).Run(browser);
@@ -4124,6 +4113,98 @@ void SdkLifeSpanHandler::NotifyJavaBrowserCreated() {
   env->DeleteLocalRef(cls);
 }
 
+bool SdkLifeSpanHandler::OnBeforePopup(
+    CefRefPtr<CefBrowser> browser,
+    CefRefPtr<CefFrame> frame,
+    int popup_id,
+    const CefString& target_url,
+    const CefString& target_frame_name,
+    WindowOpenDisposition target_disposition,
+    bool user_gesture,
+    const CefPopupFeatures& popupFeatures,
+    CefWindowInfo& windowInfo,
+    CefRefPtr<CefClient>& client,
+    CefBrowserSettings& settings,
+    CefRefPtr<CefDictionaryValue>& extra_info,
+    bool* no_javascript_access) {
+  // FEATURE-086: a browser the app made for this popup (same mode and
+  // profile), not created yet. CEF creates it with its client, so the page
+  // keeps window.opener.
+  JNIEnv* env = base::android::AttachCurrentThread();
+  jlong popup_ptr = 0;
+  if (java_browser_ && env) {
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid =
+        env->GetMethodID(cls, "onCreateWindow", "(Ljava/lang/String;Z)J");
+    if (mid) {
+      jstring ju = env->NewStringUTF(target_url.ToString().c_str());
+      popup_ptr = env->CallLongMethod(java_browser_, mid, ju,
+                                      user_gesture ? JNI_TRUE : JNI_FALSE);
+      env->DeleteLocalRef(ju);
+    } else {
+      env->ExceptionClear();
+    }
+    env->DeleteLocalRef(cls);
+  }
+  bool live = false;
+  if (popup_ptr) {
+    base::AutoLock lock(BridgeDataLock());
+    live = LiveBridgeData().count(popup_ptr) > 0;
+  }
+  auto* popup = live ? reinterpret_cast<SdkBrowserData*>(popup_ptr) : nullptr;
+  if (popup && !popup->browser && !popup->popup_pending) {
+    popup->popup_pending = true;
+    ContextFor(popup);  // takes the incognito reference OnBeforeClose returns
+    client = popup->client;
+    windowInfo = CefWindowInfo();
+    if (!popup->is_surface_mode) {
+      windowInfo.SetAsWindowless(0);
+      settings.background_color = popup->background_color;
+    }
+    pending_popups_[popup_id] = popup;
+    return false;
+  }
+
+  bool handled = false;
+  if (java_browser_) {
+    if (env) {
+      jclass cls = env->GetObjectClass(java_browser_);
+      jmethodID mid = env->GetMethodID(cls, "onOpenPopup",
+                                       "(Ljava/lang/String;Z)Z");
+      if (mid) {
+        jstring ju = env->NewStringUTF(target_url.ToString().c_str());
+        handled = env->CallBooleanMethod(java_browser_, mid, ju,
+                                         user_gesture ? JNI_TRUE : JNI_FALSE);
+        env->DeleteLocalRef(ju);
+      }
+      env->DeleteLocalRef(cls);
+    }
+  }
+  if (!handled && browser && browser->GetMainFrame() &&
+      !target_url.empty()) {
+    browser->GetMainFrame()->LoadURL(target_url);
+  }
+return true;  // no separate popup window
+}
+
+void SdkLifeSpanHandler::OnBeforePopupAborted(CefRefPtr<CefBrowser> browser,
+                                              int popup_id) {
+  auto it = pending_popups_.find(popup_id);
+  if (it == pending_popups_.end()) {
+    return;
+  }
+  SdkBrowserData* popup = it->second;
+  pending_popups_.erase(it);
+  bool live;
+  {
+    base::AutoLock lock(BridgeDataLock());
+    live = LiveBridgeData().count(reinterpret_cast<jlong>(popup)) > 0;
+  }
+  if (live && !popup->browser) {
+    popup->life_span_handler->Discard();
+  }
+}
+
 // Binds the Java browser right after creation to the handlers whose events do
 // not depend on the embedder registering a listener (nativeSetDisplayCallback)
 // first: the created notification, and proxy errors, which are reported per
@@ -4154,6 +4235,10 @@ void SdkLifeSpanHandler::OnBeforeClose(CefRefPtr<CefBrowser> browser) {
   if (message_router_) {
     message_router_->OnBeforeClose(browser);
   }
+  Discard();
+}
+
+void SdkLifeSpanHandler::Discard() {
   if (!data_) {
     return;
   }
@@ -4363,7 +4448,13 @@ Java_com_cefrium_CefriumBrowser_nativeLoadUrl(
   if (!data) return;
   const char* url = env->GetStringUTFChars(url_jstr, nullptr);
 
-  if (!data->browser) {
+  if (!data->browser && data->popup_pending) {
+    RunWhenCreated(data, base::BindOnce(
+                             [](std::string u, CefRefPtr<CefBrowser> b) {
+                               b->GetMainFrame()->LoadURL(u);
+                             },
+                             std::string(url)));
+  } else if (!data->browser) {
     // First loadUrl — create the browser with this URL.
     CefWindowInfo window_info;
     window_info.SetAsWindowless(0);
@@ -4537,7 +4628,13 @@ Java_com_cefrium_CefriumBrowser_nativeLoadDataWithBaseUrl(
       "; charset=" + (charset.empty() ? std::string("utf-8") : charset);
   RegisterPendingDataDoc(served_url, html, ctype);
 
-  if (!data->browser) {
+  if (!data->browser && data->popup_pending) {
+    RunWhenCreated(data, base::BindOnce(
+                             [](std::string u, CefRefPtr<CefBrowser> b) {
+                               b->GetMainFrame()->LoadURL(u);
+                             },
+                             served_url));
+  } else if (!data->browser) {
     // First load — create the browser directly at the served URL; the renderer
     // spawns and the navigation is intercepted to deliver our HTML.
     CefWindowInfo window_info;
@@ -5209,6 +5306,9 @@ Java_com_cefrium_CefriumBrowser_nativeClose(
     // tear down the Java window out from under the still-closing WebContents.
     // See SdkLifeSpanHandler::OnBeforeClose and the Android platform delegate.
     data->browser->GetHost()->CloseBrowser(true);
+  } else if (data->popup_pending) {
+    // CEF is creating it: close it once it exists (or the abort discards it).
+    data->close_when_created = true;
   } else {
     // Browser creation failed. The browser is created with CreateBrowserSync,
     // so a created browser always has data->browser set by the time Java can
@@ -5228,7 +5328,7 @@ extern "C" JNIEXPORT jlong JNICALL
 Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
     JNIEnv* env, jclass clazz, jobject java_window_android,
     jobject java_surface, jint width, jint height, jfloat scale,
-    jboolean incognito, jstring profile) {
+    jboolean incognito, jstring profile, jboolean for_popup) {
   auto* data = new SdkBrowserData();
   data->is_surface_mode = true;
   data->is_incognito = (incognito == JNI_TRUE);
@@ -5261,9 +5361,12 @@ Java_com_cefrium_CefriumBrowser_nativeCreateWithSurface(
 
   // Incognito tabs share one off-the-record context (isolated + in-memory), a
   // named profile has its own persistent one, and the rest use the global.
-  CefBrowserHost::CreateBrowserSync(window_info, data->client, CefString(""),
-                                    browser_settings, nullptr,
-                                    ContextFor(data));
+  // A popup's browser is created by CEF from its opener's OnBeforePopup.
+  if (!for_popup) {
+    CefBrowserHost::CreateBrowserSync(window_info, data->client, CefString(""),
+                                      browser_settings, nullptr,
+                                      ContextFor(data));
+  }
 
   {
     base::AutoLock lock(BridgeDataLock());

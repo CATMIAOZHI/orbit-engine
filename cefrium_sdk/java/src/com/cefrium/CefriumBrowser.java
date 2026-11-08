@@ -181,6 +181,9 @@ public class CefriumBrowser {
         Cefrium.ensureInitialized();
         mProfile = profile;
         mIncognito = profile.isIncognito();
+        mOsrWidth = width;
+        mOsrHeight = height;
+        mOsrScale = scale;
         mNativePtr = nativeCreate(width, height, scale, profile.isIncognito(),
                 profile.getName());
         // As createWithSurface does: events that do not depend on the app
@@ -190,6 +193,11 @@ public class CefriumBrowser {
     }
 
     private static final String TAG = "CefriumBrowser";
+
+    // Off-screen viewport, for a popup this browser opens.
+    private int mOsrWidth;
+    private int mOsrHeight;
+    private float mOsrScale = 1.0f;
 
     // volatile: read on the main looper in connectWebContentsInternal (delayed
     // callback) while close() may set it from another thread; the write must be
@@ -2294,14 +2302,39 @@ public class CefriumBrowser {
     // ─────────────── Popups / window.open ───────────────
 
     /**
-     * Handles popups (window.open / target=_blank). This SDK never spawns a
-     * separate window; by default the target URL is loaded in this browser.
+     * Handles popups (window.open / target=_blank). By default the target URL
+     * is loaded in this browser, and the page loses its reference to the
+     * popup. Sign-in and payment popups need that reference: implement
+     * {@link #onCreateWindow} for them.
      */
     public interface PopupHandler {
         /** Return true if you handled it (e.g. opened a new tab); false to load
             the target URL in this browser. */
         boolean onOpenPopup(String targetUrl, boolean userGesture);
+
+        /**
+         * The page opened a window. {@code popup} is a new browser in this
+         * browser's mode and profile that will load {@code targetUrl} as that
+         * window: the page keeps {@code window.opener} and the popup can post
+         * its result back, as sign-in popups do. Show it (its
+         * {@link #getSurfaceContainer()}, or its frames if off-screen) and
+         * return true; return false to fall back to {@link #onOpenPopup}.
+         * As with Android WebView's {@code onCreateWindow}.
+         */
+        default boolean onCreateWindow(CefriumBrowser popup, String targetUrl,
+                boolean userGesture) {
+            return false;
+        }
+
+        /**
+         * A window from {@link #onCreateWindow} called {@code window.close()}:
+         * remove it from the UI. It closes itself.
+         */
+        default void onCloseWindow(CefriumBrowser popup) {}
     }
+
+    // The handler that took this browser as a popup (onCloseWindow).
+    private PopupHandler mPopupOwner;
 
     private PopupHandler mPopupHandler;
 
@@ -2316,6 +2349,27 @@ public class CefriumBrowser {
     private boolean onOpenPopup(String targetUrl, boolean userGesture) {
         PopupHandler h = mPopupHandler;
         return h != null && h.onOpenPopup(targetUrl, userGesture);
+    }
+
+    // Called from native (UI thread) before onOpenPopup: the native browser of
+    // the popup's window, or 0 when the app does not take it.
+    private long onCreateWindow(String targetUrl, boolean userGesture) {
+        PopupHandler h = mPopupHandler;
+        if (h == null || mClosed) return 0;
+        CefriumBrowser popup = mSurfaceContainer != null
+                ? createSurfaceBrowser(mActivity, mProfile, true)
+                : new CefriumBrowser(Math.max(1, mOsrWidth), Math.max(1, mOsrHeight),
+                        mOsrScale, mProfile);
+        boolean taken = false;
+        try {
+            taken = h.onCreateWindow(popup, targetUrl, userGesture);
+        } finally {
+            if (!taken) popup.close();
+        }
+        if (!popup.isLive()) return 0;
+        popup.mPopupOwner = h;
+        popup.mDialogActivity = mDialogActivity;
+        return popup.mNativePtr;
     }
 
     // Called from native (UI thread) with the visited cookies for a getCookies request.
@@ -2764,6 +2818,8 @@ public class CefriumBrowser {
         if (width <= 0 || height <= 0) {
             throw new IllegalArgumentException("width and height must be positive");
         }
+        mOsrWidth = width;
+        mOsrHeight = height;
         if (checkNative("setSize")) {
             nativeSetSize(mNativePtr, width, height);
         }
@@ -3263,6 +3319,12 @@ public class CefriumBrowser {
      */
     public static CefriumBrowser createWithSurface(android.app.Activity activity,
                                                    CefriumProfile profile) {
+        return createSurfaceBrowser(activity, profile, false);
+    }
+
+    // A popup's native browser is created by CEF, from its opener.
+    private static CefriumBrowser createSurfaceBrowser(android.app.Activity activity,
+            CefriumProfile profile, boolean forPopup) {
         if (profile == null) {
             throw new IllegalArgumentException("profile must not be null");
         }
@@ -3304,7 +3366,7 @@ public class CefriumBrowser {
                 browser.mWindowAndroid, null,
                 activity.getResources().getDisplayMetrics().widthPixels,
                 activity.getResources().getDisplayMetrics().heightPixels,
-                density, profile.isIncognito(), profile.getName());
+                density, profile.isIncognito(), profile.getName(), forPopup);
         CefriumProfile.browserOpened(profile);
 
         browser.mActivity = activity;
@@ -4122,8 +4184,9 @@ public class CefriumBrowser {
 
     // ---- LifeSpan ----
     private void onDoClose() {
-        // Notify via the render-process / listener path if the app cares; no-op
-        // by default (CEF continues its default close sequence).
+        // CEF continues its default close sequence.
+        PopupHandler owner = mPopupOwner;
+        if (owner != null) owner.onCloseWindow(this);
     }
 
     // ---- Keyboard (synchronous, returns handled) ----
@@ -4381,7 +4444,7 @@ public class CefriumBrowser {
     private static native long nativeCreateWithSurface(
             org.chromium.ui.base.WindowAndroid windowAndroid,
             android.view.Surface surface, int width, int height, float scale,
-            boolean incognito, String profile);
+            boolean incognito, String profile, boolean forPopup);
     private static native void nativeSetRenderHandler(long nativePtr, CefriumBrowser browser);
     private static native void nativeBindJavaBrowser(long nativePtr, CefriumBrowser browser);
     private static native boolean nativeSetBackgroundColor(long nativePtr, int argb);
