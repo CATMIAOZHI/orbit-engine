@@ -8,7 +8,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=577abc0602d75d1b02c0cbd2460d6e717d7d127a$
+// $hash=0fb34ac16e71f4bd5d3c5972af381829e8b82ad4$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_PROCESS_UTIL_CAPI_VERSIONS_H_
@@ -19,7 +19,7 @@
 #error This file can be included DLL-side only
 #endif
 
-#include "include/capi/cef_base_capi.h"
+#include "include/capi/cef_command_line_capi_versions.h"
 
 #ifdef __cplusplus
 extern "C" {

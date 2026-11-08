@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=65bfe86d74fd5e9c50de5307ce2b4b35506127da$
+// $hash=af18eb91d2df837a5329c39f8f2b0a7c2518ba36$
 //
 
 #ifndef CEF_LIBCEF_DLL_CPPTOC_PREFERENCE_REGISTRAR_CPPTOC_H_
@@ -33,11 +33,21 @@ class CefPreferenceRegistrar_0_CppToC
   virtual ~CefPreferenceRegistrar_0_CppToC();
 };
 
-constexpr auto CefPreferenceRegistrarCppToC_WrapOwn = CefPreferenceRegistrar_0_CppToC::WrapOwn;
-constexpr auto CefPreferenceRegistrarCppToC_WrapRaw = CefPreferenceRegistrar_0_CppToC::WrapRaw;
-constexpr auto CefPreferenceRegistrarCppToC_UnwrapOwn = CefPreferenceRegistrar_0_CppToC::UnwrapOwn;
-constexpr auto CefPreferenceRegistrarCppToC_UnwrapRaw = CefPreferenceRegistrar_0_CppToC::UnwrapRaw;
-constexpr auto CefPreferenceRegistrarCppToC_GetWrapper = CefPreferenceRegistrar_0_CppToC::GetWrapper;
+// Wrap a C++ class with a C structure at API version 15600.
+// This class may be instantiated and accessed DLL-side only.
+class CefPreferenceRegistrar_15600_CppToC
+    : public CefCppToCScoped<CefPreferenceRegistrar_15600_CppToC, CefPreferenceRegistrar, cef_preference_registrar_15600_t> {
+ public:
+  CefPreferenceRegistrar_15600_CppToC();
+  virtual ~CefPreferenceRegistrar_15600_CppToC();
+};
+
+// Helpers to return objects at the globally configured API version.
+cef_preference_registrar_0_t* CefPreferenceRegistrarCppToC_WrapOwn(CefOwnPtr<CefPreferenceRegistrar> c);
+std::pair<CefOwnPtr<CefBaseScoped>, cef_preference_registrar_0_t*> CefPreferenceRegistrarCppToC_WrapRaw(CefRawPtr<CefPreferenceRegistrar> c);
+CefOwnPtr<CefPreferenceRegistrar> CefPreferenceRegistrarCppToC_UnwrapOwn(cef_preference_registrar_0_t* s);
+CefRawPtr<CefPreferenceRegistrar> CefPreferenceRegistrarCppToC_UnwrapRaw(cef_preference_registrar_0_t* s);
+CefBaseScoped* CefPreferenceRegistrarCppToC_GetWrapper(cef_preference_registrar_0_t* s);
 
 inline cef_preference_registrar_0_t* CefPreferenceRegistrarCppToC_WrapRawAndRelease(CefRawPtr<CefPreferenceRegistrar> c) {
   auto [ownerPtr, structPtr] = CefPreferenceRegistrarCppToC_WrapRaw(c);

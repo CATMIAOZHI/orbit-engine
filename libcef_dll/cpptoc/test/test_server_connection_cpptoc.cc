@@ -9,13 +9,37 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=f8d8c1ead3291f9caced9e13be964b1f3dffa532$
+// $hash=f94913bf26afaa38a4aa828f54163e383f807392$
 //
 
 #include "include/cef_api_hash.h"
 #include "libcef_dll/cpptoc/test/test_server_connection_cpptoc.h"
 #include "libcef_dll/shutdown_checker.h"
 #include "libcef_dll/transfer_util.h"
+
+// HELPER FUNCTIONS - Do not edit by hand.
+
+cef_test_server_connection_0_t* CefTestServerConnectionCppToC_Wrap(CefRefPtr<CefTestServerConnection> c) {
+  const int version = cef_api_version();
+  if (version >= 15100) {
+    return reinterpret_cast<cef_test_server_connection_0_t*>(CefTestServerConnection_15100_CppToC::Wrap(c));
+  }
+  if (version >= 0) {
+    return CefTestServerConnection_0_CppToC::Wrap(c);
+  }
+  NOTREACHED() << __func__ << " called with invalid version " << version;
+}
+
+CefRefPtr<CefTestServerConnection> CefTestServerConnectionCppToC_Unwrap(cef_test_server_connection_0_t* s) {
+  const int version = cef_api_version();
+  if (version >= 15100) {
+    return CefTestServerConnection_15100_CppToC::Unwrap(reinterpret_cast<cef_test_server_connection_15100_t*>(s));
+  }
+  if (version >= 0) {
+    return CefTestServerConnection_0_CppToC::Unwrap(s);
+  }
+  NOTREACHED() << __func__ << " called with invalid version " << version;
+}
 
 namespace {
 
@@ -122,7 +146,7 @@ void CEF_CALLBACK test_server_connection_send_http_response(struct _cef_test_ser
 
 CefTestServerConnection_0_CppToC::CefTestServerConnection_0_CppToC() {
   const int version = cef_api_version();
-  LOG_IF(FATAL, version < 0) << __func__ << " called with invalid version " << version;
+  LOG_IF(FATAL, version < 0 || version >= 15100) << __func__ << " called with invalid version " << version;
 
   GetStruct()->send_http200_response = test_server_connection_send_http200_response;
   GetStruct()->send_http404_response = test_server_connection_send_http404_response;
@@ -141,5 +165,155 @@ template<> CefRefPtr<CefTestServerConnection> CefCppToCRefCounted<CefTestServerC
 }
 
 template<> CefWrapperType CefCppToCRefCounted<CefTestServerConnection_0_CppToC, CefTestServerConnection, cef_test_server_connection_0_t>::kWrapperType = WT_TEST_SERVER_CONNECTION;
+
+namespace {
+
+// MEMBER FUNCTIONS FOR VERSION 15100 - Body may be edited by hand.
+
+void CEF_CALLBACK test_server_connection_send_http200_response_15100(struct _cef_test_server_connection_15100_t* self, const cef_string_t* content_type, const void* data, size_t data_size) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return;
+  }
+  // Verify param: content_type; type: string_byref_const
+  DCHECK(content_type);
+  if (!content_type) {
+    return;
+  }
+  // Verify param: data; type: simple_byaddr
+  DCHECK(data);
+  if (!data) {
+    return;
+  }
+
+  // Execute
+  CefTestServerConnection_15100_CppToC::Get(self)->SendHttp200Response(
+      CefString(content_type),
+      data,
+      data_size);
+}
+
+void CEF_CALLBACK test_server_connection_send_http404_response_15100(struct _cef_test_server_connection_15100_t* self) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return;
+  }
+
+  // Execute
+  CefTestServerConnection_15100_CppToC::Get(self)->SendHttp404Response();
+}
+
+void CEF_CALLBACK test_server_connection_send_http500_response_15100(struct _cef_test_server_connection_15100_t* self, const cef_string_t* error_message) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return;
+  }
+  // Verify param: error_message; type: string_byref_const
+  DCHECK(error_message);
+  if (!error_message) {
+    return;
+  }
+
+  // Execute
+  CefTestServerConnection_15100_CppToC::Get(self)->SendHttp500Response(
+      CefString(error_message));
+}
+
+void CEF_CALLBACK test_server_connection_send_http_response_15100(struct _cef_test_server_connection_15100_t* self, int response_code, const cef_string_t* content_type, const void* data, size_t data_size, cef_string_multimap_t extra_headers) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return;
+  }
+  // Verify param: content_type; type: string_byref_const
+  DCHECK(content_type);
+  if (!content_type) {
+    return;
+  }
+  // Verify param: data; type: simple_byaddr
+  DCHECK(data);
+  if (!data) {
+    return;
+  }
+  // Unverified params: extra_headers
+
+  // Translate param: extra_headers; type: string_map_multi_byref_const
+  std::multimap<CefString, CefString> extra_headersMultimap;
+  transfer_string_multimap_contents(extra_headers, extra_headersMultimap);
+
+  // Execute
+  CefTestServerConnection_15100_CppToC::Get(self)->SendHttpResponse(
+      response_code,
+      CefString(content_type),
+      data,
+      data_size,
+      extra_headersMultimap);
+}
+
+void CEF_CALLBACK test_server_connection_send_http_response_with_raw_headers_15100(struct _cef_test_server_connection_15100_t* self, const void* header_data, size_t header_data_size, const void* response_data, size_t response_data_size) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return;
+  }
+  // Verify param: header_data; type: simple_byaddr
+  DCHECK(header_data);
+  if (!header_data) {
+    return;
+  }
+  // Unverified params: response_data
+
+  // Execute
+  CefTestServerConnection_15100_CppToC::Get(self)->SendHttpResponseWithRawHeaders(
+      header_data,
+      header_data_size,
+      response_data,
+      response_data_size);
+}
+
+}  // namespace
+
+// CONSTRUCTOR FOR VERSION 15100 - Do not edit by hand.
+
+CefTestServerConnection_15100_CppToC::CefTestServerConnection_15100_CppToC() {
+  const int version = cef_api_version();
+  LOG_IF(FATAL, version < 15100) << __func__ << " called with invalid version " << version;
+
+  GetStruct()->send_http200_response = test_server_connection_send_http200_response_15100;
+  GetStruct()->send_http404_response = test_server_connection_send_http404_response_15100;
+  GetStruct()->send_http500_response = test_server_connection_send_http500_response_15100;
+  GetStruct()->send_http_response = test_server_connection_send_http_response_15100;
+  GetStruct()->send_http_response_with_raw_headers = test_server_connection_send_http_response_with_raw_headers_15100;
+}
+
+// DESTRUCTOR FOR VERSION 15100 - Do not edit by hand.
+
+CefTestServerConnection_15100_CppToC::~CefTestServerConnection_15100_CppToC() {
+  shutdown_checker::AssertNotShutdown();
+}
+
+template<> CefRefPtr<CefTestServerConnection> CefCppToCRefCounted<CefTestServerConnection_15100_CppToC, CefTestServerConnection, cef_test_server_connection_15100_t>::UnwrapDerived(CefWrapperType type, cef_test_server_connection_15100_t* s) {
+  NOTREACHED() << __func__ << " called with unexpected class type " << type;
+}
+
+template<> CefWrapperType CefCppToCRefCounted<CefTestServerConnection_15100_CppToC, CefTestServerConnection, cef_test_server_connection_15100_t>::kWrapperType = WT_TEST_SERVER_CONNECTION;
 
 

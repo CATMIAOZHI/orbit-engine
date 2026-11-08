@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=66f12071a9d5ee28ca8de68cf3e13b26ce94c95d$
+// $hash=ce119e01e2ae6fe23956e8eb03f9a3e855985f62$
 //
 
 
@@ -146,10 +146,18 @@ decltype(&cef_post_delayed_task) cef_post_delayed_task;
 decltype(&cef_begin_tracing) cef_begin_tracing;
 decltype(&cef_end_tracing) cef_end_tracing;
 decltype(&cef_now_from_system_trace_time) cef_now_from_system_trace_time;
+#if CEF_API_REMOVED(15400)
 decltype(&cef_register_extension) cef_register_extension;
+#endif
 decltype(&cef_execute_java_script_with_user_gesture_for_tests) cef_execute_java_script_with_user_gesture_for_tests;
 decltype(&cef_set_data_directory_for_tests) cef_set_data_directory_for_tests;
 decltype(&cef_is_feature_enabled_for_tests) cef_is_feature_enabled_for_tests;
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+decltype(&cef_get_chrome_browser_owned_widget_count_for_tests) cef_get_chrome_browser_owned_widget_count_for_tests;
+#endif
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+decltype(&cef_clear_chrome_browser_password_dismissal_stats_for_tests) cef_clear_chrome_browser_password_dismissal_stats_for_tests;
+#endif
 decltype(&cef_browser_host_create_browser) cef_browser_host_create_browser;
 decltype(&cef_browser_host_create_browser_sync) cef_browser_host_create_browser_sync;
 decltype(&cef_browser_host_get_browser_by_identifier) cef_browser_host_get_browser_by_identifier;
@@ -301,6 +309,7 @@ decltype(&cef_id_for_pack_resource_name) cef_id_for_pack_resource_name;
 decltype(&cef_id_for_pack_string_name) cef_id_for_pack_string_name;
 decltype(&cef_id_for_command_id_name) cef_id_for_command_id_name;
 decltype(&cef_version_info) cef_version_info;
+decltype(&cef_version_full) cef_version_full;
 decltype(&cef_version_info_all) cef_version_info_all;
 decltype(&cef_dump_without_crashing) cef_dump_without_crashing;
 decltype(&cef_dump_without_crashing_unthrottled) cef_dump_without_crashing_unthrottled;
@@ -431,10 +440,18 @@ INIT_ENTRY(cef_post_delayed_task);
 INIT_ENTRY(cef_begin_tracing);
 INIT_ENTRY(cef_end_tracing);
 INIT_ENTRY(cef_now_from_system_trace_time);
+#if CEF_API_REMOVED(15400)
 INIT_ENTRY(cef_register_extension);
+#endif
 INIT_ENTRY(cef_execute_java_script_with_user_gesture_for_tests);
 INIT_ENTRY(cef_set_data_directory_for_tests);
 INIT_ENTRY(cef_is_feature_enabled_for_tests);
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+INIT_ENTRY(cef_get_chrome_browser_owned_widget_count_for_tests);
+#endif
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+INIT_ENTRY(cef_clear_chrome_browser_password_dismissal_stats_for_tests);
+#endif
 INIT_ENTRY(cef_browser_host_create_browser);
 INIT_ENTRY(cef_browser_host_create_browser_sync);
 INIT_ENTRY(cef_browser_host_get_browser_by_identifier);
@@ -586,6 +603,7 @@ INIT_ENTRY(cef_id_for_pack_resource_name);
 INIT_ENTRY(cef_id_for_pack_string_name);
 INIT_ENTRY(cef_id_for_command_id_name);
 INIT_ENTRY(cef_version_info);
+INIT_ENTRY(cef_version_full);
 INIT_ENTRY(cef_version_info_all);
 INIT_ENTRY(cef_dump_without_crashing);
 INIT_ENTRY(cef_dump_without_crashing_unthrottled);
@@ -892,9 +910,11 @@ NO_SANITIZE("cfi-icall") int64_t cef_now_from_system_trace_time() {
   return g_libcef_pointers.cef_now_from_system_trace_time();
 }
 
+#if CEF_API_REMOVED(15400)
 NO_SANITIZE("cfi-icall") int cef_register_extension(const cef_string_t* extension_name, const cef_string_t* javascript_code, struct _cef_v8_handler_t* handler) {
   return g_libcef_pointers.cef_register_extension(extension_name, javascript_code, handler);
 }
+#endif
 
 NO_SANITIZE("cfi-icall") void cef_execute_java_script_with_user_gesture_for_tests(struct _cef_frame_t* frame, const cef_string_t* javascript) {
   g_libcef_pointers.cef_execute_java_script_with_user_gesture_for_tests(frame, javascript);
@@ -907,6 +927,18 @@ NO_SANITIZE("cfi-icall") void cef_set_data_directory_for_tests(const cef_string_
 NO_SANITIZE("cfi-icall") int cef_is_feature_enabled_for_tests(const cef_string_t* feature_name) {
   return g_libcef_pointers.cef_is_feature_enabled_for_tests(feature_name);
 }
+
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+NO_SANITIZE("cfi-icall") int cef_get_chrome_browser_owned_widget_count_for_tests(struct _cef_browser_t* browser) {
+  return g_libcef_pointers.cef_get_chrome_browser_owned_widget_count_for_tests(browser);
+}
+#endif
+
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+NO_SANITIZE("cfi-icall") void cef_clear_chrome_browser_password_dismissal_stats_for_tests(struct _cef_browser_t* browser, const cef_string_t* origin, struct _cef_completion_callback_t* callback) {
+  g_libcef_pointers.cef_clear_chrome_browser_password_dismissal_stats_for_tests(browser, origin, callback);
+}
+#endif
 
 NO_SANITIZE("cfi-icall") int cef_browser_host_create_browser(const struct _cef_window_info_t* windowInfo, struct _cef_client_t* client, const cef_string_t* url, const struct _cef_browser_settings_t* settings, struct _cef_dictionary_value_t* extra_info, struct _cef_request_context_t* request_context) {
   return g_libcef_pointers.cef_browser_host_create_browser(windowInfo, client, url, settings, extra_info, request_context);
@@ -1396,6 +1428,10 @@ NO_SANITIZE("cfi-icall") int cef_id_for_command_id_name(const char* name) {
 
 NO_SANITIZE("cfi-icall") int cef_version_info(int entry) {
   return g_libcef_pointers.cef_version_info(entry);
+}
+
+NO_SANITIZE("cfi-icall") const char* cef_version_full() {
+  return g_libcef_pointers.cef_version_full();
 }
 
 NO_SANITIZE("cfi-icall") void cef_version_info_all(cef_version_info_t* info) {
