@@ -18,6 +18,15 @@ in the internal FEATURE-NNN.md working docs (not published).
 ## [Unreleased]
 
 ### Changed
+- **The SDK is published as modules.** `cefrium-sdk-core` holds the Java API,
+  resources and assets; `cefrium-native-codecs-<abi>` and
+  `cefrium-native-libre-<abi>` each hold one `libcef.so`. `cefrium-sdk` and
+  `cefrium-sdk-libre` stay the coordinates to depend on: they bring the core
+  and that flavour's engine for every ABI, so a Maven build changes nothing.
+  The single-file AARs are on the Codeberg release page, for apps that add the
+  SDK as a file.
+- The Gradle plugin stops a build that packages arm64-v8a or x86_64 without
+  that ABI's `libcef.so`, which would fail at start on those devices.
 - **Call `CefriumBrowser` on the main thread.** Every method now throws
   `IllegalStateException` on another thread, as Android WebView does, except
   `executeDevToolsMethod`, which posts itself. Off the main thread a call
