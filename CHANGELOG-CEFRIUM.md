@@ -18,6 +18,13 @@ in the internal FEATURE-NNN.md working docs (not published).
 ## [Unreleased]
 
 ### Changed
+- **Call `CefriumBrowser` on the main thread.** Every method now throws
+  `IllegalStateException` on another thread, as Android WebView does, except
+  `executeDevToolsMethod`, which posts itself. Off the main thread a call
+  raced the engine: `onPause`, `onResume`, `suspendMedia`, `resumeMedia` and
+  `stopMediaSession` crashed the app, and others could.
+- A method called after `close()` does nothing and logs a warning, instead of
+  reaching the engine while the browser closes.
 - `setUserAgentOverride` and `setJavaScriptEnabled` are now browser settings,
   as in Android WebView, instead of DevTools emulation. The User-Agent holds
   for every later navigation, including the ones a page starts.
