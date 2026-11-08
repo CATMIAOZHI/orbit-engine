@@ -82,7 +82,7 @@ fun CefriumView(
 
     val browser = remember(state) {
         state.getOrCreateBrowser(activity).also { b ->
-            navigator.state = state
+            navigator.bind(state)
             // JS bridge opt-in: window.cefriumQuery is handled only if the host
             // provides a bridge. Without it, queries fail with -1 --
             // a deliberate security default (the bridge is off unless asked for).
