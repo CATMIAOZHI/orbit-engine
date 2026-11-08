@@ -40,7 +40,9 @@ if [ -z "${GRADLE:-}" ]; then
   fi
 fi
 : "${GRADLE:?no gradle found: install gradle, set GRADLE, or keep a cefrium-sample/*/gradlew}"
-REPO="https://codeberg.org/api/packages/cefrium/maven"
+# CEFRIUM_MAVEN_URL points at a staged repository (file://...) instead, to
+# check a release before it is published (publish-maven.sh CEFRIUM_MAVEN_DIR).
+REPO="${CEFRIUM_MAVEN_URL:-https://codeberg.org/api/packages/cefrium/maven}"
 : "${JAVA_HOME:?set JAVA_HOME to a JDK 21 (Android Studio JBR)}"
 : "${ANDROID_HOME:?set ANDROID_HOME to the Android SDK}"
 
@@ -203,7 +205,7 @@ echo "==> Building the consumer app against the published registry artifacts..."
 # this smoke test resolves the STALE cached aar and false-fails (or false-passes).
 # Force a re-fetch so the test always validates exactly what the registry serves.
 if "$GRADLE" -p "$WORK" :app:assembleDebug --no-daemon --console=plain --refresh-dependencies; then
-  echo "==> PASS: $ARTIFACT $VERSION resolves and assembles from the Codeberg Maven registry."
+  echo "==> PASS: $ARTIFACT $VERSION resolves and assembles from $REPO."
 else
   echo "==> FAIL: $ARTIFACT $VERSION is NOT consumable from the registry (corrupt/missing artifacts, or API mismatch)."
   echo "    Do not announce this release until it builds here."

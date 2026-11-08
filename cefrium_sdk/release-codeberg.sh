@@ -58,6 +58,15 @@ if [ -f cefrium-sdk-libre.aar ]; then
   cp -f cefrium-sdk-libre.aar "cefrium-sdk-libre-$VERSION.aar"
   SUM_FILES="$SUM_FILES cefrium-sdk-libre-$VERSION.aar"
 fi
+# The modules Maven serves, under their Maven names, so the signed SUMS attest
+# the bytes an app resolves (verify-central-provenance.sh checks them).
+if [ -f modular/coordinates.tsv ]; then
+  while IFS=$'\t' read -r art packaging file desc deps; do
+    [ "$file" = "-" ] && continue
+    cp -f "modular/$file" "$art-$VERSION.aar"
+    SUM_FILES="$SUM_FILES $art-$VERSION.aar"
+  done < modular/coordinates.tsv
+fi
 [ -f "$COMPOSE_AAR" ] && { cp -f "$COMPOSE_AAR" "cefrium-compose-$VERSION.aar"; SUM_FILES="$SUM_FILES cefrium-compose-$VERSION.aar"; }
 [ -f "$UNIFIEDPUSH_AAR" ] && { cp -f "$UNIFIEDPUSH_AAR" "cefrium-unifiedpush-$VERSION.aar"; SUM_FILES="$SUM_FILES cefrium-unifiedpush-$VERSION.aar"; }
 # The supply-chain disclosure goes INSIDE the signed manifest. An SBOM that
@@ -112,6 +121,12 @@ upload_asset() {
 }
 upload_asset "$REL_DIR/$SUMS"
 upload_asset "$REL_DIR/$SUMS.asc"
+# The single-file AARs, for apps that add the SDK as a file. Maven serves the
+# SDK as modules (core + one native per flavour and ABI), so this is where the
+# whole AAR lives.
+for fat in "cefrium-sdk-$VERSION.aar" "cefrium-sdk-libre-$VERSION.aar"; do
+  [ -f "$REL_DIR/$fat" ] && upload_asset "$REL_DIR/$fat"
+done
 # Supply-chain disclosure. The SBOM names the embedded engine version (one
 # package, no CPE -- see generate-sbom.sh for why), and the NOTICE lists every
 # bundled third-party licence, which is the one real finding against us in

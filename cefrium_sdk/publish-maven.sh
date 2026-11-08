@@ -14,21 +14,29 @@
 set -e
 
 VERSION="${1:?Usage: $0 <version>}"
-TOKEN_FILE="${CEFRIUM_REGISTRY_TOKEN:?set CEFRIUM_REGISTRY_TOKEN to the file holding your registry token (see your local setup notes)}"
+if [ -z "${CEFRIUM_MAVEN_DIR:-}" ]; then
+  TOKEN_FILE="${CEFRIUM_REGISTRY_TOKEN:?set CEFRIUM_REGISTRY_TOKEN to the file holding your registry token (see your local setup notes)}"
+fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-RELEASE_DIR="$(cd "$SCRIPT_DIR/../../out/release" && pwd)"
+RELEASE_DIR="${CEFRIUM_RELEASE_DIR:-$(cd "$SCRIPT_DIR/../../out/release" && pwd)}"
 # Compose AAR is built by the self-contained module at cef/cefrium_compose
 # (relocated out of cefrium-sample; see CLAUDE.md).
 COMPOSE_AAR="$(cd "$(dirname "$0")/.." && pwd)/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar"
 UNIFIEDPUSH_AAR="$(cd "$(dirname "$0")/.." && pwd)/cefrium_unifiedpush/build/outputs/aar/cefrium-unifiedpush-release.aar"
 BASE_URL="https://codeberg.org/api/packages/cefrium/maven"
 
-if [ ! -f "$TOKEN_FILE" ]; then
+# CEFRIUM_MAVEN_DIR=<dir> writes the same files in Maven layout under <dir>
+# instead of uploading: a consumer build against file://<dir> proves the
+# release resolves before anything immutable is published.
+LOCAL_DIR="${CEFRIUM_MAVEN_DIR:-}"
+
+if [ -z "$LOCAL_DIR" ] && [ ! -f "$TOKEN_FILE" ]; then
   echo "ERROR: Token not found at $TOKEN_FILE"
   echo "Create one at: Codeberg -> Settings -> Applications -> Generate Token (package scope)"
   exit 1
 fi
 
+if [ -z "$LOCAL_DIR" ]; then
 TOKEN=$(cat "$TOKEN_FILE")
 
 # Keep the token OUT of argv (and thus `ps`/process listings): instead of
@@ -40,6 +48,7 @@ chmod 600 "$CURL_AUTH_CFG"
 printf 'header = "Authorization: token %s"\n' "$TOKEN" > "$CURL_AUTH_CFG"
 trap 'rm -f "$CURL_AUTH_CFG"' EXIT
 unset TOKEN  # no longer needed; header now lives only in the 0600 config file
+fi
 
 # DEP-8-style integrity gate: re-fetch a just-published artifact and confirm it is
 # what a consumer will actually download -- not a multipart envelope, an HTML error
@@ -99,6 +108,12 @@ upload() {
   local artifact="$1"
   local file="$2"
   local ext="${file##*.}"
+  if [ -n "$LOCAL_DIR" ]; then
+    mkdir -p "$LOCAL_DIR/com/cefrium/$artifact/$VERSION"
+    cp "$file" "$LOCAL_DIR/com/cefrium/$artifact/$VERSION/$artifact-$VERSION.$ext"
+    echo "  Wrote $artifact-$VERSION.$ext"
+    return 0
+  fi
   local url="$BASE_URL/com/cefrium/$artifact/$VERSION/$artifact-$VERSION.$ext"
 
   echo "  Uploading $artifact-$VERSION.$ext ($(du -h "$file" | cut -f1))"
@@ -173,6 +188,7 @@ generate_pom() {
   local artifact="$1"
   local desc="$2"
   local deps="$3"
+  local packaging="${4:-aar}"
   local pom_file="/tmp/cefrium-publish-$artifact-$VERSION.pom"
 
   cat > "$pom_file" << EOF
@@ -184,7 +200,7 @@ generate_pom() {
   <groupId>com.cefrium</groupId>
   <artifactId>$artifact</artifactId>
   <version>$VERSION</version>
-  <packaging>aar</packaging>
+  <packaging>$packaging</packaging>
   <name>$artifact</name>
   <description>$desc</description>
   <properties>
@@ -218,23 +234,32 @@ echo ""
 # only the device's ABI -- so a single coordinate works on arm64 and x86_64.
 
 published_any=0
-for artifact in cefrium-sdk cefrium-sdk-libre; do
-  aar="$RELEASE_DIR/$artifact.aar"
-  if [ ! -f "$aar" ]; then
-    echo "skip $artifact (not built)"
-    continue
-  fi
-  echo "Publishing $artifact (multi-ABI)..."
-  # pom-deps.txt plus the Maven libraries the AAR does not vendor, read from
-  # this AAR so the POM matches its bytes (maven_vendored.py).
-  libs="$(python3 "$SCRIPT_DIR/maven_vendored.py" --pom "$aar")" || { echo "ERROR: no dependency list in $aar" >&2; exit 1; }
-  pom=$(generate_pom "$artifact" "Cefrium SDK -- CEF for Android (multi-ABI). Embeds Chromium $CHROMIUM_VERSION." "$(printf '  <dependencies>\n%s\n  </dependencies>' "$libs")")
-  upload "$artifact" "$pom"
-  upload "$artifact" "$aar"
-  rm -f "$pom"
-  published_any=1
-  echo ""
-done
+# The SDK ships as modules (modular_artifacts.py, run by the cut's merge
+# phase): cefrium-sdk-core, one cefrium-native-<flavour>-<abi> per library,
+# and cefrium-sdk / cefrium-sdk-libre as POMs that pull them in.
+MODULES="$RELEASE_DIR/modular"
+if [ -f "$MODULES/coordinates.tsv" ]; then
+  while IFS=$'\t' read -r artifact packaging file desc deps; do
+    echo "Publishing $artifact ($packaging)..."
+    xml=""
+    for d in $deps; do
+      if [ "$d" = MAVEN ]; then
+        libs="$(python3 "$SCRIPT_DIR/maven_vendored.py" --pom "$RELEASE_DIR/cefrium-sdk.aar")" \
+          || { echo "ERROR: no dependency list in $RELEASE_DIR/cefrium-sdk.aar" >&2; exit 1; }
+        xml+="$libs"$'\n'
+      else
+        xml+="    <dependency><groupId>com.cefrium</groupId><artifactId>$d</artifactId><version>$VERSION</version><type>aar</type></dependency>"$'\n'
+      fi
+    done
+    pom=$(generate_pom "$artifact" "$desc Embeds Chromium $CHROMIUM_VERSION." \
+      "$(printf '  <dependencies>\n%s  </dependencies>' "$xml")" "$packaging")
+    upload "$artifact" "$pom"
+    [ "$file" != "-" ] && upload "$artifact" "$MODULES/$file"
+    rm -f "$pom"
+    published_any=1
+    echo ""
+  done < "$MODULES/coordinates.tsv"
+fi
 if [ "$published_any" != "1" ]; then
   echo "ERROR: no multi-ABI cefrium-sdk.aar / cefrium-sdk-libre.aar in '$RELEASE_DIR'." >&2
   echo "       Run build-all-variants.sh then merge-multiabi.sh first." >&2
@@ -329,6 +354,7 @@ echo ""
 # cefrium-sdk-libre -- distinct artifacts, and the FOSS audience uses libre.
 # Override for a single-variant publish (no libre): CEFRIUM_SMOKE_VARIANTS="cefrium-sdk".
 SMOKE_VARIANTS="${CEFRIUM_SMOKE_VARIANTS:-cefrium-sdk cefrium-sdk-libre}"
+[ -n "$LOCAL_DIR" ] && export CEFRIUM_MAVEN_URL="file://$(cd "$LOCAL_DIR" && pwd)"
 if [ "${CEFRIUM_SKIP_SMOKE_TEST:-0}" = "1" ]; then
   echo "Smoke test skipped (CEFRIUM_SKIP_SMOKE_TEST=1). Run it before announcing:"
   for art in $SMOKE_VARIANTS; do
