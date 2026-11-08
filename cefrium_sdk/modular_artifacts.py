@@ -36,15 +36,21 @@ FLAVOURS = {'codecs': 'cefrium-sdk', 'libre': 'cefrium-sdk-libre'}
 
 
 def build_id(elf):
-    """The GNU build-id of a 64-bit little-endian ELF image, in hex."""
-    shoff, = struct.unpack_from('<Q', elf, 0x28)
-    shentsize, shnum = struct.unpack_from('<HH', elf, 0x3A)
+    """The GNU build-id of a little-endian ELF image (32- or 64-bit), in hex."""
+    if elf[4] == 2:  # ELFCLASS64
+        shoff, = struct.unpack_from('<Q', elf, 0x28)
+        shentsize, shnum = struct.unpack_from('<HH', elf, 0x3A)
+        section = '<QQ', 0x18
+    else:
+        shoff, = struct.unpack_from('<I', elf, 0x20)
+        shentsize, shnum = struct.unpack_from('<HH', elf, 0x2E)
+        section = '<II', 0x10
     for i in range(shnum):
         sh = shoff + i * shentsize
         sh_type, = struct.unpack_from('<I', elf, sh + 4)
         if sh_type != 7:  # SHT_NOTE
             continue
-        off, size = struct.unpack_from('<QQ', elf, sh + 0x18)
+        off, size = struct.unpack_from(section[0], elf, sh + section[1])
         pos = off
         while pos < off + size:
             namesz, descsz, ntype = struct.unpack_from('<III', elf, pos)
