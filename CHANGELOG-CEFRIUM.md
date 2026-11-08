@@ -15,6 +15,20 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [Unreleased]
+
+### Changed
+- `setUserAgentOverride` and `setJavaScriptEnabled` are now browser settings,
+  as in Android WebView, instead of DevTools emulation. The User-Agent holds
+  for every later navigation, including the ones a page starts.
+
+### Fixed
+- Configuration called right after the off-screen constructor, before the
+  browser exists, applies from the first page: `setUserAgentOverride`,
+  `setJavaScriptEnabled` and `setContentSetting` were dropped without a
+  word, and `executeDevToolsMethod` failed with "the browser does not exist
+  yet". DevTools calls made then run once the first page has committed.
+
 ## [0.18.0] - 2026-11-07
 
 ### Added
