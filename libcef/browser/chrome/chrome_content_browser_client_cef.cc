@@ -231,6 +231,19 @@ bool ApplyAutoplayPolicy(const CefBrowserHostBase& browser,
   return changed;
 }
 
+// Same as Android WebView's setJavaScriptEnabled. Returns whether it changed
+// `prefs`.
+bool ApplyJavaScriptEnabled(const CefBrowserHostBase& browser,
+                            blink::web_pref::WebPreferences* prefs) {
+  if (!browser.javascript_enabled().has_value()) {
+    return false;
+  }
+  const bool enabled = browser.javascript_enabled().value();
+  const bool changed = prefs->javascript_enabled != enabled;
+  prefs->javascript_enabled = enabled;
+  return changed;
+}
+
 }  // namespace
 
 ChromeContentBrowserClientCef::ChromeContentBrowserClientCef() = default;
@@ -514,6 +527,7 @@ bool ChromeContentBrowserClientCef::OverrideWebPreferencesAfterNavigation(
           web_contents, main_frame_site, prefs);
   if (auto browser = CefBrowserHostBase::GetBrowserForContents(web_contents)) {
     changed |= ApplyAutoplayPolicy(*browser, prefs);
+    changed |= ApplyJavaScriptEnabled(*browser, prefs);
   }
   return changed;
 }
@@ -560,6 +574,7 @@ void ChromeContentBrowserClientCef::OverrideWebPreferences(
     }
 
     ApplyAutoplayPolicy(*browser, prefs);
+    ApplyJavaScriptEnabled(*browser, prefs);
 
     // Set the background color for the WebView.
     base_background_color = browser->GetBackgroundColor();

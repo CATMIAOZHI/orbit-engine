@@ -41,6 +41,7 @@
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents.h"
+#include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/shell_dialogs/select_file_policy.h"
@@ -1048,6 +1049,43 @@ void CefBrowserHostBase::SetMediaPlaybackRequiresUserGesture(
   media_playback_requires_user_gesture_ = required;
   if (auto* web_contents = GetWebContents()) {
     web_contents->OnWebPreferencesChanged();
+  }
+}
+
+void CefBrowserHostBase::SetJavaScriptEnabled(std::optional<bool> enabled) {
+  if (!CEF_CURRENTLY_ON_UIT()) {
+    CEF_POST_TASK(CEF_UIT,
+                  base::BindOnce(&CefBrowserHostBase::SetJavaScriptEnabled,
+                                 this, enabled));
+    return;
+  }
+
+  javascript_enabled_ = enabled;
+  if (auto* web_contents = GetWebContents()) {
+    web_contents->OnWebPreferencesChanged();
+  }
+}
+
+void CefBrowserHostBase::SetUserAgentOverride(const std::string& user_agent) {
+  if (!CEF_CURRENTLY_ON_UIT()) {
+    CEF_POST_TASK(CEF_UIT,
+                  base::BindOnce(&CefBrowserHostBase::SetUserAgentOverride,
+                                 this, user_agent));
+    return;
+  }
+
+  auto* web_contents = GetWebContents();
+  if (!web_contents) {
+    return;
+  }
+  const bool overriding = !user_agent.empty();
+  // Navigations a page starts read the WebContents flag; loads from the app
+  // inherit it from the current entry.
+  web_contents->SetUserAgentOverride(
+      blink::UserAgentOverride::UserAgentOnly(user_agent),
+      /*override_in_new_tabs=*/overriding);
+  if (auto* entry = web_contents->GetController().GetLastCommittedEntry()) {
+    entry->SetIsOverridingUserAgent(overriding);
   }
 }
 
