@@ -51,6 +51,39 @@ class CefriumComposeViewTest {
      * browser had been closed on detach, getOrCreateBrowser would hand back a
      * different instance on re-attach.
      */
+    /**
+     * FEATURE-084: a navigator call made before CefriumView has a browser used
+     * to be dropped; it now runs once the view binds one. Off the main thread
+     * the navigator throws, as CefriumBrowser does.
+     */
+    @Test
+    fun navigatorCallBeforeTheViewRunsOnceItExists() {
+        val server = com.cefrium.itest.LocalHttpServer("<title>queued</title>")
+        try {
+            val state = CefriumViewState("about:blank")
+            val navigator = CefriumNavigator()
+            composeRule.runOnUiThread { navigator.loadUrl(server.url()) }
+            composeRule.setContent {
+                CefriumView(state = state, modifier = Modifier, navigator = navigator)
+            }
+            composeRule.waitUntil(20_000) { state.pageTitle == "queued" }
+            var thrown: Throwable? = null
+            val t = Thread {
+                try {
+                    navigator.reload()
+                } catch (e: Throwable) {
+                    thrown = e
+                }
+            }
+            t.start()
+            t.join()
+            Assert.assertTrue("thrown=$thrown", thrown is IllegalStateException)
+            composeRule.runOnUiThread { state.close() }
+        } finally {
+            server.close()
+        }
+    }
+
     @Test
     fun stateKeepsBrowserAliveAcrossDetach() {
         // Caller-managed state (constructed directly), so the test controls
