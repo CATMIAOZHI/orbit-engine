@@ -420,6 +420,15 @@ class CefBrowserHostBase : public CefBrowserHost,
   }
   void SetMediaPlaybackRequiresUserGesture(std::optional<bool> required);
 
+  // Runtime override for JavaScript, the Android WebView setting of the same
+  // name. nullopt = CefBrowserSettings.javascript.
+  std::optional<bool> javascript_enabled() const { return javascript_enabled_; }
+  void SetJavaScriptEnabled(std::optional<bool> enabled);
+
+  // The User-Agent string of this browser, as Android WebView's
+  // setUserAgentString. Empty restores the default.
+  void SetUserAgentOverride(const std::string& user_agent);
+
   // Returns true if windowless rendering is enabled.
   virtual bool IsWindowless() const = 0;
 
@@ -560,6 +569,7 @@ class CefBrowserHostBase : public CefBrowserHost,
   // Runtime override for the web content's prefers-color-scheme.
   std::optional<bool> preferred_color_scheme_dark_;
   std::optional<bool> media_playback_requires_user_gesture_;
+  std::optional<bool> javascript_enabled_;
 
  private:
   IMPLEMENT_REFCOUNTING(CefBrowserHostBase);
