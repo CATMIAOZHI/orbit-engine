@@ -89,6 +89,7 @@ if [ -n "$REGISTRY_VERSION" ]; then
   echo "  published ABIs: ${abis:-none}"
   case "$abis" in *arm64-v8a*) ;; *) echo "FAIL: published AAR has no arm64-v8a"; exit 1 ;; esac
   case "$abis" in *x86_64*)    ;; *) echo "FAIL: published AAR has no x86_64 -- emulator users get UnsatisfiedLinkError"; exit 1 ;; esac
+  case "$abis" in *armeabi-v7a*) ;; *) echo "FAIL: published AAR has no armeabi-v7a -- 32-bit ARM devices get no engine"; exit 1 ;; esac
   # cefrium-unifiedpush exists from 0.15.0 on; without it unifiedpush-demo
   # fails to build, which is the loud answer for a release that should have it.
   up="https://repo1.maven.org/maven2/com/cefrium/cefrium-unifiedpush/$REGISTRY_VERSION/cefrium-unifiedpush-$REGISTRY_VERSION.aar"

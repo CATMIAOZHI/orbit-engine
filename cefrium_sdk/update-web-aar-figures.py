@@ -34,7 +34,7 @@ def measure(aar_path):
                     c["j25_chromium"] += 1
                 elif e.startswith("com/cefrium/"):
                     c["j25_cefrium"] += 1
-    for abi in ("arm64-v8a", "x86_64"):
+    for abi in ("arm64-v8a", "x86_64", "armeabi-v7a"):
         i = aar.getinfo("jni/%s/libcef.so" % abi)
         c[abi + "_raw"] = i.file_size
         c[abi + "_zip"] = i.compress_size
@@ -74,13 +74,15 @@ def main():
          r"\g<1>%s\2" % thousands(m["j25_cefrium"]), "Cefrium-owned"),
         (r"(measured on the\s+published )[0-9.]+( artifact)",
          r"\g<1>%s\2" % version, "sizes: version"),
-        (r"(<code>libcef.so</code>, uncompressed</td><td>)[0-9]+ MB(</td><td>)[0-9]+ MB",
-         r"\g<1>%s\g<2>%s" % (mb(m["arm64-v8a_raw"]), mb(m["x86_64_raw"])),
+        (r"(<code>libcef.so</code>, uncompressed</td><td>)[0-9]+ MB(</td><td>)[0-9]+ MB(</td><td>)(?:[0-9]+ MB|-)",
+         r"\g<1>%s\g<2>%s\g<3>%s" % (mb(m["arm64-v8a_raw"]), mb(m["x86_64_raw"]),
+                                     mb(m["armeabi-v7a_raw"])),
          "libcef uncompressed"),
-        (r"(Compressed inside the AAR</td><td>)[0-9]+ MB(</td><td>)[0-9]+ MB",
-         r"\g<1>%s\g<2>%s" % (mb(m["arm64-v8a_zip"]), mb(m["x86_64_zip"])),
+        (r"(Compressed inside the AAR</td><td>)[0-9]+ MB(</td><td>)[0-9]+ MB(</td><td>)(?:[0-9]+ MB|-)",
+         r"\g<1>%s\g<2>%s\g<3>%s" % (mb(m["arm64-v8a_zip"]), mb(m["x86_64_zip"]),
+                                     mb(m["armeabi-v7a_zip"])),
          "libcef compressed"),
-        (r"(holds both architectures and measures )[0-9]+ MB",
+        (r"(holds all three architectures and measures )[0-9]+ MB",
          r"\g<1>%s" % mb(m["aar"]), "AAR size"),
         (r"(the real download is about )[0-9]+ MB",
          r"\g<1>%s" % mb(m["arm64-v8a_zip"]), "download per phone"),

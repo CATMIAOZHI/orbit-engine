@@ -27,6 +27,11 @@ in the internal FEATURE-NNN.md working docs (not published).
   SDK as a file.
 - The Gradle plugin stops a build that packages arm64-v8a or x86_64 without
   that ABI's `libcef.so`, which would fail at start on those devices.
+- **32-bit ARM (armeabi-v7a).** Cefrium now runs on 32-bit ARM phones, which
+  are common in the low end on Android 10 and later. The engine is
+  `cefrium-native-<flavour>-armeabi-v7a`. It comes with `cefrium-sdk` and
+  `cefrium-sdk-libre` and is in the single-file AARs. Google Play delivers
+  each device only its own ABI.
 - On a device or emulator ABI with no engine in the APK (a 32-bit x86
   emulator image, for example), `Cefrium.initialize()` throws an
   `IllegalStateException` that names the ABI, instead of "the engine failed
