@@ -283,7 +283,7 @@ if run patches; then hdr "patches + touch"
   touch cef/libcef/browser/android/cefrium_sdk_jni.cc cef/libcef/common/chrome/chrome_main_delegate_cef.cc
 fi
 
-if run build;   then hdr "build 4 variants"
+if run build;   then hdr "build 6 variants"
   # Release builds CLEAN by default: a published, immutable artifact must be
   # reproducible from committed source, not from accumulated incremental state.
   # (After an engine bump the dirs are already fresh, so this only adds cost on a
@@ -505,6 +505,23 @@ if run suite; then hdr "instrumentation suite on device"
     echo "ERROR: the minified instrumentation suite did not pass. Nothing is published."
     echo "       Re-run it alone: cef/cefrium_sdk/run-instrumentation-suite.sh --minified"
     exit 1; }
+  # And as a 32-bit process, the armeabi-v7a engine. Needs a device that runs
+  # 32-bit apps (ro.product.cpu.abilist32 not empty); many recent arm64 phones
+  # do not, the W90 does.
+  if [ "$VARIANTS" = "all" ]; then
+    abi32="$("${ANDROID_HOME:-$PWD/third_party/android_sdk/public}/platform-tools/adb" \
+             shell getprop ro.product.cpu.abilist32 < /dev/null | tr -d '\r')"
+    case "$abi32" in
+      *armeabi-v7a*) ;;
+      *) echo "ERROR: the device runs no 32-bit ARM apps, so the armeabi-v7a engine"
+         echo "       cannot be tested. Use one that does (ANDROID_SERIAL)."
+         exit 1 ;;
+    esac
+    CEFRIUM_TEST_ABI=armeabi-v7a cef/cefrium_sdk/run-instrumentation-suite.sh || {
+      echo "ERROR: the instrumentation suite did not pass as armeabi-v7a. Nothing is published."
+      echo "       Re-run it alone: CEFRIUM_TEST_ABI=armeabi-v7a cef/cefrium_sdk/run-instrumentation-suite.sh"
+      exit 1; }
+  fi
   # Web Push through FCM, which the suite can only fake: repeated subscribe /
   # unsubscribe per profile, and two sites.
   cef/cefrium_sdk/push-e2e.sh || {

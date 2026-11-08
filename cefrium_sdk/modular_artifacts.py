@@ -63,7 +63,8 @@ def build_id(elf):
 
 def entries(aar):
     with zipfile.ZipFile(aar) as z:
-        return {i.filename: (i, z.read(i.filename)) for i in z.infolist()}
+        return {i.filename: (i, z.read(i.filename)) for i in z.infolist()
+                if not i.is_dir()}
 
 
 def write_zip(path, items):

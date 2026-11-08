@@ -104,7 +104,7 @@ class CefriumPlugin implements Plugin<Project> {
         }
 
         // The engine ships as one native module per ABI. An app that packages
-        // arm64-v8a or x86_64 without that ABI's libcef.so starts and then dies
+        // arm64-v8a, armeabi-v7a or x86_64 without that ABI's libcef.so starts and then dies
         // with UnsatisfiedLinkError there (0.9.3 shipped like that): a release
         // build stops, a debuggable one warns (a one-ABI development AAR is
         // normal there). Other ABIs come from other libraries: not ours to check.
@@ -130,7 +130,7 @@ class CefriumPlugin implements Plugin<Project> {
                         // no ndk block: every merged ABI is packaged
                     }
                     if (!filters.isEmpty()) abis.retainAll(filters)
-                    def missing = ['arm64-v8a', 'x86_64'].findAll { it in abis && !(it in engine) }
+                    def missing = ['arm64-v8a', 'armeabi-v7a', 'x86_64'].findAll { it in abis && !(it in engine) }
                     if (engine.isEmpty()) {
                         throw new org.gradle.api.GradleException(
                             "Cefrium: the app packages no libcef.so. Depend on " +
