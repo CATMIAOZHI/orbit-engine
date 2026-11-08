@@ -8,7 +8,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=2be93590a35f0c02df0946586b900f2482668bc8$
+// $hash=5fa32d63633bff061230eb3b43d06cc1bac5888b$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_CLIENT_CAPI_VERSIONS_H_
@@ -31,6 +31,7 @@
 #include "include/capi/cef_find_handler_capi_versions.h"
 #include "include/capi/cef_focus_handler_capi_versions.h"
 #include "include/capi/cef_frame_handler_capi_versions.h"
+#include "include/capi/cef_identity_request_handler_capi_versions.h"
 #include "include/capi/cef_jsdialog_handler_capi_versions.h"
 #include "include/capi/cef_keyboard_handler_capi_versions.h"
 #include "include/capi/cef_life_span_handler_capi_versions.h"
@@ -90,6 +91,7 @@ typedef struct _cef_client_999999_t {
   struct _cef_request_handler_0_t* (CEF_CALLBACK *get_request_handler)(struct _cef_client_999999_t* self);
   int (CEF_CALLBACK *on_process_message_received)(struct _cef_client_999999_t* self, struct _cef_browser_0_t* browser, struct _cef_frame_0_t* frame, cef_process_id_t source_process, struct _cef_process_message_0_t* message);
   struct _cef_device_chooser_handler_999999_t* (CEF_CALLBACK *get_device_chooser_handler)(struct _cef_client_999999_t* self);
+  struct _cef_identity_request_handler_999999_t* (CEF_CALLBACK *get_identity_request_handler)(struct _cef_client_999999_t* self);
 } cef_client_999999_t;
 
 #ifdef __cplusplus

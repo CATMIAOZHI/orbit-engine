@@ -33,7 +33,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=362b5b19e51892cc98459cac982902bc0264e442$
+// $hash=1ecf27c025e29d6e7ef464924b702cef8b516fda$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_CLIENT_CAPI_H_
@@ -56,6 +56,7 @@
 #include "include/capi/cef_find_handler_capi.h"
 #include "include/capi/cef_focus_handler_capi.h"
 #include "include/capi/cef_frame_handler_capi.h"
+#include "include/capi/cef_identity_request_handler_capi.h"
 #include "include/capi/cef_jsdialog_handler_capi.h"
 #include "include/capi/cef_keyboard_handler_capi.h"
 #include "include/capi/cef_life_span_handler_capi.h"
@@ -195,6 +196,14 @@ typedef struct _cef_client_t {
   /// requests are cancelled.
   ///
   struct _cef_device_chooser_handler_t* (CEF_CALLBACK *get_device_chooser_handler)(struct _cef_client_t* self);
+#endif
+
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
+  ///
+  /// Return the handler for FedCM account choosers
+  /// (navigator.credentials.get({identity})).
+  ///
+  struct _cef_identity_request_handler_t* (CEF_CALLBACK *get_identity_request_handler)(struct _cef_client_t* self);
 #endif
 } cef_client_t;
 

@@ -595,6 +595,8 @@ source_set("libcef_static") {
     "libcef/browser/chrome/chrome_context_menu_handler.h",
     "libcef/browser/chrome/device_chooser_impl.cc",
     "libcef/browser/chrome/device_chooser_impl.h",
+    "libcef/browser/chrome/identity_dialog_controller_impl.cc",
+    "libcef/browser/chrome/identity_dialog_controller_impl.h",
     "libcef/browser/chrome/chrome_startup_browser_creator.cc",
     "libcef/browser/chrome/chrome_startup_browser_creator.h",
     "libcef/browser/chrome/chrome_web_contents_view_delegate_cef.h",
