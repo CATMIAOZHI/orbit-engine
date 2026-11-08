@@ -6573,7 +6573,6 @@ Java_com_cefrium_CefriumBrowser_nativeRemoveDocumentStartJavaScript(
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeContextMenuCommand(
     JNIEnv* env, jclass clazz, jlong native_ptr, jint command_id) {
-  LOGI("nativeContextMenuCommand: ptr=%ld, cmd=%d", native_ptr, command_id);
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
   if (data && data->client) {
     auto* handler = static_cast<SdkContextMenuHandler*>(
