@@ -277,23 +277,35 @@ make_javadoc_jar() {
 # ---------------------------------------------------------------------------
 # Coordinates
 # ---------------------------------------------------------------------------
-# pom-deps.txt plus the Maven libraries the AAR does not vendor, read from the
-# AAR being published so the POM matches its bytes (maven_vendored.py).
-sdk_deps() {
-  local libs
-  libs="$(python3 "$SCRIPT_DIR/maven_vendored.py" --pom "$1")" || return 1
-  printf '  <dependencies>\n%s\n  </dependencies>' "$libs"
-}
 
-for v in cefrium-sdk cefrium-sdk-libre; do
-  [ -n "${AAR[$v]:-}" ] || { echo "skip $v (not built)"; continue; }
-  echo "Staging $v (multi-ABI)..."
-  deps="$(sdk_deps "${AAR[$v]}")" || { echo "ERROR: no dependency list in ${AAR[$v]}" >&2; exit 1; }
-  write_pom "$v" "aar" "Cefrium SDK" "CEF (Chromium Embedded Framework) for native Android -- multi-ABI. Embeds Chromium $CHROMIUM_VERSION." "$deps"
-  place "$v" "$VERSION" "${AAR[$v]}" "aar"
-  make_sources_jar "$v" "$SDK_SRC"
-  make_javadoc_jar "$v" "$WEB_DOCS"
-done
+# The SDK ships as modules (modular_artifacts.py, run by the cut's merge
+# phase): cefrium-sdk-core, one cefrium-native-<flavour>-<abi> per library,
+# and cefrium-sdk / cefrium-sdk-libre as POMs that pull them in.
+MODULES="$RELEASE_DIR/modular"
+[ -f "$MODULES/coordinates.tsv" ] || {
+  echo "ERROR: no $MODULES/coordinates.tsv (run modular_artifacts.py, cut phase merge)." >&2; exit 1; }
+while IFS=$'\t' read -r art packaging file desc deps; do
+  echo "Staging $art ($packaging)..."
+  xml=""
+  for d in $deps; do
+    if [ "$d" = MAVEN ]; then
+      libs="$(python3 "$SCRIPT_DIR/maven_vendored.py" --pom "${AAR[cefrium-sdk]}")" \
+        || { echo "ERROR: no dependency list in ${AAR[cefrium-sdk]}" >&2; exit 1; }
+      xml+="$libs"$'\n'
+    else
+      xml+="    <dependency><groupId>com.cefrium</groupId><artifactId>$d</artifactId><version>$VERSION</version><type>aar</type></dependency>"$'\n'
+    fi
+  done
+  write_pom "$art" "$packaging" "$art" "$desc Embeds Chromium $CHROMIUM_VERSION." \
+    "$(printf '  <dependencies>\n%s  </dependencies>' "$xml")"
+  if [ "$file" != "-" ]; then
+    place "$art" "$VERSION" "$MODULES/$file" "aar"
+    src=""; docs=""
+    [ "$art" = cefrium-sdk-core ] && { src="$SDK_SRC"; docs="$WEB_DOCS"; }
+    make_sources_jar "$art" "$src"
+    make_javadoc_jar "$art" "$docs"
+  fi
+done < "$MODULES/coordinates.tsv"
 
 if [ -f "$COMPOSE_AAR" ]; then
   echo "Staging cefrium-compose..."

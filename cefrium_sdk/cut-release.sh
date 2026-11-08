@@ -6,7 +6,7 @@
 # Usage:
 #   cef/cefrium_sdk/cut-release.sh <version> <prev-version> [--from <phase>] [--notes "<html>"]
 # Phases (use --from to resume after a long build):
-#   patches build hotranges merge compose plugin stats sanity publish central flagship release web prune
+#   patches build hotranges merge compose plugin stats sanity suite stage publish central flagship release provenance web prune play
 #
 # Bypass the confirmation gates non-interactively with CEFRIUM_YES=1 (CI only);
 # a cut launched as a background job has no stdin and MUST set it, or it dies at
@@ -51,7 +51,7 @@ export JAVA_HOME="${JAVA_HOME:-$SRC/third_party/jdk/current}"
 export ANDROID_HOME="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}"
 export PATH="$ROOT/depot_tools:$PATH"
 export CEFRIUM_NINJA_JOBS="${CEFRIUM_NINJA_JOBS:-16}"
-PHASES="patches build hotranges merge compose plugin stats sanity suite publish central flagship release provenance web prune play"
+PHASES="patches build hotranges merge compose plugin stats sanity suite stage publish central flagship release provenance web prune play"
 # Variant scope. Default "all" = the 4 published variants (codecs/libre x arm64/x64).
 # CEFRIUM_VARIANTS="arm64:codecs" narrows to one variant. The 4-variant build
 # relinks libcef.so per variant and is the biggest time sink (~4x), which is why it
@@ -324,6 +324,12 @@ if run merge;   then hdr "merge multi-ABI"
     rm -f out/release/cefrium-sdk-libre.aar
     echo ">>> single-variant: cefrium-sdk.aar = ${V_ARCH}-${V_CODEC}; libre skipped"
   fi
+  # The published modules (core, one native per flavour and ABI, the two POMs
+  # apps depend on). Fails if the flavours differ outside their libraries.
+  rm -rf out/release/modular
+  python3 cef/cefrium_sdk/modular_artifacts.py build --codecs out/release/cefrium-sdk.aar \
+    $( [ -f out/release/cefrium-sdk-libre.aar ] && echo --libre out/release/cefrium-sdk-libre.aar ) \
+    --out out/release/modular || { echo "ERROR: could not split the SDK into its modules"; exit 1; }
 fi
 if run merge; then
   # Assert the BYTES of what is about to be published, not the build log. Three
@@ -504,6 +510,16 @@ if run suite; then hdr "instrumentation suite on device"
   cef/cefrium_sdk/push-e2e.sh || {
     echo "ERROR: Web Push end to end did not pass. Nothing is published."
     echo "       Re-run it alone: cef/cefrium_sdk/push-e2e.sh"
+    exit 1; }
+fi
+
+if run stage; then hdr "staged Maven repository resolves (before anything is published)"
+  # The same files publish-maven.sh uploads, written to a directory, and the
+  # same consumer build and on-device launch it runs after a publish: a layout
+  # that does not resolve stops here, while nothing is immutable yet.
+  rm -rf out/release/staged-maven
+  CEFRIUM_MAVEN_DIR="$PWD/out/release/staged-maven" cef/cefrium_sdk/publish-maven.sh "$VERSION" || {
+    echo "ERROR: the staged release does not resolve or start. Nothing is published."
     exit 1; }
 fi
 

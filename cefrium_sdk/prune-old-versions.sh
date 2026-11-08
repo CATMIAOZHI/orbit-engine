@@ -24,7 +24,7 @@ API="https://codeberg.org/api/v1/packages/cefrium"
 
 # All Maven coordinates the publish step creates. This list is also the SCOPE of
 # the retention policy: nothing outside it is ever considered for deletion.
-COORDS="cefrium-sdk cefrium-sdk-libre cefrium-compose cefrium-unifiedpush cefrium-gradle-plugin com.cefrium.gradle.plugin"
+COORDS="cefrium-sdk cefrium-sdk-libre cefrium-sdk-core cefrium-native-codecs-arm64-v8a cefrium-native-codecs-x86_64 cefrium-native-libre-arm64-v8a cefrium-native-libre-x86_64 cefrium-compose cefrium-unifiedpush cefrium-gradle-plugin com.cefrium.gradle.plugin"
 
 # Distinct published versions OF THOSE COORDINATES.
 #

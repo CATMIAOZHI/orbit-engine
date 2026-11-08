@@ -56,14 +56,22 @@ aars=$(awk '/\.aar$/ {print $2}' "$WORK/$SUMS")
 [ -n "$aars" ] || { echo "FAIL: $SUMS lists no .aar"; exit 1; }
 
 failed=0
+# cefrium-sdk and cefrium-sdk-libre are POMs on Maven: their single-file AARs
+# are release assets. Every other AAR is a module Central serves.
+served_by() {
+  case "$1" in
+    cefrium-sdk|cefrium-sdk-libre) echo "$REL_URL/$2" ;;
+    *) echo "$CENTRAL/$1/$VERSION/$2" ;;
+  esac
+}
 for f in $aars; do
   art="${f%-$VERSION.aar}"
   want=$(awk -v f="$f" '$2 == f {print $1}' "$WORK/$SUMS")
-  url="$CENTRAL/$art/$VERSION/$f"
+  url="$(served_by "$art" "$f")"
   waited=0
   until fetch "$url" "$WORK/$f"; do
     if [ "$waited" -ge "$WAIT" ]; then
-      echo "FAIL: $f not served by Central after ${WAIT}s ($url)"
+      echo "FAIL: $f not served after ${WAIT}s ($url)"
       failed=1
       continue 2
     fi
@@ -71,9 +79,9 @@ for f in $aars; do
   done
   got=$(sha256sum "$WORK/$f" | cut -d' ' -f1)
   if [ "$got" = "$want" ]; then
-    echo "OK:   $f on Central == signed ($got)"
+    echo "OK:   $f as served == signed ($got)"
   else
-    echo "FAIL: $f on Central is $got, the signed manifest says $want"
+    echo "FAIL: $f as served is $got, the signed manifest says $want"
     failed=1
   fi
 done
@@ -117,11 +125,14 @@ else
   echo "FAIL: $sbom not on the Codeberg release"; failed=1
 fi
 for f in $aars; do
-  unzip -l "$WORK/$f" 2>/dev/null | grep -q "libcef.so" || continue  # compose
-  ( cd "$WORK" && unzip -o -q "$f" classes.jar -d "x-$f" ) || { echo "FAIL: $f has no classes.jar"; failed=1; continue; }
-  const=$(unzip -p "$WORK/x-$f/classes.jar" com/cefrium/Cefrium.class 2>/dev/null \
-          | grep -aoE '[0-9]{3}\.0\.[0-9]{4,}\.[0-9]+' | head -1)
-  note_version "$f Cefrium.CHROMIUM_VERSION" "$const"
+  # The core and the single-file AARs carry the Java constant; the native
+  # modules and the single-file AARs carry libcef.so. Compose carries neither.
+  ( cd "$WORK" && unzip -o -q "$f" classes.jar -d "x-$f" 2>/dev/null )
+  if unzip -l "$WORK/x-$f/classes.jar" 2>/dev/null | grep -q "com/cefrium/Cefrium.class"; then
+    const=$(unzip -p "$WORK/x-$f/classes.jar" com/cefrium/Cefrium.class 2>/dev/null \
+            | grep -aoE '[0-9]{3}\.0\.[0-9]{4,}\.[0-9]+' | head -1)
+    note_version "$f Cefrium.CHROMIUM_VERSION" "$const"
+  fi
   for so in $(unzip -l "$WORK/$f" | awk '/libcef\.so$/ {print $4}'); do
     lit=$(unzip -p "$WORK/$f" "$so" | grep -aoE 'Chrome/[0-9]{3}\.0\.[0-9]{4,}\.[0-9]+' | head -1)
     note_version "$f $so User-Agent literal" "${lit#Chrome/}"
