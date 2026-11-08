@@ -329,6 +329,8 @@ public final class Cefrium {
      * logs a warning. Implemented by disabling Chromium's
      * {@code MediaDrmPreprovisioningAtStartup} feature.</p>
      *
+     * <p>Experimental: it may still change before the 1.0 API freeze.</p>
+     *
      * @param enabled true to pre-provision at startup, as Chromium does.
      */
     public static synchronized void setDrmPreprovisioningAtStartupEnabled(boolean enabled) {
@@ -942,6 +944,8 @@ public final class Cefrium {
      * shell user), root and apps signed with this app's key may connect.
      * Off by default; anyone with adb access to the device can read and drive
      * every page while it is on, so do not ship it on in a release build.
+     *
+     * <p>Experimental: it may still change before the 1.0 API freeze.</p>
      *
      * @throws IllegalStateException if not called on the main thread.
      */

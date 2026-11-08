@@ -807,6 +807,8 @@ public class CefriumBrowser {
      * the DevTools protocol ({@code Runtime.evaluate}), so the page's Content
      * Security Policy does not block it.
      *
+     * <p>Experimental: it may still change before the 1.0 API freeze.</p>
+     *
      * @param script         JavaScript source. Ignored if null.
      * @param resultCallback invoked on the UI thread; may be null.
      */
@@ -888,6 +890,8 @@ public class CefriumBrowser {
      * created asynchronously, and a call made before it exists runs as soon
      * as it does. After {@link #close()} the callback gets an error.
      *
+     * <p>Experimental: it may still change before the 1.0 API freeze.</p>
+     *
      * @param method     e.g. {@code Runtime.evaluate}
      * @param paramsJson the parameters as a JSON object, or null for none
      * @param callback   invoked once on the UI thread; may be null
@@ -917,6 +921,7 @@ public class CefriumBrowser {
      * Receives every DevTools protocol event of this browser; null stops
      * them. Events flow only for domains enabled through
      * {@link #executeDevToolsMethod}.
+     * <p>Experimental: it may still change before the 1.0 API freeze.</p>
      */
     public void setDevToolsEventListener(DevToolsEventListener listener) {
         checkThread("setDevToolsEventListener");
