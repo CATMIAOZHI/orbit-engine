@@ -683,6 +683,17 @@ public final class Cefrium {
                     + " https://cefrium.com/guides/adopting-cefrium/#plugin");
         }
 
+        // A process whose ABI has no engine in the APK (a 32-bit x86 emulator, an
+        // app that left the ABI out) would stop in the loader with an
+        // UnsatisfiedLinkError that names neither the cause nor the fix.
+        String missingAbi = abiWithoutEngine(appContext);
+        if (missingAbi != null) {
+            throw new IllegalStateException("This APK has no Cefrium engine for this device's"
+                    + " ABI, " + missingAbi + ". Cefrium runs on " + ENGINE_ABIS + "; on an"
+                    + " emulator, use an x86_64 or arm64 system image. See"
+                    + " https://cefrium.com/quickstart/#emulator");
+        }
+
         try {
             LibraryLoader.getInstance().ensureInitialized();
         } catch (Exception e) {
@@ -806,6 +817,40 @@ public final class Cefrium {
      *
      * @throws IllegalStateException if the engine cannot start.
      */
+    /** The ABIs a Cefrium engine module exists for. */
+    static final String ENGINE_ABIS = "arm64-v8a and x86_64";
+
+    /**
+     * The ABI this process runs as, when the APK carries no libcef.so for it;
+     * null when it does (extracted, or inside the APK or one of its splits).
+     */
+    static String abiWithoutEngine(Context context) {
+        android.content.pm.ApplicationInfo info = context.getApplicationInfo();
+        java.io.File dir = new java.io.File(info.nativeLibraryDir);
+        if (new java.io.File(dir, "libcef.so").isFile()) return null;
+        String abi;
+        switch (dir.getName()) {
+            case "arm64": abi = "arm64-v8a"; break;
+            case "arm": abi = "armeabi-v7a"; break;
+            case "x86_64": abi = "x86_64"; break;
+            case "x86": abi = "x86"; break;
+            default: return null;  // unknown layout: let the loader decide
+        }
+        java.util.List<String> apks = new java.util.ArrayList<>();
+        apks.add(info.sourceDir);
+        if (info.splitSourceDirs != null) {
+            apks.addAll(java.util.Arrays.asList(info.splitSourceDirs));
+        }
+        for (String apk : apks) {
+            try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(apk)) {
+                if (z.getEntry("lib/" + abi + "/libcef.so") != null) return null;
+            } catch (java.io.IOException e) {
+                return null;  // cannot tell: let the loader decide
+            }
+        }
+        return abi;
+    }
+
     static void ensureInitialized() {
         if (sInitialized) return;
         final Context context = ContextUtils.getApplicationContextUnsafe();

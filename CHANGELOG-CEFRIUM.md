@@ -27,6 +27,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   SDK as a file.
 - The Gradle plugin stops a build that packages arm64-v8a or x86_64 without
   that ABI's `libcef.so`, which would fail at start on those devices.
+- On a device or emulator ABI with no engine in the APK (a 32-bit x86
+  emulator image, for example), `Cefrium.initialize()` throws an
+  `IllegalStateException` that names the ABI, instead of "the engine failed
+  to start".
 - **Call `CefriumBrowser` on the main thread.** Every method now throws
   `IllegalStateException` on another thread, as Android WebView does, except
   `executeDevToolsMethod`, which posts itself. Off the main thread a call
