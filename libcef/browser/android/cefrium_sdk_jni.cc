@@ -58,6 +58,7 @@
 #include "cef/libcef/browser/android/cefrium_bridge_constants.h"
 #include "cef/libcef/browser/android/cefrium_profiles.h"
 #include "cef/libcef/browser/android/cefrium_sdk_devtools.h"
+#include "cef/libcef/browser/android/cefrium_sdk_identity.h"
 #include "cef/libcef/browser/android/cefrium_sdk_internal.h"
 #include "cef/include/cef_resource_request_handler.h"
 #include "cef/include/cef_resource_handler.h"
@@ -3459,6 +3460,7 @@ class SdkClient : public CefClient {
         js_dialog_handler_(new SdkJSDialogHandler()),
         permission_handler_(new SdkPermissionHandler()),
         device_chooser_handler_(new SdkDeviceChooserHandler()),
+        identity_handler_(new SdkIdentityHandler()),
         keyboard_handler_(new SdkKeyboardHandler()),
         focus_handler_(new SdkFocusHandler()),
         drag_handler_(new SdkDragHandler()),
@@ -3573,6 +3575,10 @@ class SdkClient : public CefClient {
     return device_chooser_handler_;
   }
 
+  CefRefPtr<CefIdentityRequestHandler> GetIdentityRequestHandler() override {
+    return identity_handler_;
+  }
+
   // FEATURE-063 handler registrations.
   CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override {
     return keyboard_handler_;
@@ -3605,6 +3611,7 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkDeviceChooserHandler> device_chooser_handler() {
     return device_chooser_handler_;
   }
+  CefRefPtr<SdkIdentityHandler> identity_handler() { return identity_handler_; }
 
   void SetJavaBrowser(JNIEnv* env, jobject jb) {
     if (jb && !java_browser_) {
@@ -3707,6 +3714,7 @@ class SdkClient : public CefClient {
   CefRefPtr<SdkJSDialogHandler> js_dialog_handler_;
   CefRefPtr<SdkPermissionHandler> permission_handler_;
   CefRefPtr<SdkDeviceChooserHandler> device_chooser_handler_;
+  CefRefPtr<SdkIdentityHandler> identity_handler_;
   CefRefPtr<SdkKeyboardHandler> keyboard_handler_;
   CefRefPtr<SdkFocusHandler> focus_handler_;
   CefRefPtr<SdkDragHandler> drag_handler_;
@@ -4220,6 +4228,9 @@ Java_com_cefrium_CefriumBrowser_nativeBindJavaBrowser(JNIEnv* env,
   }
   if (data->life_span_handler) {
     data->life_span_handler->SetJavaBrowser(env, java_browser);
+  }
+  if (data->client) {
+    data->client->identity_handler()->SetJavaBrowser(env, java_browser);
   }
   if (data->client && data->client->request_handler() &&
       data->client->request_handler()->resource_request_handler()) {
@@ -4832,6 +4843,25 @@ Java_com_cefrium_CefriumBrowser_nativeDeviceChooserCancel(
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
   if (data && data->client) {
     data->client->device_chooser_handler()->Cancel(static_cast<uint64_t>(id));
+  }
+}
+
+// FEATURE-086: the app answered FedCM account chooser |id|.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeIdentitySelect(
+    JNIEnv* env, jclass, jlong native_ptr, jlong id, jstring account_id) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client) {
+    data->client->identity_handler()->Select(id, JStr(env, account_id));
+  }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeIdentityCancel(
+    JNIEnv* env, jclass, jlong native_ptr, jlong id) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client) {
+    data->client->identity_handler()->Cancel(id);
   }
 }
 

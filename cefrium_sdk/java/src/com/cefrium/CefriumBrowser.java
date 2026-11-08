@@ -2109,6 +2109,89 @@ public class CefriumBrowser {
     private final java.util.concurrent.ConcurrentHashMap<Long, DeviceChooserSessionImpl>
             mDeviceChooserSessions = new java.util.concurrent.ConcurrentHashMap<>();
 
+    // ---- FedCM account chooser (FEATURE-086) ----
+
+    private CefriumIdentityHandler mIdentityHandler;
+    private final java.util.Map<Long, IdentityRequestImpl> mIdentityRequests =
+            new java.util.HashMap<>();
+
+    /**
+     * Sets the handler that shows the account chooser of FedCM sign-in
+     * requests. Null (the default) shows a dialog on this browser's activity;
+     * see {@link CefriumIdentityHandler}.
+     */
+    public void setIdentityHandler(CefriumIdentityHandler handler) {
+        checkThread("setIdentityHandler");
+        mIdentityHandler = handler;
+    }
+
+    private final class IdentityRequestImpl implements CefriumIdentityHandler.Request {
+        final long mId;
+        final java.util.List<CefriumIdentityHandler.Account> mAccounts;
+        CefriumIdentityHandler mShownBy;
+        android.app.AlertDialog mDialog;
+        boolean mDone;
+
+        IdentityRequestImpl(long id, java.util.List<CefriumIdentityHandler.Account> accounts) {
+            mId = id;
+            mAccounts = accounts;
+        }
+
+        @Override public void select(CefriumIdentityHandler.Account account) {
+            if (!mAccounts.contains(account)) {
+                throw new IllegalArgumentException("not one of the accounts offered");
+            }
+            if (finish()) nativeIdentitySelect(mNativePtr, mId, account.id);
+        }
+
+        @Override public void cancel() {
+            if (finish()) nativeIdentityCancel(mNativePtr, mId);
+        }
+
+        private boolean finish() {
+            if (mDone) return false;
+            mDone = true;
+            mIdentityRequests.remove(mId);
+            return mNativePtr != 0;
+        }
+    }
+
+    // Called from native (UI thread) when a page asks to sign in with FedCM.
+    // Returns false to fail the request.
+    private boolean onShowAccountChooser(long id, String relyingParty, String[] ids,
+            String[] names, String[] emails, String[] pictures, String[] idps,
+            boolean[] returning) {
+        java.util.List<CefriumIdentityHandler.Account> accounts = new java.util.ArrayList<>();
+        for (int i = 0; i < ids.length; i++) {
+            accounts.add(new CefriumIdentityHandler.Account(ids[i], names[i], emails[i],
+                    pictures[i], idps[i], returning[i]));
+        }
+        accounts = java.util.Collections.unmodifiableList(accounts);
+        IdentityRequestImpl request = new IdentityRequestImpl(id, accounts);
+        mIdentityRequests.put(id, request);
+        CefriumIdentityHandler h = mIdentityHandler;
+        if (h != null && h.onShowAccountChooser(relyingParty, accounts, request)) {
+            request.mShownBy = h;
+            return true;
+        }
+        android.app.Activity activity = dialogActivity();
+        if (activity == null) {
+            mIdentityRequests.remove(id);
+            return false;
+        }
+        request.mDialog = CefriumIdentityDialog.show(activity, relyingParty, accounts, request);
+        return true;
+    }
+
+    // Called from native (UI thread): chooser |id| is no longer needed.
+    private void onAccountChooserClosed(long id) {
+        IdentityRequestImpl request = mIdentityRequests.remove(id);
+        if (request == null || request.mDone) return;
+        request.mDone = true;
+        if (request.mShownBy != null) request.mShownBy.onAccountChooserClosed(request);
+        if (request.mDialog != null) request.mDialog.dismiss();
+    }
+
     /** Sets the device chooser handler (null = cancel all device requests). */
     public void setDeviceChooserHandler(DeviceChooserHandler handler) {
         checkThread("setDeviceChooserHandler");
@@ -4533,6 +4616,8 @@ public class CefriumBrowser {
     private static native void nativeSetDeviceChooserHandler(long nativePtr, boolean enabled);
     private static native void nativeDeviceChooserSelect(long nativePtr, long id, String deviceId);
     private static native void nativeDeviceChooserCancel(long nativePtr, long id);
+    private static native void nativeIdentitySelect(long nativePtr, long id, String accountId);
+    private static native void nativeIdentityCancel(long nativePtr, long id);
     private static native void nativeRespondSslError(long nativePtr, long id, boolean proceed);
     private static native void nativeRespondHttpAuth(long nativePtr, long id, String username, String password);
     private static native void nativeRespondBeforeDownload(long nativePtr, int downloadId, boolean allow, String path);

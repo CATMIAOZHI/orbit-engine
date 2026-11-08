@@ -56,6 +56,8 @@ android_library("cefrium_java") {
     "java/src/com/cefrium/CefriumFrameHandler.java",
     "java/src/com/cefrium/CefriumCommandHandler.java",
     "java/src/com/cefrium/CefriumDialogHandler.java",
+    "java/src/com/cefrium/CefriumIdentityDialog.java",
+    "java/src/com/cefrium/CefriumIdentityHandler.java",
     "java/src/com/cefrium/CefriumProfile.java",
     "java/src/com/cefrium/CefriumPickerDialogs.java",
     "java/src/com/cefrium/CefriumPickerHandler.java",
