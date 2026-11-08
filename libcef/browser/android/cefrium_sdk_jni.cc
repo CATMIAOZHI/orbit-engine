@@ -3745,18 +3745,6 @@ class SdkClient : public CefClient {
   jobject java_browser_ = nullptr;  // global ref; for Web Share routing.
 };
 
-// Per-browser data stored as the native pointer in Java.
-// A loadDataWithBaseUrl() requested before the native browser exists. The browser
-// is created lazily (it needs a URL at creation for the renderer to spawn), so a
-// cold first data-load is created at about:blank and applied in OnAfterCreated.
-struct SdkPendingDataLoad {
-  std::string data;
-  std::string mime_type;
-  std::string charset;
-  std::string base_url;
-  std::string history_url;
-};
-
 // Issue #16: <select>, date/time and colour pickers of a browser without a
 // window. Each request goes to the Java CefriumBrowser, which answers through
 // nativePicker*Result with the request's id.
@@ -4056,6 +4044,7 @@ class SdkDevToolsObserver : public CefDevToolsMessageObserver {
 
 }  // namespace
 
+// Per-browser data stored as the native pointer in Java.
 struct SdkBrowserData {
   CefRefPtr<CefBrowser> browser;
   // FEATURE-082: created on the first DevTools call from Java; releasing the
@@ -4069,31 +4058,24 @@ struct SdkBrowserData {
   CefRefPtr<SdkRenderHandler> render_handler;
   CefRefPtr<SdkLifeSpanHandler> life_span_handler;
   CefRefPtr<SdkClient> client;
-  std::string pending_url;
-  std::unique_ptr<SdkPendingDataLoad> pending_data;
+  // Before the browser exists (the off-screen constructor creates it at the
+  // first load, the surface one asynchronously) calls wait in three places,
+  // each drained at its own moment:
+  //  - pending_calls: configuration, run in call order in OnAfterCreated,
+  //    before anything navigates;
+  //  - pending_nav_state: a restored navigation stack, applied after them;
+  //  - pending_devtools: DevTools methods, run at the first main-frame
+  //    commit so the first navigation does not abort them.
+  //
   // Navigation stack to Restore() once the browser exists (session/tab restore):
   // the browser is created at about:blank so the renderer spawns, then this is
   // applied in OnAfterCreated before any real navigation.
   std::vector<uint8_t> pending_nav_state;
-  // setMediaPlaybackRequiresUserGesture before the browser exists; applied in
-  // OnAfterCreated, which runs before the first navigation.
-  std::optional<bool> media_playback_requires_user_gesture;
-  // addDocumentStartJavaScript: scripts added before the browser exists, and
-  // our ids for the scripts the JsCommunicationHost holds (ours -> its).
-  struct PendingScript {
-    int id;
-    std::u16string script;
-    std::vector<std::string> rules;
-  };
-  std::vector<PendingScript> pending_scripts;
-  // Configuration calls made before the browser exists (the off-screen
-  // constructor creates it asynchronously), run in order in OnAfterCreated.
-  // They used to be dropped without a word.
   std::vector<base::OnceCallback<void(CefRefPtr<CefBrowser>)>> pending_calls;
-  // executeDevToolsMethod before the browser exists: run at the first
-  // main-frame commit, so the first navigation does not abort them.
   std::vector<base::OnceCallback<void(CefRefPtr<CefBrowser>)>>
       pending_devtools;
+  // addDocumentStartJavaScript: our ids for the scripts the
+  // JsCommunicationHost holds (ours -> its).
   std::map<int, int> script_ids;
   int next_script_id = 1;
 
@@ -4203,34 +4185,9 @@ void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
        browser->GetIdentifier(), data_ ? data_->is_surface_mode : 0);
   if (data_) {
     data_->browser = browser;
-    if (!data_->pending_scripts.empty()) {
-      content::WebContents* wc = static_cast<CefBrowserHostBase*>(
-                                     browser->GetHost().get())
-                                     ->GetWebContents();
-      if (wc) {
-        DocumentScripts::CreateForWebContents(wc);
-        auto& host = DocumentScripts::FromWebContents(wc)->host();
-        for (auto& pending : data_->pending_scripts) {
-          auto result = host.AddPersistentJavaScript(
-              pending.script,
-              js_injection::mojom::DocumentInjectionTime::kDocumentStart,
-              pending.rules, /*world_identifier=*/0);
-          if (result.script_id) {
-            data_->script_ids[pending.id] = *result.script_id;
-          }
-        }
-      }
-      data_->pending_scripts.clear();
-    }
     auto pending_calls = std::move(data_->pending_calls);
     for (auto& call : pending_calls) {
       std::move(call).Run(browser);
-    }
-
-    if (data_->media_playback_requires_user_gesture.has_value()) {
-      static_cast<CefBrowserHostBase*>(browser->GetHost().get())
-          ->SetMediaPlaybackRequiresUserGesture(
-              data_->media_playback_requires_user_gesture);
     }
 
     // In Surface mode, attach the WebContents to the compositor.
@@ -4243,20 +4200,6 @@ void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
         data_->surface_bridge->AttachWebContents(web_contents);
         LOGI("Surface mode: WebContents attached to compositor");
       }
-    }
-
-    // Apply a loadDataWithBaseUrl() that arrived before the browser existed
-    // (the browser was created at about:blank to spawn the renderer).
-    if (data_->pending_data) {
-      auto* host =
-          static_cast<CefBrowserHostBase*>(browser->GetHost().get());
-      if (host) {
-        host->LoadMainFrameDataWithBaseURL(
-            data_->pending_data->data, data_->pending_data->mime_type,
-            data_->pending_data->charset, data_->pending_data->base_url,
-            data_->pending_data->history_url);
-      }
-      data_->pending_data.reset();
     }
 
     // Apply a navigation stack that arrived before the browser existed (tab
@@ -4553,7 +4496,6 @@ Java_com_cefrium_CefriumBrowser_nativeLoadUrl(
     CefBrowserSettings browser_settings;
     browser_settings.background_color = data->background_color;
 
-    data->pending_url = url;
     CefBrowserHost::CreateBrowserSync(window_info, data->client, CefString(url),
                                       browser_settings, nullptr,
                                       ContextFor(data));
@@ -4727,7 +4669,6 @@ Java_com_cefrium_CefriumBrowser_nativeLoadDataWithBaseUrl(
     window_info.SetAsWindowless(0);
     CefBrowserSettings browser_settings;
     browser_settings.background_color = data->background_color;
-    data->pending_url = served_url;
     CefBrowserHost::CreateBrowserSync(window_info, data->client,
                                       CefString(served_url), browser_settings,
                                       nullptr, ContextFor(data));
@@ -6492,12 +6433,60 @@ Java_com_cefrium_CefriumBrowser_nativeSetMediaPlaybackRequiresUserGesture(
   if (!data) {
     return;
   }
-  data->media_playback_requires_user_gesture = required == JNI_TRUE;
-  if (data->browser) {
-    static_cast<CefBrowserHostBase*>(data->browser->GetHost().get())
-        ->SetMediaPlaybackRequiresUserGesture(required == JNI_TRUE);
+  RunWhenCreated(data, base::BindOnce(
+                           [](bool required, CefRefPtr<CefBrowser> browser) {
+                             static_cast<CefBrowserHostBase*>(
+                                 browser->GetHost().get())
+                                 ->SetMediaPlaybackRequiresUserGesture(required);
+                           },
+                           required == JNI_TRUE));
+}
+
+namespace {
+
+// Registers script |id| of |data| with the browser's JsCommunicationHost.
+bool AddDocumentScript(SdkBrowserData* data,
+                       int id,
+                       std::u16string script,
+                       std::vector<std::string> rules,
+                       CefRefPtr<CefBrowser> browser) {
+  content::WebContents* wc =
+      static_cast<CefBrowserHostBase*>(browser->GetHost().get())
+          ->GetWebContents();
+  if (!wc) {
+    return false;
+  }
+  DocumentScripts::CreateForWebContents(wc);
+  auto result =
+      DocumentScripts::FromWebContents(wc)->host().AddPersistentJavaScript(
+          std::move(script),
+          js_injection::mojom::DocumentInjectionTime::kDocumentStart, rules,
+          /*world_identifier=*/0);
+  if (!result.script_id) {
+    return false;
+  }
+  data->script_ids[id] = *result.script_id;
+  return true;
+}
+
+void RemoveDocumentScript(SdkBrowserData* data,
+                          int id,
+                          CefRefPtr<CefBrowser> browser) {
+  auto it = data->script_ids.find(id);
+  if (it == data->script_ids.end()) {
+    return;
+  }
+  const int host_id = it->second;
+  data->script_ids.erase(it);
+  content::WebContents* wc =
+      static_cast<CefBrowserHostBase*>(browser->GetHost().get())
+          ->GetWebContents();
+  if (auto* scripts = wc ? DocumentScripts::FromWebContents(wc) : nullptr) {
+    scripts->host().RemovePersistentJavaScript(host_id);
   }
 }
+
+}  // namespace
 
 // Returns our id for the script (> 0), or -(n + 1) when rule n is invalid.
 extern "C" JNIEXPORT jint JNICALL
@@ -6521,26 +6510,12 @@ Java_com_cefrium_CefriumBrowser_nativeAddDocumentStartJavaScript(
     rules.push_back(std::move(rule));
   }
   const int id = data->next_script_id++;
-  std::u16string script = JStr(env, script_j).ToString16();
-  content::WebContents* wc =
-      data->browser ? static_cast<CefBrowserHostBase*>(
-                          data->browser->GetHost().get())
-                          ->GetWebContents()
-                    : nullptr;
-  if (!wc) {
-    data->pending_scripts.push_back({id, std::move(script), std::move(rules)});
-    return id;
+  auto add = base::BindOnce(&AddDocumentScript, data, id,
+                            JStr(env, script_j).ToString16(), std::move(rules));
+  if (data->browser && data->browser->GetHost()) {
+    return std::move(add).Run(data->browser) ? id : 0;
   }
-  DocumentScripts::CreateForWebContents(wc);
-  auto result = DocumentScripts::FromWebContents(wc)->host()
-                    .AddPersistentJavaScript(
-                        std::move(script),
-                        js_injection::mojom::DocumentInjectionTime::kDocumentStart,
-                        rules, /*world_identifier=*/0);
-  if (!result.script_id) {
-    return 0;
-  }
-  data->script_ids[id] = *result.script_id;
+  RunWhenCreated(data, base::BindOnce(base::IgnoreResult(std::move(add))));
   return id;
 }
 
@@ -6551,22 +6526,9 @@ Java_com_cefrium_CefriumBrowser_nativeRemoveDocumentStartJavaScript(
   if (!data) {
     return;
   }
-  std::erase_if(data->pending_scripts,
-                [id](const auto& pending) { return pending.id == id; });
-  auto it = data->script_ids.find(id);
-  if (it == data->script_ids.end()) {
-    return;
-  }
-  const int host_id = it->second;
-  data->script_ids.erase(it);
-  content::WebContents* wc =
-      data->browser ? static_cast<CefBrowserHostBase*>(
-                          data->browser->GetHost().get())
-                          ->GetWebContents()
-                    : nullptr;
-  if (auto* scripts = wc ? DocumentScripts::FromWebContents(wc) : nullptr) {
-    scripts->host().RemovePersistentJavaScript(host_id);
-  }
+  // In call order: a script removed before the browser exists is added and
+  // removed again before anything loads.
+  RunWhenCreated(data, base::BindOnce(&RemoveDocumentScript, data, id));
 }
 
 // Context menu command — called from Java when user selects an option.
