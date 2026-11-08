@@ -227,6 +227,21 @@ public class CefriumDocumentStartScriptTest {
         }
     }
 
+    // Added and removed before the browser exists: the first document runs
+    // without it, while a second script added before it still runs.
+    @Test
+    public void removedBeforeTheBrowserExistsNeverRuns() throws Exception {
+        String page = "<html><body><script>document.title='seen:'+(window.__inj===1)"
+                + "+':'+(window.__kept===1);</script></body></html>";
+        try (LocalHttpServer server = new LocalHttpServer(page)) {
+            create(b -> {
+                b.addDocumentStartJavaScript(SCRIPT, ANY).remove();
+                b.addDocumentStartJavaScript("window.__kept = 1;", ANY);
+            }, server.url());
+            Assert.assertEquals("seen:false:true", waitTitle("seen:"));
+        }
+    }
+
     @Test
     public void runsInACrossOriginIframe() throws Exception {
         String child = "<html><body><script>"
