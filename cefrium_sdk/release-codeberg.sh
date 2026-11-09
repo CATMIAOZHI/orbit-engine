@@ -2,15 +2,18 @@
 # Codeberg release for a published Cefrium version: tag, GPG-signed SHA256SUMS,
 # release object, and assets. Idempotent -- re-running skips what already exists.
 #
-# Usage: cef/cefrium_sdk/release-codeberg.sh <version> [flagship.apk]
+# Usage: cef/cefrium_sdk/release-codeberg.sh <version>
+# The release carries what an SDK user needs: the signed SHA256SUMS, the
+# single-file AARs (for apps that add the SDK as a file), SBOM and NOTICE.
+# The browser apps ship through Play, not here.
 # Inputs:
 #   - Merged AARs in out/release/{cefrium-sdk,cefrium-sdk-libre}.aar + the compose AAR
 #   - CEFRIUM_REGISTRY_TOKEN -> a file holding a repo-scope token
 #   - GPG key on the hardware signing key (signs SHA256SUMS; prompts for PIN/touch)
 set -euo pipefail
 
-VERSION="${1:?usage: release-codeberg.sh <version> [flagship.apk]}"
-FLAGSHIP="${2:-}"
+VERSION="${1:?usage: release-codeberg.sh <version>}"
+[ -z "${2:-}" ] || echo ">>> ignoring $2: a release carries SDK artifacts only"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"               # chromium/src
 CEF_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"                  # chromium/src/cef
@@ -85,12 +88,18 @@ gpg --batch --yes --armor --local-user "$GPG_KEY" \
 gpg --verify "$SUMS.asc" "$SUMS" 2>&1 | grep -i "Good signature" \
   || { echo "ERROR: signature verification failed"; exit 1; }
 
-# 3. Cross-check the archived AAR hashes against the live registry artifacts.
-for art in cefrium-sdk $( [ -f cefrium-sdk-libre.aar ] && echo cefrium-sdk-libre ); do
-  reg=$(curl -s "https://codeberg.org/api/packages/cefrium/maven/com/cefrium/$art/$VERSION/$art-$VERSION.aar" | sha256sum | cut -d' ' -f1)
+# 3. The signed bytes are the bytes the registry serves. From 0.19.0 the SDK
+# coordinates are POM-only, so compare the modules; before, the single AARs.
+if [ -f modular/coordinates.tsv ]; then
+  CHECK=$(awk -F'\t' '$3 != "-" {print $1}' modular/coordinates.tsv)
+else
+  CHECK="cefrium-sdk $( [ -f cefrium-sdk-libre.aar ] && echo cefrium-sdk-libre )"
+fi
+for art in $CHECK; do
+  reg=$(curl -sfL "https://codeberg.org/api/packages/cefrium/maven/com/cefrium/$art/$VERSION/$art-$VERSION.aar" | sha256sum | cut -d' ' -f1)
   loc=$(sha256sum "$art-$VERSION.aar" | cut -d' ' -f1)
-  [ "$reg" = "$loc" ] && say "$art: archived == registry ($loc)" \
-    || { echo "ERROR: $art archived bytes != registry"; exit 1; }
+  [ "$reg" = "$loc" ] && say "$art: signed == registry ($loc)" \
+    || { echo "ERROR: $art signed bytes != registry"; exit 1; }
 done
 
 # 4. Create the release object (skip if it exists), capture its id.
@@ -137,8 +146,4 @@ for extra in "cefrium-sdk-$VERSION.spdx.json" "cefrium-sdk-$VERSION-NOTICE.txt";
   if [ -f "$REL_DIR/$extra" ]; then upload_asset "$REL_DIR/$extra"
   else say "skip $extra (not generated)"; fi
 done
-if [ -n "$FLAGSHIP" ] && [ -f "$FLAGSHIP" ]; then
-  cp -f "$FLAGSHIP" "$REL_DIR/cefrium-browser-$VERSION-debug.apk"
-  upload_asset "$REL_DIR/cefrium-browser-$VERSION-debug.apk"
-fi
 say "Codeberg release $TAG ready: https://codeberg.org/cefrium/cef-android/releases/tag/$TAG"
