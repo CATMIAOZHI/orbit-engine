@@ -136,11 +136,4 @@ cursor_util::ScopedCursorHandle::Create(CefRefPtr<CefBrowser>,
   return nullptr;
 }
 
-namespace print_util {
-void Print(content::WebContents*, bool) {}
-void PrintToPDF(content::WebContents*, const CefString&,
-                const CefPdfPrintSettings&,
-                CefRefPtr<CefPdfPrintCallback>) {}
-}  // namespace print_util
-
 #endif  // BUILDFLAG(IS_ANDROID)
