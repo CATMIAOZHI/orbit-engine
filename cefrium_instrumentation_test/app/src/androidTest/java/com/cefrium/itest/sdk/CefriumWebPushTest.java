@@ -237,8 +237,11 @@ public class CefriumWebPushTest {
                 String appId = sTokens.get(0);
                 Assert.assertNotNull("subscribing recorded no route", routeOf(appId));
 
+                // The engine may finish (registration deleted, route gone) before
+                // the page's unsubscribe() promise resolves: wait for all three.
                 long deadline = System.currentTimeMillis() + 20_000;
-                while (!(sDeleted.contains(appId) && routeOf(appId) == null)
+                while (!("unsubscribed".equals(title.get()) && sDeleted.contains(appId)
+                                && routeOf(appId) == null)
                         && System.currentTimeMillis() < deadline) {
                     Thread.sleep(200);
                 }
