@@ -1,10 +1,13 @@
 #!/bin/bash
-# Enforce the latest-only retention policy: delete every Cefrium Maven version
-# from the Codeberg registry EXCEPT the one to keep. Superseded versions are
-# preserved as the git tag + the GPG-signed SHA256SUMS on their Codeberg release
-# (not as registry binaries) -- see /releases and RELEASING-CEFRIUM.md.
+# Enforce the retention policy: the Codeberg registry serves <keep-version> and
+# the version before it, so a pinned build has one release to move. Older
+# Cefrium Maven versions are deleted; they stay preserved as the git tag + the
+# GPG-signed SHA256SUMS on their Codeberg release (and, up to 0.17.1, on Maven
+# Central) -- see /releases and RELEASING-CEFRIUM.md.
 #
 # Usage: cef/cefrium_sdk/prune-old-versions.sh <keep-version> [--yes]
+#   CEFRIUM_KEEP_VERSIONS=N keeps the N newest versions up to <keep-version>
+#   (default 2).
 #   Without --yes (or CEFRIUM_YES=1) it prints what it WOULD delete and stops.
 set -euo pipefail
 
@@ -50,15 +53,21 @@ for p in json.load(sys.stdin):
 for v in sorted(seen):
     print(v)
 ' "$COORDS")
-to_prune=$(echo "$versions" | grep -vx "$KEEP" || true)
+N="${CEFRIUM_KEEP_VERSIONS:-2}"
+case "$N" in ''|*[!0-9]*|0) echo "ERROR: CEFRIUM_KEEP_VERSIONS must be >= 1"; exit 1 ;; esac
+# The N newest versions up to and including KEEP. A version above KEEP is not
+# ours to judge here and is kept too.
+all=$( { echo "$KEEP"; echo "$versions"; } | grep . | sort -uV)
+keep_set=$(echo "$all" | awk -v k="$KEEP" '{print} $0==k{exit}' | tail -n "$N")
+above=$(echo "$all" | awk -v k="$KEEP" 'f{print} $0==k{f=1}')
+to_prune=$(echo "$versions" | grep . | grep -vxF -f <(printf '%s\n' $keep_set $above) || true)
 
 if [ -z "$to_prune" ]; then
-  echo "Nothing to prune -- registry already serves only versions == $KEEP."
-  echo "Present: $(echo "$versions" | tr '\n' ' ')"
+  echo "Nothing to prune -- registry serves only: $(echo "$versions" | tr '\n' ' ')"
   exit 0
 fi
 
-echo "Keep:  $KEEP"
+echo "Keep:  $(echo $keep_set $above)"
 echo "Prune: $(echo "$to_prune" | tr '\n' ' ')"
 echo "Coordinates per version: $COORDS"
 
