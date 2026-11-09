@@ -43,7 +43,7 @@ public class CefriumEngineSettingsTest {
     public final BrowserRule browsers = new BrowserRule();
 
     /**
-     * The late setter must change neither the reported value nor where the GPU
+     * The late setter throws and changes neither the reported value nor where the GPU
      * actually runs. A page is rendered after the call, so a GPU process would
      * exist if the setting had taken effect; the process list is the evidence,
      * the getter alone would be a proxy.
@@ -51,7 +51,12 @@ public class CefriumEngineSettingsTest {
     @Test
     public void lateGpuProcessSettingIsRefused() throws Exception {
         boolean before = Cefrium.isGpuProcessEnabled();
-        Cefrium.setGpuProcessEnabled(!before);
+        try {
+            Cefrium.setGpuProcessEnabled(!before);
+            Assert.fail("setGpuProcessEnabled with another value after initialization "
+                    + "must throw");
+        } catch (IllegalStateException expected) {
+        }
         Assert.assertEquals("setGpuProcessEnabled after initialization must not change "
                 + "the value", before, Cefrium.isGpuProcessEnabled());
 
@@ -81,14 +86,19 @@ public class CefriumEngineSettingsTest {
     }
 
     /**
-     * The late setter changes neither the getter nor the engine's command line,
+     * The late setter throws and changes neither the getter nor the engine's command line,
      * which is what the component updater actually reads (SC-rc-15). This app
      * never opts out, so the default is on: no --disable-component-update.
      */
     @Test
     public void lateComponentUpdateSettingIsRefused() {
         boolean before = Cefrium.areComponentUpdatesEnabled();
-        Cefrium.setComponentUpdatesEnabled(!before);
+        try {
+            Cefrium.setComponentUpdatesEnabled(!before);
+            Assert.fail("setComponentUpdatesEnabled with another value after "
+                    + "initialization must throw");
+        } catch (IllegalStateException expected) {
+        }
         Assert.assertEquals("setComponentUpdatesEnabled after initialization must not "
                 + "change the value", before, Cefrium.areComponentUpdatesEnabled());
         Assert.assertTrue("this app never opts out, so updates must be on by default",

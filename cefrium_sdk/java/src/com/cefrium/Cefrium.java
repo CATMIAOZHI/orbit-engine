@@ -96,6 +96,16 @@ public final class Cefrium {
 
     private Cefrium() {}
 
+    // A setting the engine reads once, at startup. After that, setting the value
+    // it already has is harmless (an Activity may set it in every onCreate);
+    // another value cannot take effect, so it throws instead of being ignored.
+    private static void checkStartupSetting(String setter, boolean changes) {
+        if (sInitialized && changes) {
+            throw new IllegalStateException(setter + " must be called before the first "
+                    + "browser is created: the engine already started with the current value");
+        }
+    }
+
     /**
      * Control whether the engine keeps its security data up to date over the
      * network. Enabled by default. Must be called <b>before</b> the engine
@@ -133,13 +143,11 @@ public final class Cefrium {
      * It is an upstream switch, so it keeps working across engine updates.</p>
      *
      * @param enabled false to stop the engine's component update checks.
+     * @throws IllegalStateException with another value once the engine has
+     *         started.
      */
     public static synchronized void setComponentUpdatesEnabled(boolean enabled) {
-        if (sInitialized) {
-            android.util.Log.w(TAG, "setComponentUpdatesEnabled() ignored: the engine is "
-                    + "already initialized. Call it before the first browser is created.");
-            return;
-        }
+        checkStartupSetting("setComponentUpdatesEnabled", enabled != sComponentUpdatesEnabled);
         sComponentUpdatesEnabled = enabled;
     }
 
@@ -157,13 +165,12 @@ public final class Cefrium {
      * it, close every browser first: the engine keeps its databases open.</p>
      *
      * @param directory the data root; created if it does not exist.
+     * @throws IllegalStateException with another value once the engine has
+     *         started.
      */
     public static synchronized void setDataDirectory(java.io.File directory) {
-        if (sInitialized) {
-            android.util.Log.w(TAG, "setDataDirectory() ignored: the engine is "
-                    + "already initialized. Call it before the first browser is created.");
-            return;
-        }
+        checkStartupSetting("setDataDirectory",
+                !java.util.Objects.equals(directory, sDataDirectory));
         sDataDirectory = directory;
     }
 
@@ -199,13 +206,11 @@ public final class Cefrium {
      * calling it from {@code Application.attachBaseContext} keeps it from
      * starting at all. Calls after the engine started are ignored and log a
      * warning.
+     * @throws IllegalStateException with another value once the engine has
+     *         started.
      */
     public static synchronized void setLibraryPrefetchEnabled(boolean enabled) {
-        if (sInitialized) {
-            android.util.Log.w(TAG, "setLibraryPrefetchEnabled() ignored: the engine is "
-                    + "already initialized. Call it before the first browser is created.");
-            return;
-        }
+        checkStartupSetting("setLibraryPrefetchEnabled", enabled != sLibraryPrefetchEnabled);
         sLibraryPrefetchEnabled = enabled;
     }
 
@@ -248,13 +253,11 @@ public final class Cefrium {
      * suite passes in both modes.</p>
      *
      * @param enabled true to run the GPU in a separate process.
+     * @throws IllegalStateException with another value once the engine has
+     *         started.
      */
     public static synchronized void setGpuProcessEnabled(boolean enabled) {
-        if (sInitialized) {
-            android.util.Log.w(TAG, "setGpuProcessEnabled() ignored: the engine is "
-                    + "already initialized. Call it before the first browser is created.");
-            return;
-        }
+        checkStartupSetting("setGpuProcessEnabled", enabled != sGpuProcessEnabled);
         sGpuProcessEnabled = enabled;
     }
 
@@ -297,13 +300,11 @@ public final class Cefrium {
      * preserved and appended to, not overwritten.</p>
      *
      * @param enabled true to restore the engine's network time queries.
+     * @throws IllegalStateException with another value once the engine has
+     *         started.
      */
     public static synchronized void setNetworkTimeQueriesEnabled(boolean enabled) {
-        if (sInitialized) {
-            android.util.Log.w(TAG, "setNetworkTimeQueriesEnabled() ignored: the engine is "
-                    + "already initialized. Call it before the first browser is created.");
-            return;
-        }
+        checkStartupSetting("setNetworkTimeQueriesEnabled", enabled != sNetworkTimeQueriesEnabled);
         sNetworkTimeQueriesEnabled = enabled;
     }
 
@@ -332,14 +333,12 @@ public final class Cefrium {
      * <p>Experimental: it may still change before the 1.0 API freeze.</p>
      *
      * @param enabled true to pre-provision at startup, as Chromium does.
+     * @throws IllegalStateException with another value once the engine has
+     *         started.
      */
     public static synchronized void setDrmPreprovisioningAtStartupEnabled(boolean enabled) {
-        if (sInitialized) {
-            android.util.Log.w(TAG, "setDrmPreprovisioningAtStartupEnabled() ignored: the "
-                    + "engine is already initialized. Call it before the first browser "
-                    + "is created.");
-            return;
-        }
+        checkStartupSetting("setDrmPreprovisioningAtStartupEnabled",
+                enabled != sDrmPreprovisioningAtStartup);
         sDrmPreprovisioningAtStartup = enabled;
     }
 
@@ -367,13 +366,11 @@ public final class Cefrium {
      * warning. Pass null to record nothing, the default.</p>
      *
      * @param file where to write the log; the app must be able to write it.
+     * @throws IllegalStateException with another value once the engine has
+     *         started.
      */
     public static synchronized void setNetLogFile(java.io.File file) {
-        if (sInitialized) {
-            android.util.Log.w(TAG, "setNetLogFile() ignored: the engine is already "
-                    + "initialized. Call it before the first browser is created.");
-            return;
-        }
+        checkStartupSetting("setNetLogFile", !java.util.Objects.equals(file, sNetLogFile));
         sNetLogFile = file;
     }
 
