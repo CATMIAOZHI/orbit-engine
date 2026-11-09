@@ -13,6 +13,8 @@ import java.util.List;
  * {@link CefriumBrowser#setDialogActivity}); with neither, the request fails.
  *
  * <p>Called on the main thread.</p>
+ *
+ * <p>Experimental: it may still change before the 1.0 API freeze.</p>
  */
 public interface CefriumIdentityHandler {
 
