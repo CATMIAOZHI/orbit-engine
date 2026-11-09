@@ -71,7 +71,9 @@ Phases: `patches build hotranges merge compose plugin stats sanity suite stage p
 flagship release provenance web prune play`. Flags that matter:
 `CEFRIUM_INCREMENTAL=1` (reuse out dirs), `CEFRIUM_YES=1` (pre-authorize the
 irreversible gates -- needed for an unattended run), `CEFRIUM_NO_PRUNE=1`,
-`CEFRIUM_NO_PLAY=1`, `CEFRIUM_PLAY_TRACK=internal`. Details and the reasoning
+`CEFRIUM_NO_PLAY=1`, `CEFRIUM_PLAY_TRACK=internal`, `CEFRIUM_CENTRAL=1` (also
+publish to Maven Central), `CEFRIUM_KEEP_VERSIONS=N` (registry retention,
+default 2). Details and the reasoning
 behind the phase order: `RELEASING-CEFRIUM.md`.
 
 The cut commits the tracked files it rewrites, each in the phase that writes it:
@@ -91,7 +93,8 @@ Individual phases, runnable on their own:
 | Publish to Codeberg Maven | `cef/cefrium_sdk/publish-maven.sh <version>` |
 | Split the two SDK AARs into the published modules | `python3 cef/cefrium_sdk/modular_artifacts.py build --codecs <aar> [--libre <aar>] --out <dir>` |
 | Write the Maven repository to a directory and run the consumer test on it (no upload) | `CEFRIUM_MAVEN_DIR=<dir> [CEFRIUM_RELEASE_DIR=<dir>] cef/cefrium_sdk/publish-maven.sh <version>` |
-| Publish to Maven Central | `cef/cefrium_sdk/publish-central.sh <version>` |
+| Publish to Maven Central (opt-in, stopped at 0.17.1) | `cef/cefrium_sdk/publish-central.sh <version>` |
+| Generated C API and API hashes match the headers | `cef/cefrium_sdk/check-cef-api.sh [<commit>]` |
 | Codeberg release + GPG sums | `cef/cefrium_sdk/release-codeberg.sh <version> <apk>` |
 | Central serves the signed bytes | `cef/cefrium_sdk/verify-central-provenance.sh <version>` |
 | Derive the repo-doc figures | `cef/cefrium_sdk/update-doc-figures.py [--check]` |
@@ -284,8 +287,9 @@ the local tree AND on the live site:
 cef/cefrium_sdk/release-status.sh <version>
 ```
 
-Both registries x 5 coordinates, the release assets, and the ABIs and engine
-found INSIDE the published bytes. This is the answer to "did it really go out",
+Every coordinate on the Codeberg registry (Central shown for reference; it
+counts only with `CEFRIUM_CENTRAL=1`), the release assets, and the ABIs and
+engine found INSIDE the published bytes. This is the answer to "did it really go out",
 and it gates the prune.
 
 ## Engine bump

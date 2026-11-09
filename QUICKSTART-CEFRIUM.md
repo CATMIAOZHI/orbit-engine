@@ -29,24 +29,17 @@ From zero to rendering a web page in 5 minutes.
 > "Adding Cefrium to one module of an existing multi-module app" in
 > Troubleshooting for the exact error and the `kotlin.srcDir` gotcha.
 
-> **Where it's hosted (two sources).** Cefrium is published to **Maven Central**
-> (recommended -- `mavenCentral()` already in every build resolves it with no extra
-> repository line, and every version stays available permanently) and mirrored on
-> the **Codeberg Maven registry** (the `maven { url ... }` line in the settings
-> below; latest version only). Either works. If you use Central you can drop the
-> Codeberg `maven { url }` lines entirely. If a build fails with `Plugin [id:
-> 'com.cefrium', version: 'X'] was not found` against the Codeberg mirror, that
-> pinned version was pruned -- either bump to the current version or switch to
-> Maven Central, which keeps it. Full version history: the Codeberg Releases page
-> and `CHANGELOG-CEFRIUM.md`.
+> **Where it's hosted.** Cefrium is published on the **Codeberg Maven registry**:
+> the `maven { url ... }` line in both blocks below. The registry serves the
+> current release and the one before it, so a pinned version keeps resolving
+> through one more release; move to the current version within that window. If a
+> build fails with `Plugin [id: 'com.cefrium', version: 'X'] was not found`, that
+> version was pruned. Older releases stay on the Codeberg Releases page as the
+> git tag and a GPG-signed `SHA256SUMS`; full history in `CHANGELOG-CEFRIUM.md`.
 >
-> **Pinning a fixed version in production? Depend on it via Maven Central.** Central
-> is immutable and retains every version forever, so a pinned coordinate
-> (`com.cefrium:cefrium-sdk:X.Y.Z` resolved through `mavenCentral()`) never
-> disappears. The Codeberg mirror keeps only the latest version to stay within its
-> donated-storage limits, so pinning an older version there will break at the next
-> release. Track-latest builds can use either source; pinned/reproducible builds
-> should use Central.
+> **Maven Central stops at 0.17.1.** Versions up to 0.17.1 resolve from
+> `mavenCentral()`; later ones are only on the Codeberg registry, because
+> Central's publishing limits need a paid subscription for this project.
 
 ## 1. Create an Android project
 

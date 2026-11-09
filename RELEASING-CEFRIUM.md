@@ -11,7 +11,7 @@ One script runs all of it. The phases, in order, and what each one is for:
 
 | # | Phase | What it does | Script |
 |---|-------|--------------|--------|
-| 1 | `patches` | Set `Cefrium.VERSION` **and commit it**, apply the CEF patches, touch their targets so ninja rebuilds | `apply-patches.py` |
+| 1 | `patches` | Set `Cefrium.VERSION` **and commit it**, check the generated C API and API hashes, apply the CEF patches, touch their targets so ninja rebuilds | `check-cef-api.sh`, `apply-patches.py` |
 | 2 | `build` | The 6 variants: codecs/libre x arm64/x86_64/armeabi-v7a | `build-all-variants.sh` |
 | 3 | `hotranges` | Record which parts of each arm64 `libcef.so` a cold start reads, on the device, and add the list to that AAR for the SDK's startup read-ahead | `record-hot-ranges.sh` |
 | 4 | `merge` | Fuse arm64 + x86_64 + armeabi-v7a into the published fat AARs, split them into the published modules, assert the artifacts, write the SBOM | `merge-multiabi.sh`, `modular_artifacts.py`, `verify-release-artifacts.sh`, `generate-sbom.sh` |
@@ -22,12 +22,12 @@ One script runs all of it. The phases, in order, and what each one is for:
 | 9 | `suite` | The on-device suite, read from the result files, not from Gradle's exit status: plain, minified, and as armeabi-v7a on the device; then on an Android 10 (API 29) emulator; then Web Push through FCM, which the suite can only fake | `run-instrumentation-suite.sh`, `suite-on-emulator.sh`, `push-e2e.sh` |
 | 10 | `stage` | Publish to a local directory and resolve + start the release from there, before anything is uploaded | `publish-maven.sh` (`CEFRIUM_MAVEN_DIR`) |
 | 11 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
-| 12 | `central` | Upload to Maven Central, the channel adopters actually pin | `publish-central.sh` |
+| 12 | `central` | Upload to Maven Central, only with `CEFRIUM_CENTRAL=1` | `publish-central.sh` |
 | 13 | `flagship` | Build the browser APK against this exact SDK | - |
 | 14 | `release` | Codeberg release: tag, assets, GPG-signed `SHA256SUMS` | `release-codeberg.sh` |
-| 15 | `provenance` | Check Maven Central serves the bytes the signed `SHA256SUMS` names (skipped with `CEFRIUM_SKIP_CENTRAL=1`) | `verify-central-provenance.sh` |
+| 15 | `provenance` | Check Maven Central serves the bytes the signed `SHA256SUMS` names (only with `CEFRIUM_CENTRAL=1`) | `verify-central-provenance.sh` |
 | 16 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, re-assert the repo docs, then VERIFY and push the cef repo | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
-| 17 | `prune` | Drop superseded versions from the latest-only Codeberg mirror | `prune-old-versions.sh` |
+| 17 | `prune` | Drop versions older than the previous release from the registry | `prune-old-versions.sh` |
 | 18 | `play` | Pin + version-bump the apps, rebuild every sample, upload to Play | `release-play.sh` |
 
 The order of `web` and `prune` is deliberate and was learned the hard way. `prune`
@@ -42,23 +42,23 @@ Two things need a human and are not automated:
   Play reaches users. Each gate asks you to type the version. `CEFRIUM_YES=1`
   pre-authorizes them, which an unattended run MUST set -- a background job has
   no stdin and dies at the first gate otherwise.
-- **The hardware signing key**, for the GPG-signed `SHA256SUMS` in phase 13 (`release`). Prime it in a
+- **The hardware signing key**, for the GPG-signed `SHA256SUMS` in phase 14 (`release`). Prime it in a
   terminal that can show a pinentry prompt before starting.
 
-Everything else, including the pushes, is scripted. The index of every script
+Everything else is scripted, including the pushes: the cef and sample repos
+at the end of `web`, cefrium-web in `web`, cefrium-browser in `play`. The index of every script
 is `SCRIPTS-CEFRIUM.md`.
 
 ## Running it
 
 The whole pipeline below is orchestrated by one script that stops for explicit
-confirmation before the two irreversible steps (immutable publish, destructive
-prune):
+confirmation before the irreversible step (the immutable publish):
 
 ```bash
 # The cut sets Cefrium.VERSION itself, and commits it:
 cef/cefrium_sdk/cut-release.sh <version> <prev-version> --notes "<releases-row HTML>"
 # Resume after a long build:  --from publish   (phases: patches build hotranges merge
-#   compose plugin stats sanity suite publish central flagship release
+#   compose plugin stats sanity suite stage publish central flagship release
 #   provenance web prune play)
 ```
 
@@ -90,37 +90,22 @@ not mechanics: the first AAB of a new app (Play requires it by hand), the
 listing copy, staged-rollout percentages, and the 12-testers-for-14-days closed
 test that gates production access. See `PLAY-PUBLIC-TRACK-RUNBOOK.md`.
 
-**Maven Central is THE channel adopters consume -- not a migration target.** This
-was mis-framed here as something aspirational, and the consequence was concrete:
-Central publishing stayed a separate manual step, stopped being run after 0.8.9
-(2026-09-18), and 0.9.0 through 0.9.3 went to Codeberg only. Every 0.9.x is an
-HTTP 404 on Central, so no external adopter received those four releases -- and
-because bug reports went quiet three days later, the silence read as new-found
-stability. Treat "published" as meaning Central.
+**The Codeberg Maven registry is the channel.** Maven Central stopped at
+0.17.1: Sonatype refused a limits exemption for a project with a commercial
+licence and requires a paid publisher subscription (ticket 130372,
+2026-11-09). The `central` and `provenance` phases run only with
+`CEFRIUM_CENTRAL=1`; `publish-central.sh` and `verify-central-provenance.sh`
+stay for that case.
 
-The Codeberg registry is a **latest-only mirror**: we prune it because it is a
-quota-limited donated host, and that pruning is what 404'd our first external
-adopter's pinned version. It cannot be pinned, which is exactly what we tell
-integrators, so it is not a delivery channel on its own.
+The registry keeps the release and the one before it (`prune-old-versions.sh`,
+`CEFRIUM_KEEP_VERSIONS`), so a pinned build has one release to move. That is
+the storage a donated host allows (1.5 GiB default quota; one release is about
+500 MB). Older versions stay as the git tag and the signed `SHA256SUMS`.
 
-`cut-release.sh` now has a **`central` phase** between `publish` and `flagship`,
-so it can no longer be forgotten: it fails the cut when `CEFRIUM_CENTRAL_TOKEN`
-is unset or its file is missing, and only skips on a deliberate
-`CEFRIUM_SKIP_CENTRAL=1`. Note the phase
-needs `cefrium-sdk-libre.aar`, so a single-variant cut cannot reach Central at
-all -- another reason releases ship the full variant matrix.
-
-`publish-central.sh` ships one signed bundle per coordinate (each SDK variant,
-compose, plugin + marker), defaults to USER_MANAGED (validates but does not
-release until you press Publish in the Portal), and supports `--dry-run`
-(assemble + validate locally, no network) and `--publish` (release, immutable).
-One-time setup is in the script header: verify the `com.cefrium` namespace via a
-cefrium.com DNS TXT record, put a Portal user token in the file
-`CEFRIUM_CENTRAL_TOKEN` names, and
-send the signing key's public half to keys.openpgp.org. Since Central keeps every
-version permanently, the Codeberg prune gate stays optional housekeeping, and
-QUICKSTART's "Version availability" note should say all Central versions are
-permanent.
+Lesson kept from Central: "published" means the channel adopters resolve from,
+checked by `release-status.sh`, not "uploaded somewhere". Central publishing
+was once a manual step, stopped after 0.8.9, and every 0.9.x was a 404 for
+adopters for three weeks.
 
 **Reference apps are a release gate, not an afterthought.** The two reference
 apps (`cefrium-browser/` View API + `compose-browser/` Compose API) are the
@@ -325,10 +310,10 @@ export ANDROID_HOME="$PWD/third_party/android_sdk/public"
 export PATH="$PWD/../../depot_tools:$PATH"   # gn + ninja
 ```
 
-Also needed: `CEFRIUM_REGISTRY_TOKEN` and `CEFRIUM_CENTRAL_TOKEN`, each naming
-a file that holds the corresponding token (read by the scripts, never echoed;
-the paths live in your local setup notes, deliberately not here), the Maven Central credentials for the
-`central` phase, the Play service-account JSON at
+Also needed: `CEFRIUM_REGISTRY_TOKEN` (and `CEFRIUM_CENTRAL_TOKEN` with
+`CEFRIUM_CENTRAL=1`), each naming a file that holds the token (read by the
+scripts, never echoed; the paths live in your local setup notes, deliberately
+not here), the Play service-account JSON at
 `cefrium-browser/secrets/play-sa.json` for the `play` phase, and a primed
 hardware signing key for the signed `SHA256SUMS`.
 
@@ -340,10 +325,9 @@ These are the ones that have actually cost a release:
   skipped, never overwritten. To ship changed bytes you bump the version --
   there is no other remedy, which is why the `sanity` phase builds a real
   consumer against the fresh AAR BEFORE anything is uploaded.
-- **"Published" means Maven Central.** Codeberg is a latest-only mirror that
-  gets pruned and cannot be pinned. Central publishing used to be a separate
-  manual step, it stopped being run after 0.8.9, and every 0.9.x was a 404 for
-  external adopters for three weeks. It is a phase now; do not skip it.
+- **"Published" means served by the registry adopters resolve from.**
+  `release-status.sh` checks every coordinate there; the `prune` phase runs it
+  and refuses to delete anything when the new version is incomplete.
 - **Publish all six variants.** x86_64 and armeabi-v7a live INSIDE the multi-ABI AAR, so an
   arm64-only cut gives emulator users an `UnsatisfiedLinkError` at runtime, and
   a codecs-only cut publishes no `-libre` coordinate at all. 0.9.3 shipped that

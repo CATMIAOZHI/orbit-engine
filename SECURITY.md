@@ -106,10 +106,10 @@ Every release states the exact engine it carries, in
 | The latest release | Yes, best effort |
 | Anything older | No |
 
-Maven Central is append-only, so every version ever published stays
-resolvable. That is not support. An old coordinate resolving means only that
-Central does not delete, and each one carries the engine it shipped with.
-Check the engine, not the version number.
+The Codeberg Maven registry serves the latest release and the one before it;
+Maven Central keeps the versions up to 0.17.1. An old coordinate that still
+resolves is not supported: it carries the engine it shipped with. Check the
+engine, not the version number.
 
 ## Verifying what you downloaded
 
@@ -123,7 +123,7 @@ gpg --verify SHA256SUMS-<version>.asc SHA256SUMS-<version>
 sha256sum -c SHA256SUMS-<version>
 ```
 
-The bytes Maven Central serves are the bytes in that signed file. Official
+The bytes the Codeberg registry serves are the bytes in that signed file. Official
 builds come from the channels listed in
 [Trademark and Forks](https://cefrium.com/policy/); a build from anywhere else
 is a derivative, whatever it is called.
@@ -137,6 +137,6 @@ every release by a 174-test on-device suite that a release cannot skip. Use it
 with the same care you would give any browser engine you embed: keep it
 updated, because that is the only way engine fixes reach your users. The SDK
 does not check for newer versions itself, at build time or at run time: that
-would be a connection you did not ask for. Renovate and Dependabot both watch
-`com.cefrium:*` on Maven Central, and https://cefrium.com/releases lists the
-current version.
+would be a connection you did not ask for. Renovate and Dependabot can watch
+`com.cefrium:*` once the Codeberg registry is configured as a Maven registry,
+and https://cefrium.com/releases lists the current version.
