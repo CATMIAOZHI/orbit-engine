@@ -105,6 +105,17 @@ echo "Registry: keep $(echo $keep_set $above) (CEFRIUM_KEEP_VERSIONS=$N); prune:
 echo "Release binaries: keep on the newest $NB release(s) up to v$KEEP (CEFRIUM_KEEP_RELEASE_BINARIES); delete $(echo "$asset_plan" | grep -c . || true) file(s), $((asset_bytes / 1048576)) MiB"
 echo "$asset_plan" | awk 'NF{printf "  %-9s %6d MiB  %s\n", $4, $3/1048576, $5}'
 
+# Codeberg carries what SDK users need. Anything else in the account is shown on
+# every run, never deleted here: it may be another product's.
+curl -s "$API?limit=100" -K "$CURL_AUTH_CFG" | python3 -c '
+import json, sys
+want = set(sys.argv[1].split())
+for p in json.load(sys.stdin):
+    if p.get("name", "").split(":")[-1] not in want:
+        print("  not SDK, not touched: %s %s %s (delete in Codeberg -> Packages if unused)"
+              % (p["type"], p["name"], p["version"]))
+' "$COORDS"
+
 if [ -z "$to_prune" ] && [ -z "$asset_plan" ]; then
   echo "Nothing to prune."
   exit 0
