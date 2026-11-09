@@ -12,23 +12,25 @@ One script runs all of it. The phases, in order, and what each one is for:
 | # | Phase | What it does | Script |
 |---|-------|--------------|--------|
 | 1 | `patches` | Set `Cefrium.VERSION` **and commit it**, apply the CEF patches, touch their targets so ninja rebuilds | `apply-patches.py` |
-| 2 | `build` | The 4 variants: codecs/libre x arm64/x86_64 (~6.5 h cold on 24c/62G) | `build-all-variants.sh` |
+| 2 | `build` | The 6 variants: codecs/libre x arm64/x86_64/armeabi-v7a | `build-all-variants.sh` |
 | 3 | `hotranges` | Record which parts of each arm64 `libcef.so` a cold start reads, on the device, and add the list to that AAR for the SDK's startup read-ahead | `record-hot-ranges.sh` |
-| 4 | `merge` | Fuse arm64 + x86_64 into the published fat AARs | `merge-multiabi.sh` |
+| 4 | `merge` | Fuse arm64 + x86_64 + armeabi-v7a into the published fat AARs, split them into the published modules, assert the artifacts, write the SBOM | `merge-multiabi.sh`, `modular_artifacts.py`, `verify-release-artifacts.sh`, `generate-sbom.sh` |
 | 5 | `compose` | The Compose wrapper AAR | (gradle, in `cefrium_compose`) |
 | 6 | `plugin` | Check the Gradle plugin jar | - |
 | 7 | `stats` | Derive every figure README.md, QUICKSTART-CEFRIUM.md, MIGRATION-CEFRIUM.md and BUILD-GUIDE-CEFRIUM.md state (patch counts, engine, SDK version, service slots, toolchain and JDK floors), commit them, then assert what was committed; also assert that every API name, Cefrium type, script path and doc link in those four and in FEATURES/CHANGELOG/SCRIPTS/RELEASING/PATCHING still resolves; also assert the changelog has this version's section as its newest entry | `update-doc-figures.py` |
 | 8 | `sanity` | Build a REAL consumer against the fresh AAR, before anything immutable; launch every sample, read the verdict samples, run the scenarios a launch cannot show (download resumed after a kill) | `smoke-samples.sh`, `smoke-minified.sh` |
-| 9 | `suite` | The on-device suite, read from the result files, not from Gradle's exit status, plain and minified; then Web Push through FCM, which the suite can only fake | `run-instrumentation-suite.sh`, `push-e2e.sh` |
-| 10 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
-| 11 | `central` | Upload to Maven Central, the channel adopters actually pin | `publish-central.sh` |
-| 12 | `flagship` | Build the browser APK against this exact SDK | - |
-| 13 | `release` | Codeberg release: tag, assets, GPG-signed `SHA256SUMS` | `release-codeberg.sh` |
-| 14 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, re-assert the repo docs, then VERIFY and push the cef repo | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
-| 15 | `prune` | Drop superseded versions from the latest-only Codeberg mirror | `prune-old-versions.sh` |
-| 16 | `play` | Pin + version-bump the apps, rebuild every sample, upload to Play | `release-play.sh` |
+| 9 | `suite` | The on-device suite, read from the result files, not from Gradle's exit status: plain, minified, and as armeabi-v7a on the device; then on an Android 10 (API 29) emulator; then Web Push through FCM, which the suite can only fake | `run-instrumentation-suite.sh`, `suite-on-emulator.sh`, `push-e2e.sh` |
+| 10 | `stage` | Publish to a local directory and resolve + start the release from there, before anything is uploaded | `publish-maven.sh` (`CEFRIUM_MAVEN_DIR`) |
+| 11 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
+| 12 | `central` | Upload to Maven Central, the channel adopters actually pin | `publish-central.sh` |
+| 13 | `flagship` | Build the browser APK against this exact SDK | - |
+| 14 | `release` | Codeberg release: tag, assets, GPG-signed `SHA256SUMS` | `release-codeberg.sh` |
+| 15 | `provenance` | Check Maven Central serves the bytes the signed `SHA256SUMS` names (skipped with `CEFRIUM_SKIP_CENTRAL=1`) | `verify-central-provenance.sh` |
+| 16 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, re-assert the repo docs, then VERIFY and push the cef repo | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
+| 17 | `prune` | Drop superseded versions from the latest-only Codeberg mirror | `prune-old-versions.sh` |
+| 18 | `play` | Pin + version-bump the apps, rebuild every sample, upload to Play | `release-play.sh` |
 
-The order of 14 and 15 is deliberate and was learned the hard way. `prune`
+The order of `web` and `prune` is deliberate and was learned the hard way. `prune`
 exits 1 when the release looks incomplete, and on the 0.10.2 cut "incomplete"
 only meant Maven Central had not propagated yet, which took six minutes. That
 exit used to happen before the push, so the source of a published release sat
@@ -106,7 +108,7 @@ so it can no longer be forgotten: it fails the cut when `CEFRIUM_CENTRAL_TOKEN`
 is unset or its file is missing, and only skips on a deliberate
 `CEFRIUM_SKIP_CENTRAL=1`. Note the phase
 needs `cefrium-sdk-libre.aar`, so a single-variant cut cannot reach Central at
-all -- another reason releases ship the full four variants.
+all -- another reason releases ship the full variant matrix.
 
 `publish-central.sh` ships one signed bundle per coordinate (each SDK variant,
 compose, plugin + marker), defaults to USER_MANAGED (validates but does not
@@ -342,7 +344,7 @@ These are the ones that have actually cost a release:
   gets pruned and cannot be pinned. Central publishing used to be a separate
   manual step, it stopped being run after 0.8.9, and every 0.9.x was a 404 for
   external adopters for three weeks. It is a phase now; do not skip it.
-- **Publish all four variants.** x86_64 lives INSIDE the multi-ABI AAR, so an
+- **Publish all six variants.** x86_64 and armeabi-v7a live INSIDE the multi-ABI AAR, so an
   arm64-only cut gives emulator users an `UnsatisfiedLinkError` at runtime, and
   a codecs-only cut publishes no `-libre` coordinate at all. 0.9.3 shipped that
   way and cost us developers. `cut-release.sh` now refuses a partial matrix at

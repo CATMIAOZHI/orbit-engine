@@ -57,7 +57,7 @@ Use the build script:
 ```bash
 cd chromium/src
 
-# Build all 4 variants (arm64/x64 x codecs/libre)
+# Build all 6 variants (arm64/x64/arm x codecs/libre)
 cef/cefrium_sdk/build-all-variants.sh
 
 # Or build specific variants
@@ -65,6 +65,8 @@ cef/cefrium_sdk/build-all-variants.sh arm64 codecs   # arm64 with H.264/AAC
 cef/cefrium_sdk/build-all-variants.sh arm64 libre    # arm64 VP8/VP9 only
 cef/cefrium_sdk/build-all-variants.sh x64 codecs     # x64 for emulators
 cef/cefrium_sdk/build-all-variants.sh x64 libre      # x64 libre
+cef/cefrium_sdk/build-all-variants.sh arm codecs     # armeabi-v7a (32-bit ARM)
+cef/cefrium_sdk/build-all-variants.sh arm libre      # armeabi-v7a libre
 ```
 
 Output AARs are in `out/release/`:
@@ -184,23 +186,24 @@ cef/cefrium_sdk/cut-release.sh <version> <prev-version>     # e.g. 0.4.0 0.3.2
 ```
 
 Phases (resume after a long build with `--from <phase>`):
-`patches build merge compose plugin stats sanity publish flagship release web prune`.
-- `build` -> `build-all-variants.sh all` (4 variants; runs `slim_aar.py` per variant)
-- `merge` -> `merge-multiabi.sh` fuses arm64+x86_64 into `out/release/cefrium-sdk.aar`
+`patches build hotranges merge compose plugin stats sanity suite stage publish central flagship release provenance web prune play`
+(the table in RELEASING-CEFRIUM.md says what each does).
+- `build` -> `build-all-variants.sh all` (6 variants; runs `slim_aar.py` per variant)
+- `merge` -> `merge-multiabi.sh` fuses arm64+x86_64+armeabi-v7a into `out/release/cefrium-sdk.aar`
   and `cefrium-sdk-libre.aar`
 - `compose` builds the Compose AAR (auto-restores the gitignored gradle-wrapper.jar
   + `libs/` dir).
 - `build` also runs a **GEN_JNI staleness gate** (`regen-gen-jni.sh --check`): fails
   if the checked-in GEN_JNI drifted from the build's generated one (the 0.4.0 root
-  cause). `sanity` builds push-demo (compile check) AND runs the **on-device
-  instrumented suite** against the fresh AAR (runtime feature gate -- a release
-  must be runtime-validated on a connected device; compile checks alone let 0.4.0
-  ship a 149 crash). Then an interactive **gate** guards the IMMUTABLE `publish`;
-  `prune` (latest-only) is also gated.
+  cause). `sanity` builds and launches every sample and both browsers on the
+  device against the fresh AAR, and `suite` runs the **on-device instrumented
+  suite** (a release must be runtime-validated on a connected device; compile
+  checks alone let 0.4.0 ship a 149 crash). Then an interactive **gate** guards
+  the IMMUTABLE `publish`.
 - `publish` -> `publish-maven.sh <version>` (uploads + smoke-tests both coordinates).
 
 A fresh out dir is used per the engine stamp, so an engine bump never reuses a
-stale build dir (see "After an engine bump" in CLAUDE.md / RELEASING-CEFRIUM.md).
+stale build dir (see "Engine bump" in RELEASING-CEFRIUM.md).
 
 ### 7.1 Build the artifacts publish-maven.sh uploads
 
@@ -322,7 +325,7 @@ first.
 | Incremental (one .cc changed) | ~30 sec |
 | Slim AAR | ~10 sec |
 | Gradle sample APK | ~1 min |
-| All 4 variants | ~3-4 hours |
+| All 6 variants, clean | see `tmp/cut-<version>.status` |
 
 ## Troubleshooting
 
