@@ -9,6 +9,7 @@
 #include <iterator>
 #include <jni.h>
 #include <map>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -726,6 +727,9 @@ class SdkDisplayHandler : public CefDisplayHandler {
   void OnAddressChange(CefRefPtr<CefBrowser> browser,
                        CefRefPtr<CefFrame> frame,
                        const CefString& url) override {
+    if (frame->IsMain()) {
+      last_title_.reset();
+    }
     if (!frame->IsMain() || !java_browser_) return;
     JNIEnv* env = base::android::AttachCurrentThread();
     if (!env) return;
@@ -741,8 +745,12 @@ class SdkDisplayHandler : public CefDisplayHandler {
     env->DeleteLocalRef(cls);
   }
 
+  // CEF reports the title again when loading stops; report each title of a
+  // page once, as WebView's onReceivedTitle.
   void OnTitleChange(CefRefPtr<CefBrowser> browser,
                      const CefString& title) override {
+    if (last_title_ == title.ToString16()) return;
+    last_title_ = title.ToString16();
     if (!java_browser_) return;
     JNIEnv* env = base::android::AttachCurrentThread();
     if (!env) return;
@@ -879,6 +887,7 @@ class SdkDisplayHandler : public CefDisplayHandler {
 
  private:
   jobject java_browser_ = nullptr;
+  std::optional<std::u16string> last_title_;
 };
 
 // The app's own Downloads directory, set by Cefrium.initialize. A download the
