@@ -9,7 +9,7 @@
 [![SDK](https://img.shields.io/badge/SDK-0.18.0-22d3ee)](https://codeberg.org/cefrium/cef-android/releases)
 [![Chromium](https://img.shields.io/badge/Chromium-156.0.8078.80-4285f4)](https://cefrium.com/upstream/)
 [![Android patches](https://img.shields.io/badge/Android%20patches-43-6b7280)](patch/patches/android)
-[![Maven Central](https://img.shields.io/badge/Maven%20Central-com.cefrium-1f6feb)](https://central.sonatype.com/namespace/com.cefrium)
+[![Maven](https://img.shields.io/badge/Maven-Codeberg-1f6feb)](https://codeberg.org/cefrium/-/packages)
 [![Min API](https://img.shields.io/badge/min%20API-29-3ddc84)](QUICKSTART-CEFRIUM.md)
 [![License](https://img.shields.io/badge/license-LGPL--3.0--or--later-green)](LICENSE-CEFRIUM.md)
 
@@ -243,12 +243,11 @@ Pre-built AARs are published on
 
 ### Gradle integration
 
-Published to **Maven Central** (recommended -- `mavenCentral()` resolves it with
-no extra repository line, and every version stays available permanently) and
-mirrored on the **Codeberg Maven registry**, which serves the latest version
-only. For the mirror, add
+Published on the **Codeberg Maven registry**, which serves the current release
+and the one before it. Add
 `maven { url 'https://codeberg.org/api/packages/cefrium/maven' }` to both
 `pluginManagement` and `dependencyResolutionManagement` in `settings.gradle`.
+Maven Central has the versions up to 0.17.1 only.
 
 ```groovy
 // app/build.gradle
