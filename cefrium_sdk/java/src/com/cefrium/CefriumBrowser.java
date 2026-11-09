@@ -1440,6 +1440,46 @@ public class CefriumBrowser {
                 landscape);
     }
 
+    // ─────────────── Text selection (TE2) ───────────────
+
+    private android.view.ActionMode.Callback mTextSelectionCallback;
+
+    /**
+     * Adds the app's own actions to the text-selection toolbar of a surface
+     * browser. The toolbar keeps its own items (copy, paste, share, web
+     * search, text processing); {@code callback} is called after them in
+     * onCreateActionMode and onPrepareActionMode to add or change items, first
+     * in onActionItemClicked (return true to take the click), and in
+     * onDestroyActionMode. Read the selection with {@link #getSelectedText}.
+     * Null removes it. An off-screen browser shows no toolbar; see
+     * {@link CefriumRenderHandler#onQuickMenu}.
+     *
+     * <p>Experimental: it may still change before the 1.0 API freeze.</p>
+     */
+    public void setTextSelectionActionModeCallback(android.view.ActionMode.Callback callback) {
+        checkThread("setTextSelectionActionModeCallback");
+        mTextSelectionCallback = callback;
+    }
+
+    android.view.ActionMode.Callback textSelectionCallback() {
+        return mTextSelectionCallback;
+    }
+
+    /**
+     * The text selected in the page of a surface browser, or an empty string.
+     *
+     * <p>Experimental: it may still change before the 1.0 API freeze.</p>
+     */
+    public String getSelectedText() {
+        checkThread("getSelectedText");
+        if (!isLive() || mSurfaceContainer == null) return "";
+        org.chromium.content_public.browser.WebContents wc = nativeGetWebContents(mNativePtr);
+        if (wc == null) return "";
+        String text = org.chromium.content_public.browser.SelectionPopupController
+                .fromWebContents(wc).getSelectedText();
+        return text == null ? "" : text;
+    }
+
     // ─────────────── Printing (FEATURE-087) ───────────────
 
     /** Takes a page's {@code window.print()}. */

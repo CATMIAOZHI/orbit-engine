@@ -37,12 +37,14 @@ import org.chromium.ui.base.WindowAndroid.IntentCallback;
  * only provides the reusable ActionModeCallbackHelper.
  */
 class CefriumActionModeCallback extends ActionModeCallback implements IntentCallback {
+    private final CefriumBrowser mBrowser;
     private final WebContents mWebContents;
     private final SelectionPopupController mSelectionPopupController;
     private final ActionModeCallbackHelper mHelper;
     private int mAllowedMenuItems;
 
     CefriumActionModeCallback(CefriumBrowser browser, WebContents webContents) {
+        mBrowser = browser;
         mWebContents = webContents;
         mSelectionPopupController = SelectionPopupController.fromWebContents(webContents);
         mHelper = mSelectionPopupController.getActionModeCallbackHelper();
@@ -63,6 +65,8 @@ class CefriumActionModeCallback extends ActionModeCallback implements IntentCall
             mAllowedMenuItems = allowedItems;
         }
         mHelper.onCreateActionMode(mode, menu);
+        ActionMode.Callback app = mBrowser.textSelectionCallback();
+        if (app != null) app.onCreateActionMode(mode, menu);
         return true;
     }
 
@@ -76,12 +80,17 @@ class CefriumActionModeCallback extends ActionModeCallback implements IntentCall
 
     @Override
     public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
-        return mHelper.onPrepareActionMode(mode, menu);
+        boolean changed = mHelper.onPrepareActionMode(mode, menu);
+        ActionMode.Callback app = mBrowser.textSelectionCallback();
+        if (app != null) changed |= app.onPrepareActionMode(mode, menu);
+        return changed;
     }
 
     @Override
     public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
         if (!mHelper.isActionModeValid()) return true;
+        ActionMode.Callback app = mBrowser.textSelectionCallback();
+        if (app != null && app.onActionItemClicked(mode, item)) return true;
         if (isProcessTextMenuItem(item.getGroupId())) {
             processText(item.getIntent());
             // Do not dismiss (matches TextView behavior).
@@ -106,6 +115,8 @@ class CefriumActionModeCallback extends ActionModeCallback implements IntentCall
     @Override
     public void onDestroyActionMode(ActionMode mode) {
         mHelper.onDestroyActionMode();
+        ActionMode.Callback app = mBrowser.textSelectionCallback();
+        if (app != null) app.onDestroyActionMode(mode);
     }
 
     @Override
