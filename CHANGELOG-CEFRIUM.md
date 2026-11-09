@@ -47,6 +47,15 @@ in the internal FEATURE-NNN.md working docs (not published).
   event handles are opaque pointers, with no X11 types.
 
 ### Changed
+- **Published on the Codeberg Maven registry only.** Maven Central stops at
+  0.17.1: its publishing limits need a paid subscription for this project.
+  Add `maven { url 'https://codeberg.org/api/packages/cefrium/maven' }` to
+  `pluginManagement` and `dependencyResolutionManagement`. The registry now
+  keeps this release and the one before it (it kept only the latest), so a
+  pinned version has one release to move.
+- The NFC permission type and the device chooser type are experimental CEF
+  API (`CEF_API_ADDED(CEF_EXPERIMENTAL)`); unguarded, they changed the API
+  hash of every versioned API.
 - **The SDK is published as modules.** `cefrium-sdk-core` holds the Java API,
   resources and assets; `cefrium-native-codecs-<abi>` and
   `cefrium-native-libre-<abi>` each hold one `libcef.so`. `cefrium-sdk` and

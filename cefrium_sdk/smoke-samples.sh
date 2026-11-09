@@ -77,7 +77,7 @@ if [ -n "$REGISTRY_VERSION" ]; then
       if [ "$art" = cefrium-sdk ]; then
         url="https://codeberg.org/cefrium/cef-android/releases/download/v$REGISTRY_VERSION/$art-$REGISTRY_VERSION.aar"
       else
-        url="https://repo1.maven.org/maven2/com/cefrium/$art/$REGISTRY_VERSION/$art-$REGISTRY_VERSION.aar"
+        url="https://codeberg.org/api/packages/cefrium/maven/com/cefrium/$art/$REGISTRY_VERSION/$art-$REGISTRY_VERSION.aar"
       fi
       echo "  fetching $art $REGISTRY_VERSION ($url)"
       curl -sfL -o "$f" "$url" || { echo "FAIL: $art $REGISTRY_VERSION is not published ($url)"; exit 1; }
@@ -94,9 +94,9 @@ if [ -n "$REGISTRY_VERSION" ]; then
   case "$abis" in *armeabi-v7a*) ;; *) echo "FAIL: published AAR has no armeabi-v7a -- 32-bit ARM devices get no engine"; exit 1 ;; esac
   # cefrium-unifiedpush exists from 0.15.0 on; without it unifiedpush-demo
   # fails to build, which is the loud answer for a release that should have it.
-  up="https://repo1.maven.org/maven2/com/cefrium/cefrium-unifiedpush/$REGISTRY_VERSION/cefrium-unifiedpush-$REGISTRY_VERSION.aar"
+  up="https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-unifiedpush/$REGISTRY_VERSION/cefrium-unifiedpush-$REGISTRY_VERSION.aar"
   [ -s "$PUB/cefrium-unifiedpush.aar" ] || curl -sfL -o "$PUB/cefrium-unifiedpush.aar" "$up" \
-    || { rm -f "$PUB/cefrium-unifiedpush.aar"; echo "  cefrium-unifiedpush: not on Central for $REGISTRY_VERSION"; }
+    || { rm -f "$PUB/cefrium-unifiedpush.aar"; echo "  cefrium-unifiedpush: not published for $REGISTRY_VERSION"; }
   SDK_AAR="$PUB/cefrium-sdk.aar"
   COMPOSE_AAR="$PUB/cefrium-compose.aar"
   UNIFIEDPUSH_AAR="$PUB/cefrium-unifiedpush.aar"
