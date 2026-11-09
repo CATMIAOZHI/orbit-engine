@@ -522,6 +522,14 @@ if run suite; then hdr "instrumentation suite on device"
       echo "       Re-run it alone: CEFRIUM_TEST_ABI=armeabi-v7a cef/cefrium_sdk/run-instrumentation-suite.sh"
       exit 1; }
   fi
+  # And on the oldest Android the SDK supports (minSdk 29), on an x86_64
+  # emulator: the release devices run Android 16.
+  if [ "$VARIANTS" = "all" ]; then
+    cef/cefrium_sdk/suite-on-emulator.sh out/release/cefrium-sdk.aar --level 29 || {
+      echo "ERROR: the instrumentation suite did not pass on Android 10 (API 29). Nothing is published."
+      echo "       Re-run it alone: cef/cefrium_sdk/suite-on-emulator.sh out/release/cefrium-sdk.aar --level 29"
+      exit 1; }
+  fi
   # Web Push through FCM, which the suite can only fake: repeated subscribe /
   # unsubscribe per profile, and two sites.
   cef/cefrium_sdk/push-e2e.sh || {

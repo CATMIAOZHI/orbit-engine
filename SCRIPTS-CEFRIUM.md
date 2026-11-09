@@ -355,6 +355,7 @@ handler is never consulted). `--skip-build` for sample-only edits.
 |---|---|
 | Run the instrumentation suite as a gate | `cef/cefrium_sdk/run-instrumentation-suite.sh [<version>]` |
 | Same suite on the app minified with R8 | `cef/cefrium_sdk/run-instrumentation-suite.sh --minified [<version>]` |
+| Same suite on an x86_64 emulator of one Android version (default API 29, the minSdk; the cut's `suite` phase), <runs> times; `CEFRIUM_TEST_CLASS` narrows it | `cef/cefrium_sdk/suite-on-emulator.sh [<sdk.aar>] [--level 29] [--runs 1]` |
 | One test class against a dev AAR, while iterating (not a gate) | `CEFRIUM_TEST_CLASS=<Class> CEFRIUM_SDK_AAR=out/<variant>/cefrium-sdk.aar cef/cefrium_sdk/run-instrumentation-suite.sh` |
 | Web Push through FCM on a device: repeated resubscribes per profile, two sites | `cef/cefrium_sdk/push-e2e.sh [<sdk.aar>]` |
 | Smoke the published artifact | `cef/cefrium_sdk/smoke-samples.sh --registry <version>` |

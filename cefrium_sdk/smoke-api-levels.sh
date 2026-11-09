@@ -33,7 +33,8 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -f "$AAR" ] || { echo "FAIL: no AAR at $AAR"; exit 1; }
-unzip -l "$AAR" | grep -q 'jni/x86_64/libcef.so' \
+# Not `unzip -l | grep -q`: under pipefail grep's early exit fails the pipe.
+unzip -l "$AAR" 'jni/x86_64/libcef.so' > /dev/null 2>&1 \
   || { echo "FAIL: $AAR has no x86_64 libcef.so (the emulators are x86_64)"; exit 1; }
 
 PKG=com.cefrium.sample
