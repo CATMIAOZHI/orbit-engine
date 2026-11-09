@@ -29,6 +29,17 @@ in the internal FEATURE-NNN.md working docs (not published).
   on the browser's activity or by `CefriumBrowser.setIdentityHandler`. It
   failed with `NetworkError` before (issue #20). New experimental CEF API:
   `CefIdentityRequestHandler`, `CefClient::GetIdentityRequestHandler`.
+- **Printing.** `window.print()` opens Android's print dialog on the
+  browser's activity (it did nothing), or goes to `setPrintHandler`.
+  `createPrintDocumentAdapter(name)`, as in WebView, and `print()` give
+  Android's print framework the page, printed by the engine with its print
+  styles at the paper size and orientation chosen. `printToPdf` takes a paper
+  size and orientation.
+- **Text selection toolbar.** `setTextSelectionActionModeCallback` adds the
+  app's own actions to the selection toolbar of a surface browser, next to
+  copy, paste and share; `getSelectedText()` reads the selection.
+- `CefDisplay` works on Android (it returned nothing): displays, scale factor
+  and pixel conversion, through `display::Screen`.
 
 ### Changed
 - **The SDK is published as modules.** `cefrium-sdk-core` holds the Java API,
