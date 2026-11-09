@@ -10,7 +10,7 @@
 #
 # Build modes: incremental by default (reuses out dirs unless the engine changed --
 # fast, for DEV). --clean / CEFRIUM_CLEAN=1 forces a from-scratch build for RELEASE
-# reproducibility (cut-release sets it by default). See CLAUDE.md "Two flows".
+# reproducibility (cut-release sets it by default).
 #
 # Output: out/release/cefrium-sdk-{arm64,x64,arm}-{codecs,libre}.aar
 # (arm = armeabi-v7a, 32-bit ARM)
@@ -177,7 +177,7 @@ build_variant() {
     # immutable artifact must be reproducible from committed source, not from
     # accumulated incremental state (a stale .o ninja can't detect would otherwise
     # ride into the release). Dev builds leave this off and rely on the engine-stamp
-    # auto-detect below to stay incremental (fast). See CLAUDE.md "Two flows".
+    # auto-detect below to stay incremental (fast).
     echo ">>> CEFRIUM_CLEAN=1 -> wiping $dir_name for a clean from-scratch build"
     rm -rf "$build_dir"
   elif [ -d "$build_dir" ] && \
