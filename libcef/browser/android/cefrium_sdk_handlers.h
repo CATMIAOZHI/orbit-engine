@@ -422,6 +422,9 @@ class SdkLifeSpanHandler : public CefLifeSpanHandler {
     }
   }
 
+  // The bound CefriumBrowser (a global reference), or null.
+  jobject java_browser() const { return java_browser_; }
+
   IMPLEMENT_REFCOUNTING(SdkLifeSpanHandler);
 
  private:

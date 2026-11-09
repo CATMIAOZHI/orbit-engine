@@ -731,7 +731,10 @@ public class CefriumBrowser {
 
     // Called from native CefDisplayHandler::OnTitleChange.
     @SuppressWarnings("unused")
+    private String mLastTitle;
+
     private void onTitleChanged(String title) {
+        mLastTitle = title;
         if (mCallback != null) mCallback.onTitleChanged(title);
         if (mTitleListener != null) mTitleListener.onTitleChanged(title);
     }
@@ -1417,9 +1420,107 @@ public class CefriumBrowser {
     public void printToPdf(String filePath, PdfCallback callback) {
         checkThread("printToPdf");
         if (!isLive() || callback == null) return;
+        printToPdf(filePath, 0, 0, false, callback);
+    }
+
+    /**
+     * Like {@link #printToPdf(String, PdfCallback)}, on paper of the given
+     * size in inches (the portrait size; 0 for the default, Letter), in
+     * landscape if asked.
+     *
+     * <p>Experimental: it may still change before the 1.0 API freeze.</p>
+     */
+    public void printToPdf(String filePath, double paperWidthInches, double paperHeightInches,
+            boolean landscape, PdfCallback callback) {
+        checkThread("printToPdf");
+        if (!isLive() || callback == null) return;
         long id = mPdfReqId.getAndIncrement();
         mPdfCallbacks.put(id, callback);
-        nativePrintToPdf(mNativePtr, this, filePath, id);
+        nativePrintToPdf(mNativePtr, this, filePath, id, paperWidthInches, paperHeightInches,
+                landscape);
+    }
+
+    // ─────────────── Printing (FEATURE-087) ───────────────
+
+    /** Takes a page's {@code window.print()}. */
+    public interface PrintHandler {
+        /**
+         * The page called {@code window.print()}. Return true if you print it
+         * yourself, for example with {@link #createPrintDocumentAdapter};
+         * return false for the default, the system print dialog on this
+         * browser's activity. Called on the main thread.
+         */
+        boolean onPrintRequested();
+    }
+
+    private PrintHandler mPrintHandler;
+
+    /**
+     * Sets the handler for the page's {@code window.print()}. Null (the
+     * default) shows the system print dialog on this browser's activity (a
+     * surface browser's own, or the one given to {@link #setDialogActivity});
+     * with neither, {@code window.print()} does nothing.
+     *
+     * <p>Experimental: it may still change before the 1.0 API freeze.</p>
+     */
+    public void setPrintHandler(PrintHandler handler) {
+        checkThread("setPrintHandler");
+        mPrintHandler = handler;
+    }
+
+    /**
+     * The current page for Android's print framework ({@code PrintManager}):
+     * printed by the engine, with the page's print styles, at the paper size
+     * and orientation the user picks. As Android WebView's method of the same
+     * name.
+     *
+     * <p>Experimental: it may still change before the 1.0 API freeze.</p>
+     *
+     * @param documentName the document name the print dialog shows.
+     */
+    public android.print.PrintDocumentAdapter createPrintDocumentAdapter(String documentName) {
+        checkThread("createPrintDocumentAdapter");
+        return new CefriumPrintAdapter(this, documentName);
+    }
+
+    /**
+     * Opens the system print dialog for the current page, on this browser's
+     * activity.
+     *
+     * <p>Experimental: it may still change before the 1.0 API freeze.</p>
+     *
+     * @throws IllegalStateException if the browser has no activity: a surface
+     *         browser's own, or one given to {@link #setDialogActivity}.
+     */
+    public void print() {
+        checkThread("print");
+        android.app.Activity activity = dialogActivity();
+        if (activity == null) {
+            throw new IllegalStateException(
+                    "print needs an activity: call setDialogActivity on an off-screen browser");
+        }
+        String name = mLastTitle == null || mLastTitle.isEmpty() ? "page" : mLastTitle;
+        android.print.PrintManager manager = (android.print.PrintManager)
+                activity.getSystemService(android.content.Context.PRINT_SERVICE);
+        manager.print(name, createPrintDocumentAdapter(name), null);
+    }
+
+    // Called from native (UI thread) when the page calls window.print().
+    // Returns false when nothing will print it.
+    private boolean onScriptedPrint() {
+        if (mClosed) return false;
+        PrintHandler h = mPrintHandler;
+        if (h != null && h.onPrintRequested()) return true;
+        if (dialogActivity() == null) return false;
+        // After the page's print event returns, as a browser does.
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            if (!mClosed) print();
+        });
+        return true;
+    }
+
+    java.io.File cacheDirForPrinting() {
+        return org.chromium.base.ContextUtils.getApplicationContext().getCacheDir();
     }
 
     // Called from native (UI thread) when PrintToPDF finishes.
@@ -4602,7 +4703,9 @@ public class CefriumBrowser {
     private static native void nativeDeleteCookies(long nativePtr, String url, String name);
     private static native void nativeFlushCookies(long nativePtr);
     private static native void nativeClearCache(long nativePtr);
-    private static native void nativePrintToPdf(long nativePtr, CefriumBrowser browser, String filePath, long requestId);
+    private static native void nativePrintToPdf(long nativePtr, CefriumBrowser browser,
+            String filePath, long requestId, double paperWidth, double paperHeight,
+            boolean landscape);
     private static native int nativeExecuteDevToolsMethod(long nativePtr, CefriumBrowser browser,
             int id, String method, String paramsJson, boolean events);
     private static native void nativeSetDevToolsEventsEnabled(long nativePtr,

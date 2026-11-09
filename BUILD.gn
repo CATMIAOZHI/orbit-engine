@@ -1166,6 +1166,7 @@ source_set("libcef_static") {
       "libcef/browser/android/cefrium_sdk_jni.cc",
       "libcef/browser/android/cefrium_sdk_pickers.cc",
       "libcef/browser/android/cefrium_sdk_pickers.h",
+      "libcef/browser/android/cefrium_sdk_print.cc",
       "libcef/browser/android/cefrium_sdk_request.cc",
       "libcef/browser/android/cefrium_sdk_request.h",
       "libcef/browser/android/cefrium_sdk_storage.cc",
