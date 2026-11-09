@@ -637,12 +637,17 @@ if run provenance; then hdr "Maven Central serves the signed bytes"
   # Before the site announces the release: the signed SHA256SUMS is what a
   # release claims to contain, and Central is where most consumers resolve it.
   # Checked by hand once (0.10.2); now on every cut. Waits for propagation.
-  CEFRIUM_SCRATCH="$ROOT/tmp" cef/cefrium_sdk/verify-central-provenance.sh "$VERSION" || {
-    echo
-    echo "ERROR: Central does not serve the signed bytes for $VERSION (see above)."
-    echo "If Central was only slow, re-run: --from provenance"
-    exit 1
-  }
+  if [ "${CEFRIUM_SKIP_CENTRAL:-0}" = "1" ]; then
+    # Nothing was published there: polling would wait out every artifact.
+    echo ">>> CEFRIUM_SKIP_CENTRAL=1 -- $VERSION is not on Central; skipped."
+  else
+    CEFRIUM_SCRATCH="$ROOT/tmp" cef/cefrium_sdk/verify-central-provenance.sh "$VERSION" || {
+      echo
+      echo "ERROR: Central does not serve the signed bytes for $VERSION (see above)."
+      echo "If Central was only slow, re-run: --from provenance"
+      exit 1
+    }
+  fi
 fi
 if run web;     then hdr "update cefrium.com pages + committed repo docs"
   cef/cefrium_sdk/release-web-update.sh "$VERSION" "$PREV" "$(date +%F)" "$NOTES"
