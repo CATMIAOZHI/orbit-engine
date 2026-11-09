@@ -96,7 +96,7 @@ Individual phases, runnable on their own:
 | Write the Maven repository to a directory and run the consumer test on it (no upload) | `CEFRIUM_MAVEN_DIR=<dir> [CEFRIUM_RELEASE_DIR=<dir>] cef/cefrium_sdk/publish-maven.sh <version>` |
 | Publish to Maven Central (opt-in, stopped at 0.17.1) | `cef/cefrium_sdk/publish-central.sh <version>` |
 | Generated C API and API hashes match the headers | `cef/cefrium_sdk/check-cef-api.sh [<commit>]` |
-| Codeberg release + GPG sums | `cef/cefrium_sdk/release-codeberg.sh <version> <apk>` |
+| Codeberg release + GPG sums (SDK artifacts only) | `cef/cefrium_sdk/release-codeberg.sh <version>` |
 | Central serves the signed bytes | `cef/cefrium_sdk/verify-central-provenance.sh <version>` |
 | Derive the repo-doc figures | `cef/cefrium_sdk/update-doc-figures.py [--check]` |
 | Find a figure that has no owner | `cef/cefrium_sdk/sweep-doc-figures.py` |
