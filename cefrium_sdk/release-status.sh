@@ -16,6 +16,10 @@
 #
 # Read-only. Safe to run at any time, and cheap enough to run after every cut.
 # Exits non-zero if the version is incompletely published, so it can gate a cut.
+#
+# The Codeberg registry is the channel. Maven Central stopped at 0.17.1 (its
+# limits need a paid subscription for this project); its column is shown for
+# reference and only counts with CEFRIUM_CENTRAL=1.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -58,8 +62,7 @@ for spec in $ARTIFACTS; do
   cb=$(mark "$(probe "$CB/$art/$VERSION/$art-$VERSION.$ext")")
   mc=$(mark "$(probe "$MC/$art/$VERSION/$art-$VERSION.$ext")")
   printf "%-28s %-12s %-12s\n" "$art" "$cb" "$mc"
-  # Central is where adopters pin, so a gap there is the one that costs users.
-  [ "$mc" = "yes" ] || fail=1
+  [ "${CEFRIUM_CENTRAL:-0}" = "1" ] && { [ "$mc" = "yes" ] || fail=1; }
   [ "$cb" = "yes" ] || fail=1
 done
 
@@ -123,7 +126,8 @@ want = {"cefrium-sdk","cefrium-sdk-libre","cefrium-sdk-core",
         "cefrium-native-libre-armeabi-v7a",
         "cefrium-compose","cefrium-unifiedpush",
         "cefrium-gradle-plugin","com.cefrium.gradle.plugin"}
-keep = sys.argv[1]
+cur = sys.argv[1]
+vt = lambda v: tuple(int(x) if x.isdigit() else 0 for x in v.split("."))
 by = collections.defaultdict(int)
 try:
     pkgs = json.load(sys.stdin)
@@ -132,14 +136,17 @@ except Exception:
 for p in pkgs:
     if p.get("name","").split(":")[-1] in want:
         by[p["version"]] += 1
-for v in sorted(by):
-    print("  %-8s %d coordinates%s" % (v, by[v], "" if v == keep else "   <- superseded, prunable"))
+# Retention keeps this version and the one before it (prune-old-versions.sh).
+upto = sorted((v for v in by if vt(v) <= vt(cur)), key=vt)
+keep = set(upto[-2:]) | {v for v in by if vt(v) > vt(cur)}
+for v in sorted(by, key=vt):
+    print("  %-8s %d coordinates%s" % (v, by[v], "" if v in keep else "   <- superseded, prunable"))
 ' "$VERSION"
 
 echo
 if [ "$fail" = "0" ]; then
-  echo "COMPLETE: $VERSION is fully published on both registries with its release record."
+  echo "COMPLETE: $VERSION is fully published with its release record."
   exit 0
 fi
-echo "INCOMPLETE: see the NO/MISSING rows above. Central gaps are what 404 for adopters."
+echo "INCOMPLETE: see the NO/MISSING rows above. Registry gaps are what 404 for adopters."
 exit 1

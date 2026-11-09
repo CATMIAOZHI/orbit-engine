@@ -73,6 +73,9 @@ mkdir -p "$ROOT/tmp"
 CURRENT_PHASE="start"
 hdr()  { echo; echo "============================================================"; echo "  PHASE: $1"; echo "============================================================";
          CURRENT_PHASE="$1"; echo "$(date +%F_%T) PHASE $1" >> "$STATUS"; }
+# A signal must not end as "CUT OK": without these the EXIT trap saw rc=0
+# after a SIGTERM during the build and reported success.
+trap 'exit 129' HUP; trap 'exit 130' INT; trap 'exit 143' TERM
 trap 'rc=$?; if [ $rc -eq 0 ]; then echo "$(date +%F_%T) CUT OK" >> "$STATUS"; else echo "$(date +%F_%T) CUT FAILED rc=$rc in: $CURRENT_PHASE" >> "$STATUS"; fi' EXIT
 
 gate() { # human confirmation for an irreversible step
@@ -108,7 +111,7 @@ CEFRIUM_RELEASE_ENV="${CEFRIUM_RELEASE_ENV:-$HOME/.config/cefrium/release.env}"
 # phases that actually need them.
 if run publish || run central || run release || run prune; then
   MISSING=""
-  for v in CEFRIUM_REGISTRY_TOKEN CEFRIUM_CENTRAL_TOKEN; do
+  for v in CEFRIUM_REGISTRY_TOKEN $([ "${CEFRIUM_CENTRAL:-0}" = 1 ] && echo CEFRIUM_CENTRAL_TOKEN); do
     eval "p=\${$v:-}"
     [ -n "$p" ] && [ -f "$p" ] || MISSING="$MISSING $v"
   done
@@ -119,7 +122,7 @@ if run publish || run central || run release || run prune; then
     echo "       deliberately not in this repository."
     exit 1
   fi
-  echo ">>> credentials: both token files present"
+  echo ">>> credentials: token files present"
 fi
 
 # The signature comes hours in, at the release phase: find a key that cannot
@@ -156,7 +159,7 @@ fi
 
 # Over a VPN the Central upload of the SDK bundles failed half way (HTTP 524)
 # and left a version partly published. Refuse before anything is built.
-if run central && [ "${CEFRIUM_ALLOW_VPN:-0}" != 1 ]; then
+if run central && [ "${CEFRIUM_CENTRAL:-0}" = 1 ] && [ "${CEFRIUM_ALLOW_VPN:-0}" != 1 ]; then
   VPN_IF="$(ip -o link show up 2>/dev/null | awk -F': ' '$2 ~ /^(tun|wg|tap|ppp|proton)/ {print $2}' | tr '\n' ' ')"
   if [ -n "$VPN_IF" ]; then
     echo "ERROR: a VPN interface is up ($VPN_IF). Disconnect it for the Central"
@@ -263,6 +266,8 @@ if run patches; then hdr "patches + touch"
   # A git-default a/b-prefixed patch fails on a clean apply -- invisible on an
   # incremental tree. Fail before applying. See cef/PATCHING-CEFRIUM.md.
   cef/cefrium_sdk/check-patch-format.sh
+  # Generated C API and API hashes match the headers (committed HEAD).
+  cef/cefrium_sdk/check-cef-api.sh
   # apply-patches.py sets the illegal 'target_os=="android"' condition key the
   # shell cannot (see its header); plain patcher.py would skip the Android set.
   python3 cef/cefrium_sdk/apply-patches.py || true   # known-fuzz core patches report "failed" already-applied; benign
@@ -581,40 +586,14 @@ if run publish; then hdr "publish to Maven (IMMUTABLE)"
   cef/cefrium_sdk/publish-maven.sh "$VERSION"   # uploads + smoke-tests the coordinate(s)
 fi
 
-if run central; then hdr "publish to Maven Central (the channel adopters pin)"
-  # THIS PHASE EXISTS BECAUSE IT WAS MISSED FOR FOUR RELEASES. Central is what
-  # external adopters resolve from -- the Codeberg registry is latest-only and
-  # cannot be pinned, which is what we tell integrators. Publishing to Central
-  # used to be a separate manual publish-central.sh that simply stopped being
-  # run after 0.8.9 (2026-09-18): 0.9.0 through 0.9.3 went to Codeberg only, so
-  # every 0.9.x is a 404 on Central and no adopter ever received those fixes.
-  # Bug reports went quiet three days after that last Central delivery, and it
-  # read as "we got more stable". Never make this a step someone must remember.
-  #
-  # Released automatically (--publish), to match Codeberg. Asymmetry was the
-  # wrong call: the Codeberg publish above is already live and immutable after a
-  # single confirmation, so making Central alone wait on a Portal click bought no
-  # safety -- it just meant adopters did not get the release, which is the exact
-  # failure this phase exists to prevent (0.9.0-0.9.3 never reached Central).
-  # The gate on the Codeberg publish is the human checkpoint for both.
-  # A Central release is immutable. To upload without releasing, run
-  # publish-central.sh <ver> by hand, then release later with --release <id>...
-  if [ -z "${CEFRIUM_CENTRAL_TOKEN:-}" ] || [ ! -f "$CEFRIUM_CENTRAL_TOKEN" ]; then
-    echo "ERROR: CEFRIUM_CENTRAL_TOKEN is unset or its file is missing, so this"
-    echo "       release would reach Codeberg"
-    echo "       but NOT Maven Central -- which is the channel adopters pin to."
-    echo "       Create a Portal user token (Portal -> Account -> Generate User"
-    echo "       Token), store 'username:password' on one line, chmod 600, re-run:"
-    echo "         cef/cefrium_sdk/cut-release.sh $VERSION $PREV --from central"
-    echo "       Skipping deliberately? CEFRIUM_SKIP_CENTRAL=1."
-    [ "${CEFRIUM_SKIP_CENTRAL:-0}" = "1" ] || exit 1
-  fi
-  if [ "${CEFRIUM_SKIP_CENTRAL:-0}" = "1" ]; then
-    echo ">>> CEFRIUM_SKIP_CENTRAL=1 -- NOT publishing to Central."
-    echo "    External adopters will not receive $VERSION. Codeberg is latest-only"
-    echo "    and unpinnable, so this version is effectively internal."
-  else
+if run central; then hdr "publish to Maven Central (opt-in)"
+  # The Codeberg registry is the channel. Maven Central stopped at 0.17.1: its
+  # publishing limits need a paid subscription for this project (Sonatype
+  # ticket 130372, 2026-11-09). publish-central.sh stays for CEFRIUM_CENTRAL=1.
+  if [ "${CEFRIUM_CENTRAL:-0}" = "1" ]; then
     cef/cefrium_sdk/publish-central.sh "$VERSION" --publish
+  else
+    echo ">>> Maven Central not used (CEFRIUM_CENTRAL=1 to publish there)."
   fi
 fi
 
@@ -645,9 +624,9 @@ if run provenance; then hdr "Maven Central serves the signed bytes"
   # Before the site announces the release: the signed SHA256SUMS is what a
   # release claims to contain, and Central is where most consumers resolve it.
   # Checked by hand once (0.10.2); now on every cut. Waits for propagation.
-  if [ "${CEFRIUM_SKIP_CENTRAL:-0}" = "1" ]; then
+  if [ "${CEFRIUM_CENTRAL:-0}" != "1" ]; then
     # Nothing was published there: polling would wait out every artifact.
-    echo ">>> CEFRIUM_SKIP_CENTRAL=1 -- $VERSION is not on Central; skipped."
+    echo ">>> Maven Central not used -- nothing to check there."
   else
     CEFRIUM_SCRATCH="$ROOT/tmp" cef/cefrium_sdk/verify-central-provenance.sh "$VERSION" || {
       echo
@@ -724,6 +703,13 @@ if run web; then
   else
     CEF_PUSH_STATE="FAILED -- run: cef/cefrium_sdk/push.sh cef [--force]"
   fi
+  # The samples that use this version's API: pushed once it is published.
+  hdr "push the sample repo"
+  if cef/cefrium_sdk/push.sh sample; then
+    SAMPLE_PUSH_STATE="pushed"
+  else
+    SAMPLE_PUSH_STATE="FAILED -- run: cef/cefrium_sdk/push.sh sample [--force]"
+  fi
   # push.sh moves COMMITS, so a pin left in the working tree survives a green
   # push and reaches nobody. Report it in the summary rather than failing a cut
   # that is otherwise complete, because the remedy is one commit.
@@ -735,7 +721,7 @@ if run web; then
   fi
 fi
 
-if run prune;   then hdr "prune previous versions (latest-only retention)"
+if run prune;   then hdr "prune old versions (the registry keeps this one and the previous)"
   # Final verdict on the release as ADOPTERS see it: both registries, the
   # release record, and the engine/ABIs inside the PUBLISHED bytes. This used to
   # be typed out by hand as curl one-liners after a cut, which is exactly why
@@ -796,6 +782,7 @@ echo; echo "Release $VERSION cut."
 echo "Registry prune: $PRUNE_STATE"
 echo "Google Play:    ${PLAY_STATE:-not run}"
 echo "cef repo push:  ${CEF_PUSH_STATE:-not run}"
+echo "sample push:    ${SAMPLE_PUSH_STATE:-not run}"
 echo "pinned sources: ${PIN_STATE:-not checked}"
 echo "cefrium.com:    ${WEB_VERIFY_STATE:-not checked}"
 echo
