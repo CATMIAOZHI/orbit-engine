@@ -7,7 +7,9 @@ import android.app.Activity
 import android.view.ViewGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -67,6 +69,13 @@ enum class BackgroundMediaPolicy {
  * @param onHostLifecycle If non-null, OVERRIDES [backgroundMediaPolicy]: called on
  *        every host lifecycle event with the [CefriumBrowser], so the host can
  *        implement any custom media/visibility policy (mute, pause, stop, nothing).
+ * @param onCreateWindow The page opened a window (window.open, a
+ *        `target=_blank` link). Show `popup` with [CefriumWindow] and return
+ *        true: the page keeps `window.opener`, as sign-in and payment popups
+ *        need. Return false (or omit) to load the URL in this view instead.
+ *        Experimental: it may still change before the 1.0 API freeze.
+ * @param onCloseWindow A window from [onCreateWindow] called `window.close()`:
+ *        stop showing it. It closes itself.
  */
 @Composable
 fun CefriumView(
@@ -77,8 +86,12 @@ fun CefriumView(
     onBrowserReady: ((CefriumBrowser) -> Unit)? = null,
     backgroundMediaPolicy: BackgroundMediaPolicy = BackgroundMediaPolicy.PAUSE_ON_STOP,
     onHostLifecycle: ((Lifecycle.Event, CefriumBrowser) -> Unit)? = null,
+    onCreateWindow: ((popup: CefriumBrowser, url: String) -> Boolean)? = null,
+    onCloseWindow: ((popup: CefriumBrowser) -> Unit)? = null,
 ) {
     val activity = LocalContext.current as Activity
+    val createWindow by rememberUpdatedState(onCreateWindow)
+    val closeWindow by rememberUpdatedState(onCloseWindow)
 
     val browser = remember(state) {
         state.getOrCreateBrowser(activity).also { b ->
@@ -103,6 +116,21 @@ fun CefriumView(
                         callback: CefriumBrowser.QueryCallback,
                     ) = bridge.onFrameQuery?.invoke(request, origin, isMainFrame, callback)
                         ?: bridge.onQuery(request, origin, callback)
+                })
+            }
+            if (onCreateWindow != null || onCloseWindow != null) {
+                b.setPopupHandler(object : CefriumBrowser.PopupHandler {
+                    override fun onOpenPopup(targetUrl: String, userGesture: Boolean) = false
+
+                    override fun onCreateWindow(
+                        popup: CefriumBrowser,
+                        targetUrl: String,
+                        userGesture: Boolean,
+                    ) = createWindow?.invoke(popup, targetUrl) ?: false
+
+                    override fun onCloseWindow(popup: CefriumBrowser) {
+                        closeWindow?.invoke(popup)
+                    }
                 })
             }
             onBrowserReady?.invoke(b)
@@ -162,4 +190,28 @@ fun CefriumView(
             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
         }
     }
+}
+
+/**
+ * Shows a window the page opened, handed to [CefriumView]'s `onCreateWindow`.
+ * Typically inside a `Dialog`; dismissing it from your UI is up to you (call
+ * [CefriumBrowser.close]), while the page's `window.close()` reaches
+ * `onCloseWindow`.
+ *
+ * Experimental: it may still change before the 1.0 API freeze.
+ */
+@Composable
+fun CefriumWindow(popup: CefriumBrowser, modifier: Modifier = Modifier) {
+    AndroidView(
+        factory = {
+            popup.surfaceContainer.apply {
+                (parent as? ViewGroup)?.removeView(this)
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
+            }
+        },
+        modifier = modifier,
+    )
 }
