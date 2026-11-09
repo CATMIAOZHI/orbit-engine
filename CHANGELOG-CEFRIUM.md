@@ -42,6 +42,9 @@ in the internal FEATURE-NNN.md working docs (not published).
   copy, paste and share; `getSelectedText()` reads the selection.
 - `CefDisplay` works on Android (it returned nothing): displays, scale factor
   and pixel conversion, through `display::Screen`.
+- CEF's C/C++ API has Android platform types (`cef_types_android.h`,
+  `cef_android.h`) instead of borrowing the Linux ones: window, cursor and
+  event handles are opaque pointers, with no X11 types.
 
 ### Changed
 - **The SDK is published as modules.** `cefrium-sdk-core` holds the Java API,

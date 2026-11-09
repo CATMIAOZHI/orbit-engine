@@ -46,8 +46,10 @@
 #include "include/internal/cef_win.h"
 #elif defined(OS_MAC)
 #include "include/internal/cef_mac.h"
-#elif defined(OS_LINUX) || defined(OS_ANDROID)
+#elif defined(OS_LINUX)
 #include "include/internal/cef_linux.h"
+#elif defined(OS_ANDROID)
+#include "include/internal/cef_android.h"
 #endif
 
 ///

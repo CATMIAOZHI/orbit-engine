@@ -107,6 +107,12 @@
     'includes_linux_capi': [
       'include/internal/cef_types_linux.h',
     ],
+    'includes_android': [
+      'include/internal/cef_android.h',
+    ],
+    'includes_android_capi': [
+      'include/internal/cef_types_android.h',
+    ],
     'libcef_sources_common': [
       'libcef_dll/cpptoc/cpptoc_ref_counted.h',
       'libcef_dll/cpptoc/cpptoc_scoped.h',
