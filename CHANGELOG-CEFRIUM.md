@@ -49,6 +49,13 @@ in the internal FEATURE-NNN.md working docs (not published).
   emulator image, for example), `Cefrium.initialize()` throws an
   `IllegalStateException` that names the ABI, instead of "the engine failed
   to start".
+- The settings the engine reads at startup (`setDataDirectory`,
+  `setNetLogFile`, `setComponentUpdatesEnabled`, `setGpuProcessEnabled`,
+  `setLibraryPrefetchEnabled`, `setNetworkTimeQueriesEnabled`,
+  `setDrmPreprovisioningAtStartupEnabled`) throw `IllegalStateException` when
+  called with another value after the engine started. They were ignored with
+  a log line. The value already in effect is still accepted, so setting them
+  in every `onCreate` keeps working.
 - **Call `CefriumBrowser` on the main thread.** Every method now throws
   `IllegalStateException` on another thread, as Android WebView does, except
   `executeDevToolsMethod`, which posts itself. Off the main thread a call
