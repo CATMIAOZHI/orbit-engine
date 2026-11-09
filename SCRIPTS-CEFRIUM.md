@@ -85,9 +85,9 @@ Individual phases, runnable on their own:
 
 | Task | Command |
 |---|---|
-| Build the 4 variants | `cef/cefrium_sdk/build-all-variants.sh [--clean]` |
+| Build the 6 variants | `cef/cefrium_sdk/build-all-variants.sh [--clean]` |
 | Slim one raw AAR | `python3 cef/cefrium_sdk/slim_aar.py --input <raw.aar> --output <slim.aar>` |
-| Fuse arm64 + x86_64 | `cef/cefrium_sdk/merge-multiabi.sh` |
+| Fuse arm64 + x86_64 + armeabi-v7a | `cef/cefrium_sdk/merge-multiabi.sh` |
 | Publish to Codeberg Maven | `cef/cefrium_sdk/publish-maven.sh <version>` |
 | Split the two SDK AARs into the published modules | `python3 cef/cefrium_sdk/modular_artifacts.py build --codecs <aar> [--libre <aar>] --out <dir>` |
 | Write the Maven repository to a directory and run the consumer test on it (no upload) | `CEFRIUM_MAVEN_DIR=<dir> [CEFRIUM_RELEASE_DIR=<dir>] cef/cefrium_sdk/publish-maven.sh <version>` |
