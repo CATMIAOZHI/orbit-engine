@@ -3928,10 +3928,12 @@ typedef enum {
 #if CEF_API_ADDED(15600)
   CEF_PERMISSION_TYPE_AMBIENT_LOGIN = 1 << 29,
 #endif
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
   // Cefrium (Android Web NFC). Bit 30, NOT 29: upstream took 29 for
   // AMBIENT_LOGIN in CEF 8078, and two permission types sharing a bit would
   // make the permission plumbing confuse one for the other.
   CEF_PERMISSION_TYPE_NFC = 1 << 30,
+#endif
 } cef_permission_request_types_t;
 
 ///
@@ -3963,6 +3965,7 @@ typedef enum {
   CEF_PERMISSION_RESULT_NUM_VALUES,
 } cef_permission_request_result_t;
 
+#if CEF_API_ADDED(CEF_EXPERIMENTAL)
 ///
 /// Device type for a CefDeviceChooserHandler request (the frontier web device
 /// APIs). Maps to navigator.bluetooth, navigator.usb and navigator.serial.
@@ -3974,6 +3977,7 @@ typedef enum {
 
   CEF_DEVICE_CHOOSER_TYPE_NUM_VALUES,
 } cef_device_chooser_type_t;
+#endif
 
 ///
 /// Certificate types supported by CefTestServer::CreateAndStart. The matching
