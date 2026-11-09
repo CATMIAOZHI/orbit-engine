@@ -4,8 +4,43 @@
 
 #include "cef/libcef/browser/views/display_impl.h"
 
-#include "cef/libcef/browser/views/view_util.h"
+#include "build/build_config.h"
 #include "ui/display/screen.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "ui/gfx/geometry/point_conversions.h"
+#include "ui/gfx/geometry/point_f.h"
+
+// Views is not built on Android: the display helpers it provides, as on the
+// other non-Windows platforms.
+namespace view_util {
+namespace {
+
+display::Display GetDisplayNearestPoint(const gfx::Point& point,
+                                        bool input_pixel_coords) {
+  return display::Screen::Get()->GetDisplayNearestPoint(point);
+}
+
+display::Display GetDisplayMatchingBounds(const gfx::Rect& bounds,
+                                          bool input_pixel_coords) {
+  return display::Screen::Get()->GetDisplayMatching(bounds);
+}
+
+void ConvertPointFromPixels(gfx::Point* point, float device_scale_factor) {
+  *point = gfx::ToFlooredPoint(
+      gfx::ScalePoint(gfx::PointF(*point), 1.0f / device_scale_factor));
+}
+
+void ConvertPointToPixels(gfx::Point* point, float device_scale_factor) {
+  *point = gfx::ToFlooredPoint(
+      gfx::ScalePoint(gfx::PointF(*point), device_scale_factor));
+}
+
+}  // namespace
+}  // namespace view_util
+#else
+#include "cef/libcef/browser/views/view_util.h"
+#endif
 
 // static
 CefRefPtr<CefDisplay> CefDisplay::GetPrimaryDisplay() {
