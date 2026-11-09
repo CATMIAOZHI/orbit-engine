@@ -46,10 +46,12 @@ N="$("$ADB" devices 2>/dev/null | grep -c 'device$')"
 REGISTRY_VERSION=""
 [ "${1:-}" = "--registry" ] && { REGISTRY_VERSION="${2:?--registry needs a version}"; shift 2; }
 
-SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive kiosk-automotive-v2 kiosk-signage loaddata-baseurl osr-hud firebase-coexistence nested-scroll kotlin-arrow-sample profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process permissions"
+SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive kiosk-automotive-v2 kiosk-signage loaddata-baseurl osr-hud firebase-coexistence nested-scroll kotlin-arrow-sample profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process permissions sign-in printing"
 # Samples that write files/verdict.txt: launching without a crash is not enough
 # for them, the verdict must read PASS.
-VERDICT_SAMPLES="firebase-coexistence nested-scroll profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process permissions"
+VERDICT_SAMPLES="firebase-coexistence nested-scroll profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process permissions sign-in"
+# Launch extras for samples that only run their check when asked.
+launch_extras() { case "$1" in sign-in) echo "--ez auto true" ;; esac; }
 # Samples whose data is cleared before launch (see below).
 FRESH_SAMPLES="engine-contacts drm-provisioning"
 # CEFRIUM_SMOKE_ONLY=<sample> runs just that one, for iterating on it. Not a
@@ -163,7 +165,7 @@ for s in $SAMPLES; do
   # main-process crash in exit-info).
   before="$("$ADB" shell dumpsys activity exit-info "$pkg" 2>/dev/null | grep -cE "process=$pkg reason=(4|5|6) ")"
   "$ADB" shell run-as "$pkg" rm -f files/verdict.txt >/dev/null 2>&1
-  "$ADB" shell am start -n "$pkg/$act" >/dev/null 2>&1
+  "$ADB" shell am start -n "$pkg/$act" $(launch_extras "$s") >/dev/null 2>&1
   sleep 12
   verdict=""
   case " $VERDICT_SAMPLES " in *" $s "*)
