@@ -73,7 +73,8 @@ flagship release provenance web prune play`. Flags that matter:
 irreversible gates -- needed for an unattended run), `CEFRIUM_NO_PRUNE=1`,
 `CEFRIUM_NO_PLAY=1`, `CEFRIUM_PLAY_TRACK=internal`, `CEFRIUM_CENTRAL=1` (also
 publish to Maven Central), `CEFRIUM_KEEP_VERSIONS=N` (registry retention,
-default 2). Details and the reasoning
+default 2; 1 = latest only), `CEFRIUM_KEEP_RELEASE_BINARIES=N` (releases that
+keep their APK/AAR attachments; default the same N). Details and the reasoning
 behind the phase order: `RELEASING-CEFRIUM.md`.
 
 The cut commits the tracked files it rewrites, each in the phase that writes it:
@@ -102,7 +103,7 @@ Individual phases, runnable on their own:
 | Update cefrium.com + docs | `cef/cefrium_sdk/release-web-update.sh <version> <prev>` |
 | Verify cefrium.com matches | `cef/cefrium_sdk/release-web-verify.sh <version> [prev]` |
 | Google Play (apps) | `cef/cefrium_sdk/release-play.sh <version> [track]` |
-| Drop superseded versions | `cef/cefrium_sdk/prune-old-versions.sh <version> --yes` |
+| Drop old registry versions and old release binaries (plan without `--yes`) | `cef/cefrium_sdk/prune-old-versions.sh <version> [--yes]` |
 
 `update-doc-figures.py` is the only writer of the figures in `cef/README.md`,
 `cef/QUICKSTART-CEFRIUM.md`, `cef/MIGRATION-CEFRIUM.md` and
