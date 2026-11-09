@@ -2,10 +2,10 @@
   "hashes": {
     "999998": {
       "comment": "Next version last updated November 09, 2026.",
-      "linux": "5abb504437836467ff983b1f5344efc475c09cf3",
-      "mac": "0f2cc3d632720762660fa05c9dd2767a1817383e",
+      "linux": "6dc09eb2834fe5b61d7d8c42bbb8d8c27a2bb1b6",
+      "mac": "e01e9208f887490aa249d57f56761ab9c0c3f7ac",
       "sandbox_compat": "3b66cadf26145637",
-      "windows": "603b53f40f214dbcccde2b68af62891e1e54e554"
+      "windows": "8f211699a44daedd96ae2a89bbf3a8f2abc229f3"
     },
     "999999": {
       "comment": "Experimental version last updated November 09, 2026.",
