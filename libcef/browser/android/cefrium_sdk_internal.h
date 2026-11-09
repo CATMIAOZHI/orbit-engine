@@ -94,6 +94,10 @@ namespace cefrium_sdk {
 base::Lock& BridgeDataLock();
 std::set<jlong>& LiveBridgeData();
 
+// FEATURE-087: hands window.print() of a CefriumBrowser to Java. Called once,
+// after CefInitialize.
+void RegisterScriptedPrint();
+
 // The UTF-8 contents of |j|, empty for null.
 CefString JStr(JNIEnv* env, jstring j);
 
