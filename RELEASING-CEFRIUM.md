@@ -27,7 +27,7 @@ One script runs all of it. The phases, in order, and what each one is for:
 | 14 | `release` | Codeberg release: tag, assets, GPG-signed `SHA256SUMS` | `release-codeberg.sh` |
 | 15 | `provenance` | Check Maven Central serves the bytes the signed `SHA256SUMS` names (only with `CEFRIUM_CENTRAL=1`) | `verify-central-provenance.sh` |
 | 16 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, re-assert the repo docs, then VERIFY and push the cef repo | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
-| 17 | `prune` | Drop versions older than the previous release from the registry | `prune-old-versions.sh` |
+| 17 | `prune` | Drop registry versions and release binaries older than the previous release | `prune-old-versions.sh` |
 | 18 | `play` | Pin + version-bump the apps, rebuild every sample, upload to Play | `release-play.sh` |
 
 The order of `web` and `prune` is deliberate and was learned the hard way. `prune`
@@ -98,7 +98,10 @@ licence and requires a paid publisher subscription (ticket 130372,
 stay for that case.
 
 The registry keeps the release and the one before it (`prune-old-versions.sh`,
-`CEFRIUM_KEEP_VERSIONS`), so a pinned build has one release to move. That is
+`CEFRIUM_KEEP_VERSIONS`, 1 = latest only), so a pinned build has one release to
+move. The same phase drops the APK/AAR attachments of older releases
+(`CEFRIUM_KEEP_RELEASE_BINARIES`, default the same) and keeps their record:
+`SHA256SUMS` + `.asc`, SBOM, NOTICE. That is
 the storage a donated host allows (1.5 GiB default quota; one release is about
 500 MB). Older versions stay as the git tag and the signed `SHA256SUMS`.
 
