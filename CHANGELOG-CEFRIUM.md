@@ -68,6 +68,8 @@ in the internal FEATURE-NNN.md working docs (not published).
   for every later navigation, including the ones a page starts.
 
 ### Fixed
+- `onTitleChanged` reports each title of a page once. CEF reported it again
+  when loading stopped, so an app that acted on a title acted twice.
 - Configuration called right after the off-screen constructor, before the
   browser exists, applies from the first page: `setUserAgentOverride`,
   `setJavaScriptEnabled` and `setContentSetting` were dropped without a
