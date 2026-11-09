@@ -2119,6 +2119,8 @@ public class CefriumBrowser {
      * Sets the handler that shows the account chooser of FedCM sign-in
      * requests. Null (the default) shows a dialog on this browser's activity;
      * see {@link CefriumIdentityHandler}.
+     *
+     * <p>Experimental: it may still change before the 1.0 API freeze.</p>
      */
     public void setIdentityHandler(CefriumIdentityHandler handler) {
         checkThread("setIdentityHandler");
@@ -2403,6 +2405,8 @@ public class CefriumBrowser {
          * {@link #getSurfaceContainer()}, or its frames if off-screen) and
          * return true; return false to fall back to {@link #onOpenPopup}.
          * As with Android WebView's {@code onCreateWindow}.
+         *
+         * <p>Experimental: it may still change before the 1.0 API freeze.</p>
          */
         default boolean onCreateWindow(CefriumBrowser popup, String targetUrl,
                 boolean userGesture) {
@@ -2412,6 +2416,8 @@ public class CefriumBrowser {
         /**
          * A window from {@link #onCreateWindow} called {@code window.close()}:
          * remove it from the UI. It closes itself.
+         *
+         * <p>Experimental: it may still change before the 1.0 API freeze.</p>
          */
         default void onCloseWindow(CefriumBrowser popup) {}
     }
