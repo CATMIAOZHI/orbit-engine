@@ -7,15 +7,18 @@
 #ifndef CEF_LIBCEF_BROWSER_ANDROID_CEFRIUM_SDK_INTERNAL_H_
 #define CEF_LIBCEF_BROWSER_ANDROID_CEFRIUM_SDK_INTERNAL_H_
 
+#include <android/log.h>
 #include <jni.h>
 
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/synchronization/lock.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_registration.h"
 #include "cef/libcef/browser/android/browser_surface_android.h"
@@ -78,7 +81,18 @@ struct SdkBrowserData {
   bool close_when_created = false;
 };
 
+// Info log of the SDK's native side.
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, "Cefrium", __VA_ARGS__)
+
 namespace cefrium_sdk {
+
+// FEATURE-023 step 4b: the live SdkBrowserData pointers, so an asynchronous
+// window.cefriumQuery response (resolved later, possibly after the browser was
+// closed and its data deleted) is dropped instead of dereferencing a dangling
+// pointer. The lock serializes nativeClose's erase with the resolution's check
+// and dereference.
+base::Lock& BridgeDataLock();
+std::set<jlong>& LiveBridgeData();
 
 // The UTF-8 contents of |j|, empty for null.
 CefString JStr(JNIEnv* env, jstring j);
