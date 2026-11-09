@@ -108,15 +108,17 @@ upload() {
   local artifact="$1"
   local file="$2"
   local ext="${file##*.}"
+  # Optional classifier ("sources"): <artifact>-<version>-<classifier>.<ext>.
+  local name="$artifact-$VERSION${3:+-$3}.$ext"
   if [ -n "$LOCAL_DIR" ]; then
     mkdir -p "$LOCAL_DIR/com/cefrium/$artifact/$VERSION"
-    cp "$file" "$LOCAL_DIR/com/cefrium/$artifact/$VERSION/$artifact-$VERSION.$ext"
-    echo "  Wrote $artifact-$VERSION.$ext"
+    cp "$file" "$LOCAL_DIR/com/cefrium/$artifact/$VERSION/$name"
+    echo "  Wrote $name"
     return 0
   fi
-  local url="$BASE_URL/com/cefrium/$artifact/$VERSION/$artifact-$VERSION.$ext"
+  local url="$BASE_URL/com/cefrium/$artifact/$VERSION/$name"
 
-  echo "  Uploading $artifact-$VERSION.$ext ($(du -h "$file" | cut -f1))"
+  echo "  Uploading $name ($(du -h "$file" | cut -f1))"
   # IMPORTANT: the Codeberg Maven API expects the RAW file body on a PUT.
   # NEVER use `-F`/`--form` here: that sends multipart/form-data, which bakes the
   # MIME envelope (boundary + headers) into the stored artifact and corrupts every
@@ -175,6 +177,17 @@ upload() {
     echo "    FAILED (HTTP $status)"
     return 1
   fi
+}
+
+# upload_sources <artifact> <src-dir>: the -sources.jar an IDE attaches. It
+# used to exist on Maven Central only.
+upload_sources() {
+  local artifact="$1" srcdir="$2" jar
+  [ -d "$srcdir" ] || { echo "ERROR: no sources at $srcdir" >&2; return 1; }
+  jar="$(mktemp -u "${TMPDIR:-/tmp}/cefrium-sources.XXXXXX").jar"
+  ( cd "$srcdir" && zip -q -r -X "$jar" . )
+  upload "$artifact" "$jar" sources
+  rm -f "$jar"
 }
 
 # Engine embedded by this release, read from the SDK's own constant so the POM
@@ -255,6 +268,7 @@ if [ -f "$MODULES/coordinates.tsv" ]; then
       "$(printf '  <dependencies>\n%s  </dependencies>' "$xml")" "$packaging")
     upload "$artifact" "$pom"
     [ "$file" != "-" ] && upload "$artifact" "$MODULES/$file"
+    [ "$artifact" = cefrium-sdk-core ] && upload_sources "$artifact" "$SCRIPT_DIR/java/src"
     rm -f "$pom"
     published_any=1
     echo ""
@@ -280,6 +294,7 @@ if [ -f "$COMPOSE_AAR" ]; then
     "Jetpack Compose wrapper for Cefrium SDK" "$deps")
   upload "cefrium-compose" "$pom"
   upload "cefrium-compose" "$COMPOSE_AAR"
+  upload_sources "cefrium-compose" "$SCRIPT_DIR/../cefrium_compose/java/src"
   rm -f "$pom"
   echo ""
 fi
@@ -298,6 +313,7 @@ if [ -f "$UNIFIEDPUSH_AAR" ]; then
     "Web Push through UnifiedPush for Cefrium SDK" "$deps")
   upload "cefrium-unifiedpush" "$pom"
   upload "cefrium-unifiedpush" "$UNIFIEDPUSH_AAR"
+  upload_sources "cefrium-unifiedpush" "$SCRIPT_DIR/../cefrium_unifiedpush/java/src"
   rm -f "$pom"
   echo ""
 fi
@@ -310,6 +326,7 @@ if [ -f "$PLUGIN_JAR" ]; then
     "Cefrium Gradle Plugin -- generates R.java for Chromium packages" "")
   upload "cefrium-gradle-plugin" "$pom"
   upload "cefrium-gradle-plugin" "$PLUGIN_JAR"
+  upload_sources "cefrium-gradle-plugin" "$SCRIPT_DIR/gradle-plugin/src/main/groovy"
   rm -f "$pom"
 
   # Plugin marker POM (enables `plugins { id 'com.cefrium' version 'X' }`)
