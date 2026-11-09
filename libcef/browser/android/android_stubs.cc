@@ -16,7 +16,6 @@
 #include "base/logging.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/views/cef_browser_view.h"
-#include "cef/include/views/cef_display.h"
 #include "cef/include/views/cef_label_button.h"
 #include "cef/include/views/cef_menu_button.h"
 #include "cef/include/views/cef_panel.h"
@@ -48,56 +47,6 @@ CefRefPtr<CefBrowserView> CefBrowserView::CreateBrowserView(
 CefRefPtr<CefBrowserView> CefBrowserView::GetForBrowser(
     CefRefPtr<CefBrowser> browser) {
   return nullptr;
-}
-
-// static
-CefRefPtr<CefDisplay> CefDisplay::GetPrimaryDisplay() {
-  return nullptr;
-}
-
-// static
-CefRefPtr<CefDisplay> CefDisplay::GetDisplayNearestPoint(
-    const CefPoint& point,
-    bool input_pixel_coords) {
-  return nullptr;
-}
-
-// static
-CefRefPtr<CefDisplay> CefDisplay::GetDisplayMatchingBounds(
-    const CefRect& bounds,
-    bool input_pixel_coords) {
-  return nullptr;
-}
-
-// static
-size_t CefDisplay::GetDisplayCount() {
-  return 0;
-}
-
-// static
-void CefDisplay::GetAllDisplays(
-    std::vector<CefRefPtr<CefDisplay>>& displays) {
-  displays.clear();
-}
-
-// static
-CefPoint CefDisplay::ConvertScreenPointToPixels(const CefPoint& point) {
-  return point;
-}
-
-// static
-CefPoint CefDisplay::ConvertScreenPointFromPixels(const CefPoint& point) {
-  return point;
-}
-
-// static
-CefRect CefDisplay::ConvertScreenRectToPixels(const CefRect& rect) {
-  return rect;
-}
-
-// static
-CefRect CefDisplay::ConvertScreenRectFromPixels(const CefRect& rect) {
-  return rect;
 }
 
 // static
