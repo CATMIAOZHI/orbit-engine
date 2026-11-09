@@ -1,0 +1,52 @@
+--- chrome/browser/printing/print_view_manager_basic.h
++++ chrome/browser/printing/print_view_manager_basic.h
+@@ -43,6 +43,14 @@
+   void SetupScriptedPrintAndroid(
+       SetupScriptedPrintAndroidCallback callback) override;
+   void PdfWritingDone(int page_count) override;
++
++  // Lets an embedder without Chrome tabs (e.g. CEF) take window.print(),
++  // including for a WebContents with no window. Called on the UI thread;
++  // returning true means the embedder prints it, and the scripted print
++  // finishes here.
++  using EmbedderScriptedPrintFunction = bool (*)(content::WebContents*);
++  static void SetEmbedderScriptedPrintFunction(
++      EmbedderScriptedPrintFunction function);
+ #endif  // BUILDFLAG(IS_ANDROID)
+ 
+  private:
+--- chrome/browser/printing/print_view_manager_basic.cc
++++ chrome/browser/printing/print_view_manager_basic.cc
+@@ -21,6 +21,19 @@
+ 
+ namespace printing {
+ 
++#if BUILDFLAG(IS_ANDROID)
++namespace {
++PrintViewManagerBasic::EmbedderScriptedPrintFunction
++    g_embedder_scripted_print_fn = nullptr;
++}  // namespace
++
++// static
++void PrintViewManagerBasic::SetEmbedderScriptedPrintFunction(
++    EmbedderScriptedPrintFunction function) {
++  g_embedder_scripted_print_fn = function;
++}
++#endif  // BUILDFLAG(IS_ANDROID)
++
+ PrintViewManagerBasic::PrintViewManagerBasic(content::WebContents* web_contents)
+     : PrintViewManagerBase(web_contents),
+       content::WebContentsUserData<PrintViewManagerBasic>(*web_contents) {
+@@ -98,6 +111,12 @@
+   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+   content::RenderFrameHost& rfh = CurrentTargetFrame();
+   DCHECK(rfh.IsRenderFrameLive());
++  if (rfh.IsActive() && web_contents() && g_embedder_scripted_print_fn &&
++      g_embedder_scripted_print_fn(web_contents())) {
++    FinishPrint(&rfh);
++    std::move(callback).Run();
++    return;
++  }
+   if (!rfh.IsActive() || !web_contents() ||
+       !web_contents()->GetTopLevelNativeWindow()) {
+     FinishPrint(&rfh);
