@@ -24,6 +24,8 @@ in the internal FEATURE-NNN.md working docs (not published).
   payment popups can send their result back. `onCloseWindow` reports the
   popup's `window.close()`. Without it a popup still loads in the same
   browser and loses its opener (issue #20).
+  In Compose: `CefriumView(onCreateWindow = ..., onCloseWindow = ...)` and
+  `CefriumWindow(popup)` to show the window.
 - **FedCM sign-in** (`navigator.credentials.get({identity})`, used by
   "Sign in with" prompts): the account chooser is shown, as a default dialog
   on the browser's activity or by `CefriumBrowser.setIdentityHandler`. It
