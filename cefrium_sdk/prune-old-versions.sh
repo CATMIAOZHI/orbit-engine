@@ -1,117 +1,145 @@
 #!/bin/bash
-# Enforce the retention policy: the Codeberg registry serves <keep-version> and
-# the version before it, so a pinned build has one release to move. Older
-# Cefrium Maven versions are deleted; they stay preserved as the git tag + the
-# GPG-signed SHA256SUMS on their Codeberg release (and, up to 0.17.1, on Maven
-# Central) -- see /releases and RELEASING-CEFRIUM.md.
+# Retention on Codeberg, run by the cut's `prune` phase after a release:
+#
+#   registry  Maven versions of the SDK coordinates. Keeps the newest
+#             CEFRIUM_KEEP_VERSIONS (default 2) up to <keep-version>, so a pinned
+#             build has one release to move. 1 = latest only.
+#   releases  Binaries attached to cef-android releases (the browser APK, AARs).
+#             Keeps them on the newest CEFRIUM_KEEP_RELEASE_BINARIES releases
+#             (default: CEFRIUM_KEEP_VERSIONS). Older releases keep their record:
+#             SHA256SUMS + .asc, SBOM, NOTICE.
+#
+# A version is never deleted unless <keep-version> is served and the version
+# has a GPG-signed SHA256SUMS on its release. Versions above <keep-version> are
+# never touched. Older versions remain as the git tag and that signed record
+# (and, up to 0.17.1, on Maven Central) -- see /releases and RELEASING-CEFRIUM.md.
 #
 # Usage: cef/cefrium_sdk/prune-old-versions.sh <keep-version> [--yes]
-#   CEFRIUM_KEEP_VERSIONS=N keeps the N newest versions up to <keep-version>
-#   (default 2).
-#   Without --yes (or CEFRIUM_YES=1) it prints what it WOULD delete and stops.
+#   Without --yes (or CEFRIUM_YES=1) it prints the plan and deletes nothing.
 set -euo pipefail
 
 KEEP="${1:?usage: prune-old-versions.sh <keep-version> [--yes]}"
 YES=0
 [ "${2:-}" = "--yes" ] && YES=1
 [ "${CEFRIUM_YES:-0}" = "1" ] && YES=1
+N="${CEFRIUM_KEEP_VERSIONS:-2}"
+NB="${CEFRIUM_KEEP_RELEASE_BINARIES:-$N}"
+for v in "$N" "$NB"; do
+  case "$v" in ''|*[!0-9]*|0) echo "ERROR: CEFRIUM_KEEP_VERSIONS and CEFRIUM_KEEP_RELEASE_BINARIES must be >= 1"; exit 1 ;; esac
+done
+
 TOKEN="$(cat "${CEFRIUM_REGISTRY_TOKEN:?set CEFRIUM_REGISTRY_TOKEN to the file holding your registry token (see your local setup notes)}")"
 # Keep the token OUT of argv (`ps`): pass the auth header via a 0600 curl config
 # file (`curl -K`) instead of putting it on the command line. Removed on exit.
 CURL_AUTH_CFG="$(mktemp "${TMPDIR:-/tmp}/cefrium-curl-auth.XXXXXX")"
+RELJSON="$(mktemp "${TMPDIR:-/tmp}/cefrium-releases.XXXXXX")"
 chmod 600 "$CURL_AUTH_CFG"
 printf 'header = "Authorization: token %s"\n' "$TOKEN" > "$CURL_AUTH_CFG"
-trap 'rm -f "$CURL_AUTH_CFG"' EXIT
+trap 'rm -f "$CURL_AUTH_CFG" "$RELJSON"' EXIT
 unset TOKEN
 API="https://codeberg.org/api/v1/packages/cefrium"
+REPOAPI="https://codeberg.org/api/v1/repos/cefrium/cef-android"
+REG="https://codeberg.org/api/packages/cefrium/maven/com/cefrium"
 
 # All Maven coordinates the publish step creates. This list is also the SCOPE of
-# the retention policy: nothing outside it is ever considered for deletion.
+# the registry policy: nothing outside it is ever considered for deletion (other
+# com.cefrium products version independently).
 COORDS="cefrium-sdk cefrium-sdk-libre cefrium-sdk-core cefrium-native-codecs-arm64-v8a cefrium-native-codecs-x86_64 cefrium-native-codecs-armeabi-v7a cefrium-native-libre-arm64-v8a cefrium-native-libre-x86_64 cefrium-native-libre-armeabi-v7a cefrium-compose cefrium-unifiedpush cefrium-gradle-plugin com.cefrium.gradle.plugin"
 
-# Distinct published versions OF THOSE COORDINATES.
-#
-# Enumerating every Maven version in the cefrium org and subtracting $KEEP (what
-# this did before) conflates separate products that version independently: it
-# listed com.cefrium:exam-lockdown 0.1.0 for deletion simply because the SDK had
-# moved on to 0.9.4. Nothing was actually destroyed only because exam-lockdown is
-# absent from COORDS, so the DELETE calls 404'd -- which also meant 0.1.0 showed
-# up as "to prune" on every single cut and never went away. Scope the version
-# list to the coordinates this policy owns, and other products stop being
-# visible to it at all.
+# ---- plan: registry ---------------------------------------------------------
 versions=$(curl -s "$API?type=maven&limit=100" -K "$CURL_AUTH_CFG" \
             | python3 -c '
 import json, sys
 want = set(sys.argv[1].split())
 seen = set()
 for p in json.load(sys.stdin):
-    # Package names come back either bare ("cefrium-sdk") or group-qualified
-    # ("com.cefrium:cefrium-sdk"); match on the artifact id either way.
-    name = p.get("name", "")
-    if name.split(":")[-1] in want or name in want:
+    # Names come back bare ("cefrium-sdk") or group-qualified ("com.cefrium:...").
+    if p.get("name", "").split(":")[-1] in want:
         seen.add(p["version"])
-for v in sorted(seen):
-    print(v)
+print("\n".join(sorted(seen)))
 ' "$COORDS")
-N="${CEFRIUM_KEEP_VERSIONS:-2}"
-case "$N" in ''|*[!0-9]*|0) echo "ERROR: CEFRIUM_KEEP_VERSIONS must be >= 1"; exit 1 ;; esac
-# The N newest versions up to and including KEEP. A version above KEEP is not
-# ours to judge here and is kept too.
+# The N newest versions up to and including KEEP; anything above KEEP is kept.
 all=$( { echo "$KEEP"; echo "$versions"; } | grep . | sort -uV)
 keep_set=$(echo "$all" | awk -v k="$KEEP" '{print} $0==k{exit}' | tail -n "$N")
 above=$(echo "$all" | awk -v k="$KEEP" 'f{print} $0==k{f=1}')
 to_prune=$(echo "$versions" | grep . | grep -vxF -f <(printf '%s\n' $keep_set $above) || true)
 
-if [ -z "$to_prune" ]; then
-  echo "Nothing to prune -- registry serves only: $(echo "$versions" | tr '\n' ' ')"
+# ---- plan: release binaries -------------------------------------------------
+echo "[" > "$RELJSON"; page=1; first=1
+while :; do
+  body=$(curl -s "$REPOAPI/releases?limit=50&page=$page" -K "$CURL_AUTH_CFG")
+  [ "$body" = "[]" ] || [ -z "$body" ] && break
+  [ "$first" = 1 ] || echo "," >> "$RELJSON"
+  printf '%s' "${body:1:${#body}-2}" >> "$RELJSON"; first=0; page=$((page + 1))
+done
+echo "]" >> "$RELJSON"
+# One line per binary to delete: "<release id> <asset id> <bytes> <tag> <name>".
+# Releases without a signed SHA256SUMS are reported, not touched.
+asset_plan=$(python3 - "$RELJSON" "$KEEP" "$NB" <<'PY'
+import json, re, sys
+rels = json.load(open(sys.argv[1])); keep = sys.argv[2]; nb = int(sys.argv[3])
+vt = lambda v: tuple(int(x) for x in v.split("."))
+record = re.compile(r"^SHA256SUMS-.*|.*\.spdx\.json$|.*-NOTICE\.txt$")
+sdk = [r for r in rels if re.fullmatch(r"v\d+\.\d+\.\d+", r["tag_name"])]
+upto = sorted((r for r in sdk if vt(r["tag_name"][1:]) <= vt(keep)),
+              key=lambda r: vt(r["tag_name"][1:]))
+kept = {r["tag_name"] for r in upto[-nb:]}
+for r in sdk:
+    t = r["tag_name"]
+    if t in kept or vt(t[1:]) > vt(keep):
+        continue
+    names = {a["name"] for a in r.get("assets", [])}
+    signed = f"SHA256SUMS-{t[1:]}" in names and f"SHA256SUMS-{t[1:]}.asc" in names
+    for a in r.get("assets", []):
+        if record.match(a["name"]):
+            continue
+        if not signed:
+            print(f"UNSIGNED {t} {a['name']}", file=sys.stderr)
+            continue
+        print(r["id"], a["id"], a["size"], t, a["name"])
+PY
+)
+asset_bytes=$(echo "$asset_plan" | awk 'NF{s+=$3} END{print s+0}')
+
+echo "Registry: keep $(echo $keep_set $above) (CEFRIUM_KEEP_VERSIONS=$N); prune: ${to_prune:-none}" | tr '\n' ' '; echo
+echo "Release binaries: keep on the newest $NB release(s) up to v$KEEP (CEFRIUM_KEEP_RELEASE_BINARIES); delete $(echo "$asset_plan" | grep -c . || true) file(s), $((asset_bytes / 1048576)) MiB"
+echo "$asset_plan" | awk 'NF{printf "  %-9s %6d MiB  %s\n", $4, $3/1048576, $5}'
+
+if [ -z "$to_prune" ] && [ -z "$asset_plan" ]; then
+  echo "Nothing to prune."
   exit 0
 fi
 
-echo "Keep:  $(echo $keep_set $above)"
-echo "Prune: $(echo "$to_prune" | tr '\n' ' ')"
-echo "Coordinates per version: $COORDS"
-
-# INTERLOCK: never delete the old versions until the replacement is provably
-# being SERVED. A latest-only registry has no fallback, so pruning while $KEEP
-# is missing or half-published leaves consumers with nothing resolvable, and
-# Maven immutability means the deleted versions cannot be put back. Both SDK
-# coordinates are checked because the libre one has been silently absent before
-# (0.9.3), which is exactly the state in which pruning would be unrecoverable.
+# ---- interlock --------------------------------------------------------------
+# Never delete anything until the replacement is provably SERVED: deleted Maven
+# versions cannot be put back. Both SDK POMs, and the SDK's binary: the core
+# module from 0.19.0 on (the SDK coordinates became POM-only), the AAR before.
 echo "interlock: confirming $KEEP is served before deleting anything"
-REG="https://codeberg.org/api/packages/cefrium/maven/com/cefrium"
+served() { case "$(curl -s -o /dev/null -w "%{http_code}" -r 0-0 "$REG/$1/$KEEP/$1-$KEEP.$2" -K "$CURL_AUTH_CFG")" in 200|206) return 0 ;; *) return 1 ;; esac; }
 for art in cefrium-sdk cefrium-sdk-libre; do
-  code=$(curl -s -o /dev/null -w "%{http_code}" -r 0-0 \
-          "$REG/$art/$KEEP/$art-$KEEP.aar" -K "$CURL_AUTH_CFG")
-  case "$code" in
-    200|206) echo "  ok: $art $KEEP is served (HTTP $code)" ;;
-    *) echo "  ABORT: $art $KEEP is NOT served (HTTP $code)."
-       echo "  Refusing to prune: the replacement must be resolvable first."
-       exit 1 ;;
-  esac
+  served "$art" pom && echo "  ok: $art $KEEP POM is served" \
+    || { echo "  ABORT: $art $KEEP is NOT served. Refusing to prune."; exit 1; }
 done
+if served cefrium-sdk-core aar || served cefrium-sdk aar; then
+  echo "  ok: the $KEEP SDK binary is served"
+else
+  echo "  ABORT: no SDK binary for $KEEP is served. Refusing to prune."; exit 1
+fi
 
-# PRESERVATION: the policy is not "delete the old binaries", it is "keep the
-# record and drop the binaries". The record is the git tag plus the GPG-signed
-# SHA256SUMS on that version's Codeberg release. Enforce it here instead of
-# trusting the docs: a version with no signed record would be erased with no
-# way to verify afterwards what its bytes were.
-echo "preservation: confirming each pruned version keeps a signed record"
-RELAPI="https://codeberg.org/api/v1/repos/cefrium/cef-android/releases/tags"
+# ---- preservation -----------------------------------------------------------
+# The policy is "keep the record, drop the binaries": the git tag plus the
+# GPG-signed SHA256SUMS on that version's release.
 unpreserved=""
 for v in $to_prune; do
-  rel=$(curl -s "$RELAPI/v$v" -K "$CURL_AUTH_CFG")
-  sums=$(printf '%s' "$rel" | grep -cE "\"name\":\"SHA256SUMS-$v\"" || true)
-  asc=$(printf '%s' "$rel"  | grep -cE "\"name\":\"SHA256SUMS-$v\.asc\"" || true)
-  if [ "$sums" -ge 1 ] && [ "$asc" -ge 1 ]; then
+  rel=$(curl -s "$REPOAPI/releases/tags/v$v" -K "$CURL_AUTH_CFG")
+  if [[ "$rel" == *"\"name\":\"SHA256SUMS-$v\""* && "$rel" == *"\"name\":\"SHA256SUMS-$v.asc\""* ]]; then
     echo "  ok: v$v has a GPG-signed SHA256SUMS on its release"
   else
-    echo "  MISSING: v$v has no signed SHA256SUMS (sums=$sums sig=$asc)"
-    unpreserved="$unpreserved $v"
+    echo "  MISSING: v$v has no signed SHA256SUMS"; unpreserved="$unpreserved $v"
   fi
 done
 if [ -n "$unpreserved" ]; then
   echo "  ABORT: refusing to delete version(s) with no signed record:$unpreserved"
-  echo "  Publish their SHA256SUMS first, or exclude them deliberately."
   exit 1
 fi
 
@@ -121,28 +149,35 @@ if [ "$YES" -ne 1 ]; then
   exit 0
 fi
 
+# ---- delete -----------------------------------------------------------------
+fail=0
 for v in $to_prune; do
   for art in $COORDS; do
-    enc="com.cefrium%3A$art"
-    code=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$API/maven/$enc/$v" \
-            -K "$CURL_AUTH_CFG")
+    code=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+            "$API/maven/com.cefrium%3A$art/$v" -K "$CURL_AUTH_CFG")
     case "$code" in
       204) echo "  deleted $art $v" ;;
-      404) ;;  # coordinate didn't exist for this version -- fine
-      *)   echo "  WARN: delete $art $v -> HTTP $code" ;;
+      404) ;;  # coordinate did not exist for this version
+      *)   echo "  WARN: delete $art $v -> HTTP $code"; fail=1 ;;
     esac
   done
 done
+while read -r rid aid size tag name; do
+  [ -n "$rid" ] || continue
+  code=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+          "$REPOAPI/releases/$rid/assets/$aid" -K "$CURL_AUTH_CFG")
+  case "$code" in
+    204) echo "  deleted $tag/$name" ;;
+    *)   echo "  WARN: delete $tag/$name -> HTTP $code"; fail=1 ;;
+  esac
+done <<< "$asset_plan"
 
-# Scoped like the version list above: an unscoped query here reports other
-# com.cefrium products (e.g. exam-lockdown 0.1.0) as if they were SDK versions
-# this policy had failed to clean up.
 remaining=$(curl -s "$API?type=maven&limit=100" -K "$CURL_AUTH_CFG" \
              | python3 -c '
 import json, sys
 want = set(sys.argv[1].split())
-seen = {p["version"] for p in json.load(sys.stdin)
-        if p.get("name","").split(":")[-1] in want}
-print(" ".join(sorted(seen)))
+print(" ".join(sorted({p["version"] for p in json.load(sys.stdin)
+                       if p.get("name","").split(":")[-1] in want})))
 ' "$COORDS")
 echo "Done. Registry now serves (SDK coordinates): $remaining"
+exit "$fail"
