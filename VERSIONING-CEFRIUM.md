@@ -56,5 +56,29 @@ type, in either the Java SDK or the Compose API. Your code compiles against
 Android and Java types only. The freeze keeps it that way, which is what
 protects a consumer from an upstream rename.
 
+## From 1.0
+
+- **Major** (`X.0.0`): the only release that may remove or change frozen
+  API, and only API whose deprecation period has passed.
+- **Minor** (`1.X.0`): adds API, may deprecate API, and may move to a new
+  engine branch. It never removes frozen API or changes what it does.
+- **Patch** (`1.X.Y`): fixes, security fixes and engine updates within the
+  same engine branch. No API change.
+
+**Deprecation.** Deprecated API is marked `@Deprecated`, names its
+replacement in its javadoc and in the changelog, keeps working for at least
+12 months, and is removed only in a major release. One exception: when
+Chromium removes the capability underneath (as it did with Web SQL), the API
+stops working with the engine release that removes it. The changelog and the
+javadoc say so as soon as the removal is known.
+
+**Experimental.** API whose javadoc says Experimental is not covered: it may
+change or go in a minor release.
+
+**Engine.** A release follows each Chrome stable that Debian ships. A
+Chromium vulnerability exploited in the wild gets a security release as soon
+as possible. No fixed delay is promised here; guaranteed response times and
+long-term branches are terms of the support plans.
+
 The full terms of the 1.0 commitment are on
 [cefrium.com/guides/adopting-cefrium/](https://cefrium.com/guides/adopting-cefrium/).
