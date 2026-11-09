@@ -86,12 +86,16 @@ upto = sorted((r for r in sdk if vt(r["tag_name"][1:]) <= vt(keep)),
 kept = {r["tag_name"] for r in upto[-nb:]}
 for r in sdk:
     t = r["tag_name"]
-    if t in kept or vt(t[1:]) > vt(keep):
+    if vt(t[1:]) > vt(keep):
         continue
     names = {a["name"] for a in r.get("assets", [])}
     signed = f"SHA256SUMS-{t[1:]}" in names and f"SHA256SUMS-{t[1:]}.asc" in names
     for a in r.get("assets", []):
         if record.match(a["name"]):
+            continue
+        # SDK binaries (AARs) follow the retention; anything else (the browser
+        # APK attached before 0.19.0) is not for SDK users and goes everywhere.
+        if t in kept and a["name"].endswith(".aar"):
             continue
         if not signed:
             print(f"UNSIGNED {t} {a['name']}", file=sys.stderr)
@@ -102,7 +106,7 @@ PY
 asset_bytes=$(echo "$asset_plan" | awk 'NF{s+=$3} END{print s+0}')
 
 echo "Registry: keep $(echo $keep_set $above) (CEFRIUM_KEEP_VERSIONS=$N); prune: ${to_prune:-none}" | tr '\n' ' '; echo
-echo "Release binaries: keep on the newest $NB release(s) up to v$KEEP (CEFRIUM_KEEP_RELEASE_BINARIES); delete $(echo "$asset_plan" | grep -c . || true) file(s), $((asset_bytes / 1048576)) MiB"
+echo "Release binaries: AARs on the newest $NB release(s) up to v$KEEP (CEFRIUM_KEEP_RELEASE_BINARIES), no non-SDK files; delete $(echo "$asset_plan" | grep -c . || true) file(s), $((asset_bytes / 1048576)) MiB"
 echo "$asset_plan" | awk 'NF{printf "  %-9s %6d MiB  %s\n", $4, $3/1048576, $5}'
 
 # Codeberg carries what SDK users need. Anything else in the account is shown on
