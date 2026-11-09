@@ -47,8 +47,10 @@
 #include "include/internal/cef_types_win.h"
 #elif defined(OS_MAC)
 #include "include/internal/cef_types_mac.h"
-#elif defined(OS_LINUX) || defined(OS_ANDROID)
+#elif defined(OS_LINUX)
 #include "include/internal/cef_types_linux.h"
+#elif defined(OS_ANDROID)
+#include "include/internal/cef_types_android.h"
 #endif
 
 // 32-bit ARGB color value, not premultiplied. The color components are always
