@@ -108,8 +108,12 @@ class CefriumPlugin implements Plugin<Project> {
         // with UnsatisfiedLinkError there (0.9.3 shipped like that): a release
         // build stops, a debuggable one warns (a one-ABI development AAR is
         // normal there). Other ABIs come from other libraries: not ours to check.
+        // With Play Feature Delivery the engine can come from a dynamic feature
+        // module: the app then may package none, and the module is checked
+        // where the plugin is applied to it.
         def debuggable = [:]
-        if (project.plugins.hasPlugin('com.android.application')) {
+        boolean app = project.plugins.hasPlugin('com.android.application')
+        if (app || project.plugins.hasPlugin('com.android.dynamic-feature')) {
             project.tasks.matching { it.name ==~ /merge\w*NativeLibs/ }.configureEach { t ->
                 t.doLast {
                     def abis = [] as Set
@@ -132,6 +136,16 @@ class CefriumPlugin implements Plugin<Project> {
                     if (!filters.isEmpty()) abis.retainAll(filters)
                     def missing = ['arm64-v8a', 'armeabi-v7a', 'x86_64'].findAll { it in abis && !(it in engine) }
                     if (engine.isEmpty()) {
+                        def features = []
+                        try {
+                            features = app ? (project.android.dynamicFeatures ?: []) : []
+                        } catch (Throwable ignore) {
+                        }
+                        if (!app || !features.isEmpty()) {
+                            project.logger.info("Cefrium: no libcef.so here; it is expected " +
+                                "from a dynamic feature module.")
+                            return
+                        }
                         throw new org.gradle.api.GradleException(
                             "Cefrium: the app packages no libcef.so. Depend on " +
                             "com.cefrium:cefrium-sdk (or cefrium-sdk-libre), which brings " +
