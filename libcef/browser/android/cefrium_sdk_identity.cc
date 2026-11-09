@@ -9,6 +9,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "cef/libcef/browser/android/cefrium_sdk_client.h"
 
 SdkIdentityHandler::SdkIdentityHandler() = default;
 
@@ -123,5 +124,24 @@ void SdkIdentityHandler::Select(int64_t id, const CefString& account_id) {
 void SdkIdentityHandler::Cancel(int64_t id) {
   if (auto callback = Take(id)) {
     callback->Cancel();
+  }
+}
+
+// FEATURE-086: the app answered FedCM account chooser |id|.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeIdentitySelect(
+    JNIEnv* env, jclass, jlong native_ptr, jlong id, jstring account_id) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client) {
+    data->client->identity_handler()->Select(id, cefrium_sdk::JStr(env, account_id));
+  }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeIdentityCancel(
+    JNIEnv* env, jclass, jlong native_ptr, jlong id) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->client) {
+    data->client->identity_handler()->Cancel(id);
   }
 }
