@@ -37,9 +37,16 @@ From zero to rendering a web page in 5 minutes.
 > version was pruned. Older releases stay on the Codeberg Releases page as the
 > git tag and a GPG-signed `SHA256SUMS`; full history in `CHANGELOG-CEFRIUM.md`.
 >
-> **Maven Central stops at 0.17.1.** Versions up to 0.17.1 resolve from
-> `mavenCentral()`; later ones are only on the Codeberg registry, because
-> Central's publishing limits need a paid subscription for this project.
+> **Keeping a version longer.** Versions up to 0.17.1 also resolve from
+> `mavenCentral()`. To keep any version beyond the registry's window, proxy the
+> registry in your own repository manager (Nexus, Artifactory, Reposilite), as
+> you would for any third-party dependency.
+>
+> **Support.** Issues are answered as time allows. Cefrium is funded by the
+> people who use it: individuals through
+> [Liberapay](https://liberapay.com/cefrium/donate), and teams through
+> [support plans](https://cefrium.com/commercial/) with response times and a
+> security-response commitment.
 
 ## 1. Create an Android project
 
