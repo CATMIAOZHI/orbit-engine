@@ -617,8 +617,7 @@ if run release; then hdr "Codeberg release (tag + GPG-signed SHA256SUMS + assets
   # The tag is annotated at HEAD, so a dirty pin would tag the previous
   # version's source under this version's name.
   assert_pins_committed "tagging $VERSION at HEAD"
-  cef/cefrium_sdk/release-codeberg.sh "$VERSION" \
-    "$ROOT/cefrium-browser/cefrium-browser/app/build/outputs/apk/debug/app-debug.apk"
+  cef/cefrium_sdk/release-codeberg.sh "$VERSION"
 fi
 if run provenance; then hdr "Maven Central serves the signed bytes"
   # Before the site announces the release: the signed SHA256SUMS is what a
