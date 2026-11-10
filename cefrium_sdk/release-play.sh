@@ -61,7 +61,6 @@ SRC="$(cd "$SCRIPT_DIR/../.." && pwd)"              # chromium/src
 ROOT="$(cd "$SRC/../.." && pwd)"                    # cef-dev
 BROWSER_REPO="$ROOT/cefrium-browser"
 SAMPLE_REPO="$ROOT/cefrium-sample"
-FAT_AAR="$SRC/out/release/cefrium-sdk.aar"
 MODULES="${CEFRIUM_PLAY_MODULES:-cefrium-browser}"
 
 export JAVA_HOME="${JAVA_HOME:-$SRC/third_party/jdk/current}"
@@ -97,6 +96,18 @@ for m in $MODULES; do
   grep -q "^cefriumVersion=$VERSION\$" "$GP" \
     || { echo "ERROR: could not pin cefriumVersion in $GP"; exit 1; }
   echo ">>> $m pinned to cefrium-sdk:$VERSION"
+done
+# Apps in the repo that are not uploaded still state the current SDK: a clone
+# must not build an old engine. smoke-samples.sh already builds and launches
+# them in the sanity phase, so this is the pin only.
+PIN_ONLY=""
+for m in compose-browser; do
+  case " $MODULES " in *" $m "*) continue ;; esac
+  GP="$BROWSER_REPO/$m/gradle.properties"
+  [ -f "$GP" ] || continue
+  perl -0777 -i -pe "s{^cefriumVersion=.*\$}{cefriumVersion=$VERSION}m" "$GP"
+  PIN_ONLY="$PIN_ONLY $m/gradle.properties"
+  echo ">>> $m pinned to cefrium-sdk:$VERSION (not uploaded)"
 done
 
 # ---- 2. bump the app version ---------------------------------------------
@@ -142,21 +153,24 @@ done
 
 # ---- 3. the samples are the API gate -------------------------------------
 if [ "${CEFRIUM_PLAY_SKIP_SAMPLES:-0}" != "1" ]; then
-  [ -f "$FAT_AAR" ] || { echo "ERROR: no fat AAR at $FAT_AAR -- run the merge phase first"; exit 1; }
   FAILED=""
   LOGDIR="$SAMPLE_REPO/../tmp/play-samples"
   mkdir -p "$LOGDIR"
   # Only samples tracked in git: leftover folders are not consumers we ship.
   # Clean builds: an incremental build against a new AAR fails in AGP's
   # resource merge on entries the old AAR had, which looked like an API break.
+  # Each sample pins cefriumVersion in its gradle.properties and resolves it
+  # from maven.cefrium.com, as an adopter's clone does: pin to $VERSION, then
+  # build from the published repository (this phase runs after `r2`).
+  SAMPLE_PINS=""
   for name in $(git -C "$SAMPLE_REPO" ls-files '*/gradlew' | cut -d/ -f1 | sort -u); do
     d="$SAMPLE_REPO/$name"
-    # Every sample consumes the SDK as app/libs/cefrium-sdk.aar.
-    grep -qs 'libs/cefrium-sdk.aar' "$d"/app/build.gradle* || continue
-    mkdir -p "$d/app/libs"
-    cp "$FAT_AAR" "$d/app/libs/cefrium-sdk.aar"
-    echo ">>> building sample $name against $VERSION"
-    if ( cd "$d" && ./gradlew clean assembleDebug --no-daemon -q >"$LOGDIR/$name.log" 2>&1 ); then
+    GP="$d/gradle.properties"
+    grep -qs '^cefriumVersion=' "$GP" || continue
+    perl -0777 -i -pe "s{^cefriumVersion=.*\$}{cefriumVersion=$VERSION}m" "$GP"
+    SAMPLE_PINS="$SAMPLE_PINS $name/gradle.properties"
+    echo ">>> building sample $name against $VERSION (maven.cefrium.com)"
+    if ( cd "$d" && ./gradlew clean assembleDebug -PcefriumSource=registry --no-daemon -q >"$LOGDIR/$name.log" 2>&1 ); then
       echo "    OK"
     else
       echo "    FAILED ($LOGDIR/$name.log)"
@@ -164,6 +178,11 @@ if [ "${CEFRIUM_PLAY_SKIP_SAMPLES:-0}" != "1" ]; then
     fi
     rm -rf "$d/app/build"
   done
+  if [ -z "$FAILED" ] && [ -n "$SAMPLE_PINS" ] && ! git -C "$SAMPLE_REPO" diff --quiet -- $SAMPLE_PINS; then
+    git -C "$SAMPLE_REPO" add -- $SAMPLE_PINS
+    git -C "$SAMPLE_REPO" commit -q -m "Samples: cefrium-sdk $VERSION from maven.cefrium.com"
+    "$SCRIPT_DIR/push.sh" sample
+  fi
   if [ -n "$FAILED" ]; then
     echo
     echo "ERROR: samples failed to build against $VERSION:$FAILED"
@@ -200,7 +219,7 @@ echo "OK: $MODULES on Play '$TRACK', built against cefrium-sdk:$VERSION."
 # edits in the working tree to retry rather than a commit for something that
 # never shipped. Named paths, never `git add -A`: this phase runs in a tree that
 # may hold unrelated work.
-PATHS=""
+PATHS="$PIN_ONLY"
 for m in $MODULES; do
   for f in "$m/gradle.properties" "$m/app/build.gradle"; do
     [ -f "$BROWSER_REPO/$f" ] && PATHS="$PATHS $f"
