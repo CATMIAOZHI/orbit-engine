@@ -57,11 +57,13 @@ echo "sdk.dir=$ANDROID_HOME" > "$WORK/local.properties"
 printf 'android.useAndroidX=true\norg.gradle.jvmargs=-Xmx4g\n' > "$WORK/gradle.properties"
 
 # settings.gradle.kts — resolve ONLY from the published registry (+ google/central
-# for the transitive androidx deps), exactly like the quickstart.
+# for the transitive androidx deps), with the quickstart's includeGroup filter.
 cat > "$WORK/settings.gradle.kts" <<EOF
 pluginManagement {
     repositories {
-        maven("$REPO")
+        maven("$REPO") {
+            content { includeGroup("com.cefrium") }
+        }
         google()
         mavenCentral()
     }
@@ -70,7 +72,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven("$REPO")
+        maven("$REPO") {
+            content { includeGroup("com.cefrium") }
+        }
     }
 }
 rootProject.name = "cefrium-consumer-test"
