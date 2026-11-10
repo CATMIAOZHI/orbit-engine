@@ -45,6 +45,38 @@ From zero to rendering a web page in 5 minutes.
 > in your own repository manager (Nexus, Artifactory, Reposilite), as you would
 > for any third-party dependency.
 >
+> **Staying current.** Renovate or Dependabot can open a pull request when a
+> release comes out. For Renovate, in `renovate.json`:
+>
+> ```json
+> {
+>   "packageRules": [
+>     { "matchPackageNames": ["com.cefrium:*"],
+>       "registryUrls": ["https://maven.cefrium.com"] }
+>   ]
+> }
+> ```
+>
+> For Dependabot, in `.github/dependabot.yml`:
+>
+> ```yaml
+> version: 2
+> registries:
+>   cefrium:
+>     type: maven-repository
+>     url: https://maven.cefrium.com
+> updates:
+>   - package-ecosystem: gradle
+>     directory: "/"
+>     registries: [cefrium]
+>     schedule:
+>       interval: weekly
+> ```
+>
+> Or follow the release feed:
+> [RSS](https://codeberg.org/cefrium/cef-android/releases.rss) /
+> [Atom](https://codeberg.org/cefrium/cef-android/releases.atom).
+>
 > **Support.** Issues are answered as time allows. Cefrium is funded by the
 > people who use it: individuals through
 > [Liberapay](https://liberapay.com/cefrium/donate), and teams through
