@@ -57,6 +57,48 @@ android {
 
 }
 
+// CefriumContractSweepTest sweeps the public methods of CefriumBrowser. R8's
+// -allowaccessmodification makes package-private ones public in the minified
+// app, so the declared list is read from the AAR's classes.jar instead.
+abstract class CefriumBrowserApi extends DefaultTask {
+    @InputFile abstract RegularFileProperty getAar()
+    @OutputDirectory abstract DirectoryProperty getOutputDir()
+
+    @TaskAction void write() {
+        def node = new org.objectweb.asm.tree.ClassNode()
+        new java.util.zip.ZipFile(aar.get().asFile).withCloseable { aarZip ->
+            def jar = new java.util.zip.ZipInputStream(
+                    aarZip.getInputStream(aarZip.getEntry('classes.jar')))
+            for (def e = jar.nextEntry; e != null; e = jar.nextEntry) {
+                if (e.name == 'com/cefrium/CefriumBrowser.class') {
+                    new org.objectweb.asm.ClassReader(jar.readAllBytes()).accept(
+                            node, org.objectweb.asm.ClassReader.SKIP_CODE)
+                }
+            }
+        }
+        def ACC = org.objectweb.asm.Opcodes
+        def lines = node.methods.findAll {
+            (it.access & ACC.ACC_PUBLIC) && !(it.access & ACC.ACC_STATIC) && !it.name.startsWith('<')
+        }.collect { m ->
+            m.name + '(' + org.objectweb.asm.Type.getArgumentTypes(m.desc).collect {
+                it.className.tokenize('.').last().tokenize('$').last()
+            }.join(',') + ')'
+        }.sort()
+        if (lines.isEmpty()) throw new GradleException('no public CefriumBrowser methods in ' + aar.get())
+        outputDir.get().file('cefrium-browser-api.txt').asFile.text = lines.join('\n') + '\n'
+    }
+}
+
+def cefriumBrowserApi = tasks.register('cefriumBrowserApi', CefriumBrowserApi) {
+    aar.set(file('libs/cefrium-sdk.aar'))
+}
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.androidTest?.sources?.assets?.addGeneratedSourceDirectory(
+                cefriumBrowserApi, { it.outputDir })
+    }
+}
+
 dependencies {
     // The artifacts under test. Copy freshly built AARs into libs/ before
     // running (libs/ is gitignored):
