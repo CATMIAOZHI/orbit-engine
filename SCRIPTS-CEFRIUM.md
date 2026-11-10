@@ -67,7 +67,7 @@ cef/cefrium_sdk/cut-release.sh <version> <prev> --from publish   # resume
 Outcome: last line of `tmp/cut-<version>.status`. The cut checks the signing
 key, the VPN and `JAVA_HOME` before it builds.
 
-Phases: `patches build hotranges merge compose plugin stats sanity suite stage publish central
+Phases: `patches build hotranges merge compose plugin stats sanity suite stage r2 publish central
 flagship release provenance web prune play`. Flags that matter:
 `CEFRIUM_INCREMENTAL=1` (reuse out dirs), `CEFRIUM_YES=1` (pre-authorize the
 irreversible gates -- needed for an unattended run), `CEFRIUM_NO_PRUNE=1`,
@@ -91,7 +91,9 @@ Individual phases, runnable on their own:
 | Build the 6 variants | `cef/cefrium_sdk/build-all-variants.sh [--clean]` |
 | Slim one raw AAR | `python3 cef/cefrium_sdk/slim_aar.py --input <raw.aar> --output <slim.aar>` |
 | Fuse arm64 + x86_64 + armeabi-v7a | `cef/cefrium_sdk/merge-multiabi.sh` |
-| Publish to Codeberg Maven | `cef/cefrium_sdk/publish-maven.sh <version>` |
+| Publish to maven.cefrium.com (R2) from a staged Maven directory, verify, smoke-test | `cef/cefrium_sdk/publish-r2.sh <version> [<maven-dir>]` |
+| Keep the newest `CEFRIUM_R2_KEEP_VERSIONS` (10) on R2 (plan without `--yes`) | `cef/cefrium_sdk/publish-r2.sh --prune [--yes]` |
+| Publish to the Codeberg Maven mirror | `cef/cefrium_sdk/publish-maven.sh <version>` |
 | Split the two SDK AARs into the published modules | `python3 cef/cefrium_sdk/modular_artifacts.py build --codecs <aar> [--libre <aar>] --out <dir>` |
 | Write the Maven repository to a directory and run the consumer test on it (no upload) | `CEFRIUM_MAVEN_DIR=<dir> [CEFRIUM_RELEASE_DIR=<dir>] cef/cefrium_sdk/publish-maven.sh <version>` |
 | Publish to Maven Central (opt-in, stopped at 0.17.1) | `cef/cefrium_sdk/publish-central.sh <version>` |

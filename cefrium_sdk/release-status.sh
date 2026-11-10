@@ -17,7 +17,8 @@
 # Read-only. Safe to run at any time, and cheap enough to run after every cut.
 # Exits non-zero if the version is incompletely published, so it can gate a cut.
 #
-# The Codeberg registry is the channel. Maven Central stopped at 0.17.1 (its
+# maven.cefrium.com (Cloudflare R2) is the channel and the Codeberg registry
+# mirrors it; both must serve the version. Maven Central stopped at 0.17.1 (its
 # limits need a paid subscription for this project); its column is shown for
 # reference and only counts with CEFRIUM_CENTRAL=1.
 set -uo pipefail
@@ -28,6 +29,7 @@ VERSION="${1:-$(grep -oE 'String VERSION = "[^"]+"' "$CEFJAVA" | grep -oE '"[^"]
 [ -n "$VERSION" ] || { echo "ERROR: no version given and none readable from Cefrium.java" >&2; exit 2; }
 ENGINE="$(grep -oE 'CHROMIUM_VERSION = "[0-9.]+"' "$CEFJAVA" | grep -oE '[0-9.]+')"
 
+R2="${CEFRIUM_R2_URL:-https://maven.cefrium.com}/com/cefrium"
 CB="https://codeberg.org/api/packages/cefrium/maven/com/cefrium"
 MC="https://repo1.maven.org/maven2/com/cefrium"
 RELAPI="https://codeberg.org/api/v1/repos/cefrium/cef-android/releases/tags"
@@ -55,13 +57,15 @@ mark() { case "$1" in 200|206) echo "yes" ;; 404) echo "NO" ;; *) echo "? $1" ;;
 
 echo "Cefrium $VERSION (engine $ENGINE)"
 echo
-printf "%-28s %-12s %-12s\n" "coordinate" "Codeberg" "Central"
-printf "%-28s %-12s %-12s\n" "---------------------------" "-----------" "-----------"
+printf "%-28s %-12s %-12s %-12s\n" "coordinate" "R2" "Codeberg" "Central"
+printf "%-28s %-12s %-12s %-12s\n" "---------------------------" "-----------" "-----------" "-----------"
 for spec in $ARTIFACTS; do
   art="${spec%%:*}"; ext="${spec##*:}"
+  r2=$(mark "$(curl -s -o /dev/null -w "%{http_code}" -r 0-0 "$R2/$art/$VERSION/$art-$VERSION.$ext")")
   cb=$(mark "$(probe "$CB/$art/$VERSION/$art-$VERSION.$ext")")
   mc=$(mark "$(probe "$MC/$art/$VERSION/$art-$VERSION.$ext")")
-  printf "%-28s %-12s %-12s\n" "$art" "$cb" "$mc"
+  printf "%-28s %-12s %-12s %-12s\n" "$art" "$r2" "$cb" "$mc"
+  [ "$r2" = "yes" ] || fail=1
   [ "${CEFRIUM_CENTRAL:-0}" = "1" ] && { [ "$mc" = "yes" ] || fail=1; }
   [ "$cb" = "yes" ] || fail=1
 done

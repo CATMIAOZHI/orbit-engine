@@ -237,18 +237,22 @@ report `0 failed`.
 
 ## SDK releases
 
-Pre-built AARs are published on
-**[Codeberg Packages](https://codeberg.org/cefrium/-/packages)**
-(Maven registry). No need to build from source.
+Pre-built AARs are published on Cefrium's Maven repository,
+**`https://maven.cefrium.com`**, mirrored on
+[Codeberg Packages](https://codeberg.org/cefrium/-/packages). No need to build
+from source.
 
 ### Gradle integration
 
-Published on the **Codeberg Maven registry**, which serves the current release
-and the one before it. Add
-`maven { url 'https://codeberg.org/api/packages/cefrium/maven' }` to both
-`pluginManagement` and `dependencyResolutionManagement` in `settings.gradle`.
-Versions up to 0.17.1 are also on Maven Central. To keep a version longer,
-proxy the registry in your own repository manager.
+Published on Cefrium's own Maven repository, **`https://maven.cefrium.com`**,
+which keeps the last ten releases. Add
+`maven { url 'https://maven.cefrium.com'; content { includeGroup 'com.cefrium' } }`
+to both `pluginManagement` and `dependencyResolutionManagement` in
+`settings.gradle`. The
+[Codeberg Maven registry](https://codeberg.org/cefrium/-/packages) mirrors the
+current release and the one before it; versions up to 0.17.1 are also on Maven
+Central. To keep a version longer, proxy the repository in your own repository
+manager.
 
 ```groovy
 // app/build.gradle
@@ -280,14 +284,14 @@ summary of the docs for tools: [cefrium.com/llms.txt](https://cefrium.com/llms.t
 
 ### Direct download
 
-Alternatively, download the AAR directly from
-[Codeberg Packages](https://codeberg.org/cefrium/-/packages):
+Alternatively, download the single-file AARs from the
+[v0.19.0 release page](https://codeberg.org/cefrium/cef-android/releases/tag/v0.19.0):
 
-**SDK (multi-ABI: arm64-v8a + x86_64, H.264/AAC + VP8/VP9/Opus):**
-- [cefrium-sdk-0.19.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-sdk/0.19.0/cefrium-sdk-0.19.0.aar) (~250 MB, `arm64-v8a` + `x86_64`; the consumer's APK/App Bundle ships only the device's ABI, ~150 MB)
+**SDK (multi-ABI, H.264/AAC + VP8/VP9/Opus):**
+- [cefrium-sdk-0.19.0.aar](https://codeberg.org/cefrium/cef-android/releases/download/v0.19.0/cefrium-sdk-0.19.0.aar) (~280 MB; the consumer's APK/App Bundle ships only the device's ABI)
 
 **Jetpack Compose wrapper (all architectures):**
-- [cefrium-compose-0.19.0.aar](https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-compose/0.19.0/cefrium-compose-0.19.0.aar) (28 KB)
+- [cefrium-compose-0.19.0.aar](https://maven.cefrium.com/com/cefrium/cefrium-compose/0.19.0/cefrium-compose-0.19.0.aar) (28 KB)
 
 Place in `app/libs/` and use `implementation files('libs/cefrium-sdk.aar')`.
 
