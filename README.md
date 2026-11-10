@@ -247,7 +247,8 @@ Published on the **Codeberg Maven registry**, which serves the current release
 and the one before it. Add
 `maven { url 'https://codeberg.org/api/packages/cefrium/maven' }` to both
 `pluginManagement` and `dependencyResolutionManagement` in `settings.gradle`.
-Maven Central has the versions up to 0.17.1 only.
+Versions up to 0.17.1 are also on Maven Central. To keep a version longer,
+proxy the registry in your own repository manager.
 
 ```groovy
 // app/build.gradle
@@ -456,8 +457,9 @@ with.
 
 [![Donate using Liberapay](https://liberapay.com/assets/widgets/donate.svg)](https://liberapay.com/cefrium/donate)
 
-If you are shipping a product on Cefrium, a support contract funds the same work at a scale donations cannot, and gives you a commitment in
-return rather than goodwill:
+Issues are answered as time allows. If you are shipping a product on Cefrium,
+a support contract funds the same work at a scale donations cannot, and gives
+you a response time and a commitment in return rather than goodwill:
 [cefrium.com/commercial](https://cefrium.com/commercial/),
 **cefrium@proton.me**.
 
