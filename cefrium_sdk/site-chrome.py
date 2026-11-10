@@ -18,7 +18,7 @@ FOOT = [[('/', 'Cefrium'), ('/quickstart/', 'Quickstart'), ('/guides/', 'Guides'
         [('/kiosk/', 'Kiosks'), ('/benchmarks/', 'Benchmarks'), ('/upstream/', 'Upstream'),
          ('/commercial/', 'Support &amp; consulting'), ('/about/', 'About')],
         [('/policy/', 'Trademark &amp; forks'), ('/privacy/', 'Browser privacy policy'),
-         ('https://codeberg.org/cefrium/cef-android', 'Source')]]
+         ('https://codeberg.org/cefrium/cef-android', 'Source'), ('/llms.txt', 'llms.txt')]]
 
 
 def nav(section):
