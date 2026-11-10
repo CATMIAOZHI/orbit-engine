@@ -107,7 +107,9 @@ say "ensuring release $TAG exists"
 rid=$(curl -s "$API/releases/tags/$TAG" -K "$CURL_AUTH_CFG" \
         | grep -oE '"id":[0-9]+' | head -1 | cut -d: -f2 || true)
 if [ -z "$rid" ]; then
-  body="Cefrium $VERSION (Chromium $ENGINE). Artifacts on the Codeberg Maven registry (com.cefrium:cefrium-sdk:$VERSION and -libre). SHA256SUMS (GPG-signed) attached and covers every listed asset; the AAR hashes in it are byte-identical to the registry artifacts. SBOM and third-party NOTICE attached. https://cefrium.com/releases"
+  # The support line goes out with every release on purpose: the release (and
+  # its RSS/Atom feed) is when adopters see what they get.
+  body="Cefrium $VERSION (Chromium $ENGINE). Artifacts on https://maven.cefrium.com, mirrored on the Codeberg Maven registry (com.cefrium:cefrium-sdk:$VERSION and -libre). SHA256SUMS (GPG-signed) attached and covers every listed asset; the AAR hashes in it are byte-identical to the registry artifacts. SBOM and third-party NOTICE attached. https://cefrium.com/releases\\n\\nCefrium is funded by the people who use it: individuals through Liberapay (https://liberapay.com/cefrium/donate), and teams through support plans (https://cefrium.com/commercial/) with response times and a security-response commitment."
   rid=$(curl -s -X POST "$API/releases" -K "$CURL_AUTH_CFG" \
     -H "Content-Type: application/json" \
     -d "{\"tag_name\":\"$TAG\",\"name\":\"Cefrium $VERSION\",\"body\":\"$body\"}" \
