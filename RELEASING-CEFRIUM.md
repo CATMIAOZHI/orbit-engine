@@ -29,7 +29,7 @@ One script runs all of it. The phases, in order, and what each one is for:
 | 16 | `provenance` | Check Maven Central serves the bytes the signed `SHA256SUMS` names (only with `CEFRIUM_CENTRAL=1`) | `verify-central-provenance.sh` |
 | 17 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, re-assert the repo docs, then VERIFY and push the cef repo | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
 | 18 | `prune` | Codeberg: drop registry versions and release binaries older than the previous release; R2: keep the newest `CEFRIUM_R2_KEEP_VERSIONS` (10) | `prune-old-versions.sh`, `publish-r2.sh --prune` |
-| 19 | `play` | Pin + version-bump the apps, rebuild every sample, upload to Play | `release-play.sh` |
+| 19 | `play` | Pin + version-bump the apps (compose-browser pinned, not uploaded), pin every sample and build it from maven.cefrium.com, commit + push the pins, upload to Play | `release-play.sh` |
 
 The order of `web` and `prune` is deliberate and was learned the hard way. `prune`
 exits 1 when the release looks incomplete, and on the 0.10.2 cut "incomplete"

@@ -39,10 +39,9 @@ N="$("$ADB" devices 2>/dev/null | grep -c 'device$')"
 # published an arm64-only fat AAR, so every emulator user got an
 # UnsatisfiedLinkError at runtime while every local build was green.
 #
-# The browsers resolve from the registry natively (that is their default, so the
-# local-AAR staging below is skipped and cefriumVersion is pinned). The
-# file-based samples consume an AAR from libs/, so the published AAR is
-# downloaded and staged there -- same bytes, delivered by hand.
+# Every consumer resolves from maven.cefrium.com natively (that is its default),
+# so registry mode skips the local-AAR staging and pins cefriumVersion. The
+# published AARs below are still fetched to check their ABIs.
 REGISTRY_VERSION=""
 [ "${1:-}" = "--registry" ] && { REGISTRY_VERSION="${2:?--registry needs a version}"; shift 2; }
 
@@ -77,7 +76,7 @@ if [ -n "$REGISTRY_VERSION" ]; then
       if [ "$art" = cefrium-sdk ]; then
         url="https://codeberg.org/cefrium/cef-android/releases/download/v$REGISTRY_VERSION/$art-$REGISTRY_VERSION.aar"
       else
-        url="https://codeberg.org/api/packages/cefrium/maven/com/cefrium/$art/$REGISTRY_VERSION/$art-$REGISTRY_VERSION.aar"
+        url="https://maven.cefrium.com/com/cefrium/$art/$REGISTRY_VERSION/$art-$REGISTRY_VERSION.aar"
       fi
       echo "  fetching $art $REGISTRY_VERSION ($url)"
       curl -sfL -o "$f" "$url" || { echo "FAIL: $art $REGISTRY_VERSION is not published ($url)"; exit 1; }
@@ -94,7 +93,7 @@ if [ -n "$REGISTRY_VERSION" ]; then
   case "$abis" in *armeabi-v7a*) ;; *) echo "FAIL: published AAR has no armeabi-v7a -- 32-bit ARM devices get no engine"; exit 1 ;; esac
   # cefrium-unifiedpush exists from 0.15.0 on; without it unifiedpush-demo
   # fails to build, which is the loud answer for a release that should have it.
-  up="https://codeberg.org/api/packages/cefrium/maven/com/cefrium/cefrium-unifiedpush/$REGISTRY_VERSION/cefrium-unifiedpush-$REGISTRY_VERSION.aar"
+  up="https://maven.cefrium.com/com/cefrium/cefrium-unifiedpush/$REGISTRY_VERSION/cefrium-unifiedpush-$REGISTRY_VERSION.aar"
   [ -s "$PUB/cefrium-unifiedpush.aar" ] || curl -sfL -o "$PUB/cefrium-unifiedpush.aar" "$up" \
     || { rm -f "$PUB/cefrium-unifiedpush.aar"; echo "  cefrium-unifiedpush: not published for $REGISTRY_VERSION"; }
   SDK_AAR="$PUB/cefrium-sdk.aar"
@@ -110,26 +109,22 @@ for s in $SAMPLES; do
   if is_browser "$s"; then d="$ROOT/cefrium-browser/$s"; else d="$ROOT/cefrium-sample/$s"; fi
   [ -d "$d" ] || { echo "  $s: SKIP (missing)"; continue; }
   GA=""
-  if is_browser "$s" && [ -n "$REGISTRY_VERSION" ]; then
+  # Every consumer resolves com.cefrium:* from maven.cefrium.com by default
+  # (cefriumSource=registry, cefriumVersion in its gradle.properties).
+  if [ -n "$REGISTRY_VERSION" ]; then
     # Registry mode: resolve exactly what an adopter resolves. No local staging,
     # no -PcefriumSource=local -- just pin the version and let Gradle fetch it.
     GA="-PcefriumVersion=$REGISTRY_VERSION"
-  elif is_browser "$s"; then
-    # Browser repo defaults to the registry, but this gate runs BEFORE publish --
-    # the new version is not in the registry yet, so build against the fresh
-    # local AARs (-PcefriumSource=local).
-    mkdir -p "$d/app/libs"
-    cp "$SDK_AAR" "$d/app/libs/cefrium-sdk.aar"
-    [ -f "$COMPOSE_AAR" ] && cp "$COMPOSE_AAR" "$d/app/libs/cefrium-compose.aar"
-    GA="-PcefriumSource=local"
   else
-    # Stage by what the build file asks for: libs/ is gitignored, so a fresh
-    # clone has no AAR there to replace.
+    # This gate runs BEFORE publish -- the new version is not in the registry
+    # yet, so build against the fresh local AARs (-PcefriumSource=local),
+    # staged by what the build file asks for (libs/ is gitignored).
     gf="$(ls "$d"/app/build.gradle "$d"/app/build.gradle.kts 2>/dev/null | head -1)"
     mkdir -p "$d/app/libs"
     grep -q 'libs/cefrium-sdk.aar' "$gf" && cp "$SDK_AAR" "$d/app/libs/cefrium-sdk.aar"
     grep -q 'libs/cefrium-compose.aar' "$gf" && [ -f "$COMPOSE_AAR" ] && cp "$COMPOSE_AAR" "$d/app/libs/cefrium-compose.aar"
     grep -q 'libs/cefrium-unifiedpush.aar' "$gf" && [ -f "$UNIFIEDPUSH_AAR" ] && cp "$UNIFIEDPUSH_AAR" "$d/app/libs/cefrium-unifiedpush.aar"
+    GA="-PcefriumSource=local"
   fi
   # clean: the AAR under test replaces one built earlier, and AGP's incremental
   # merge fails on entries the old AAR had ("Unknown file: ...properties").
