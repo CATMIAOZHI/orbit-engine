@@ -29,18 +29,21 @@ From zero to rendering a web page in 5 minutes.
 > "Adding Cefrium to one module of an existing multi-module app" in
 > Troubleshooting for the exact error and the `kotlin.srcDir` gotcha.
 
-> **Where it's hosted.** Cefrium is published on the **Codeberg Maven registry**:
-> the `maven { url ... }` line in both blocks below. The registry serves the
-> current release and the one before it, so a pinned version keeps resolving
-> through one more release; move to the current version within that window. If a
-> build fails with `Plugin [id: 'com.cefrium', version: 'X'] was not found`, that
-> version was pruned. Older releases stay on the Codeberg Releases page as the
+> **Where it's hosted.** Cefrium is published on its own Maven repository,
+> **`https://maven.cefrium.com`**: the `maven { ... }` block in both places
+> below. `includeGroup 'com.cefrium'` keeps Gradle from asking it for any other
+> library. It keeps the last ten releases (0.18.0 onwards today). The
+> [Codeberg Maven registry](https://codeberg.org/cefrium/-/packages)
+> (`https://codeberg.org/api/packages/cefrium/maven`) mirrors the current
+> release and the one before it. If a build fails with
+> `Plugin [id: 'com.cefrium', version: 'X'] was not found`, that version is
+> outside the window. Older releases stay on the Codeberg Releases page as the
 > git tag and a GPG-signed `SHA256SUMS`; full history in `CHANGELOG-CEFRIUM.md`.
 >
 > **Keeping a version longer.** Versions up to 0.17.1 also resolve from
-> `mavenCentral()`. To keep any version beyond the registry's window, proxy the
-> registry in your own repository manager (Nexus, Artifactory, Reposilite), as
-> you would for any third-party dependency.
+> `mavenCentral()`. To keep any version beyond the window, proxy the repository
+> in your own repository manager (Nexus, Artifactory, Reposilite), as you would
+> for any third-party dependency.
 >
 > **Support.** Issues are answered as time allows. Cefrium is funded by the
 > people who use it: individuals through
@@ -61,7 +64,10 @@ In Android Studio: File -> New -> New Project -> Empty Activity.
 ```groovy
 pluginManagement {
     repositories {
-        maven { url 'https://codeberg.org/api/packages/cefrium/maven' }
+        maven {
+            url 'https://maven.cefrium.com'
+            content { includeGroup 'com.cefrium' }
+        }
         google()
         mavenCentral()
     }
@@ -70,7 +76,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven { url 'https://codeberg.org/api/packages/cefrium/maven' }
+        maven {
+            url 'https://maven.cefrium.com'
+            content { includeGroup 'com.cefrium' }
+        }
     }
 }
 ```

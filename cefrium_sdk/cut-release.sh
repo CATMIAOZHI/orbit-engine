@@ -51,7 +51,7 @@ export JAVA_HOME="${JAVA_HOME:-$SRC/third_party/jdk/current}"
 export ANDROID_HOME="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}"
 export PATH="$ROOT/depot_tools:$PATH"
 export CEFRIUM_NINJA_JOBS="${CEFRIUM_NINJA_JOBS:-16}"
-PHASES="patches build hotranges merge compose plugin stats sanity suite stage publish central flagship release provenance web prune play"
+PHASES="patches build hotranges merge compose plugin stats sanity suite stage r2 publish central flagship release provenance web prune play"
 # Variant scope. Default "all" = the 4 published variants (codecs/libre x arm64/x64).
 # CEFRIUM_VARIANTS="arm64:codecs" narrows to one variant. The 4-variant build
 # relinks libcef.so per variant and is the biggest time sink (~4x), which is why it
@@ -123,6 +123,13 @@ if run publish || run central || run release || run prune; then
     exit 1
   fi
   echo ">>> credentials: token files present"
+fi
+if run r2 || run prune; then
+  r2remote="${CEFRIUM_R2_REMOTE:-cefrium-r2:cefrium-maven}"
+  rclone lsf "$r2remote" --max-depth 1 >/dev/null 2>&1 || {
+    echo "ERROR: rclone cannot reach $r2remote (install rclone, configure the remote locally)."
+    exit 1; }
+  echo ">>> credentials: R2 remote reachable"
 fi
 
 # The signature comes hours in, at the release phase: find a key that cannot
@@ -553,7 +560,17 @@ if run stage; then hdr "staged Maven repository resolves (before anything is pub
     exit 1; }
 fi
 
-if run publish; then hdr "publish to Maven (IMMUTABLE)"
+if run r2; then hdr "publish to maven.cefrium.com (Cloudflare R2, IMMUTABLE)"
+  # The main channel, before the Codeberg mirror: the staged files, checksums
+  # and maven-metadata.xml, verified through the public URL and by a consumer
+  # build of both SDK coordinates. Credentials: the local rclone remote.
+  assert_pins_committed "publishing $VERSION to maven.cefrium.com"
+  [ "$VARIANTS" = "all" ] || { echo "ERROR: partial variant matrix; see the publish phase."; exit 1; }
+  gate "publish $VERSION to maven.cefrium.com (cannot be overwritten)"
+  cef/cefrium_sdk/publish-r2.sh "$VERSION" "$PWD/out/release/staged-maven"
+fi
+
+if run publish; then hdr "publish to the Codeberg Maven mirror (IMMUTABLE)"
   # Immutable means there is no second chance to make the bytes match the
   # source. Check before, not after.
   assert_pins_committed "publishing $VERSION to Maven"
@@ -749,13 +766,14 @@ if run prune;   then hdr "prune old versions (the registry keeps this one and th
   if [ "${CEFRIUM_NO_PRUNE:-0}" = "1" ]; then
     echo "skipped: CEFRIUM_NO_PRUNE=1 (old versions kept in the registry)"
     PRUNE_STATE="skipped on request"
-  elif cef/cefrium_sdk/prune-old-versions.sh "$VERSION" --yes; then
-    PRUNE_STATE="done"
+  elif cef/cefrium_sdk/prune-old-versions.sh "$VERSION" --yes \
+       && cef/cefrium_sdk/publish-r2.sh --prune --yes; then
+    PRUNE_STATE="done (Codeberg keeps ${CEFRIUM_KEEP_VERSIONS:-2}, R2 keeps ${CEFRIUM_R2_KEEP_VERSIONS:-10})"
   else
     # A failed interlock is not a failed release -- the release is published and
     # fine, only the cleanup did not happen. Report it loudly rather than
     # aborting, so it cannot pass as success the way it did before.
-    PRUNE_STATE="FAILED -- rerun: cef/cefrium_sdk/prune-old-versions.sh $VERSION --yes"
+    PRUNE_STATE="FAILED -- rerun: cef/cefrium_sdk/prune-old-versions.sh $VERSION --yes; cef/cefrium_sdk/publish-r2.sh --prune --yes"
   fi
 fi
 

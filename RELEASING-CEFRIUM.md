@@ -21,14 +21,15 @@ One script runs all of it. The phases, in order, and what each one is for:
 | 8 | `sanity` | Build a REAL consumer against the fresh AAR, before anything immutable; launch every sample, read the verdict samples, run the scenarios a launch cannot show (download resumed after a kill) | `smoke-samples.sh`, `smoke-minified.sh` |
 | 9 | `suite` | The on-device suite, read from the result files, not from Gradle's exit status: plain, minified, and as armeabi-v7a on the device; then on an Android 10 (API 29) emulator; then Web Push through FCM, which the suite can only fake | `run-instrumentation-suite.sh`, `suite-on-emulator.sh`, `push-e2e.sh` |
 | 10 | `stage` | Publish to a local directory and resolve + start the release from there, before anything is uploaded | `publish-maven.sh` (`CEFRIUM_MAVEN_DIR`) |
-| 11 | `publish` | Upload to the Codeberg registry, then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
-| 12 | `central` | Upload to Maven Central, only with `CEFRIUM_CENTRAL=1` | `publish-central.sh` |
-| 13 | `flagship` | Build the browser APK against this exact SDK | - |
-| 14 | `release` | Codeberg release: tag, assets, GPG-signed `SHA256SUMS` | `release-codeberg.sh` |
-| 15 | `provenance` | Check Maven Central serves the bytes the signed `SHA256SUMS` names (only with `CEFRIUM_CENTRAL=1`) | `verify-central-provenance.sh` |
-| 16 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, re-assert the repo docs, then VERIFY and push the cef repo | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
-| 17 | `prune` | Drop registry versions and release binaries older than the previous release | `prune-old-versions.sh` |
-| 18 | `play` | Pin + version-bump the apps, rebuild every sample, upload to Play | `release-play.sh` |
+| 11 | `r2` | Upload to maven.cefrium.com (Cloudflare R2: checksums, `maven-metadata.xml`, Cache-Control), verify every file through the public URL, then DEP-8 smoke BOTH coordinates from it | `publish-r2.sh` |
+| 12 | `publish` | Upload to the Codeberg registry (the mirror), then DEP-8 smoke BOTH coordinates | `publish-maven.sh` |
+| 13 | `central` | Upload to Maven Central, only with `CEFRIUM_CENTRAL=1` | `publish-central.sh` |
+| 14 | `flagship` | Build the browser APK against this exact SDK | - |
+| 15 | `release` | Codeberg release: tag, assets, GPG-signed `SHA256SUMS` | `release-codeberg.sh` |
+| 16 | `provenance` | Check Maven Central serves the bytes the signed `SHA256SUMS` names (only with `CEFRIUM_CENTRAL=1`) | `verify-central-provenance.sh` |
+| 17 | `web` | Releases row, quickstart, upstream page, Javadoc + Dokka, re-assert the repo docs, then VERIFY and push the cef repo | `release-web-update.sh`, `regen-docs.sh`, `release-web-verify.sh` |
+| 18 | `prune` | Codeberg: drop registry versions and release binaries older than the previous release; R2: keep the newest `CEFRIUM_R2_KEEP_VERSIONS` (10) | `prune-old-versions.sh`, `publish-r2.sh --prune` |
+| 19 | `play` | Pin + version-bump the apps, rebuild every sample, upload to Play | `release-play.sh` |
 
 The order of `web` and `prune` is deliberate and was learned the hard way. `prune`
 exits 1 when the release looks incomplete, and on the 0.10.2 cut "incomplete"
@@ -58,7 +59,7 @@ confirmation before the irreversible step (the immutable publish):
 # The cut sets Cefrium.VERSION itself, and commits it:
 cef/cefrium_sdk/cut-release.sh <version> <prev-version> --notes "<releases-row HTML>"
 # Resume after a long build:  --from publish   (phases: patches build hotranges merge
-#   compose plugin stats sanity suite stage publish central flagship release
+#   compose plugin stats sanity suite stage r2 publish central flagship release
 #   provenance web prune play)
 ```
 
@@ -97,7 +98,15 @@ licence and requires a paid publisher subscription (ticket 130372,
 `CEFRIUM_CENTRAL=1`; `publish-central.sh` and `verify-central-provenance.sh`
 stay for that case.
 
-The registry keeps the release and the one before it (`prune-old-versions.sh`,
+maven.cefrium.com is the channel: a static Maven repository in the Cloudflare
+R2 bucket `cefrium-maven`, served through Cloudflare's cache (R2 free tier:
+10 GB storage, free egress). `publish-r2.sh` uploads with the local rclone
+remote (`CEFRIUM_R2_REMOTE`, default `cefrium-r2:cefrium-maven`); versioned
+files carry `Cache-Control: immutable`, `maven-metadata.xml` five minutes. It
+keeps the newest `CEFRIUM_R2_KEEP_VERSIONS` (10). The Codeberg registry is the
+mirror.
+
+The Codeberg registry keeps the release and the one before it (`prune-old-versions.sh`,
 `CEFRIUM_KEEP_VERSIONS`, 1 = latest only), so a pinned build has one release to
 move. The same phase drops the APK/AAR attachments of older releases
 (`CEFRIUM_KEEP_RELEASE_BINARIES`, default the same) and keeps their record:
