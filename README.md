@@ -162,7 +162,7 @@ device you cannot inspect (the compliance view above), and what you are allowed
 to do with the code (LGPL-3.0-or-later; a commercial alternative for the
 SDK files comes with the support plans).
 
-Support contracts, a security-response commitment and sponsored engineering:
+Support contracts, integration help and sponsored engineering:
 [cefrium.com/commercial](https://cefrium.com/commercial/), or
 **cefrium@proton.me**. Cefrium is pre-1.0 and the public API still moves
 between minor releases -- say what you are building and you get a straight

@@ -80,8 +80,8 @@ From zero to rendering a web page in 5 minutes.
 > **Support.** Issues are answered as time allows. Cefrium is funded by the
 > people who use it: individuals through
 > [Liberapay](https://liberapay.com/cefrium/donate), and teams through
-> [support plans](https://cefrium.com/commercial/) with response times and a
-> security-response commitment.
+> [support plans](https://cefrium.com/commercial/) with response times and
+> integration help.
 
 ## 1. Create an Android project
 
