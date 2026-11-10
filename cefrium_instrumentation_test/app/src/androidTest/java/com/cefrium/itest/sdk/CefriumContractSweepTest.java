@@ -132,12 +132,20 @@ public class CefriumContractSweepTest {
     private void contractHolds() throws Exception {
         java.util.List<String> broken = new java.util.ArrayList<>();
         java.util.List<Method> methods = new java.util.ArrayList<>();
+        // The declared API, not getMethods(): R8 makes package-private
+        // methods public in the minified app (build.gradle, cefriumBrowserApi).
+        java.util.Set<String> declared = declaredApi();
+        java.util.Set<String> found = new java.util.HashSet<>();
         for (Method m : CefriumBrowser.class.getMethods()) {
             if (m.getDeclaringClass() == CefriumBrowser.class
                     && !Modifier.isStatic(m.getModifiers())
-                    && !m.getName().equals("close")) {
-                methods.add(m);
+                    && declared.contains(signature(m))) {
+                found.add(signature(m));
+                if (!m.getName().equals("close")) methods.add(m);
             }
+        }
+        for (String s : declared) {
+            if (!found.contains(s)) broken.add("missing at runtime " + s);
         }
         try (LocalHttpServer server = new LocalHttpServer("<title>page</title>")) {
             final AtomicReference<CefriumBrowser> live = new AtomicReference<>();
@@ -260,6 +268,18 @@ public class CefriumContractSweepTest {
         if (t == String[].class) return new String[0];
         if (t == java.util.Set.class) return java.util.Collections.singleton("*");
         return null;
+    }
+
+    private static java.util.Set<String> declaredApi() throws java.io.IOException {
+        java.util.Set<String> s = new java.util.HashSet<>();
+        try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(
+                InstrumentationRegistry.getInstrumentation().getContext().getAssets()
+                        .open("cefrium-browser-api.txt")))) {
+            for (String l; (l = r.readLine()) != null; ) {
+                if (!l.isEmpty()) s.add(l);
+            }
+        }
+        return s;
     }
 
     static String signature(Method m) {
