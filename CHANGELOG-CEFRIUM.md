@@ -15,6 +15,14 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [Unreleased]
+
+### Fixed
+- **Off-screen: taps and clicks reach out-of-process iframes.** Input went
+  to the page only, so an iframe in a process of its own never saw it:
+  Google's "Sign in with Google" button (always isolated) did nothing
+  off-screen. Issue #20.
+
 ## [0.19.0] - 2026-11-09
 
 ### Added
