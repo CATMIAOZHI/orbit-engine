@@ -8,6 +8,7 @@ import android.content.Context
 import android.util.Log
 import com.cefrium.Cefrium
 import org.chromium.base.ApplicationStatus
+import org.chromium.base.CommandLine
 import org.chromium.base.ContextUtils
 import org.chromium.base.PathUtils
 import org.chromium.base.library_loader.LibraryLoader
@@ -41,6 +42,11 @@ class TestHostApplication : Application() {
         super.onCreate()
         val isBrowserProcess = !ContextUtils.getProcessName().contains(":")
         if (isBrowserProcess) {
+            // Out-of-process iframes, as Google's sign-in iframe always is:
+            // a 127.0.0.1 frame in a localhost page gets its own process
+            // (Chromium refuses to isolate localhost itself).
+            if (!CommandLine.isInitialized()) CommandLine.init(null)
+            CommandLine.getInstance().appendSwitchWithValue("isolate-origins", "http://127.0.0.1")
             val ok = Cefrium.initialize(this)
             Log.i("CefriumITest", "Cefrium.initialize: ${if (ok) "OK" else "FAILED"}")
         }
