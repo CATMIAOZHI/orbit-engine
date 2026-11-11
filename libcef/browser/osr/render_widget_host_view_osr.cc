@@ -1636,17 +1636,6 @@ void CefRenderWidgetHostViewOSR::SendTouchEvent(const CefTouchEvent& event) {
 }
 
 bool CefRenderWidgetHostViewOSR::ShouldRouteEvents() const {
-  // On Android the OSR view has no DelegatedFrameHost (see the IS_ANDROID branch
-  // in the constructor), so its surface is never registered in the
-  // InputEventRouter's hit-test map. RouteMouseEvent/RouteTouchEvent then find no
-  // target and SILENTLY DROP every injected/forwarded pointer event. Dispatch
-  // directly to this view's renderer instead (ProcessMouseEvent /
-  // ForwardTouchEvent). Correct for a single windowless OSR view; cross-process
-  // OOPIF targeting on Android OSR would need the surface hit-test wired -- a
-  // larger, separate change.
-#if BUILDFLAG(IS_ANDROID)
-  return false;
-#else
   if (!render_widget_host_->delegate()) {
     return false;
   }
@@ -1660,7 +1649,6 @@ bool CefRenderWidgetHostViewOSR::ShouldRouteEvents() const {
   }
 
   return !!render_widget_host_->delegate()->GetInputEventRouter();
-#endif
 }
 
 void CefRenderWidgetHostViewOSR::SetFocus(bool focus) {
