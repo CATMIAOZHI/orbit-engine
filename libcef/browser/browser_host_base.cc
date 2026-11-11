@@ -1036,6 +1036,22 @@ void CefBrowserHostBase::SetPreferredColorSchemeDark(std::optional<bool> dark) {
   }
 }
 
+void CefBrowserHostBase::SetBackgroundColor(SkColor color) {
+  DCHECK(!IsWindowless());
+  DCHECK_EQ(SkColorGetA(color), SK_AlphaOPAQUE);
+  if (!CEF_CURRENTLY_ON_UIT()) {
+    CEF_POST_TASK(CEF_UIT, base::BindOnce(&CefBrowserHostBase::SetBackgroundColor,
+                                          this, color));
+    return;
+  }
+
+  // Applied as the page base color in OverrideWebPreferences.
+  background_color_ = color;
+  if (auto* web_contents = GetWebContents()) {
+    web_contents->OnWebPreferencesChanged();
+  }
+}
+
 void CefBrowserHostBase::SetMediaPlaybackRequiresUserGesture(
     std::optional<bool> required) {
   if (!CEF_CURRENTLY_ON_UIT()) {
@@ -1751,6 +1767,10 @@ int CefBrowserHostBase::browser_id() const {
 }
 
 SkColor CefBrowserHostBase::GetBackgroundColor() const {
+  if (background_color_) {
+    CEF_REQUIRE_UIT();
+    return *background_color_;
+  }
   // Don't use |platform_delegate_| because it's not thread-safe.
   return CefContext::Get()->GetBackgroundColor(
       &settings_, IsWindowless() ? STATE_ENABLED : STATE_DISABLED);
