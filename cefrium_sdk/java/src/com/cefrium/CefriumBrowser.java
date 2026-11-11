@@ -273,25 +273,32 @@ public class CefriumBrowser {
     }
 
     /**
-     * Sets the background colour of an off-screen browser, as ARGB. Pass
-     * {@code 0x00000000} for a transparent background: page areas the page
-     * leaves transparent then arrive in {@link CefriumRenderHandler#onPaint}
-     * with alpha 0, for overlays drawn over other content. The default is
-     * opaque white.
+     * Sets the background colour, as ARGB: what shows where the page draws no
+     * background of its own. The default is opaque white.
      *
-     * <p>Call it before the first load: the off-screen browser is created then,
-     * and its background cannot change afterwards.
+     * <p>A surface browser ({@link #createWithSurface}) takes an opaque colour,
+     * at any time. An off-screen browser also takes {@code 0x00000000}, a
+     * transparent background: page areas the page leaves transparent then
+     * arrive in {@link CefriumRenderHandler#onPaint} with alpha 0, for overlays
+     * drawn over other content. Call it before the first load of an off-screen
+     * browser: the browser is created then, and its background cannot change
+     * afterwards.
      *
-     * @throws IllegalStateException if the browser has already loaded a page, or
-     *     if this is a surface browser ({@link #createWithSurface}), whose
-     *     background is not configurable.
+     * @throws IllegalArgumentException if this is a surface browser and the
+     *     colour is not opaque.
+     * @throws IllegalStateException if this is an off-screen browser that has
+     *     already loaded a page.
      */
     public void setBackgroundColor(int argb) {
         checkThread("setBackgroundColor");
         if (!checkNative("setBackgroundColor")) return;
         if (mSurfaceContainer != null) {
-            throw new IllegalStateException(
-                    "setBackgroundColor applies to off-screen browsers only");
+            if ((argb >>> 24) != 0xFF) {
+                throw new IllegalArgumentException(
+                        "a surface browser's background must be opaque");
+            }
+            nativeSetBackgroundColor(mNativePtr, argb);
+            return;
         }
         if (!nativeSetBackgroundColor(mNativePtr, argb)) {
             throw new IllegalStateException(
