@@ -4,11 +4,13 @@
 package com.cefrium.itest.sdk;
 
 import android.app.Activity;
+import android.app.UiAutomation;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.FrameLayout;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -21,6 +23,7 @@ import com.cefrium.itest.HostActivity;
 import com.cefrium.itest.LocalHttpServer;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -61,6 +64,32 @@ public class CefriumSurfaceBackgroundTest {
     private static final int RED = 0xFFFF0000;
     private static final int FIRST = 0xFF204060;
     private static final int SECOND = 0xFF602040;
+
+    // The screenshots must show this activity. A 32-bit-only app (the
+    // armeabi-v7a run) gets the system's DeprecatedAbiDialog over it at every
+    // launch: dismiss it, and refuse to read pixels under any other window.
+    @Before
+    public void activityInFront() throws Exception {
+        Activity activity = activityRule.getActivity();
+        UiAutomation ui = InstrumentationRegistry.getInstrumentation().getUiAutomation();
+        String covering = null;
+        long end = System.currentTimeMillis() + 10_000;
+        while (System.currentTimeMillis() < end) {
+            if (activity.hasWindowFocus()) return;
+            AccessibilityNodeInfo root = ui.getRootInActiveWindow();
+            if (root != null && !activity.getPackageName().equals(root.getPackageName())) {
+                covering = String.valueOf(root.getPackageName());
+                if ("android".equals(covering)) {
+                    for (AccessibilityNodeInfo ok :
+                            root.findAccessibilityNodeInfosByViewId("android:id/button1")) {
+                        ok.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    }
+                }
+            }
+            Thread.sleep(200);
+        }
+        Assert.fail("the test activity never got the focus; in front: " + covering);
+    }
 
     @Test
     public void backgroundColorShowsAndSurvivesNavigation() throws Exception {
