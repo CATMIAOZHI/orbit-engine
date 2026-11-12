@@ -7,8 +7,8 @@
 **The full Chromium engine in your Android app, through the CEF C API.**
 
 [![SDK](https://img.shields.io/badge/SDK-0.19.0-22d3ee)](https://codeberg.org/cefrium/cef-android/releases)
-[![Chromium](https://img.shields.io/badge/Chromium-156.0.8078.80-4285f4)](https://cefrium.com/upstream/)
-[![Android patches](https://img.shields.io/badge/Android%20patches-44-6b7280)](patch/patches/android)
+[![Chromium](https://img.shields.io/badge/Chromium-156.0.8078.88-4285f4)](https://cefrium.com/upstream/)
+[![Android patches](https://img.shields.io/badge/Android%20patches-45-6b7280)](patch/patches/android)
 [![Maven](https://img.shields.io/badge/Maven-Codeberg-1f6feb)](https://codeberg.org/cefrium/-/packages)
 [![Min API](https://img.shields.io/badge/min%20API-29-3ddc84)](QUICKSTART-CEFRIUM.md)
 [![License](https://img.shields.io/badge/license-LGPL--3.0--or--later-green)](LICENSE-CEFRIUM.md)
@@ -183,7 +183,7 @@ Android.
   framework, no X11, no Wayland
 - **Multi-process** with renderer running as an Android `Service`,
   replacing Unix `fork()`/`execve()`
-- **44 Android-specific Chromium patches** for Android adaptations, managed via
+- **45 Android-specific Chromium patches** for Android adaptations, managed via
   CEF's existing patch infrastructure (`cef/patch/patches/android/`)
 - **Gradle Plugin** generates R.java for Chromium packages in consumer
   projects, solving the multi-package resource ID problem
@@ -195,7 +195,7 @@ Cefrium is built from three deliberately-tracked source inputs:
 - **Chromium** - upstream Google source,
   `https://chromium.googlesource.com/chromium/src.git`, via depot_tools/gclient.
   Pinned (in `.gclient`) to the **exact tag Debian packages**
-  (`apt-cache policy chromium`; currently `156.0.8078.80`) for **CVE parity** - we
+  (`apt-cache policy chromium`; currently `156.0.8078.88`) for **CVE parity** - we
   inherit the security fixes in that upstream release. The bytes are **vanilla
   upstream**, not Debian's patched source: we use Chromium's bundled deps + the
   Android NDK toolchain, *not* Debian's system libraries. (The sibling
@@ -208,7 +208,7 @@ Cefrium is built from three deliberately-tracked source inputs:
   [codeberg.org/cefrium/cef-android](https://codeberg.org/cefrium/cef-android).
 - **Patches** - applied to the Chromium tree by `cef/cefrium_sdk/apply-patches.py`
   (a patcher.py wrapper that activates the android condition): CEF's own
-  Chromium patches plus **44 Android-specific** patches
+  Chromium patches plus **45 Android-specific** patches
   (`cef/patch/patches/android/`, all registered in `patch/patch.cfg`). **No Debian
   Chromium patches** - only CEF + Android adaptations.
 
@@ -219,7 +219,7 @@ Engine-version tracking and how to upgrade it (e.g. 148 -> 149) are in
 ## Building from source
 
 Prerequisites: a Chromium source tree at the pinned tag (see **Sources** above --
-currently `156.0.8078.80`), ~400 GB disk, 64 GB RAM.
+currently `156.0.8078.88`), ~400 GB disk, 64 GB RAM.
 
 ```bash
 cd chromium/src
@@ -330,7 +330,7 @@ cef/
 |-- cefrium_compose/               # Jetpack Compose wrapper (cefrium-compose.aar)
 |-- cefrium_instrumentation_test/  # On-device instrumented test harness (SDK + Compose)
 |-- tests/cef_android_test/        # Test APK
-`-- patch/patches/android/         # 44 Android-specific Chromium patches
+`-- patch/patches/android/         # 45 Android-specific Chromium patches
 ```
 
 ## Testing
@@ -338,8 +338,8 @@ cef/
 The authoritative on-device suite is `cefrium_instrumentation_test/`, a
 self-contained Gradle module (not part of the GN/ninja build) that consumes the
 built AARs and exercises the public SDK exactly as a consumer would, so a clone
-of this repo is self-verifying, independent of the samples repo: **62 test
-classes, 210 `@Test` methods** across the Java SDK (core, hardening, the
+of this repo is self-verifying, independent of the samples repo: **66 test
+classes, 225 `@Test` methods** across the Java SDK (core, hardening, the
 `window.cefriumQuery` JS bridge, navigation, cookies, settings, the request
 interceptor, permissions, PDF, media, popups, JS dialogs, nested scroll, SSL
 and HTTP auth) and the Compose API (`CefriumView` tab keep-alive,
@@ -362,7 +362,7 @@ Woodpecker CI that builds every sample and compiles the test APK on each push.
 
 ## Relationship to upstream CEF
 
-Fork of CEF branch 8078, tracking Chromium 156.0.8078.80.
+Fork of CEF branch 8078, tracking Chromium 156.0.8078.88.
 Branch `android-port` contains all Android changes.
 
 Upstream CEF's own README is kept verbatim in
@@ -381,7 +381,7 @@ All Android changes are isolated and reviewable:
   git format-patch origin/8078..android-port -- \
     ':!README.md' ':!assets/screenshots'
   ```
-- **Chromium patches** (`patch/patches/android/`): 44 Android-specific patches
+- **Chromium patches** (`patch/patches/android/`): 45 Android-specific patches
   applied via `apply-patches.py` (CEF's `patcher.py`, `-p0`). Each addresses a
   specific incompatibility between Chromium's assumptions and the Android
   embedding environment. Format, registration and regeneration are documented in
@@ -427,7 +427,7 @@ Cefrium is in early validation.
 
 **What Cefrium gives you:** A complete Chromium engine under your control,
 with the same CEF API that powers Steam, Spotify, and Discord - now on
-Android. Every commit is tested on real devices. All 44 Chromium patches
+Android. Every commit is tested on real devices. All 45 Chromium patches
 are auditable in `patch/patches/android/`.
 
 **What you should know:**
@@ -436,7 +436,7 @@ are auditable in `patch/patches/android/`.
   Use R8/ProGuard, ABI splits, and AAB format to optimize delivery -- see
   [QUICKSTART-CEFRIUM.md](QUICKSTART-CEFRIUM.md#proguard-r8-and-apk-size).
 - **Security updates:** Cefrium tracks Debian Chromium releases for
-  CVE patches. Currently pinned to 156.0.8078.80.
+  CVE patches. Currently pinned to 156.0.8078.88.
 - **Not a WebView replacement:** Cefrium bundles its own Chromium.
   It does not reuse the system WebView. This is by design - it's what
   gives you version control and full API access.
@@ -452,7 +452,7 @@ use, and extend.
 ## Supporting Cefrium
 
 Cefrium is maintained by one person. What recurring donations pay for is the
-part nobody sees: every Chromium release moves the ground under the 44
+part nobody sees: every Chromium release moves the ground under the 45
 Android-specific patches this port carries, and each one has to be
 re-validated, regenerated where it conflicts, and re-tested on real devices
 before an engine bump can ship. That work is what keeps a pinned engine
