@@ -298,7 +298,7 @@ namespace cefrium_sdk {
 
 void RunWhenCreated(SdkBrowserData* data,
                     base::OnceCallback<void(CefRefPtr<CefBrowser>)> call) {
-  if (data->browser && data->browser->GetHost()) {
+  if (data->browser && data->browser->GetHost() && !data->hold_calls) {
     std::move(call).Run(data->browser);
   } else {
     data->pending_calls.push_back(std::move(call));
@@ -400,14 +400,17 @@ void SdkLifeSpanHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
        browser->GetIdentifier(), data_ ? data_->is_surface_mode : 0);
   if (data_) {
     data_->browser = browser;
+    data_->hold_calls = data_->popup_pending;
     data_->popup_pending = false;
     if (data_->close_when_created) {
       browser->GetHost()->CloseBrowser(true);
       return;
     }
-    auto pending_calls = std::move(data_->pending_calls);
-    for (auto& call : pending_calls) {
-      std::move(call).Run(browser);
+    if (!data_->hold_calls) {
+      auto pending_calls = std::move(data_->pending_calls);
+      for (auto& call : pending_calls) {
+        std::move(call).Run(browser);
+      }
     }
 
     // In Surface mode, attach the WebContents to the compositor.
@@ -1237,8 +1240,12 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeSetFocus(
     JNIEnv* env, jclass clazz, jlong native_ptr, jboolean focus) {
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
-  if (data && data->browser) {
-    data->browser->GetHost()->SetFocus(focus == JNI_TRUE);
+  if (data) {
+    RunWhenCreated(data, base::BindOnce(
+                             [](bool f, CefRefPtr<CefBrowser> b) {
+                               b->GetHost()->SetFocus(f);
+                             },
+                             focus == JNI_TRUE));
   }
 }
 
@@ -1626,8 +1633,12 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeSetZoomLevel(
     JNIEnv* env, jclass, jlong native_ptr, jdouble zoom) {
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
-  if (data && data->browser && data->browser->GetHost()) {
-    data->browser->GetHost()->SetZoomLevel(zoom);
+  if (data) {
+    RunWhenCreated(data, base::BindOnce(
+                             [](double z, CefRefPtr<CefBrowser> b) {
+                               b->GetHost()->SetZoomLevel(z);
+                             },
+                             zoom));
   }
 }
 
@@ -1674,15 +1685,17 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeSetDarkMode(
     JNIEnv* env, jclass clazz, jlong native_ptr, jboolean dark) {
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
-  if (data && data->browser) {
+  if (data) {
     // SetChromeColorScheme (ThemeService) is a no-op on Android; drive the web
     // content's prefers-color-scheme directly via a per-browser WebPreferences
     // override instead.
-    auto* browser_impl =
-        static_cast<CefBrowserHostBase*>(data->browser->GetHost().get());
-    if (browser_impl) {
-      browser_impl->SetPreferredColorSchemeDark(dark == JNI_TRUE);
-    }
+    RunWhenCreated(data, base::BindOnce(
+                             [](bool d, CefRefPtr<CefBrowser> b) {
+                               static_cast<CefBrowserHostBase*>(
+                                   b->GetHost().get())
+                                   ->SetPreferredColorSchemeDark(d);
+                             },
+                             dark == JNI_TRUE));
   }
 }
 

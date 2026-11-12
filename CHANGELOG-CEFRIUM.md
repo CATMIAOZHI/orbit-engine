@@ -59,6 +59,10 @@ security fixes of 2026-11-06).
   to the page only, so an iframe in a process of its own never saw it:
   Google's "Sign in with Google" button (always isolated) did nothing
   off-screen. Issue #20.
+- `setFocus` and `setDarkMode` called before the engine browser existed were
+  dropped: on a window in `PopupHandler.onCreateWindow` (a sign-in page shown
+  there took no typing), and on an off-screen browser before its first load.
+  They now apply once it exists; a window's, at its first navigation.
 
 ## [0.19.0] - 2026-11-09
 
