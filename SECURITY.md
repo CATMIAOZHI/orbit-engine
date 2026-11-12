@@ -82,7 +82,7 @@ switchable from the SDK: the component updater and network time queries. See
 
 ## How security fixes reach you
 
-Current engine: **Chromium 156.0.8078.80 / CEF branch 8078**.
+Current engine: **Chromium 156.0.8078.88 / CEF branch 8078**.
 
 Cefrium inherits Chromium's vulnerabilities and Chromium's fixes. There are no
 independent engine patches, and there are no backports: a fix arrives as an
@@ -133,7 +133,7 @@ is a derivative, whatever it is called.
 Cefrium is pre-1.0 and the public API can still change, which is a
 compatibility statement rather than a security one. The engine is a standard
 Chromium build with the Android port's patches, validated on real devices on
-every release by a 210-test on-device suite that a release cannot skip. Use it
+every release by a 225-test on-device suite that a release cannot skip. Use it
 with the same care you would give any browser engine you embed: keep it
 updated, because that is the only way engine fixes reach your users. The SDK
 does not check for newer versions itself, at build time or at run time: that
