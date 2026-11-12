@@ -21,6 +21,7 @@
 #include "base/synchronization/lock.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_registration.h"
+#include "cef/include/cef_request_context.h"
 #include "cef/libcef/browser/android/browser_surface_android.h"
 #include "ui/android/window_android.h"
 
@@ -97,6 +98,13 @@ std::set<jlong>& LiveBridgeData();
 // FEATURE-087: hands window.print() of a CefriumBrowser to Java. Called once,
 // after CefInitialize.
 void RegisterScriptedPrint();
+
+// FEATURE-090: registers the content servers of profile (|incognito|,
+// |profile|) on |context|, a context created after they were registered.
+// UI thread.
+void ApplyContentServers(CefRefPtr<CefRequestContext> context,
+                         bool incognito,
+                         const std::string& profile);
 
 // The UTF-8 contents of |j|, empty for null.
 CefString JStr(JNIEnv* env, jstring j);

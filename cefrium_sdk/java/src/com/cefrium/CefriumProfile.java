@@ -291,6 +291,76 @@ public final class CefriumProfile {
         return nativeSetPreference(mIncognito, mName, name, json);
     }
 
+    // ----- App content on an https origin (FEATURE-090) -----
+
+    /**
+     * Serves an https origin from the app: every request this profile's
+     * browsers, workers and service workers make to it goes to
+     * {@code server}, and none reaches the network. The origin keeps its
+     * storage across launches, as any origin, and is a secure context.
+     *
+     * <pre>{@code
+     * CefriumProfile.getDefault().registerContentServer("https://app.local",
+     *         CefriumContentServers.assets(context, "www"));
+     * browser.loadUrl("https://app.local/index.html");
+     * }</pre>
+     *
+     * <p>Pick a host that is not a real site, or one the app owns: requests
+     * to it never leave the device while the server is registered. Use
+     * {@link CefriumContentServers#WEBVIEW_ASSET_LOADER_ORIGIN} to keep a
+     * WebView app's URLs.
+     *
+     * <p>Applies to browsers that already exist and to those created later.
+     * Registering the origin again replaces its server. The incognito
+     * profile keeps the registration across private sessions.
+     *
+     * @param origin {@code https://<host>}, with no port or path.
+     * @param server Answers the requests; see {@link CefriumContentServer}.
+     * @throws IllegalArgumentException if the origin is not of that form.
+     */
+    public void registerContentServer(String origin, CefriumContentServer server) {
+        checkThread("registerContentServer");
+        if (server == null) throw new IllegalArgumentException("server must not be null");
+        String host = contentHost(origin);
+        root();
+        if (!nativeRegisterContentServer(mIncognito, nameForNative(), host, server,
+                ContentServerHost.class)) {
+            throw new IllegalStateException("the engine refused the content server for " + origin);
+        }
+    }
+
+    /**
+     * Stops serving an origin registered with {@link #registerContentServer};
+     * its requests go to the network again.
+     */
+    public void unregisterContentServer(String origin) {
+        checkThread("unregisterContentServer");
+        String host = contentHost(origin);
+        root();
+        nativeUnregisterContentServer(mIncognito, nameForNative(), host);
+    }
+
+    // The lower-case host of "https://<host>", or an IllegalArgumentException.
+    static String contentHost(String origin) {
+        if (origin == null) throw new IllegalArgumentException("origin must not be null");
+        android.net.Uri uri = android.net.Uri.parse(origin);
+        String host = uri.getHost();
+        String path = uri.getPath();
+        if (!"https".equalsIgnoreCase(uri.getScheme()) || host == null || host.isEmpty()
+                || uri.getPort() != -1 || uri.getUserInfo() != null
+                || (path != null && !path.isEmpty() && !path.equals("/"))
+                || uri.getQuery() != null || uri.getFragment() != null) {
+            throw new IllegalArgumentException(
+                    "an origin is https://<host>, with no port or path: " + origin);
+        }
+        return host.toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private static native boolean nativeRegisterContentServer(boolean incognito, String profile,
+            String host, CefriumContentServer server, Class<?> hostClass);
+    private static native void nativeUnregisterContentServer(boolean incognito, String profile,
+            String host);
+
     // ----- Ad blocking -----
 
     /**

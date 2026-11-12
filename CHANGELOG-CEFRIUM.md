@@ -17,6 +17,17 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+### Added
+
+- App content on an https origin the app owns, answered from Java with no
+  socket: `CefriumProfile.registerContentServer(origin, server)`. Covers every
+  browser of the profile, workers and service workers. Ready-made servers for
+  assets, files and resources (`CefriumContentServers`) and path prefixes
+  (`CefriumPathContentServer`), the counterparts of `WebViewAssetLoader`.
+  Range requests and HEAD are answered for the server; POST bodies and request
+  headers reach it; `withResponseHeaders` adds headers such as COOP/COEP for
+  cross-origin isolation. MIGRATION-CEFRIUM.md has the WebView mapping.
+
 ### Changed
 
 - `CefriumBrowser.setBackgroundColor` works on surface browsers, at any time;
