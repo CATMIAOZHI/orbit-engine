@@ -92,6 +92,68 @@ browser.setOnRequestInterceptedListener((url, method, blocked) -> {
 });
 ```
 
+## App content: `WebViewAssetLoader`
+
+Content shipped in the APK (a web app, a game, offline pages) needs an https
+origin: storage, service workers and secure-context APIs depend on it.
+`file://` gives none of that, and a localhost server can be reached by any app
+on the device. WebView answers with `WebViewAssetLoader`; Cefrium serves the
+origin from Java, with no socket, for every browser of a profile.
+
+### WebView
+```java
+WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
+        .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(context))
+        .addPathHandler("/res/", new WebViewAssetLoader.ResourcesPathHandler(context))
+        .build();
+webView.setWebViewClient(new WebViewClientCompat() {
+    @Override
+    public WebResourceResponse shouldInterceptRequest(WebView view,
+            WebResourceRequest request) {
+        return loader.shouldInterceptRequest(request.getUrl());
+    }
+});
+webView.loadUrl("https://appassets.androidplatform.net/assets/index.html");
+```
+
+### Cefrium
+```java
+CefriumProfile.getDefault().registerContentServer(
+        CefriumContentServers.WEBVIEW_ASSET_LOADER_ORIGIN,
+        new CefriumPathContentServer.Builder()
+                .addPath("/assets/", CefriumContentServers.assets(context, ""))
+                .addPath("/res/", CefriumContentServers.resources(context))
+                .build());
+browser.loadUrl("https://appassets.androidplatform.net/assets/index.html");
+```
+
+The URLs stay the same. What changes:
+
+| | WebViewAssetLoader | Cefrium |
+|---|---|---|
+| Scope | One WebView (its client) | A profile: every browser, worker and service worker |
+| Service worker script and its fetches | Need a `ServiceWorkerClient` too | Served, nothing more to do |
+| Range requests (video seek) | No | Yes, for content with a known length |
+| HEAD, POST body, request headers | No body | Yes (`CefriumContentRequest`) |
+| Response headers | Set by hand per response | Per response, or for all (`withResponseHeaders`) |
+| Own content (database, decryption) | `PathHandler` | Any `CefriumContentServer`; runs on a background thread, may block |
+| Files directory | `InternalStoragePathHandler` | `CefriumContentServers.files(dir)` |
+
+Any host works: `https://app.local` is as good. WebView's stored data
+(localStorage, IndexedDB) does not move to Cefrium; only the URLs stay.
+
+Games and WebAssembly threads need cross-origin isolation:
+
+```java
+server.withResponseHeaders(Map.of(
+        "Cross-Origin-Opener-Policy", "same-origin",
+        "Cross-Origin-Embedder-Policy", "require-corp"));
+```
+
+Range requests need the length, which Android gives only for assets stored
+uncompressed: add the extensions to `androidResources { noCompress += [...] }`
+(media types are uncompressed by default).
+
 ## Downloads
 
 ### WebView
@@ -173,6 +235,7 @@ CefriumWebView(
 | Pinned Chromium version | No (system) | Yes (156) |
 | Multi-process control | No | Yes |
 | Network request interception (full) | Partial (GET) | Yes (all) |
+| App content on an https origin, no socket | `WebViewAssetLoader`, per WebView | `CefriumProfile.registerContentServer`, per profile, service workers and Range included |
 | Ad blocking with filter lists | Via `shouldInterceptRequest`, by URL | Yes: load an EasyList-format list (`Cefrium.loadAdBlockList`); none is built in. Sites exempted per profile (`CefriumProfile.setAdBlockExceptions`) |
 | Find in page API | Yes (findAllAsync) | Yes (CefBrowserHost::Find) |
 | Context menu API | Limited | Full (CEF API) |
