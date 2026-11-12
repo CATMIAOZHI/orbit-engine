@@ -48,7 +48,7 @@ struct SdkBrowserData {
   // first load, the surface one asynchronously) calls wait in three places,
   // each drained at its own moment:
   //  - pending_calls: configuration, run in call order in OnAfterCreated,
-  //    before anything navigates;
+  //    before anything navigates (a popup's at its first commit, hold_calls);
   //  - pending_nav_state: a restored navigation stack, applied after them;
   //  - pending_devtools: DevTools methods, run at the first main-frame
   //    commit so the first navigation does not abort them.
@@ -80,6 +80,9 @@ struct SdkBrowserData {
   // before CEF created it.
   bool popup_pending = false;
   bool close_when_created = false;
+  // A popup CEF created whose first navigation has not committed: its view
+  // and preferences are not set up yet, so pending_calls wait for OnLoadStart.
+  bool hold_calls = false;
 };
 
 // Info log of the SDK's native side.

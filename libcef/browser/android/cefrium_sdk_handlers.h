@@ -475,6 +475,12 @@ class SdkLoadHandler : public CefLoadHandler {
                    TransitionType transition_type) override {
     if (on_commit_) on_commit_.Run();
     if (frame->IsMain() && data_) {
+      // A popup's configuration, held back since OnAfterCreated.
+      data_->hold_calls = false;
+      auto pending_calls = std::move(data_->pending_calls);
+      for (auto& call : pending_calls) {
+        std::move(call).Run(browser);
+      }
       RunPendingDevTools(data_, browser);
     }
     if (!frame->IsMain() || !java_browser_) return;
