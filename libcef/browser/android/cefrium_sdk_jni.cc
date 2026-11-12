@@ -195,6 +195,9 @@ class ProfilePrefsApplier : public CefRequestContextHandler {
     for (const auto& [name, value] : own) {
       ApplyProfilePref(context, name, value);
     }
+    const bool incognito = key_ == kIncognitoKey;
+    cefrium_sdk::ApplyContentServers(context, incognito,
+                                     incognito ? std::string() : key_);
   }
 
   IMPLEMENT_REFCOUNTING(ProfilePrefsApplier);
