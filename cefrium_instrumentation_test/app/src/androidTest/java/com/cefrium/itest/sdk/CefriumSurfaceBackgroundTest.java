@@ -51,6 +51,14 @@ public class CefriumSurfaceBackgroundTest {
             + "<body><script>document.title = 'at:' + location.hostname;</script>"
             + "</body></html>";
 
+    // Transparent page with an opaque red square at the top left.
+    private static final String SQUARE = "<!doctype html><html><head>"
+            + "<meta name=viewport content='width=device-width,initial-scale=1'></head>"
+            + "<body style='margin:0'><div style='width:80px;height:80px;background:#f00'>"
+            + "</div><script>document.title = 'ready';</script></body></html>";
+
+    private static final int GAME = 0xFF00A000;
+    private static final int RED = 0xFFFF0000;
     private static final int FIRST = 0xFF204060;
     private static final int SECOND = 0xFF602040;
 
@@ -102,14 +110,142 @@ public class CefriumSurfaceBackgroundTest {
         }
     }
 
+    /**
+     * A transparent surface browser over a game's own SurfaceView: the game
+     * shows where the page draws nothing, the page's own content on top. Then
+     * back to opaque.
+     */
+    @Test
+    public void transparentBackgroundShowsTheSurfaceBelow() throws Exception {
+        Activity activity = activityRule.getActivity();
+        AtomicReference<CefriumBrowser> browser = new AtomicReference<>();
+        CountDownLatch gameDrawn = new CountDownLatch(1);
+        CountDownLatch loaded = new CountDownLatch(1);
+        try (LocalHttpServer server = new LocalHttpServer(SQUARE)) {
+            activity.runOnUiThread(() -> {
+                android.view.SurfaceView game = new android.view.SurfaceView(activity);
+                game.getHolder().addCallback(new android.view.SurfaceHolder.Callback() {
+                    @Override public void surfaceCreated(android.view.SurfaceHolder h) {
+                        android.graphics.Canvas c = h.lockCanvas();
+                        c.drawColor(GAME);
+                        h.unlockCanvasAndPost(c);
+                        gameDrawn.countDown();
+                    }
+                    @Override public void surfaceChanged(
+                            android.view.SurfaceHolder h, int f, int w, int hh) {}
+                    @Override public void surfaceDestroyed(android.view.SurfaceHolder h) {}
+                });
+                activity.addContentView(game, new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                CefriumBrowser b = browsers.createWithSurface(activity);
+                browser.set(b);
+                b.setBackgroundColor(0x00000000);
+                activity.addContentView(b.getSurfaceContainer(), new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                b.setOnTitleChangedListener(t -> {
+                    if ("ready".equals(t)) loaded.countDown();
+                });
+                b.loadUrl(server.url());
+            });
+            Assert.assertTrue("the game surface was not drawn",
+                    gameDrawn.await(10, TimeUnit.SECONDS));
+            Assert.assertTrue("the page did not load", loaded.await(30, TimeUnit.SECONDS));
+            // The square first: the page has painted. Before that the empty
+            // compositor shows the game whatever the page background is.
+            assertAt(browser.get(), -40, -40, RED, "transparent, the page's own square");
+            assertStable(browser.get(), 0.5f, 0.5f, GAME, "transparent, the game below");
+
+            activity.runOnUiThread(() -> browser.get().setBackgroundColor(FIRST));
+            assertAt(browser.get(), 0.5f, 0.5f, FIRST, "back to opaque");
+        }
+    }
+
+    /**
+     * The colour shows from the moment the view is on screen, not only once the
+     * page has drawn: no white frame first. Screenshots run from before the
+     * view is attached until the page has loaded.
+     */
+    @Test
+    public void noWhiteBeforeTheFirstFrame() throws Exception {
+        Activity activity = activityRule.getActivity();
+        CountDownLatch loaded = new CountDownLatch(1);
+        CountDownLatch attached = new CountDownLatch(1);
+        try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
+            // The host's own views in the same colour, so only the browser can
+            // show another.
+            CountDownLatch painted = new CountDownLatch(1);
+            activity.runOnUiThread(() -> {
+                paintAll(activity.getWindow().getDecorView(), FIRST);
+                painted.countDown();
+            });
+            Assert.assertTrue(painted.await(5, TimeUnit.SECONDS));
+            AtomicReference<CefriumBrowser> browser = new AtomicReference<>();
+            activity.runOnUiThread(() -> {
+                CefriumBrowser b = browsers.createWithSurface(activity);
+                browser.set(b);
+                b.setBackgroundColor(FIRST);
+                b.setOnTitleChangedListener(t -> {
+                    if (t.startsWith("at:")) loaded.countDown();
+                });
+                activity.addContentView(b.getSurfaceContainer(), new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                attached.countDown();
+                b.loadUrl(server.localhostUrl());
+            });
+            Assert.assertTrue(attached.await(10, TimeUnit.SECONDS));
+            int shots = 0;
+            long until = Long.MAX_VALUE;
+            while (System.currentTimeMillis() < until) {
+                long got = pixelAt(browser.get(), 0.5f, 0.5f);
+                shots++;
+                if (got >= 0 && !close((int) got, FIRST)) {
+                    Assert.fail(String.format("shot %d: pixel %08x, want %08x", shots, got, FIRST));
+                }
+                if (until == Long.MAX_VALUE && loaded.getCount() == 0) {
+                    until = System.currentTimeMillis() + 1000;
+                }
+                Assert.assertTrue("the page did not load", shots < 600);
+            }
+        }
+    }
+
+    private static void paintAll(View v, int color) {
+        v.setBackgroundColor(color);
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) paintAll(g.getChildAt(i), color);
+        }
+    }
+
     // Frames arrive asynchronously: read until the colour shows, or report the
     // last one read.
     private static void assertCenter(CefriumBrowser b, int expected, String when)
             throws Exception {
+        assertAt(b, 0.5f, 0.5f, expected, when);
+    }
+
+    // The colour holds for a second, read five times: not a frame in passing.
+    private static void assertStable(CefriumBrowser b, float x, float y, int expected,
+            String when) throws Exception {
+        for (int i = 0; i < 5; i++) {
+            long got = pixelAt(b, x, y);
+            if (got < 0 || !close((int) got, expected)) {
+                Assert.fail(got < 0 ? when + ": no screenshot"
+                        : String.format("%s: pixel %08x, want %08x (read %d)",
+                                when, got, expected, i));
+            }
+            Thread.sleep(200);
+        }
+    }
+
+    // A point of the browser's view: fractions of its size when in [0, 1],
+    // or minus a distance in pixels from its top left corner (-40 = 40 px in).
+    private static void assertAt(CefriumBrowser b, float x, float y, int expected,
+            String when) throws Exception {
         long got = 0;
         long end = System.currentTimeMillis() + 10_000;
         while (System.currentTimeMillis() < end) {
-            got = centerPixel(b);
+            got = pixelAt(b, x, y);
             if (got >= 0 && close((int) got, expected)) return;
             Thread.sleep(200);
         }
@@ -125,11 +261,11 @@ public class CefriumSurfaceBackgroundTest {
         return true;
     }
 
-    // The pixel at the center of the browser's view, read from a screenshot
+    // A pixel of the browser's view (see assertAt), read from a screenshot
     // of the composited screen (Chromium draws into SurfaceControl layers that
     // PixelCopy of the SurfaceView does not see). As a non-negative long, or -1
     // when no screenshot came back.
-    private static long centerPixel(CefriumBrowser b) throws Exception {
+    private static long pixelAt(CefriumBrowser b, float x, float y) throws Exception {
         int[] at = new int[2];
         int[] size = new int[2];
         CountDownLatch measured = new CountDownLatch(1);
@@ -144,6 +280,8 @@ public class CefriumSurfaceBackgroundTest {
         Bitmap shot = InstrumentationRegistry.getInstrumentation().getUiAutomation()
                 .takeScreenshot();
         if (shot == null) return -1;
-        return shot.getPixel(at[0] + size[0] / 2, at[1] + size[1] / 2) & 0xFFFFFFFFL;
+        int px = x < 0 ? (int) -x : (int) (size[0] * x);
+        int py = y < 0 ? (int) -y : (int) (size[1] * y);
+        return shot.getPixel(at[0] + px, at[1] + py) & 0xFFFFFFFFL;
     }
 }

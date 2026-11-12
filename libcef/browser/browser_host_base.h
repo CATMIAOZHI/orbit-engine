@@ -418,7 +418,7 @@ class CefBrowserHostBase : public CefBrowserHost,
   void SetPreferredColorSchemeDark(std::optional<bool> dark);
 
   // Changes the background color of a windowed browser after creation. The
-  // color must be opaque.
+  // color is opaque or SK_ColorTRANSPARENT.
   void SetBackgroundColor(SkColor color);
 
   // Runtime override for whether media playback needs a user gesture, the

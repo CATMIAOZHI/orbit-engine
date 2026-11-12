@@ -1038,7 +1038,8 @@ void CefBrowserHostBase::SetPreferredColorSchemeDark(std::optional<bool> dark) {
 
 void CefBrowserHostBase::SetBackgroundColor(SkColor color) {
   DCHECK(!IsWindowless());
-  DCHECK_EQ(SkColorGetA(color), SK_AlphaOPAQUE);
+  DCHECK(SkColorGetA(color) == SK_AlphaOPAQUE ||
+         color == SK_ColorTRANSPARENT);
   if (!CEF_CURRENTLY_ON_UIT()) {
     CEF_POST_TASK(CEF_UIT, base::BindOnce(&CefBrowserHostBase::SetBackgroundColor,
                                           this, color));

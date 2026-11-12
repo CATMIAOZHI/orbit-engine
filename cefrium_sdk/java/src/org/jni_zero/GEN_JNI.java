@@ -8254,6 +8254,10 @@ public class GEN_JNI {
       Object webContents,
       int width,
       int height);
+  // Hashed name: Java_J_N_MJfKFUeS
+  public static native void org_chromium_components_embedder_1support_view_ContentViewRenderView_setCompositorBackgroundColor(
+      long nativeContentViewRenderView,
+      int color);
   // Hashed name: Java_J_N_MVaqBcNY
   public static native void org_chromium_components_embedder_1support_view_ContentViewRenderView_setCurrentWebContents(
       long nativeContentViewRenderView,

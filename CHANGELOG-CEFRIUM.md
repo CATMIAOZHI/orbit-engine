@@ -19,10 +19,12 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ### Changed
 
-- `CefriumBrowser.setBackgroundColor` works on surface browsers, with an opaque
-  colour, at any time; it threw `IllegalStateException` there before. The
-  colour shows where the page draws no background, and it stays across
-  navigations. Off-screen browsers are unchanged.
+- `CefriumBrowser.setBackgroundColor` works on surface browsers, at any time;
+  it threw `IllegalStateException` there before. The colour shows where the
+  page draws no background and before the first frame (no white flash), and it
+  stays across navigations. `0x00000000` makes the background transparent, so
+  a page can be drawn over a game engine's `SurfaceView`. Off-screen browsers
+  are unchanged.
 
 ### Fixed
 - **Off-screen: taps and clicks reach out-of-process iframes.** Input went
