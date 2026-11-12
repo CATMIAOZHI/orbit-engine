@@ -17,6 +17,9 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+Engine: **Chromium 156.0.8078.88 / CEF branch 8078** (was 156.0.8078.80; Chrome's
+security fixes of 2026-11-06).
+
 ### Added
 
 - App content on an https origin the app owns, answered from Java with no
