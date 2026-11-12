@@ -153,8 +153,13 @@ fi
 if run hotranges && [ -z "${ANDROID_SERIAL:-}" ]; then
   a="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}/platform-tools/adb"
   [ -x "$a" ] || a=adb
+  # `if`, not `[ ] && echo`: a non-arm64 device last in the list (an
+  # emulator) would end the loop with status 1 and errexit would end the cut
+  # here without a word.
   arm=$(for s in $("$a" devices | awk '/\tdevice$/{print $1}'); do
-          [ "$("$a" -s "$s" shell getprop ro.product.cpu.abi | tr -d '\r')" = arm64-v8a ] && echo "$s"
+          if [ "$("$a" -s "$s" shell getprop ro.product.cpu.abi | tr -d '\r')" = arm64-v8a ]; then
+            echo "$s"
+          fi
         done)
   if [ "$(echo "$arm" | grep -c .)" != 1 ]; then
     echo "ERROR: connect exactly one arm64 device or set ANDROID_SERIAL (found: ${arm:-none})."
