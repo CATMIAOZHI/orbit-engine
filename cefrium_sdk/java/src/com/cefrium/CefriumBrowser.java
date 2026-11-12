@@ -104,6 +104,9 @@ public class CefriumBrowser {
     private org.chromium.ui.base.WindowAndroid mWindowAndroid;
     private org.chromium.ui.base.IntentRequestTracker mIntentTracker;
     private org.chromium.components.embedder_support.view.ContentViewRenderView mContentViewRenderView;
+    // The render view's compositor exists once its first surface is created.
+    private boolean mRenderViewReady;
+    private boolean mTransparentBackground;
     private org.chromium.components.autofill.AutofillProvider mAutofillProvider;
     private CefriumSurfaceContainer mSurfaceContainer;
     // Down-time of the current synthetic touch stream (for MotionEvent gesture
@@ -274,18 +277,28 @@ public class CefriumBrowser {
 
     /**
      * Sets the background colour, as ARGB: what shows where the page draws no
-     * background of its own. The default is opaque white.
+     * background of its own, and before its first frame. The default is opaque
+     * white.
      *
-     * <p>A surface browser ({@link #createWithSurface}) takes an opaque colour,
-     * at any time. An off-screen browser also takes {@code 0x00000000}, a
-     * transparent background: page areas the page leaves transparent then
-     * arrive in {@link CefriumRenderHandler#onPaint} with alpha 0, for overlays
-     * drawn over other content. Call it before the first load of an off-screen
-     * browser: the browser is created then, and its background cannot change
-     * afterwards.
+     * <p>Pass {@code 0x00000000} for a transparent background, for a page drawn
+     * over other content (a game's UI over its engine, an overlay). Page areas
+     * the page leaves transparent then show what is below:
+     * <ul>
+     *   <li>Surface browser ({@link #createWithSurface}): another
+     *       {@link android.view.SurfaceView} below it, such as a game engine's.
+     *       The browser's surface is a media overlay, above other surfaces and
+     *       below the window, so views of the window under the browser do not
+     *       show through.</li>
+     *   <li>Off-screen browser: the pixels arrive in
+     *       {@link CefriumRenderHandler#onPaint} with alpha 0.</li>
+     * </ul>
+     *
+     * <p>A surface browser takes a colour at any time, opaque or transparent.
+     * An off-screen browser takes it before its first load: the browser is
+     * created then, and its background cannot change afterwards.
      *
      * @throws IllegalArgumentException if this is a surface browser and the
-     *     colour is not opaque.
+     *     colour is neither opaque nor fully transparent.
      * @throws IllegalStateException if this is an off-screen browser that has
      *     already loaded a page.
      */
@@ -293,9 +306,34 @@ public class CefriumBrowser {
         checkThread("setBackgroundColor");
         if (!checkNative("setBackgroundColor")) return;
         if (mSurfaceContainer != null) {
-            if ((argb >>> 24) != 0xFF) {
+            int alpha = argb >>> 24;
+            if (alpha != 0xFF && alpha != 0) {
                 throw new IllegalArgumentException(
-                        "a surface browser's background must be opaque");
+                        "a surface browser's background is opaque or transparent");
+            }
+            boolean transparent = alpha == 0;
+            if (!transparent && mContentViewRenderView != null) {
+                // Where no layer draws, e.g. before the page's first frame.
+                mContentViewRenderView.setCompositorBackgroundColor(argb);
+            }
+            if (transparent != mTransparentBackground && mContentViewRenderView != null) {
+                mTransparentBackground = transparent;
+                // An alpha channel in the surface and the compositor, which
+                // exists once the first surface does (onReadyToRender).
+                if (mRenderViewReady) {
+                    mContentViewRenderView.setOverlayVideoMode(transparent);
+                } else {
+                    mContentViewRenderView.getSurfaceView().getHolder().setFormat(transparent
+                            ? android.graphics.PixelFormat.TRANSLUCENT
+                            : android.graphics.PixelFormat.OPAQUE);
+                }
+            }
+            // Until the first frame the SurfaceView shows its own background,
+            // white, which ContentViewRenderView clears on the first swap. Not
+            // after: it would cover the page until the next one.
+            if (mContentViewRenderView != null
+                    && mContentViewRenderView.getSurfaceView().getBackground() != null) {
+                mContentViewRenderView.setSurfaceViewBackgroundColor(argb);
             }
             nativeSetBackgroundColor(mNativePtr, argb);
             return;
@@ -3582,7 +3620,13 @@ public class CefriumBrowser {
 
         browser.mContentViewRenderView =
                 new org.chromium.components.embedder_support.view.ContentViewRenderView(
-                        activity);
+                        activity) {
+                    @Override
+                    protected void onReadyToRender() {
+                        browser.mRenderViewReady = true;
+                        if (browser.mTransparentBackground) setOverlayVideoMode(true);
+                    }
+                };
         browser.mContentViewRenderView.onNativeLibraryLoaded(
                 browser.mWindowAndroid);
 
