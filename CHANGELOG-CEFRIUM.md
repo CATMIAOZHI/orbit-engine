@@ -15,7 +15,7 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
-## [Unreleased]
+## [0.20.0] - 2026-11-12
 
 Engine: **Chromium 156.0.8078.88 / CEF branch 8078** (was 156.0.8078.80; Chrome's
 security fixes of 2026-11-06).
