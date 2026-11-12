@@ -1933,9 +1933,9 @@ public class CefriumBrowser {
 
     /**
      * The activity on which an off-screen browser shows its default dialogs:
-     * JS alert/confirm/prompt and the {@code <select>}, date/time and colour
-     * pickers. Without one, and without a handler for them, they are
-     * cancelled. A surface browser uses its own activity.
+     * JS alert/confirm/prompt, the {@code <select>}, date/time and colour
+     * pickers, and the file chooser. Without one, and without a handler for
+     * them, they are cancelled. A surface browser uses its own activity.
      */
     public void setDialogActivity(android.app.Activity activity) {
         checkThread("setDialogActivity");
@@ -3613,8 +3613,9 @@ public class CefriumBrowser {
         // permission requests, and other Activity-based flows — and to provide a
         // ModalDialogManager so tab-modal dialogs (e.g. the File System Access
         // folder-permission prompt) do not crash the native CHECK.
-        browser.mIntentTracker =
-                org.chromium.ui.base.IntentRequestTracker.createFromActivity(activity);
+        // Results come back through an AndroidX activity's result registry;
+        // another activity forwards them (onActivityResult).
+        browser.mIntentTracker = ActivityResultIntentDelegate.createTracker(activity);
         browser.mWindowAndroid = new CefWindowAndroid(
                 activity, true, browser.mIntentTracker, null, false);
 
@@ -3700,19 +3701,41 @@ public class CefriumBrowser {
     }
 
     /**
-     * Forward Activity result to the browser for intent handling
-     * (file picker, permissions, etc.).
-     * Call this from your Activity's onActivityResult.
+     * Forwards an activity result to the browser, for the intents it starts
+     * (the default file chooser, camera, document pickers). Needed only from
+     * an activity that is not an AndroidX {@code ComponentActivity}: those
+     * deliver the results by themselves, through their result registry.
      *
-     * @return true if the result was handled by the browser.
+     * @return true if the result was the browser's.
      */
     public boolean onActivityResult(int requestCode, int resultCode,
                                     android.content.Intent data) {
         checkThread("onActivityResult");
+        if (requestCode == DefaultFileChooser.REQUEST_CODE && mPendingFileDialog >= 0) {
+            long id = mPendingFileDialog;
+            mPendingFileDialog = -1;
+            fileDialogDone(id, DefaultFileChooser.urisOf(resultCode, data));
+            return true;
+        }
         if (mIntentTracker != null) {
             return mIntentTracker.onActivityResult(requestCode, resultCode, data);
         }
         return false;
+    }
+
+    /**
+     * Forwards a runtime permission result to the browser, for the
+     * permissions the engine asks for (the camera, before the default file
+     * chooser offers a capture). Needed only from an activity that is not an
+     * AndroidX {@code ComponentActivity}, as {@link #onActivityResult}.
+     *
+     * @return true if the request was the browser's.
+     */
+    public boolean onRequestPermissionsResult(int requestCode, String[] permissions,
+                                              int[] grantResults) {
+        checkThread("onRequestPermissionsResult");
+        return mWindowAndroid != null
+                && mWindowAndroid.handlePermissionResult(requestCode, permissions, grantResults);
     }
 
     /**
@@ -4321,7 +4344,11 @@ public class CefriumBrowser {
         mCommandHandler = handler;
         if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
-    /** Sets the file-chooser dialog handler ({@code <input type=file>}). */
+    /**
+     * Sets the file-chooser dialog handler ({@code <input type=file>}), for a
+     * chooser of the app's own. Without one the default chooser is shown; see
+     * {@link CefriumDialogHandler}.
+     */
     public void setDialogHandler(CefriumDialogHandler handler) {
         checkThread("setDialogHandler");
         mDialogHandler = handler;
@@ -4556,12 +4583,23 @@ public class CefriumBrowser {
     private void onQuickMenuDismissed() {}
 
     // ---- File chooser (async by id; delivered on main so it can start an Intent) ----
-    private void onFileDialog(final long id, final int mode, final String title,
-                              final String[] acceptFilters) {
+    // Returns false to leave it to the engine's own chooser.
+    private boolean onFileDialog(final long id, final int mode, final String title,
+                                 final String[] acceptFilters) {
         final CefriumDialogHandler h = mDialogHandler;
         if (h == null) {
-            if (mNativePtr != 0) nativeFileDialogResult(mNativePtr, id, new String[0]);
-            return;
+            // A surface browser: the engine's chooser, as Chrome's (camera,
+            // photo picker, accept types), on its window.
+            if (mSurfaceContainer != null) return false;
+            // Off-screen: the system picker on the dialog activity.
+            android.app.Activity activity = dialogActivity();
+            if (activity == null || !DefaultFileChooser.show(activity, mode, title,
+                    acceptFilters, uris -> fileDialogDone(id, uris))) {
+                fileDialogDone(id, new String[0]);
+            } else if (!(activity instanceof androidx.activity.result.ActivityResultRegistryOwner)) {
+                mPendingFileDialog = id;
+            }
+            return true;
         }
         final boolean[] answered = {false};
         final CefriumDialogHandler.FileDialogCallback cb =
@@ -4577,6 +4615,15 @@ public class CefriumBrowser {
             }
         };
         postMain(() -> h.onFileDialog(mode, title, acceptFilters, cb));
+        return true;
+    }
+
+    // A default chooser started without a result registry: its id, for
+    // onActivityResult.
+    private long mPendingFileDialog = -1;
+
+    private void fileDialogDone(long id, String[] uris) {
+        if (mNativePtr != 0) nativeFileDialogResult(mNativePtr, id, uris);
     }
 
     /** Delivers a file-chooser selection (empty/null cancels). See {@link CefriumDialogHandler}. */
