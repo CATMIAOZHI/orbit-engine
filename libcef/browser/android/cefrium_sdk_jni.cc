@@ -776,8 +776,8 @@ Java_com_cefrium_CefriumBrowser_nativeCreate(
 // Actually create the browser with the URL (must have URL at creation time
 // for renderer process to spawn correctly).
 // Sets the background of an off-screen browser that does not exist yet, or of
-// a surface browser at any time (opaque only). Returns false when an off-screen
-// browser already exists.
+// a surface browser at any time (opaque or fully transparent). Returns false
+// when an off-screen browser already exists.
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_cefrium_CefriumBrowser_nativeSetBackgroundColor(JNIEnv* env,
                                                          jclass clazz,
@@ -788,7 +788,9 @@ Java_com_cefrium_CefriumBrowser_nativeSetBackgroundColor(JNIEnv* env,
     return JNI_FALSE;
   }
   if (data->is_surface_mode) {
-    const SkColor color = static_cast<SkColor>(argb);
+    const SkColor color = SkColorGetA(argb) == SK_AlphaTRANSPARENT
+                              ? SK_ColorTRANSPARENT
+                              : static_cast<SkColor>(argb);
     auto apply = [](SkColor c, CefRefPtr<CefBrowser> b) {
       static_cast<CefBrowserHostBase*>(b->GetHost().get())
           ->SetBackgroundColor(c);

@@ -1,0 +1,107 @@
+diff --git components/embedder_support/android/BUILD.gn components/embedder_support/android/BUILD.gn
+index 641d5e9a760db3c38955d65678412a10d1fec8d3..b17a737c3d3a40864a647aa9d4e8117799acb8ee 100644
+--- components/embedder_support/android/BUILD.gn
++++ components/embedder_support/android/BUILD.gn
+@@ -87,6 +87,7 @@ static_library("view") {
+     "//base",
+     "//cc/slim",
+     "//content/public/browser",
++    "//skia",
+     "//ui/android",
+     "//ui/base",
+     "//ui/gfx",
+diff --git components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentViewRenderView.java components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentViewRenderView.java
+index 632a80469c9914e589675610efe0d905e2056501..e51e85cf404d8e3ad52ce7a8b69d750d994f9fba 100644
+--- components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentViewRenderView.java
++++ components/embedder_support/android/java/src/org/chromium/components/embedder_support/view/ContentViewRenderView.java
+@@ -192,6 +192,16 @@ public class ContentViewRenderView extends FrameLayout {
+         }
+     }
+ 
++    /**
++     * Sets the color the compositor draws where no layer does, e.g. before the web contents'
++     * first frame. Opaque white by default; overlay video mode draws transparent instead.
++     * @param color The color, as ARGB.
++     */
++    public void setCompositorBackgroundColor(int color) {
++        ContentViewRenderViewJni.get()
++                .setCompositorBackgroundColor(mNativeContentViewRenderView, color);
++    }
++
+     /** Gets the SurfaceView for this ContentViewRenderView */
+     public SurfaceView getSurfaceView() {
+         return mSurfaceBridge.getSurfaceView();
+@@ -324,5 +334,7 @@ public class ContentViewRenderView extends FrameLayout {
+                 @Nullable InputTransferToken browserInputToken);
+ 
+         void setOverlayVideoMode(long nativeContentViewRenderView, boolean enabled);
++
++        void setCompositorBackgroundColor(long nativeContentViewRenderView, int color);
+     }
+ }
+diff --git components/embedder_support/android/view/content_view_render_view.cc components/embedder_support/android/view/content_view_render_view.cc
+index 1c39a70a2510510a38d4e69969572a8011008a52..9f011937693746e03d4e3d8c92c77e1e81e29698 100644
+--- components/embedder_support/android/view/content_view_render_view.cc
++++ components/embedder_support/android/view/content_view_render_view.cc
+@@ -112,10 +112,19 @@ std::optional<int> ContentViewRenderView::SurfaceChanged(
+ void ContentViewRenderView::SetOverlayVideoMode(JNIEnv* env, bool enabled) {
+   compositor_->SetRequiresAlphaChannel(enabled);
+   compositor_->SetBackgroundColor(enabled ? SK_ColorTRANSPARENT
+-                                          : SK_ColorWHITE);
++                                          : background_color_);
+   compositor_->SetNeedsComposite();
+ }
+ 
++void ContentViewRenderView::SetCompositorBackgroundColor(JNIEnv* env,
++                                                         int32_t color) {
++  background_color_ = static_cast<SkColor>(color);
++  if (compositor_) {
++    compositor_->SetBackgroundColor(background_color_);
++    compositor_->SetNeedsComposite();
++  }
++}
++
+ void ContentViewRenderView::UpdateLayerTreeHost() {
+   // TODO(wkorman): Rename Layout to UpdateLayerTreeHost in all Android
+   // Compositor related classes.
+@@ -127,8 +136,10 @@ void ContentViewRenderView::DidSwapFrame(int pending_frames) {
+ }
+ 
+ void ContentViewRenderView::InitCompositor() {
+-  if (!compositor_)
++  if (!compositor_) {
+     compositor_.reset(content::Compositor::Create(this, root_window_));
++    compositor_->SetBackgroundColor(background_color_);
++  }
+ }
+ 
+ }  // namespace embedder_support
+diff --git components/embedder_support/android/view/content_view_render_view.h components/embedder_support/android/view/content_view_render_view.h
+index d736960ad671488c4988dc32f38c27e544f99bcd..a2a428e9f221ae4f053e7e32060ddcf9dd712538 100644
+--- components/embedder_support/android/view/content_view_render_view.h
++++ components/embedder_support/android/view/content_view_render_view.h
+@@ -10,6 +10,7 @@
+ #include "base/android/jni_android.h"
+ #include "base/android/jni_weak_ref.h"
+ #include "content/public/browser/android/compositor_client.h"
++#include "third_party/skia/include/core/SkColor.h"
+ #include "ui/gfx/native_ui_types.h"
+ 
+ namespace content {
+@@ -49,6 +50,7 @@ class ContentViewRenderView : public content::CompositorClient {
+       const base::android::JavaRef<jobject>& browser_input_token);
+   void SetOverlayVideoMode(JNIEnv* env,
+                            bool enabled);
++  void SetCompositorBackgroundColor(JNIEnv* env, int32_t color);
+ 
+   // CompositorClient implementation
+   void UpdateLayerTreeHost() override;
+@@ -65,6 +67,8 @@ class ContentViewRenderView : public content::CompositorClient {
+ 
+   gfx::NativeWindow root_window_;
+   int current_surface_format_;
++  // Shown where no layer draws, e.g. before the web contents' first frame.
++  SkColor background_color_ = SK_ColorWHITE;
+ };
+ 
+ }  // namespace embedder_support
