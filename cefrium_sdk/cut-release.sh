@@ -150,7 +150,9 @@ fi
 
 # The read-ahead list is recorded on an arm64 device, hours in. Pick it now:
 # ANDROID_SERIAL if set, else the one arm64 device connected.
-if run hotranges && [ -z "${ANDROID_SERIAL:-}" ]; then
+# Every phase that uses the device needs it, so a --from resume past hotranges
+# picks it too.
+if { run hotranges || run sanity || run suite; } && [ -z "${ANDROID_SERIAL:-}" ]; then
   a="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}/platform-tools/adb"
   [ -x "$a" ] || a=adb
   # `if`, not `[ ] && echo`: a non-arm64 device last in the list (an
