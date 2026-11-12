@@ -49,6 +49,19 @@ done | sort -u | while read -r f; do
   mkdir -p "$PATCHED/$(dirname "$f")"; cp "$SRC/$f" "$PATCHED/$f"
 done
 
+# Lint sees whole files, so it also flags upstream lines in them (156:
+# ContentViewRenderView's InputTransferToken use, guarded in native by
+# sdk_int >= V, which lint cannot see). Judge only the lines our patches add:
+# in chromium/src every diff against the checkout is ours. A file the patches
+# create is untracked and counts whole.
+ours() { # <file> <line>: 0 if the line is ours
+  git -C "$SRC" ls-files --error-unmatch -- "$1" >/dev/null 2>&1 || return 0
+  git -C "$SRC" diff -U0 -- "$1" | awk -v l="$2" '
+    /^@@/ { split($3, a, ","); s = substr(a[1], 2) + 0; n = (a[2] == "" ? 1 : a[2] + 0);
+            if (l + 0 >= s && l + 0 < s + n) found = 1 }
+    END { exit !found }'
+}
+
 rc=0
 for dir in cef/cefrium_sdk/java/src cef/cefrium_compose/java "$PATCHED"; do
   case "$dir" in /*) ;; *) dir="$SRC/$dir" ;; esac
@@ -62,6 +75,25 @@ for dir in cef/cefrium_sdk/java/src cef/cefrium_compose/java "$PATCHED"; do
       --exitcode "$WORK" > "$WORK/lint.log" 2>&1
   r=$?
   label="${dir#$SRC/}"; [ "$dir" = "$PATCHED" ] && label="Chromium Java touched by our patches"
+  if [ "$r" -ne 0 ] && [ "$dir" = "$PATCHED" ] && [ -s "$WORK/report.txt" ]; then
+    kept=0; skipped=0
+    while IFS=: read -r path line _; do
+      f="${path#*patched-chromium-java/}"
+      if ours "$f" "$line"; then
+        kept=$((kept + 1)); grep -F "$path:$line:" "$WORK/report.txt" | sed 's/^/    /' >> "$WORK/ours.txt"
+      else
+        skipped=$((skipped + 1))
+      fi
+    done < <(grep -E '^[^ ]*patched-chromium-java/[^:]+:[0-9]+: Error' "$WORK/report.txt")
+    if [ "$kept" -eq 0 ]; then
+      echo "OK   $label ($n files, minSdk $MIN_SDK; $skipped upstream finding(s) outside our hunks)"
+      continue
+    fi
+    echo "FAIL $label: framework API above minSdk $MIN_SDK without a version check"
+    cat "$WORK/ours.txt"
+    rc=1
+    continue
+  fi
   if [ "$r" -eq 0 ]; then
     echo "OK   $label ($n files, minSdk $MIN_SDK)"
   else
