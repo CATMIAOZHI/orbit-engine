@@ -626,21 +626,35 @@ class SdkDialogHandler : public CefDialogHandler {
     }
     jclass cls = env->GetObjectClass(java_browser_);
     jmethodID mid = env->GetMethodID(
-        cls, "onFileDialog", "(JILjava/lang/String;[Ljava/lang/String;)V");
+        cls, "onFileDialog", "(JILjava/lang/String;[Ljava/lang/String;)Z");
     bool dispatched = false;
     if (mid) {
       jstring j_title = env->NewStringUTF(title.ToString().c_str());
-      env->CallVoidMethod(java_browser_, mid, id, static_cast<jint>(mode),
-                          j_title, arr);
+      // False: Java leaves it to the engine's own chooser (a surface browser
+      // with no app handler), which needs the browser's WindowAndroid.
+      dispatched = env->CallBooleanMethod(java_browser_, mid, id,
+                                          static_cast<jint>(mode), j_title,
+                                          arr) == JNI_TRUE;
+      if (env->ExceptionCheck()) {
+        env->ExceptionClear();
+        dispatched = false;
+      }
       env->DeleteLocalRef(j_title);
-      dispatched = true;
     }
     env->DeleteLocalRef(cls);
     env->DeleteLocalRef(arr);
     env->DeleteLocalRef(str_cls);
     if (!dispatched) {
-      base::AutoLock l(lock_);
-      pending_.erase(id);
+      {
+        base::AutoLock l(lock_);
+        pending_.erase(id);
+      }
+      // The engine's chooser needs a WindowAndroid, which an off-screen
+      // browser does not have (it would dereference a null view).
+      if (browser->GetHost()->IsWindowRenderingDisabled()) {
+        callback->Cancel();
+        return true;
+      }
       return false;
     }
     return true;

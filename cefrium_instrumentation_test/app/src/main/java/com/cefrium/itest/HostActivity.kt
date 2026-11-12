@@ -4,6 +4,7 @@
 package com.cefrium.itest
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.widget.FrameLayout
 
@@ -20,5 +21,24 @@ class HostActivity : Activity() {
         super.onCreate(savedInstanceState)
         container = FrameLayout(this)
         setContentView(container)
+    }
+
+    /** Where a test forwards results, as an app with a plain Activity does. */
+    var onResult: ((Int, Int, Intent?) -> Unit)? = null
+
+    @Deprecated("Activity API")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        onResult?.invoke(requestCode, resultCode, data)
+    }
+
+    /** Where a test forwards permission results, as onResult. */
+    var onPermissions: ((Int, Array<String>, IntArray) -> Unit)? = null
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>,
+                                            grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        onPermissions?.invoke(requestCode, permissions, grantResults)
     }
 }

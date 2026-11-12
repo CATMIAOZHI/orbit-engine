@@ -7,8 +7,16 @@ package com.cefrium;
  * Handles the file-chooser dialog for {@code <input type=file>} (WebView
  * {@code WebChromeClient.onShowFileChooser}), mirroring CEF's
  * {@code CefDialogHandler}. Register with
- * {@link CefriumBrowser#setDialogHandler(CefriumDialogHandler)}. Without a
- * handler set, file inputs cannot pick a file.
+ * {@link CefriumBrowser#setDialogHandler(CefriumDialogHandler)} to show a
+ * chooser of the app's own.
+ *
+ * <p>Without a handler, a surface browser shows the engine's chooser, as
+ * Chrome does (files, camera, photo picker, filtered by the input's accept
+ * list), and an off-screen browser shows the system picker on its dialog
+ * activity ({@link CefriumBrowser#setDialogActivity}), or cancels without
+ * one. Both get the result through an AndroidX activity's result registry; a
+ * plain {@code Activity} must forward {@code onActivityResult} to
+ * {@link CefriumBrowser#onActivityResult}.
  *
  * <p>Delivered on the Android main thread so you can launch an Intent directly.
  */

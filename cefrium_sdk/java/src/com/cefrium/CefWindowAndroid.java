@@ -40,6 +40,13 @@ public class CefWindowAndroid extends ActivityWindowAndroid {
                 insetObserver,
                 occlusionTrackingAllowed);
         mContext = context;
+        // The engine's runtime permission requests (the camera, before its
+        // file chooser) answered through an AndroidX activity's result
+        // registry; another activity forwards onRequestPermissionsResult.
+        Activity activity = ContextUtils.activityFromContext(context);
+        if (activity != null && ActivityResultPermissionDelegate.canUse(activity)) {
+            setAndroidPermissionDelegate(new ActivityResultPermissionDelegate(activity));
+        }
     }
 
     @Override
