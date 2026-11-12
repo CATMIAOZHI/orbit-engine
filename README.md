@@ -6,7 +6,7 @@
 
 **The full Chromium engine in your Android app, through the CEF C API.**
 
-[![SDK](https://img.shields.io/badge/SDK-0.19.0-22d3ee)](https://codeberg.org/cefrium/cef-android/releases)
+[![SDK](https://img.shields.io/badge/SDK-0.20.0-22d3ee)](https://codeberg.org/cefrium/cef-android/releases)
 [![Chromium](https://img.shields.io/badge/Chromium-156.0.8078.88-4285f4)](https://cefrium.com/upstream/)
 [![Android patches](https://img.shields.io/badge/Android%20patches-45-6b7280)](patch/patches/android)
 [![Maven](https://img.shields.io/badge/Maven-Codeberg-1f6feb)](https://codeberg.org/cefrium/-/packages)
@@ -258,12 +258,12 @@ manager.
 // app/build.gradle
 plugins {
     id 'com.android.application'
-    id 'com.cefrium' version '0.19.0'  // generates R.java for Chromium packages
+    id 'com.cefrium' version '0.20.0'  // generates R.java for Chromium packages
 }
 
 dependencies {
-    implementation 'com.cefrium:cefrium-sdk:0.19.0'      // multi-ABI; your APK ships one
-    implementation 'com.cefrium:cefrium-compose:0.19.0'  // optional, Jetpack Compose
+    implementation 'com.cefrium:cefrium-sdk:0.20.0'      // multi-ABI; your APK ships one
+    implementation 'com.cefrium:cefrium-compose:0.20.0'  // optional, Jetpack Compose
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'androidx.mediarouter:mediarouter:1.7.0'
     implementation 'androidx.core:core:1.16.0'
@@ -288,10 +288,10 @@ Alternatively, download the single-file AARs from the
 [v0.19.0 release page](https://codeberg.org/cefrium/cef-android/releases/tag/v0.19.0):
 
 **SDK (multi-ABI, H.264/AAC + VP8/VP9/Opus):**
-- [cefrium-sdk-0.19.0.aar](https://codeberg.org/cefrium/cef-android/releases/download/v0.19.0/cefrium-sdk-0.19.0.aar) (~280 MB; the consumer's APK/App Bundle ships only the device's ABI)
+- [cefrium-sdk-0.20.0.aar](https://codeberg.org/cefrium/cef-android/releases/download/v0.19.0/cefrium-sdk-0.20.0.aar) (~280 MB; the consumer's APK/App Bundle ships only the device's ABI)
 
 **Jetpack Compose wrapper (all architectures):**
-- [cefrium-compose-0.19.0.aar](https://maven.cefrium.com/com/cefrium/cefrium-compose/0.19.0/cefrium-compose-0.19.0.aar) (28 KB)
+- [cefrium-compose-0.20.0.aar](https://maven.cefrium.com/com/cefrium/cefrium-compose/0.20.0/cefrium-compose-0.20.0.aar) (28 KB)
 
 Place in `app/libs/` and use `implementation files('libs/cefrium-sdk.aar')`.
 
