@@ -26,6 +26,11 @@
 #include "ui/shell_dialogs/select_file_policy.h"
 #include "ui/shell_dialogs/selected_file_info.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/content_uri_utils.h"
+#include "base/task/thread_pool.h"
+#endif
+
 using blink::mojom::FileChooserParams;
 
 namespace {
@@ -588,14 +593,54 @@ void CefFileDialogManager::SelectFileDoneByDelegateCallback(
     return;
   }
 
+#if BUILDFLAG(IS_ANDROID)
+  // A content URI says nothing of the file's name (a Downloads id is a
+  // number), and the name is what the page gets as File.name: ask its
+  // provider, off the UI thread.
+  if (std::ranges::any_of(paths, &base::FilePath::IsContentUri)) {
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_BLOCKING},
+        base::BindOnce(
+            [](std::vector<base::FilePath> paths) {
+              std::vector<ui::SelectedFileInfo> files =
+                  ui::FilePathListToSelectedFileInfoList(paths);
+              for (auto& file : files) {
+                std::u16string name;
+                if (file.file_path.IsContentUri() &&
+                    base::MaybeGetFileDisplayName(file.file_path, &name)) {
+                  file.display_name = base::FilePath::FromUTF16Unsafe(name)
+                                          .value();
+                }
+              }
+              return files;
+            },
+            paths),
+        base::BindOnce(&CefFileDialogManager::SelectedFilesReady,
+                       weak_ptr_factory_.GetWeakPtr(),
+                       base::UnsafeDangling(listener.get())));
+    return;
+  }
+#endif
+
+  SelectedFilesReady(listener, ui::FilePathListToSelectedFileInfoList(paths));
+}
+
+void CefFileDialogManager::SelectedFilesReady(
+    MayBeDangling<ui::SelectFileDialog::Listener> listener,
+    std::vector<ui::SelectedFileInfo> files) {
+  CEF_REQUIRE_UIT();
+  if (!active_listeners_.contains(listener)) {
+    return;
+  }
+
   active_listeners_.erase(listener.get());
 
-  if (paths.empty()) {
+  if (files.empty()) {
     listener->FileSelectionCanceled();
-  } else if (paths.size() == 1) {
-    listener->FileSelected(ui::SelectedFileInfo(paths[0]), /*index=*/0);
+  } else if (files.size() == 1) {
+    listener->FileSelected(files[0], /*index=*/0);
   } else {
-    listener->MultiFilesSelected(ui::FilePathListToSelectedFileInfoList(paths));
+    listener->MultiFilesSelected(files);
   }
   // |listener| is likely deleted at this point.
 }

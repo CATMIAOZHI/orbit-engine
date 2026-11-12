@@ -239,7 +239,7 @@ CefriumWebView(
 | Ad blocking with filter lists | Via `shouldInterceptRequest`, by URL | Yes: load an EasyList-format list (`Cefrium.loadAdBlockList`); none is built in. Sites exempted per profile (`CefriumProfile.setAdBlockExceptions`) |
 | Find in page API | Yes (findAllAsync) | Yes (CefBrowserHost::Find) |
 | Context menu API | Limited | Full (CEF API) |
-| File dialog | Yes | Yes |
+| File chooser (`<input type=file>`) | Only if the app implements `onShowFileChooser` | Built in (the engine's, as Chrome's); `CefriumDialogHandler` for one of the app's own |
 | Dark mode API | API 33+ | All versions |
 | Web Bluetooth / WebUSB / Web Serial | No | Yes (CefDeviceChooserHandler, 0.5.0+) |
 | WebAuthn / passkeys (web origin) | No | Yes (Credential Manager, 0.5.0+, Android 14+) |

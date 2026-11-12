@@ -15,6 +15,7 @@
 #include "cef/include/cef_browser.h"
 #include "third_party/blink/public/mojom/choosers/file_chooser.mojom.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
+#include "ui/shell_dialogs/selected_file_info.h"
 
 namespace content {
 class FileSelectListener;
@@ -83,6 +84,11 @@ class CefFileDialogManager {
   void SelectFileDoneByDelegateCallback(
       MayBeDangling<ui::SelectFileDialog::Listener> listener,
       const std::vector<base::FilePath>& paths);
+
+  // Delivers files a delegate chose to |listener|, if it is still waiting.
+  void SelectedFilesReady(
+      MayBeDangling<ui::SelectFileDialog::Listener> listener,
+      std::vector<ui::SelectedFileInfo> files);
   void SelectFileDoneByListenerCallback(
       MayBeDangling<ui::SelectFileDialog::Listener> listener,
       bool listener_destroyed);

@@ -38,6 +38,20 @@ in the internal FEATURE-NNN.md working docs (not published).
   are unchanged.
 
 ### Fixed
+
+- `<input type=file>` without a `CefriumDialogHandler` was always cancelled.
+  A surface browser now shows the engine's chooser, as Chrome does (files,
+  camera, filtered by the input's accept list); an off-screen browser shows
+  the system picker on its dialog activity (`setDialogActivity`). Issue #22.
+- A surface browser's intents and runtime permission requests (the chooser,
+  the camera permission before it) never came back unless the app forwarded
+  them, and permission results could not be forwarded at all. An AndroidX
+  activity now delivers both through its result registry; another activity
+  forwards `onActivityResult` and the new
+  `CefriumBrowser.onRequestPermissionsResult`.
+- A file a `CefriumDialogHandler` returned as a content URI reached the page
+  named after the URI's last segment (a Downloads id is a number, with no
+  extension); it now gets the provider's display name.
 - **Off-screen: taps and clicks reach out-of-process iframes.** Input went
   to the page only, so an iframe in a process of its own never saw it:
   Google's "Sign in with Google" button (always isolated) did nothing
