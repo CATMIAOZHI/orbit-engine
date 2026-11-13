@@ -520,6 +520,18 @@ void CefBrowserContentsDelegate::DidStopLoading() {
   OnTitleChange(web_contents()->GetTitle());
 }
 
+void CefBrowserContentsDelegate::DidStartNavigation(
+    content::NavigationHandle* navigation_handle) {
+  // A page's navigation carries the User-Agent its renderer picked from the
+  // current document, and a new window's first document never had the
+  // override (SetUserAgentOverride). Send this browser's override instead.
+  if (navigation_handle->IsInMainFrame() &&
+      !navigation_handle->IsSameDocument() &&
+      !web_contents()->GetUserAgentOverride().ua_string_override.empty()) {
+    navigation_handle->SetIsOverridingUserAgent(true);
+  }
+}
+
 void CefBrowserContentsDelegate::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   const net::Error error_code = navigation_handle->GetNetErrorCode();

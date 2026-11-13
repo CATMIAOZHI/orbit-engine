@@ -199,6 +199,15 @@ void CefBrowserPlatformDelegate::PopupWebContentsCreated(
     content::WebContents* new_web_contents,
     CefBrowserPlatformDelegate* new_platform_delegate,
     bool is_devtools) {
+  // A popup keeps the opener's User-Agent override from its first request.
+  if (!is_devtools && web_contents_) {
+    const auto& ua_override = web_contents_->GetUserAgentOverride();
+    if (!ua_override.ua_string_override.empty()) {
+      new_web_contents->SetUserAgentOverride(ua_override,
+                                             /*override_in_new_tabs=*/true);
+    }
+  }
+
   // Default popup handling may not be Views-hosted.
   if (!new_platform_delegate->IsViewsHosted()) {
     return;
