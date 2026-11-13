@@ -3307,11 +3307,15 @@ public class CefriumBrowser {
     }
 
     /**
-     * Forward a touch event to the browser.
+     * Forward a touch event to an off-screen browser.
+     *
+     * <p>Coordinates are device-independent pixels from the view's upper-left
+     * corner: the view's physical pixels divided by the {@code scale} the
+     * browser was created with. At scale 1 the two are the same.
      *
      * @param action 0=DOWN, 1=UP, 2=MOVE, 3=CANCEL
-     * @param x X coordinate in browser viewport pixels
-     * @param y Y coordinate in browser viewport pixels
+     * @param x X coordinate in device-independent pixels
+     * @param y Y coordinate in device-independent pixels
      * @param pointerId Pointer ID for multi-touch
      */
     public void sendTouchEvent(int action, float x, float y, int pointerId) {
@@ -3323,8 +3327,9 @@ public class CefriumBrowser {
 
     // ----- Touch automation ---------------------------------------------------
     // Programmatic single-finger touch injection: tap, plus low-level down/move/up
-    // for drags and swipes -- mirroring the mouse API. Coordinates are browser-
-    // viewport pixels (upper-left origin). These drive the full gesture pipeline:
+    // for drags and swipes -- mirroring the mouse API. Coordinates start at the
+    // view's upper-left corner; see sendTouchDown for the units. These drive the
+    // full gesture pipeline:
     // a tap becomes a click, a down-move-up becomes a scroll/fling. In windowed
     // (createWithSurface) mode the events go through the content view's
     // EventForwarder (same path as a real finger); in windowless (OSR) mode they
@@ -3332,7 +3337,9 @@ public class CefriumBrowser {
     // started loading.
 
     /** Press a finger down at (x, y). Pair with {@link #sendTouchUp} (with
-     * {@link #sendTouchMove} in between) for drags/swipes, or use {@link #sendTap}. */
+     * {@link #sendTouchMove} in between) for drags/swipes, or use {@link #sendTap}.
+     * Coordinates are the view's physical pixels for a surface browser, and
+     * device-independent pixels (physical / scale) for an off-screen one. */
     public void sendTouchDown(float x, float y) {
         checkThread("sendTouchDown"); injectTouch(0, x, y); }
 
@@ -3398,8 +3405,9 @@ public class CefriumBrowser {
     // Programmatic mouse injection: position the pointer at coordinates, click,
     // right-click, plus the rest of the desktop CefBrowserHost mouse surface
     // (hover/leave, press/release, wheel, buttons, modifiers, multi-click).
-    // Exposed the same way as sendTouchEvent above. Coordinates are browser-
-    // viewport pixels (upper-left origin). Useful for automation/testing, a
+    // Exposed the same way as sendTouchEvent above. Coordinates are
+    // device-independent pixels from the view's upper-left corner, for both a
+    // surface and an off-screen browser. Useful for automation/testing, a
     // connected pointer, and hover (which touch cannot express). Call on the UI
     // thread, after the page has started loading.
 
@@ -3417,8 +3425,8 @@ public class CefriumBrowser {
      * Move the mouse pointer to (x, y). Drives {@code mousemove} and {@code :hover}
      * -- state that touch input cannot express.
      *
-     * @param x X coordinate in browser-viewport pixels.
-     * @param y Y coordinate in browser-viewport pixels.
+     * @param x X coordinate in device-independent pixels.
+     * @param y Y coordinate in device-independent pixels.
      */
     public void sendMouseMove(int x, int y) {
         checkThread("sendMouseMove");
