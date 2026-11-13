@@ -223,6 +223,25 @@ pin_commit() { # pin_commit "<subject>" <path-relative-to-cef>...
 
 pins_dirty() { cefgit status --porcelain -- $PINNED 2>/dev/null || true; }
 
+# A cut is the last step. The browser apps run on a dev AAR of this exact
+# engine and SDK source first, and the maintainer's PASS (sign-in popup,
+# upload, dark mode, video + new tab) is recorded as the cef commit in
+# $ROOT/LOCAL-BROWSER-PASS. 0.20.0 was rebuilt twice for bugs that check
+# shows in minutes. Cefrium.java is left out: the patches phase bumps its
+# version constant. CEFRIUM_YES does not bypass this.
+if run build; then
+  pass="$(cat "$ROOT/LOCAL-BROWSER-PASS" 2>/dev/null || true)"
+  if [ -z "$pass" ] || ! cefgit cat-file -e "$pass^{commit}" 2>/dev/null ||
+     ! cefgit diff --quiet "$pass" -- libcef cefrium_sdk/java cefrium_compose patch \
+       ':!cefrium_sdk/java/src/com/cefrium/Cefrium.java'; then
+    echo "ERROR: no browser PASS for this source (LOCAL-BROWSER-PASS: ${pass:-none})."
+    echo "       Run both browser apps on the dev AAR, get the maintainer's PASS,"
+    echo "       then: git -C $SRC/cef rev-parse HEAD > $ROOT/LOCAL-BROWSER-PASS"
+    exit 1
+  fi
+  echo ">>> browser PASS recorded for this source ($pass)"
+fi
+
 # Hard stop before anything irreversible. Generic on purpose: it catches the
 # next file someone starts rewriting, not only the one that bit us.
 assert_pins_committed() { # assert_pins_committed "<what is about to happen>"
