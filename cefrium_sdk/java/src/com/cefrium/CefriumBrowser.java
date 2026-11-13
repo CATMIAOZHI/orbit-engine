@@ -1619,7 +1619,8 @@ public class CefriumBrowser {
     /**
      * Overrides the User-Agent string (Emulation.setUserAgentOverride), for
      * the documents loaded from now on. Can be called right after the
-     * constructor. It does not change User-Agent Client Hints
+     * constructor. A window the page opens keeps it from its first request.
+     * It does not change User-Agent Client Hints
      * ({@code navigator.userAgentData}); for those, call
      * {@code Emulation.setUserAgentOverride} with {@code userAgentMetadata}
      * through {@link #executeDevToolsMethod}.

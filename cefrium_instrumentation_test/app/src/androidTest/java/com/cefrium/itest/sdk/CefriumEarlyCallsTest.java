@@ -138,4 +138,51 @@ public class CefriumEarlyCallsTest {
             await(reached);
         }
     }
+
+    // A window keeps its opener's User-Agent override from its first request:
+    // Google sign-in answered 500 when the popup sent another User-Agent.
+    @Test
+    public void windowKeepsTheOpenersUserAgent() throws Exception {
+        final String ua = "CefriumPopupUa/1.0";
+        Activity activity = activityRule.getActivity();
+        CountDownLatch ready = new CountDownLatch(1);
+        AtomicReference<CefriumBrowser> opener = new AtomicReference<>();
+        try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
+            activity.runOnUiThread(() -> {
+                CefriumBrowser b = browsers.track(new CefriumBrowser(400, 300, 1.0f));
+                opener.set(b);
+                b.setUserAgentOverride(ua);
+                b.setOnTitleChangedListener(t -> {
+                    if ("ready".equals(t)) ready.countDown();
+                });
+                b.setPopupHandler(new CefriumBrowser.PopupHandler() {
+                    @Override public boolean onOpenPopup(String url, boolean gesture) {
+                        return false;
+                    }
+
+                    @Override public boolean onCreateWindow(CefriumBrowser popup, String url,
+                            boolean gesture) {
+                        browsers.track(popup);
+                        return true;
+                    }
+                });
+                b.loadUrl(server.url() + "?opener");
+            });
+            Assert.assertTrue("the opener did not load", ready.await(30, TimeUnit.SECONDS));
+            Assert.assertTrue("the opener's own request lacks the override; requests "
+                    + server.requests, server.requests.contains("/?opener " + ua));
+            activity.runOnUiThread(() ->
+                    opener.get().executeDevToolsMethod("Runtime.evaluate", OPEN, (ok, j) -> {}));
+            String child = null;
+            for (int i = 0; i < 200 && child == null; i++) {
+                for (String r : server.requests) {
+                    if (r.startsWith("/?child ")) child = r;
+                }
+                if (child == null) Thread.sleep(100);
+            }
+            Assert.assertNotNull("the window never requested its page; requests "
+                    + server.requests, child);
+            Assert.assertEquals("requests " + server.requests, "/?child " + ua, child);
+        }
+    }
 }

@@ -52,6 +52,11 @@ security fixes of 2026-11-06).
   activity now delivers both through its result registry; another activity
   forwards `onActivityResult` and the new
   `CefriumBrowser.onRequestPermissionsResult`.
+- A window from `onCreateWindow` sent the default User-Agent instead of its
+  opener's `setUserAgentOverride`, and Google sign-in answered 500 when the
+  two differed. It now keeps the opener's override from its first request.
+  The docs now point to `setUserAgentOverride` instead of a
+  `--user-agent-product` switch.
 - A file a `CefriumDialogHandler` returned as a content URI reached the page
   named after the URI's last segment (a Downloads id is a number, with no
   extension); it now gets the provider's display name.
