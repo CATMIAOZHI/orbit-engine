@@ -143,6 +143,8 @@ class CefBrowserContentsDelegate : public content::WebContentsDelegate,
   void PrimaryMainDocumentElementAvailable() override;
   void LoadProgressChanged(double progress) override;
   void DidStopLoading() override;
+  void DidStartNavigation(
+      content::NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
   void DidFailLoad(content::RenderFrameHost* render_frame_host,

@@ -41,18 +41,9 @@ import org.chromium.ui.base.ResourceBundle;
  * embedder and does not track the SDK version; read {@link #getVersion()} for
  * that.</p>
  *
- * <p>Sites therefore serve what they serve to Chrome. The User-Agent is
- * configured via {@code CefSettings.user_agent_product}
- * in the native layer. To customize it, use the {@code --user-agent-product}
- * command-line switch before calling {@link #initialize}:</p>
- *
- * <pre>
- * // Custom product string (replaces the default):
- * CommandLine.getInstance().appendSwitchWithValue(
- *     "user-agent-product",
- *     "Chrome/149.0.7827.102 MyApp/2.0 Mobile");
- * Cefrium.initialize(context);
- * </pre>
+ * <p>Sites therefore serve what they serve to Chrome. To send another
+ * User-Agent, call {@link CefriumBrowser#setUserAgentOverride} on the browser;
+ * a window its page opens (window.open) keeps the same User-Agent.</p>
  *
  * <h3>Basic usage</h3>
  *

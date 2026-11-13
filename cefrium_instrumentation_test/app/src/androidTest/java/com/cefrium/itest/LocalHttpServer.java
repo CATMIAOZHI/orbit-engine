@@ -10,6 +10,8 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Tiny in-process loopback HTTP server for hermetic instrumented tests. Serves a
@@ -27,6 +29,9 @@ public final class LocalHttpServer implements AutoCloseable {
     private final ServerSocket server;
     private final int port;
     private volatile boolean running = true;
+
+    /** Each request seen, as "<request target> <User-Agent>", in order. */
+    public final List<String> requests = new CopyOnWriteArrayList<>();
 
     public LocalHttpServer(String html) throws Exception {
         this(html, null, null);
@@ -52,7 +57,15 @@ public final class LocalHttpServer implements AutoCloseable {
                             s.getInputStream(), StandardCharsets.UTF_8));
                     String requestLine = in.readLine();
                     String line;
-                    while ((line = in.readLine()) != null && !line.isEmpty()) { /* drain headers */ }
+                    String ua = "";
+                    while ((line = in.readLine()) != null && !line.isEmpty()) {
+                        if (line.regionMatches(true, 0, "User-Agent:", 0, 11)) {
+                            ua = line.substring(11).trim();
+                        }
+                    }
+                    if (requestLine != null && requestLine.split(" ").length > 1) {
+                        requests.add(requestLine.split(" ")[1] + " " + ua);
+                    }
                     boolean js = jsBody != null && requestLine != null
                             && requestLine.split(" ").length > 1
                             && requestLine.split(" ")[1].split("\\?")[0].equals(scriptPath);
