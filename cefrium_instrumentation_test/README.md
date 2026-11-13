@@ -5,7 +5,7 @@ in the SDK repo (not the samples) so a clone of `cef-android` is self-verifying
 and CI can gate releases on it. It covers both the **Java SDK** (`com.cefrium`)
 and the **Compose wrapper** (`com.cefrium.compose`).
 
-**68 test classes, 232 `@Test` methods**, and a release cannot be cut without
+**69 test classes, 234 `@Test` methods**, and a release cannot be cut without
 them: `cut-release.sh` runs this suite as its `suite` phase, before anything
 becomes immutable.
 

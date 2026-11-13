@@ -101,7 +101,8 @@ public final class Cefrium {
      * Control whether the engine keeps its security data up to date over the
      * network. Enabled by default. Must be called <b>before</b> the engine
      * initializes, i.e. before {@link #initialize(Context)} and before the first
-     * browser is created; afterwards it has no effect and logs a warning.
+     * browser is created; afterwards the value it started with is accepted and any other throws
+     * {@link IllegalStateException}.
      *
      * <p>The engine starts the first time the app uses it (a browser, a
      * profile, a filter list), so {@code Application.onCreate} is early enough
@@ -195,8 +196,8 @@ public final class Cefrium {
      * <p>On by default. Turning it off before the engine starts also stops a
      * read already under way (it can begin before {@code Application.onCreate});
      * calling it from {@code Application.attachBaseContext} keeps it from
-     * starting at all. Calls after the engine started are ignored and log a
-     * warning.
+     * starting at all. After the engine started, the value it started with is
+     * accepted and any other throws {@link IllegalStateException}.
      * @throws IllegalStateException with another value once the engine has
      *         started.
      */
@@ -213,8 +214,9 @@ public final class Cefrium {
     /**
      * Run the GPU in its own process instead of inside the browser process.
      * Disabled by default. Must be called <b>before</b> {@link #initialize(Context)}
-     * and before the first browser is created; afterwards it has no effect and logs
-     * a warning. The kiosk-pos sample shows the shape.
+     * and before the first browser is created; afterwards the value it started with is accepted and any other throws
+     * {@link IllegalStateException}.
+     * The kiosk-pos sample shows the shape.
      *
      * <p>By default Cefrium passes Chromium's {@code --in-process-gpu}, so GL
      * command buffers and the vendor's graphics driver run in the same process as
@@ -262,8 +264,8 @@ public final class Cefrium {
      * <b>Disabled by default in Cefrium</b>, which is a deliberate divergence from
      * Chromium, where the feature is enabled by default on Android. Must be called
      * <b>before</b> the engine initializes, i.e. before {@link #initialize(Context)}
-     * and before the first browser is created; afterwards it has no effect and logs
-     * a warning.
+     * and before the first browser is created; afterwards the value it started with is accepted and any other throws
+     * {@link IllegalStateException}.
      *
      * <p>When enabled, the engine performs an occasional request to
      * {@code http://clients2.google.com/time/1/current} (roughly daily by design) to
@@ -317,8 +319,9 @@ public final class Cefrium {
      * media contacts the service, and only then. Enable it if the first
      * protected video must start without that round trip.</p>
      *
-     * <p>Call it before the engine initializes; afterwards it has no effect and
-     * logs a warning. Implemented by disabling Chromium's
+     * <p>Call it before the engine initializes; afterwards the value it started with is accepted and any other throws
+     * {@link IllegalStateException}.
+     * Implemented by disabling Chromium's
      * {@code MediaDrmPreprovisioningAtStartup} feature.</p>
      *
      * <p>Experimental: it may still change before the 1.0 API freeze.</p>
@@ -353,8 +356,9 @@ public final class Cefrium {
      * so far are complete lines.</p>
      *
      * <p>Call it before the engine starts (see
-     * {@link #setComponentUpdatesEnabled}); later calls are ignored and log a
-     * warning. Pass null to record nothing, the default.</p>
+     * {@link #setComponentUpdatesEnabled}); after that, the file it started with
+     * is accepted and any other throws {@link IllegalStateException}. Pass null
+     * to record nothing, the default.</p>
      *
      * @param file where to write the log; the app must be able to write it.
      * @throws IllegalStateException with another value once the engine has

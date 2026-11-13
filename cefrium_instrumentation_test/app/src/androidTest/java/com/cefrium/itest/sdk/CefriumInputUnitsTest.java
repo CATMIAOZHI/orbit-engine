@@ -117,13 +117,13 @@ public class CefriumInputUnitsTest {
     }
 
     // A surface browser's touch goes through the view as a MotionEvent, in the
-    // view's physical pixels.
+    // view's physical pixels, and is a finger to the page.
     @Test
     public void surfaceTouchCoordinatesAreViewPixels() throws Exception {
         float d = activityRule.getActivity().getResources().getDisplayMetrics().density;
         String got = pointerDown(false, true);
-        Assert.assertTrue("density " + d + ", got " + got, got.endsWith(
-                ":" + Math.round(100 / d) + "," + Math.round(60 / d)));
+        Assert.assertEquals("density " + d, "down:touch:" + Math.round(100 / d) + ","
+                + Math.round(60 / d), got);
     }
 
     @Test

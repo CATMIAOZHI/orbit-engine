@@ -397,8 +397,8 @@ public class CefriumBrowser {
     }
 
     /**
-     * Set dark mode via CEF API (CefRequestContext::SetChromeColorSchemeMode).
-     * Call after browser is created and loaded.
+     * Set this browser's preferred color scheme ({@code prefers-color-scheme}).
+     * Can be called right after creation; it applies once the browser exists.
      *
      * @param dark true for dark mode, false for light mode.
      */
@@ -541,9 +541,11 @@ public class CefriumBrowser {
     }
 
     /**
-     * Listener for network requests. Called by CEF's
-     * CefResourceRequestHandler::OnBeforeResourceLoad for every request.
-     * This level of request visibility is not available in Android WebView.
+     * Listener for network requests: one call per request this browser makes,
+     * with the full URL and whether the ad blocker or a
+     * {@link RequestInterceptor} blocked it. Called on the UI thread, after the
+     * request has been let through or cancelled; to decide, use a
+     * {@link RequestInterceptor}.
      */
     public interface OnRequestInterceptedListener {
         void onRequestIntercepted(String url, String method, boolean blocked);
@@ -620,9 +622,9 @@ public class CefriumBrowser {
     }
 
     /**
-     * Set a listener for network request interception.
-     * Called for EVERY request — use for network inspection,
-     * debugging, or custom request auditing.
+     * Set a listener told of every network request (see
+     * {@link OnRequestInterceptedListener}), for inspection, debugging or
+     * auditing. Called on the UI thread.
      */
     public void setOnRequestInterceptedListener(OnRequestInterceptedListener listener) {
         checkThread("setOnRequestInterceptedListener");
@@ -791,11 +793,20 @@ public class CefriumBrowser {
         if (mFullscreenListener != null) mFullscreenListener.onFullscreenChanged(fullscreen);
     }
 
-    // Called from native CefResourceRequestHandler::OnBeforeResourceLoad.
+    private static final android.os.Handler MAIN_HANDLER =
+            new android.os.Handler(android.os.Looper.getMainLooper());
+
+    // Called from native CefResourceRequestHandler::OnBeforeResourceLoad, on the
+    // network thread. It only reports, so it is delivered on the UI thread like
+    // every other Callback method, in request order.
     @SuppressWarnings("unused")
     private void onRequestIntercepted(String url, String method, boolean blocked) {
-        if (mCallback != null) mCallback.onRequestIntercepted(url, method, blocked);
-        if (mRequestListener != null) mRequestListener.onRequestIntercepted(url, method, blocked);
+        MAIN_HANDLER.post(() -> {
+            if (mCallback != null) mCallback.onRequestIntercepted(url, method, blocked);
+            if (mRequestListener != null) {
+                mRequestListener.onRequestIntercepted(url, method, blocked);
+            }
+        });
     }
 
     // Called from native CefLoadHandler::OnLoadingStateChange.
@@ -818,7 +829,8 @@ public class CefriumBrowser {
     }
 
     /**
-     * Reload the current page. Uses CefBrowserHost::Reload (ignores cache).
+     * Reload the current page, revalidating cached resources as a normal reload
+     * does (like WebView's {@code reload()}).
      */
     public void reload() {
         checkThread("reload");
@@ -3388,9 +3400,24 @@ public class CefriumBrowser {
             int androidAction = (action == 0) ? android.view.MotionEvent.ACTION_DOWN
                     : (action == 1) ? android.view.MotionEvent.ACTION_UP
                     : android.view.MotionEvent.ACTION_MOVE;
+            // A finger, so the page sees pointerType "touch" (obtain(x, y)
+            // leaves the tool type unknown, which the page sees as "").
+            android.view.MotionEvent.PointerProperties props =
+                    new android.view.MotionEvent.PointerProperties();
+            props.id = 0;
+            props.toolType = android.view.MotionEvent.TOOL_TYPE_FINGER;
+            android.view.MotionEvent.PointerCoords coords =
+                    new android.view.MotionEvent.PointerCoords();
+            coords.x = x;
+            coords.y = y;
+            coords.pressure = 1f;
+            coords.size = 1f;
             android.view.MotionEvent ev = android.view.MotionEvent.obtain(
-                    mTouchDownTime, now, androidAction, x, y, 0);
-            ev.setSource(android.view.InputDevice.SOURCE_TOUCHSCREEN);
+                    mTouchDownTime, now, androidAction, 1,
+                    new android.view.MotionEvent.PointerProperties[] {props},
+                    new android.view.MotionEvent.PointerCoords[] {coords},
+                    0, 0, 1f, 1f, 0, 0,
+                    android.view.InputDevice.SOURCE_TOUCHSCREEN, 0);
             try {
                 ef.onTouchEvent(ev);
             } finally {

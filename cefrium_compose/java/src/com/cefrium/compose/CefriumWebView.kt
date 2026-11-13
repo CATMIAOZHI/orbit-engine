@@ -34,7 +34,8 @@ import com.cefrium.CefriumBrowser
  * @param onTitleChanged Called when the page title changes.
  * @param onLoadingStateChanged Called when loading state changes.
  * @param onFullscreenChanged Called when fullscreen mode changes.
- * @param onRequestIntercepted Called for every network request (for inspection).
+ * @param onRequestIntercepted Called on the UI thread for every network request
+ *   (for inspection), with its whole URL.
  * @param onRenderProcessTerminated Called when a renderer process for this page
  *   dies (status, errorCode). The page is now blank -- show a reload affordance.
  *   Status values are the CefriumBrowser.TERMINATION_* constants.
