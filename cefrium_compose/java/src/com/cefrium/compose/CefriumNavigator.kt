@@ -232,7 +232,7 @@ class CefriumNavigator {
 
     // ----- Mouse events -------------------------------------------------------
     // Programmatic mouse injection (position/hover, click, right-click, wheel).
-    // Coordinates are browser-viewport pixels. See com.cefrium.CefriumBrowser.
+    // Units as in com.cefrium.CefriumBrowser.sendMouseMove: device-independent pixels.
 
     /** Move the mouse pointer to (x, y). Drives mousemove / :hover. */
     fun sendMouseMove(x: Int, y: Int, modifiers: Int = 0) {
@@ -291,7 +291,7 @@ class CefriumNavigator {
     }
 
     // ----- Touch automation ---------------------------------------------------
-    // Single-finger touch injection. Coordinates are browser-viewport pixels.
+    // Single-finger touch injection. Units as in com.cefrium.CefriumBrowser.sendTouchDown.
     // A tap synthesizes a click; down/move/up drive drags and scroll/fling.
 
     /** Press a finger down at (x, y). */
