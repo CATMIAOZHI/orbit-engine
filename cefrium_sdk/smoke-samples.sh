@@ -51,6 +51,8 @@ SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-de
 VERDICT_SAMPLES="firebase-coexistence nested-scroll profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process permissions sign-in"
 # Launch extras for samples that only run their check when asked.
 launch_extras() { case "$1" in sign-in) echo "--ez auto true" ;; esac; }
+# Samples whose launcher icon is a menu: start an activity that runs the engine.
+launch_activity() { case "$1" in java-sample) echo ".AdBlockActivity" ;; esac; }
 # Samples whose data is cleared before launch (see below).
 FRESH_SAMPLES="engine-contacts drm-provisioning"
 # CEFRIUM_SMOKE_ONLY=<sample> runs just that one, for iterating on it. Not a
@@ -134,7 +136,7 @@ for s in $SAMPLES; do
   apk="$(find "$d/app/build/outputs/apk/debug" -name '*.apk' 2>/dev/null | head -1)"
   [ -n "$apk" ] || { echo "  $s: no APK"; fails=$((fails+1)); continue; }
   pkg="$("$AAPT" dump badging "$apk" 2>/dev/null | grep -oP "package: name='\K[^']+")"
-  act="$("$AAPT" dump badging "$apk" 2>/dev/null | grep -oP "launchable-activity: name='\K[^']+")"
+  act="$(launch_activity "$s")"; [ -n "$act" ] || act="$("$AAPT" dump badging "$apk" 2>/dev/null | grep -oP "launchable-activity: name='\K[^']+")"
   # A failed install (a full device) used to surface as "no verdict written".
   if ! inst="$("$ADB" install -r "$apk" 2>&1)"; then
     echo "  $s ($pkg): INSTALL FAIL -- $(echo "$inst" | grep -m1 -o 'INSTALL_[A-Z_]*\|Failure.*')"
