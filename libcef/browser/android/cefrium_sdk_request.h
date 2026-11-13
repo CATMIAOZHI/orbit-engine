@@ -747,7 +747,52 @@ class SdkRequestHandler : public CefRequestHandler {
     if (message_router_) {
       message_router_->OnBeforeBrowse(browser, frame);
     }
-    return false;  // never cancel the navigation
+    // FEATURE-092: CefriumNavigationClient.onBeforeNavigate. As in WebView,
+    // a load the app started (loadUrl and the like: TT_DIRECT_LOAD_FLAG) is
+    // not offered, but its server redirects are. Back/forward never reaches
+    // here.
+    if (!java_browser_ ||
+        (!is_redirect && (request->GetTransitionType() & TT_DIRECT_LOAD_FLAG))) {
+      return false;
+    }
+    JNIEnv* env = base::android::AttachCurrentThread();
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID mid = env->GetMethodID(
+        cls, "onBeforeNavigate",
+        "(Ljava/lang/String;Ljava/lang/String;ZZZ[Ljava/lang/String;)Z");
+    env->DeleteLocalRef(cls);
+    if (!mid) {
+      env->ExceptionClear();
+      return false;
+    }
+    CefRequest::HeaderMap headers;
+    request->GetHeaderMap(headers);
+    jclass string_cls = env->FindClass("java/lang/String");
+    jobjectArray jh = env->NewObjectArray(
+        static_cast<jsize>(headers.size() * 2), string_cls, nullptr);
+    jsize i = 0;
+    for (const auto& h : headers) {
+      jstring k = env->NewStringUTF(h.first.ToString().c_str());
+      jstring v = env->NewStringUTF(h.second.ToString().c_str());
+      env->SetObjectArrayElement(jh, i++, k);
+      env->SetObjectArrayElement(jh, i++, v);
+      env->DeleteLocalRef(k);
+      env->DeleteLocalRef(v);
+    }
+    env->DeleteLocalRef(string_cls);
+    jstring ju = env->NewStringUTF(request->GetURL().ToString().c_str());
+    jstring jm = env->NewStringUTF(request->GetMethod().ToString().c_str());
+    jboolean cancel = env->CallBooleanMethod(
+        java_browser_, mid, ju, jm, static_cast<jboolean>(frame && frame->IsMain()),
+        static_cast<jboolean>(is_redirect), static_cast<jboolean>(user_gesture),
+        jh);
+    // A client that throws crashes the app with its exception, as any other
+    // uncaught exception on the main thread would.
+    base::android::CheckException(env);
+    env->DeleteLocalRef(ju);
+    env->DeleteLocalRef(jm);
+    env->DeleteLocalRef(jh);
+    return cancel == JNI_TRUE;
   }
 
   void OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,

@@ -30,6 +30,9 @@ public final class LocalHttpServer implements AutoCloseable {
     private final int port;
     private volatile boolean running = true;
 
+    /** A request to {@code /redirect/<path>} is answered 302 to {@code /<path>}. */
+    public static final String REDIRECT = "/redirect/";
+
     /** Each request seen, as "<request target> <User-Agent>", in order. */
     public final List<String> requests = new CopyOnWriteArrayList<>();
 
@@ -70,6 +73,16 @@ public final class LocalHttpServer implements AutoCloseable {
                             && requestLine.split(" ").length > 1
                             && requestLine.split(" ")[1].split("\\?")[0].equals(scriptPath);
                     OutputStream out = s.getOutputStream();
+                    String target = requestLine == null || requestLine.split(" ").length < 2
+                            ? "" : requestLine.split(" ")[1];
+                    if (target.startsWith(REDIRECT)) {
+                        out.write(("HTTP/1.1 302 Found\r\nLocation: /"
+                                + target.substring(REDIRECT.length())
+                                + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                                .getBytes(StandardCharsets.UTF_8));
+                        out.flush();
+                        continue;
+                    }
                     out.write(js ? jsHead : head);
                     out.write(js ? jsBody : body);
                     out.flush();

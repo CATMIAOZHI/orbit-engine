@@ -147,6 +147,7 @@ public class com.cefrium.CefriumBrowser
   public void setMediaPlaybackRequiresUserGesture(boolean);
   public boolean getMediaPlaybackRequiresUserGesture();
   public com.cefrium.CefriumBrowser$ScriptHandler addDocumentStartJavaScript(java.lang.String, java.util.Set<java.lang.String>);
+  public void setNavigationClient(com.cefrium.CefriumNavigationClient);
   public void setCallback(com.cefrium.CefriumBrowser$Callback);
   public void setOnUrlChangedListener(com.cefrium.CefriumBrowser$OnUrlChangedListener);
   public void setOnTitleChangedListener(com.cefrium.CefriumBrowser$OnTitleChangedListener);
@@ -614,6 +615,17 @@ public class com.cefrium.CefriumMediaService extends android.app.Service
   public android.os.IBinder onBind(android.content.Intent);
 
 public class com.cefrium.CefriumMediaSession
+
+public interface com.cefrium.CefriumNavigationClient
+  public default boolean onBeforeNavigate(com.cefrium.CefriumBrowser, com.cefrium.CefriumNavigationRequest);
+
+public final class com.cefrium.CefriumNavigationRequest
+  public java.lang.String getUrl();
+  public java.lang.String getMethod();
+  public boolean isForMainFrame();
+  public boolean isRedirect();
+  public boolean hasGesture();
+  public java.util.Map<java.lang.String, java.lang.String> getRequestHeaders();
 
 public final class com.cefrium.CefriumPathContentServer implements com.cefrium.CefriumContentServer
   public com.cefrium.CefriumContentResponse serve(com.cefrium.CefriumContentRequest) throws java.io.IOException;

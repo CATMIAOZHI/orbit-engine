@@ -512,6 +512,30 @@ public class CefriumBrowser {
 
     private volatile Callback mCallback;
 
+    private volatile CefriumNavigationClient mNavigationClient;
+
+    /**
+     * Set the client told of this browser's navigations (see
+     * {@link CefriumNavigationClient}), or null to remove it. The last one set
+     * wins.
+     */
+    public void setNavigationClient(CefriumNavigationClient client) {
+        checkThread("setNavigationClient");
+        mNavigationClient = client;
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
+    }
+
+    // Called from native CefRequestHandler::OnBeforeBrowse, on the UI thread.
+    // |headers| alternates names and values.
+    @SuppressWarnings("unused")
+    private boolean onBeforeNavigate(String url, String method, boolean mainFrame,
+            boolean redirect, boolean gesture, String[] headers) {
+        CefriumNavigationClient client = mNavigationClient;
+        if (client == null || mClosed) return false;
+        return client.onBeforeNavigate(this, new CefriumNavigationRequest(
+                url, method, mainFrame, redirect, gesture, headers));
+    }
+
     /**
      * Set a unified callback for all browser events.
      * This is the recommended way to handle events. Individual
