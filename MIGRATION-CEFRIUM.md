@@ -69,6 +69,26 @@ browser.setCallback(new CefriumBrowser.Callback() {
 | Script before the page's own | `WebViewCompat.addDocumentStartJavaScript(webView, js, rules)` | `browser.addDocumentStartJavaScript(js, rules)` |
 | Autoplay with sound | `settings.setMediaPlaybackRequiresUserGesture(false)` | `browser.setMediaPlaybackRequiresUserGesture(false)` |
 
+### Deciding a navigation (`shouldOverrideUrlLoading`)
+
+```java
+browser.setNavigationClient(new CefriumNavigationClient() {
+    @Override
+    public boolean onBeforeNavigate(CefriumBrowser b, CefriumNavigationRequest r) {
+        if (r.getUrl().startsWith("https://maps.example.com/")) {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(r.getUrl())));
+            return true;   // cancel: handled by another app
+        }
+        return false;
+    }
+});
+```
+
+Same contract as WebView: UI thread, synchronous, called for navigations the
+page starts and for server redirects, not for `loadUrl` or back/forward.
+`isForMainFrame()`, `isRedirect()`, `hasGesture()` and `getRequestHeaders()`
+match `WebResourceRequest`.
+
 ## Request interception
 
 ### WebView (limited -- GET only, no POST body)

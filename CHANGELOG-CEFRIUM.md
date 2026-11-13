@@ -17,6 +17,16 @@ in the internal FEATURE-NNN.md working docs (not published).
 
 ## [Unreleased]
 
+### Added
+- **`CefriumNavigationClient.onBeforeNavigate`**, WebView's
+  `shouldOverrideUrlLoading`: decide on the UI thread whether a navigation the
+  page starts (a link, a form, a script, an iframe, a server redirect) goes
+  on; return true to cancel it, for example to open a link in another app.
+  Not called for `loadUrl` or back/forward. `CefriumNavigationRequest` gives
+  the URL, method, frame, redirect, gesture and headers.
+- The public API is checked at every release against a committed baseline
+  (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
+
 ### Changed
 - **`onRequestIntercepted` is called on the UI thread** (`Callback` and
   `OnRequestInterceptedListener`), like the rest of `Callback`, with the
