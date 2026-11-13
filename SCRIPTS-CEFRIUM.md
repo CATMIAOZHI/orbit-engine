@@ -369,6 +369,7 @@ handler is never consulted). `--skip-build` for sample-only edits.
 | Smoke one sample (iterating, not a gate) | `CEFRIUM_SMOKE_ONLY=<sample> cef/cefrium_sdk/smoke-samples.sh [--registry <version>]` |
 | App starts on every supported Android version (one x86_64 emulator per API level 29, 30, 31, 33..37; the cut's `sanity` phase) | `cef/cefrium_sdk/smoke-api-levels.sh [<sdk.aar>] [--levels "35 36"]` |
 | No framework call above minSdk without a version check (lint NewApi/InlinedApi, SDK + Compose; the cut's `patches` phase) | `cef/cefrium_sdk/check-api-levels.sh` |
+| The public API (SDK + Compose) is exactly the committed baseline; the cut's `stats` phase fails on any change. After an intended change, regenerate and commit the file with it: `cef/cefrium_sdk/api-dump.py <aar> cef/cefrium_sdk/api/cefrium-sdk.api` | `cef/cefrium_sdk/api-dump.py --check <aar> <api-file>` |
 | R8 consumer rules: Play's 25% bar + minified run | `cef/cefrium_sdk/smoke-minified.sh` |
 | Test a published release e2e | `cef/cefrium_sdk/test-published-release.sh <version>` |
 | Verify an artifact's engine/ABIs | `cef/cefrium_sdk/verify-release-artifacts.sh <version>` |

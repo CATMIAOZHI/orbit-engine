@@ -84,6 +84,9 @@ if [ "$SKIP_BUILD" = "0" ]; then
       --output "out/$VARIANT/cefrium-sdk.aar" )
 fi
 [ -f "$OUT/cefrium-sdk.aar" ] || die "no slim AAR at $OUT/cefrium-sdk.aar"
+# Show an API change now rather than at the cut (which fails on it).
+python3 "$SCRIPT_DIR/api-dump.py" --check --warn "$OUT/cefrium-sdk.aar" \
+  "$SCRIPT_DIR/api/cefrium-sdk.api" | tail -40
 
 # ---- 3. stage it where the sample consumes it ----------------------------
 # Every sample takes the SDK as app/libs/cefrium-sdk.aar. Copying is the step

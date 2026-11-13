@@ -1,0 +1,242 @@
+public final class com.cefrium.compose.BackgroundMediaPolicy extends java.lang.Enum<com.cefrium.compose.BackgroundMediaPolicy>
+  public static final com.cefrium.compose.BackgroundMediaPolicy PAUSE_ON_STOP;
+  public static final com.cefrium.compose.BackgroundMediaPolicy PAUSE_ON_PAUSE;
+  public static final com.cefrium.compose.BackgroundMediaPolicy MUTE_ON_STOP;
+  public static final com.cefrium.compose.BackgroundMediaPolicy NONE;
+  public static com.cefrium.compose.BackgroundMediaPolicy[] values();
+  public static com.cefrium.compose.BackgroundMediaPolicy valueOf(java.lang.String);
+  public static kotlin.enums.EnumEntries<com.cefrium.compose.BackgroundMediaPolicy> getEntries();
+
+public final class com.cefrium.compose.CefriumBridge
+  public static final com.cefrium.compose.CefriumBridge$Companion Companion;
+  public com.cefrium.compose.CefriumBridge(com.cefrium.CefriumBrowser$QueryOriginPolicy, kotlin.jvm.functions.Function3<? super java.lang.String, ? super java.lang.String, ? super com.cefrium.CefriumBrowser$QueryCallback, java.lang.Boolean>);
+  public final com.cefrium.CefriumBrowser$QueryOriginPolicy getOrigins();
+  public final kotlin.jvm.functions.Function3<java.lang.String, java.lang.String, com.cefrium.CefriumBrowser$QueryCallback, java.lang.Boolean> getOnQuery();
+  public static final com.cefrium.compose.CefriumBridge withFrames(com.cefrium.CefriumBrowser$QueryOriginPolicy, kotlin.jvm.functions.Function4<? super java.lang.String, ? super java.lang.String, ? super java.lang.Boolean, ? super com.cefrium.CefriumBrowser$QueryCallback, java.lang.Boolean>);
+
+public final class com.cefrium.compose.CefriumBridge$Companion
+  public final com.cefrium.compose.CefriumBridge withFrames(com.cefrium.CefriumBrowser$QueryOriginPolicy, kotlin.jvm.functions.Function4<? super java.lang.String, ? super java.lang.String, ? super java.lang.Boolean, ? super com.cefrium.CefriumBrowser$QueryCallback, java.lang.Boolean>);
+
+public final class com.cefrium.compose.CefriumBrowserPool implements androidx.compose.runtime.RememberObserver
+  public com.cefrium.compose.CefriumBrowserPool(int);
+  public final com.cefrium.compose.CefriumViewState stateFor(java.lang.String, java.lang.String);
+  public final void evict(java.lang.String);
+  public final int getSize();
+  public void onRemembered();
+  public void onForgotten();
+  public void onAbandoned();
+
+public final class com.cefrium.compose.CefriumBrowserPoolKt
+  public static final com.cefrium.compose.CefriumBrowserPool rememberCefriumBrowserPool(int, androidx.compose.runtime.Composer, int, int);
+
+public final class com.cefrium.compose.CefriumNavigator
+  public static final com.cefrium.compose.CefriumNavigator$Companion Companion;
+  public static final int MOUSE_BUTTON_LEFT = 0;
+  public static final int MOUSE_BUTTON_MIDDLE = 1;
+  public static final int MOUSE_BUTTON_RIGHT = 2;
+  public static final int MOUSE_MODIFIER_SHIFT = 2;
+  public static final int MOUSE_MODIFIER_CTRL = 4;
+  public static final int MOUSE_MODIFIER_ALT = 8;
+  public com.cefrium.compose.CefriumNavigator();
+  public final boolean getCanGoBack();
+  public final boolean getCanGoForward();
+  public final void loadUrl(java.lang.String);
+  public final void loadHtml(java.lang.String);
+  public final void loadHtmlWithBaseUrl(java.lang.String, java.lang.String);
+  public final void loadDataWithBaseUrl(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String);
+  public final void postUrl(java.lang.String, byte[]);
+  public final void stopLoading();
+  public final void reload();
+  public final void navigateBack();
+  public final void navigateForward();
+  public final byte[] serializeNavigationState();
+  public final void setPullToRefreshEnabled(boolean);
+  public final void evaluateJavaScript(java.lang.String);
+  public final void setCookie(java.lang.String, java.lang.String, java.lang.String);
+  public final void setCookie(java.lang.String, java.lang.String, java.lang.String, boolean, boolean, int);
+  public final void getCookies(java.lang.String, com.cefrium.CefriumBrowser$CookieCallback);
+  public final void deleteCookies(java.lang.String, java.lang.String);
+  public final void flushCookies();
+  public final void clearCache();
+  public final void printToPdf(java.lang.String, com.cefrium.CefriumBrowser$PdfCallback);
+  public final void setUserAgentOverride(java.lang.String);
+  public final void setJavaScriptEnabled(boolean);
+  public final void setZoomLevel(double);
+  public final void setPinchToZoomEnabled(boolean);
+  public final void sendMouseMove(int, int, int);
+  public final void sendMouseLeave(int, int);
+  public final void sendMouseClick(int, int, int, int, int);
+  public final void sendLeftClick(int, int);
+  public final void sendRightClick(int, int);
+  public final void sendDoubleClick(int, int);
+  public final void sendMouseDown(int, int, int, int);
+  public final void sendMouseUp(int, int, int, int);
+  public final void sendMouseWheel(int, int, int, int, int);
+  public final void sendTouchDown(float, float);
+  public final void sendTouchMove(float, float);
+  public final void sendTouchUp(float, float);
+  public final void sendTap(float, float);
+  public final void sendSwipe(float, float, float, float, int);
+  public final void setRequestInterceptor(com.cefrium.CefriumBrowser$RequestInterceptor);
+  public final void setPermissionHandler(com.cefrium.CefriumBrowser$PermissionHandler);
+  public final void setContentSetting(java.lang.String, int, int);
+  public final void setSslErrorHandler(com.cefrium.CefriumBrowser$SslErrorHandler);
+  public final void setHttpAuthHandler(com.cefrium.CefriumBrowser$HttpAuthHandler);
+  public final void setDeviceChooserHandler(com.cefrium.CefriumBrowser$DeviceChooserHandler);
+  public final boolean setProxy(java.lang.String, java.lang.String);
+  public final boolean setProxy(java.lang.String);
+  public final boolean clearProxy();
+  public final void captureBitmap(kotlin.jvm.functions.Function1<? super android.graphics.Bitmap, kotlin.Unit>);
+  public final void find(java.lang.String, boolean, boolean, boolean);
+  public final void stopFinding(boolean);
+  public final void contextMenuCommand(int);
+  public final void setDarkMode(boolean);
+  public final void setMediaSessionEnabled(boolean);
+  public final void setMediaSessionActivity(android.app.PendingIntent);
+  public final boolean isPlayingAudio();
+  public final void onHostPause();
+  public final void onHostResume();
+  public final void suspendMedia();
+  public final void resumeMedia();
+  public final void setAudioMuted(boolean);
+  public final boolean isAudioMuted();
+  public final void setPageVisible(boolean);
+  public final void setFocus(boolean);
+  public final void stopAllMedia();
+  public final void stopMediaSession();
+
+public final class com.cefrium.compose.CefriumNavigator$Companion
+
+public final class com.cefrium.compose.CefriumNavigatorKt
+  public static final com.cefrium.compose.CefriumNavigator rememberCefriumNavigator(androidx.compose.runtime.Composer, int);
+
+public final class com.cefrium.compose.CefriumViewKt
+  public static final void CefriumView(com.cefrium.compose.CefriumViewState, androidx.compose.ui.Modifier, com.cefrium.compose.CefriumNavigator, com.cefrium.compose.CefriumBridge, kotlin.jvm.functions.Function1<? super com.cefrium.CefriumBrowser, kotlin.Unit>, com.cefrium.compose.BackgroundMediaPolicy, kotlin.jvm.functions.Function2<? super androidx.lifecycle.Lifecycle$Event, ? super com.cefrium.CefriumBrowser, kotlin.Unit>, kotlin.jvm.functions.Function2<? super com.cefrium.CefriumBrowser, ? super java.lang.String, java.lang.Boolean>, kotlin.jvm.functions.Function1<? super com.cefrium.CefriumBrowser, kotlin.Unit>, androidx.compose.runtime.Composer, int, int);
+  public static final void CefriumWindow(com.cefrium.CefriumBrowser, androidx.compose.ui.Modifier, androidx.compose.runtime.Composer, int, int);
+
+public final class com.cefrium.compose.CefriumViewKt$WhenMappings
+
+public final class com.cefrium.compose.CefriumViewState implements androidx.compose.runtime.RememberObserver
+  public com.cefrium.compose.CefriumViewState(java.lang.String, byte[], boolean, com.cefrium.CefriumProfile);
+  public final java.lang.String getInitialUrl();
+  public final byte[] getNavigationState();
+  public final boolean getIncognito();
+  public final com.cefrium.CefriumProfile getProfile();
+  public final java.lang.String getLastLoadedUrl();
+  public final java.lang.String getPageTitle();
+  public final boolean isLoading();
+  public final boolean getCanGoBack();
+  public final boolean getCanGoForward();
+  public final boolean isFullscreen();
+  public final int getFindActiveMatch();
+  public final int getFindMatchCount();
+  public final com.cefrium.compose.DownloadInfo getLastDownload();
+  public final androidx.compose.runtime.snapshots.SnapshotStateList<com.cefrium.compose.DownloadEntry> getDownloads();
+  public final kotlin.jvm.functions.Function1<com.cefrium.compose.DownloadEntry, kotlin.Unit> getOnDownloadEvent();
+  public final void setOnDownloadEvent(kotlin.jvm.functions.Function1<? super com.cefrium.compose.DownloadEntry, kotlin.Unit>);
+  public final kotlin.jvm.functions.Function3<com.cefrium.compose.DownloadEntry, kotlin.jvm.functions.Function1<? super java.lang.String, kotlin.Unit>, kotlin.jvm.functions.Function0<kotlin.Unit>, kotlin.Unit> getOnBeforeDownload();
+  public final void setOnBeforeDownload(kotlin.jvm.functions.Function3<? super com.cefrium.compose.DownloadEntry, ? super kotlin.jvm.functions.Function1<? super java.lang.String, kotlin.Unit>, ? super kotlin.jvm.functions.Function0<kotlin.Unit>, kotlin.Unit>);
+  public final void cancelDownload(int);
+  public final void pauseDownload(int);
+  public final void resumeDownload(int);
+  public final void clearDownloads();
+  public final com.cefrium.compose.ContextMenuInfo getContextMenu();
+  public final void setContextMenu(com.cefrium.compose.ContextMenuInfo);
+  public final com.cefrium.compose.RendererTermination getRendererTermination();
+  public final boolean onActivityResult(int, int, android.content.Intent);
+  public final void close();
+  public void onRemembered();
+  public void onForgotten();
+  public void onAbandoned();
+
+public final class com.cefrium.compose.CefriumViewStateKt
+  public static final com.cefrium.compose.CefriumViewState rememberCefriumViewState(java.lang.String, boolean, com.cefrium.CefriumProfile, androidx.compose.runtime.Composer, int, int);
+
+public final class com.cefrium.compose.CefriumWebViewKt
+  public static final void CefriumWebView(java.lang.String, androidx.compose.ui.Modifier, kotlin.jvm.functions.Function1<? super java.lang.String, kotlin.Unit>, kotlin.jvm.functions.Function1<? super java.lang.String, kotlin.Unit>, kotlin.jvm.functions.Function3<? super java.lang.Boolean, ? super java.lang.Boolean, ? super java.lang.Boolean, kotlin.Unit>, kotlin.jvm.functions.Function1<? super java.lang.Boolean, kotlin.Unit>, kotlin.jvm.functions.Function3<? super java.lang.String, ? super java.lang.String, ? super java.lang.Boolean, kotlin.Unit>, kotlin.jvm.functions.Function2<? super java.lang.Integer, ? super java.lang.Integer, kotlin.Unit>, kotlin.jvm.functions.Function1<? super com.cefrium.CefriumBrowser, kotlin.Unit>, androidx.compose.runtime.Composer, int, int);
+
+public final class com.cefrium.compose.ContextMenuInfo
+  public com.cefrium.compose.ContextMenuInfo(java.lang.String, java.lang.String);
+  public final java.lang.String getMenuItems();
+  public final java.lang.String getUrl();
+  public final java.lang.String component1();
+  public final java.lang.String component2();
+  public final com.cefrium.compose.ContextMenuInfo copy(java.lang.String, java.lang.String);
+  public java.lang.String toString();
+  public int hashCode();
+  public boolean equals(java.lang.Object);
+
+public final class com.cefrium.compose.DownloadEntry
+  public com.cefrium.compose.DownloadEntry(int, java.lang.String, java.lang.String, java.lang.String, java.lang.String, long, long, int, long, com.cefrium.compose.DownloadState);
+  public final int getId();
+  public final java.lang.String getUrl();
+  public final java.lang.String getName();
+  public final java.lang.String getPath();
+  public final java.lang.String getMimeType();
+  public final long getReceivedBytes();
+  public final long getTotalBytes();
+  public final int getPercent();
+  public final long getBytesPerSecond();
+  public final com.cefrium.compose.DownloadState getState();
+  public final int component1();
+  public final java.lang.String component2();
+  public final java.lang.String component3();
+  public final java.lang.String component4();
+  public final java.lang.String component5();
+  public final long component6();
+  public final long component7();
+  public final int component8();
+  public final long component9();
+  public final com.cefrium.compose.DownloadState component10();
+  public final com.cefrium.compose.DownloadEntry copy(int, java.lang.String, java.lang.String, java.lang.String, java.lang.String, long, long, int, long, com.cefrium.compose.DownloadState);
+  public java.lang.String toString();
+  public int hashCode();
+  public boolean equals(java.lang.Object);
+
+public final class com.cefrium.compose.DownloadInfo
+  public com.cefrium.compose.DownloadInfo(java.lang.String, java.lang.String, int, boolean, boolean);
+  public final java.lang.String getName();
+  public final java.lang.String getPath();
+  public final int getPercent();
+  public final boolean getComplete();
+  public final boolean getCanceled();
+  public final java.lang.String component1();
+  public final java.lang.String component2();
+  public final int component3();
+  public final boolean component4();
+  public final boolean component5();
+  public final com.cefrium.compose.DownloadInfo copy(java.lang.String, java.lang.String, int, boolean, boolean);
+  public java.lang.String toString();
+  public int hashCode();
+  public boolean equals(java.lang.Object);
+
+public final class com.cefrium.compose.DownloadState extends java.lang.Enum<com.cefrium.compose.DownloadState>
+  public static final com.cefrium.compose.DownloadState STARTED;
+  public static final com.cefrium.compose.DownloadState IN_PROGRESS;
+  public static final com.cefrium.compose.DownloadState COMPLETE;
+  public static final com.cefrium.compose.DownloadState CANCELED;
+  public static final com.cefrium.compose.DownloadState PAUSED;
+  public static com.cefrium.compose.DownloadState[] values();
+  public static com.cefrium.compose.DownloadState valueOf(java.lang.String);
+  public static kotlin.enums.EnumEntries<com.cefrium.compose.DownloadState> getEntries();
+
+public final class com.cefrium.compose.RendererStatus extends java.lang.Enum<com.cefrium.compose.RendererStatus>
+  public static final com.cefrium.compose.RendererStatus ABNORMAL;
+  public static final com.cefrium.compose.RendererStatus KILLED;
+  public static final com.cefrium.compose.RendererStatus CRASHED;
+  public static final com.cefrium.compose.RendererStatus OOM;
+  public static final com.cefrium.compose.RendererStatus UNKNOWN;
+  public static com.cefrium.compose.RendererStatus[] values();
+  public static com.cefrium.compose.RendererStatus valueOf(java.lang.String);
+  public static kotlin.enums.EnumEntries<com.cefrium.compose.RendererStatus> getEntries();
+
+public final class com.cefrium.compose.RendererTermination
+  public com.cefrium.compose.RendererTermination(com.cefrium.compose.RendererStatus, int);
+  public final com.cefrium.compose.RendererStatus getStatus();
+  public final int getErrorCode();
+  public final com.cefrium.compose.RendererStatus component1();
+  public final int component2();
+  public final com.cefrium.compose.RendererTermination copy(com.cefrium.compose.RendererStatus, int);
+  public java.lang.String toString();
+  public int hashCode();
+  public boolean equals(java.lang.Object);

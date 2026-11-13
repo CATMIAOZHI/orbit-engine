@@ -1,0 +1,961 @@
+public final class com.cefrium.CefAndroidProtocolHandler
+  leak: public class not named Cefrium*
+  public static java.io.InputStream open(java.lang.String);
+  public static java.lang.String getMimeType(java.io.InputStream, java.lang.String);
+
+public class com.cefrium.CefContactsPickerDelegate implements org.chromium.content_public.browser.ContactsPickerDelegate
+  leak: public class not named Cefrium*
+  leak: extends or implements an engine-internal type
+  public com.cefrium.CefContactsPickerDelegate();
+  public java.lang.Object showContactsPicker(org.chromium.content_public.browser.WebContents, org.chromium.content_public.browser.ContactsPickerListener, boolean, boolean, boolean, boolean, boolean, boolean, java.lang.String, org.chromium.content_public.browser.ContactsFetcher);
+    leak: names an engine-internal type
+  public void cancelContactsPicker(java.lang.Object);
+
+public class com.cefrium.CefModalDialogPresenter extends org.chromium.ui.modaldialog.ModalDialogManager$Presenter
+  leak: public class not named Cefrium*
+  leak: extends or implements an engine-internal type
+  public com.cefrium.CefModalDialogPresenter(android.content.Context);
+  protected void addDialogView(org.chromium.ui.modelutil.PropertyModel, org.chromium.base.Callback<androidx.activity.ComponentDialog>, org.chromium.base.Callback<android.view.View>);
+    leak: names an engine-internal type
+  protected void removeDialogView(org.chromium.ui.modelutil.PropertyModel);
+    leak: names an engine-internal type
+
+public class com.cefrium.CefWindowAndroid extends org.chromium.ui.base.ActivityWindowAndroid
+  leak: public class not named Cefrium*
+  leak: extends or implements an engine-internal type
+  public com.cefrium.CefWindowAndroid(android.content.Context, boolean, org.chromium.ui.base.IntentRequestTracker, org.chromium.ui.insets.InsetObserver, boolean);
+    leak: names an engine-internal type
+  public org.chromium.ui.modaldialog.ModalDialogManager getModalDialogManager();
+    leak: names an engine-internal type
+  public void destroy();
+
+public final class com.cefrium.Cefrium
+  public static final java.lang.String VERSION;
+  public static final java.lang.String CHROMIUM_VERSION;
+  public static final java.lang.String EASYLIST_URL = "https://easylist.to/easylist/easylist.txt";
+  public static final java.lang.String SECURE_DNS_OFF = "off";
+  public static final java.lang.String SECURE_DNS_AUTOMATIC = "automatic";
+  public static final java.lang.String SECURE_DNS_SECURE = "secure";
+  public static synchronized void setComponentUpdatesEnabled(boolean);
+  public static synchronized void setDataDirectory(java.io.File);
+  public static synchronized java.io.File getDataDirectory();
+  public static synchronized boolean areComponentUpdatesEnabled();
+  public static synchronized void setLibraryPrefetchEnabled(boolean);
+  public static synchronized boolean isLibraryPrefetchEnabled();
+  public static synchronized void setGpuProcessEnabled(boolean);
+  public static synchronized boolean isGpuProcessEnabled();
+  public static synchronized void setNetworkTimeQueriesEnabled(boolean);
+  public static synchronized boolean areNetworkTimeQueriesEnabled();
+  public static synchronized void setDrmPreprovisioningAtStartupEnabled(boolean);
+  public static synchronized boolean isDrmPreprovisioningAtStartupEnabled();
+  public static synchronized void setNetLogFile(java.io.File);
+  public static com.cefrium.Cefrium$RendererServices getRendererServices();
+  public static synchronized void setupProcess(android.content.Context);
+  public static synchronized boolean initialize();
+  public static synchronized boolean initialize(android.content.Context);
+  public static synchronized void shutdown();
+  public static boolean isInitialized();
+  public static java.lang.String getVersion();
+  public static java.lang.String getChromiumVersion();
+  public static int loadAdBlockList(java.lang.String);
+  public static int loadYouTubeAdRules();
+  public static boolean setSecureDns(java.lang.String, java.lang.String);
+  public static void setRemoteDebuggingEnabled(boolean);
+  public static void downloadAndLoadEasyList(android.content.Context);
+  public static void downloadAndLoadEasyList(android.content.Context, com.cefrium.Cefrium$AdBlockListCallback);
+  public static void downloadAndLoadAdBlockList(android.content.Context, java.lang.String, com.cefrium.Cefrium$AdBlockListCallback);
+
+public interface com.cefrium.Cefrium$AdBlockListCallback
+  public abstract void onResult(int, java.lang.String);
+
+public final class com.cefrium.Cefrium$RendererServices
+  public final boolean javaless;
+  public final java.lang.String serviceName;
+  public final int count;
+  public java.lang.String toString();
+
+public interface com.cefrium.CefriumAudioHandler
+  public default void onAudioStreamStarted(int, int);
+  public default void onAudioStreamPacket(java.nio.ByteBuffer, int, long);
+  public default void onAudioStreamStopped();
+  public default void onAudioStreamError(java.lang.String);
+
+public class com.cefrium.CefriumBrowser
+  public static final int TERMINATION_ABNORMAL = 0;
+  public static final int TERMINATION_KILLED = 1;
+  public static final int TERMINATION_CRASHED = 2;
+  public static final int TERMINATION_OOM = 3;
+  public static final int QUERY_ERROR_ORIGIN_DENIED = -403;
+  public static final int SAME_SITE_UNSPECIFIED = 0;
+  public static final int SAME_SITE_NONE = 1;
+  public static final int SAME_SITE_LAX = 2;
+  public static final int SAME_SITE_STRICT = 3;
+  public static final int JS_DIALOG_ALERT = 0;
+  public static final int JS_DIALOG_CONFIRM = 1;
+  public static final int JS_DIALOG_PROMPT = 2;
+  public static final int PERMISSION_GEOLOCATION = 256;
+  public static final int PERMISSION_CAMERA = 4;
+  public static final int PERMISSION_MICROPHONE = 4096;
+  public static final int PERMISSION_NOTIFICATIONS = 32768;
+  public static final int PERMISSION_CLIPBOARD = 16;
+  public static final int PERMISSION_NFC = 1073741824;
+  public static final int SETTING_DEFAULT = 0;
+  public static final int SETTING_ALLOW = 1;
+  public static final int SETTING_BLOCK = 2;
+  public static final int SETTING_ASK = 3;
+  public static final java.lang.String PROXY_DIRECT = "direct";
+  public static final java.lang.String PROXY_SYSTEM = "system";
+  public static final java.lang.String PROXY_AUTO_DETECT = "auto_detect";
+  public static final java.lang.String PROXY_FIXED = "fixed_servers";
+  public static final java.lang.String PROXY_PAC = "pac_script";
+  public static final int DEVICE_BLUETOOTH = 0;
+  public static final int DEVICE_USB = 1;
+  public static final int DEVICE_SERIAL = 2;
+  public static final int QM_CAN_CUT = 2;
+  public static final int QM_CAN_COPY = 4;
+  public static final int QM_CAN_PASTE = 8;
+  public static final int TEXT_INPUT_MODE_DEFAULT = 0;
+  public static final int TEXT_INPUT_MODE_NONE = 1;
+  public static final int TEXT_INPUT_MODE_TEXT = 2;
+  public static final int TEXT_INPUT_MODE_TEL = 3;
+  public static final int TEXT_INPUT_MODE_URL = 4;
+  public static final int TEXT_INPUT_MODE_EMAIL = 5;
+  public static final int TEXT_INPUT_MODE_NUMERIC = 6;
+  public static final int TEXT_INPUT_MODE_DECIMAL = 7;
+  public static final int TEXT_INPUT_MODE_SEARCH = 8;
+  public static final int KEY_RAW_DOWN = 0;
+  public static final int KEY_DOWN = 1;
+  public static final int KEY_UP = 2;
+  public static final int KEY_CHAR = 3;
+  public static final int MOUSE_BUTTON_LEFT = 0;
+  public static final int MOUSE_BUTTON_MIDDLE = 1;
+  public static final int MOUSE_BUTTON_RIGHT = 2;
+  public static final int MOUSE_MODIFIER_SHIFT = 2;
+  public static final int MOUSE_MODIFIER_CTRL = 4;
+  public static final int MOUSE_MODIFIER_ALT = 8;
+  public com.cefrium.CefriumBrowser();
+  public com.cefrium.CefriumBrowser(int, int);
+  public com.cefrium.CefriumBrowser(int, int, float);
+  public com.cefrium.CefriumBrowser(int, int, float, com.cefrium.CefriumProfile);
+  public void setRenderHandler(com.cefrium.CefriumRenderHandler);
+  public void loadUrl(java.lang.String);
+  public void setBackgroundColor(int);
+  public void goBack();
+  public void goForward();
+  public void setPullToRefreshEnabled(boolean);
+  public void setDarkMode(boolean);
+  public void setMediaPlaybackRequiresUserGesture(boolean);
+  public boolean getMediaPlaybackRequiresUserGesture();
+  public com.cefrium.CefriumBrowser$ScriptHandler addDocumentStartJavaScript(java.lang.String, java.util.Set<java.lang.String>);
+  public void setCallback(com.cefrium.CefriumBrowser$Callback);
+  public void setOnUrlChangedListener(com.cefrium.CefriumBrowser$OnUrlChangedListener);
+  public void setOnTitleChangedListener(com.cefrium.CefriumBrowser$OnTitleChangedListener);
+  public void setOnFullscreenChangedListener(com.cefrium.CefriumBrowser$OnFullscreenChangedListener);
+  public void setOnRequestInterceptedListener(com.cefrium.CefriumBrowser$OnRequestInterceptedListener);
+  public java.lang.String getUrl();
+  public android.os.Bundle saveState();
+  public void restoreState(android.os.Bundle);
+  public byte[] serializeNavigationState();
+  public void restoreNavigationState(byte[]);
+  public void setOnLoadingStateChangedListener(com.cefrium.CefriumBrowser$OnLoadingStateChangedListener);
+  public void setOnRenderProcessTerminatedListener(com.cefrium.CefriumBrowser$OnRenderProcessTerminatedListener);
+  public void reload();
+  public void evaluateJavaScript(java.lang.String);
+  public void evaluateJavaScriptInFocusedFrame(java.lang.String);
+  public void evaluateJavaScript(java.lang.String, android.webkit.ValueCallback<java.lang.String>);
+  public void executeDevToolsMethod(java.lang.String, java.lang.String, com.cefrium.CefriumBrowser$DevToolsCallback);
+  public void setDevToolsEventListener(com.cefrium.CefriumBrowser$DevToolsEventListener);
+  public void setQueryHandler(com.cefrium.CefriumBrowser$QueryOriginPolicy, com.cefrium.CefriumBrowser$QueryHandler);
+  public void setCookie(java.lang.String, java.lang.String, java.lang.String);
+  public void setCookie(java.lang.String, java.lang.String, java.lang.String, boolean, boolean, int);
+  public void getCookies(java.lang.String, com.cefrium.CefriumBrowser$CookieCallback);
+  public void deleteCookies(java.lang.String, java.lang.String);
+  public void flushCookies();
+  public void clearCache();
+  public void printToPdf(java.lang.String, com.cefrium.CefriumBrowser$PdfCallback);
+  public void printToPdf(java.lang.String, double, double, boolean, com.cefrium.CefriumBrowser$PdfCallback);
+  public void setTextSelectionActionModeCallback(android.view.ActionMode$Callback);
+  public java.lang.String getSelectedText();
+  public void setPrintHandler(com.cefrium.CefriumBrowser$PrintHandler);
+  public android.print.PrintDocumentAdapter createPrintDocumentAdapter(java.lang.String);
+  public void print();
+  public void setUserAgentOverride(java.lang.String);
+  public void setJavaScriptEnabled(boolean);
+  public void setZoomLevel(double);
+  public void setPinchToZoomEnabled(boolean);
+  public boolean isPinchToZoomEnabled();
+  public void loadHtml(java.lang.String);
+  public void loadDataWithBaseUrl(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String);
+  public void loadHtmlWithBaseUrl(java.lang.String, java.lang.String);
+  public void postUrl(java.lang.String, byte[]);
+  public void stopLoading();
+  public void setRequestInterceptor(com.cefrium.CefriumBrowser$RequestInterceptor);
+  public void setJsDialogHandler(com.cefrium.CefriumBrowser$JsDialogHandler);
+  public void setPickerHandler(com.cefrium.CefriumPickerHandler);
+  public void setDialogActivity(android.app.Activity);
+  public void setPermissionHandler(com.cefrium.CefriumBrowser$PermissionHandler);
+  public void setContentSetting(java.lang.String, int, int);
+  public boolean setProxy(java.lang.String, java.lang.String);
+  public boolean setProxy(java.lang.String);
+  public boolean clearProxy();
+  public void setIdentityHandler(com.cefrium.CefriumIdentityHandler);
+  public void setDeviceChooserHandler(com.cefrium.CefriumBrowser$DeviceChooserHandler);
+  public void setSslErrorHandler(com.cefrium.CefriumBrowser$SslErrorHandler);
+  public void setHttpAuthHandler(com.cefrium.CefriumBrowser$HttpAuthHandler);
+  public void setPopupHandler(com.cefrium.CefriumBrowser$PopupHandler);
+  public boolean canGoBack();
+  public void suspendMedia();
+  public void resumeMedia();
+  public void setAudioMuted(boolean);
+  public boolean isAudioMuted();
+  public boolean isPlayingAudio();
+  public void setPageVisible(boolean);
+  public void stopAllMedia();
+  public void stopMediaSession();
+  public void onPause();
+  public void onResume();
+  public static void reapUnusedRenderers();
+  public static int activeRenderProcessCount();
+  public static int zeroFrameRenderProcessCount();
+  public static int totalRenderFrameHostCount();
+  public static int closedBrowserCount();
+  public static int liveBrowserCount();
+  public void close();
+  public void captureBitmap(com.cefrium.CefriumBrowser$BitmapCallback);
+  public void setSize(int, int);
+  public void invalidate();
+  public void imeSetComposition(java.lang.String, int, int);
+  public void imeCommitText(java.lang.String, int);
+  public void imeFinishComposingText(boolean);
+  public void imeCancelComposition();
+  public void sendKeyEvent(int, int, int, int, char);
+  public void sendKeyEvent(android.view.KeyEvent);
+  public void sendTouchEvent(int, float, float, int);
+  public void sendTouchDown(float, float);
+  public void sendTouchMove(float, float);
+  public void sendTouchUp(float, float);
+  public void sendTap(float, float);
+  public void sendSwipe(float, float, float, float, int);
+  public void sendMouseMove(int, int);
+  public void sendMouseMove(int, int, int);
+  public void sendMouseLeave(int, int);
+  public void sendMouseClick(int, int, int);
+  public void sendMouseClick(int, int, int, int, int);
+  public void sendLeftClick(int, int);
+  public void sendRightClick(int, int);
+  public void sendDoubleClick(int, int);
+  public void sendMouseDown(int, int, int, int);
+  public void sendMouseUp(int, int, int, int);
+  public void sendMouseWheel(int, int, int, int);
+  public void sendMouseWheel(int, int, int, int, int);
+  public void setAdBlockEnabled(boolean);
+  public int getBlockedCount();
+  public static com.cefrium.CefriumBrowser createWithSurface(android.app.Activity);
+  public static com.cefrium.CefriumBrowser createWithSurface(android.app.Activity, boolean);
+  public static com.cefrium.CefriumBrowser createWithSurface(android.app.Activity, com.cefrium.CefriumProfile);
+  public boolean isIncognito();
+  public com.cefrium.CefriumProfile getProfile();
+  public boolean onActivityResult(int, int, android.content.Intent);
+  public boolean onRequestPermissionsResult(int, java.lang.String[], int[]);
+  public android.widget.FrameLayout getSurfaceContainer();
+  public void setMediaSessionEnabled(boolean);
+  public void setMediaSessionActivity(android.app.PendingIntent);
+  public void setOnFindResultListener(com.cefrium.CefriumBrowser$OnFindResultListener);
+  public void find(java.lang.String, boolean, boolean, boolean);
+  public void stopFinding(boolean);
+  public void setOnDownloadListener(com.cefrium.CefriumBrowser$OnDownloadListener);
+  public void setDownloadHandler(com.cefrium.CefriumBrowser$CefriumDownloadHandler);
+  public void cancelDownload(int);
+  public void pauseDownload(int);
+  public void resumeDownload(int);
+  public void setDisplayHandler(com.cefrium.CefriumDisplayHandler);
+  public void setLoadHandler(com.cefrium.CefriumLoadHandler);
+  public void setResponseTapEnabled(boolean);
+  public void setCookieFilterEnabled(boolean);
+  public void setRequestHandler(com.cefrium.CefriumRequestHandler);
+  public void setKeyboardHandler(com.cefrium.CefriumKeyboardHandler);
+  public void setFocusHandler(com.cefrium.CefriumFocusHandler);
+  public void setDragHandler(com.cefrium.CefriumDragHandler);
+  public void setAudioHandler(com.cefrium.CefriumAudioHandler);
+  public void setFrameHandler(com.cefrium.CefriumFrameHandler);
+  public void setCommandHandler(com.cefrium.CefriumCommandHandler);
+  public void setDialogHandler(com.cefrium.CefriumDialogHandler);
+  public void fileDialogResult(long, java.lang.String[]);
+  public void downloadImage(java.lang.String, int, com.cefrium.CefriumBrowser$ImageCallback);
+  public void setFocus(boolean);
+  public void exitFullscreen();
+  public void startDownload(java.lang.String);
+  public java.util.List<com.cefrium.CefriumBrowser$NavigationEntry> getNavigationEntries();
+  public void setOnContextMenuListener(com.cefrium.CefriumBrowser$OnContextMenuListener);
+  public void contextMenuCommand(int);
+
+public interface com.cefrium.CefriumBrowser$BeforeDownloadCallback
+  public abstract void allow(java.lang.String);
+  public abstract void cancel();
+
+public interface com.cefrium.CefriumBrowser$BitmapCallback
+  public abstract void onBitmap(android.graphics.Bitmap);
+
+public class com.cefrium.CefriumBrowser$Callback
+  public com.cefrium.CefriumBrowser$Callback();
+  public void onUrlChanged(java.lang.String);
+  public void onTitleChanged(java.lang.String);
+  public void onLoadingStateChanged(boolean, boolean, boolean);
+  public void onFullscreenChanged(boolean);
+  public void onRequestIntercepted(java.lang.String, java.lang.String, boolean);
+  public void onFindResult(int, int);
+  public void onDownloadUpdated(java.lang.String, java.lang.String, int, boolean, boolean);
+  public void onContextMenu(java.lang.String, java.lang.String);
+
+public interface com.cefrium.CefriumBrowser$CefriumDownloadHandler
+  public abstract void onBeforeDownload(com.cefrium.CefriumBrowser$DownloadItem, com.cefrium.CefriumBrowser$BeforeDownloadCallback);
+  public abstract void onDownloadUpdated(com.cefrium.CefriumBrowser$DownloadItem);
+
+public final class com.cefrium.CefriumBrowser$ChooserDevice
+  public final java.lang.String id;
+  public final java.lang.String name;
+
+public final class com.cefrium.CefriumBrowser$Cookie
+  public final java.lang.String name;
+  public final java.lang.String value;
+  public final java.lang.String domain;
+  public final java.lang.String path;
+  public final boolean secure;
+  public final boolean httpOnly;
+  public com.cefrium.CefriumBrowser$Cookie(java.lang.String, java.lang.String, java.lang.String, java.lang.String, boolean, boolean);
+
+public interface com.cefrium.CefriumBrowser$CookieCallback
+  public abstract void onCookies(java.util.List<com.cefrium.CefriumBrowser$Cookie>);
+
+public interface com.cefrium.CefriumBrowser$DevToolsCallback
+  public abstract void onDevToolsResult(boolean, java.lang.String);
+
+public interface com.cefrium.CefriumBrowser$DevToolsEventListener
+  public abstract void onDevToolsEvent(java.lang.String, java.lang.String);
+
+public interface com.cefrium.CefriumBrowser$DeviceChooserHandler
+  public abstract void onShowDeviceChooser(com.cefrium.CefriumBrowser$DeviceChooserSession);
+  public abstract void onDeviceAdded(com.cefrium.CefriumBrowser$DeviceChooserSession, com.cefrium.CefriumBrowser$ChooserDevice);
+  public default void onDeviceRemoved(com.cefrium.CefriumBrowser$DeviceChooserSession, java.lang.String);
+  public abstract void onDeviceChooserClosed(com.cefrium.CefriumBrowser$DeviceChooserSession);
+
+public interface com.cefrium.CefriumBrowser$DeviceChooserSession
+  public abstract int getType();
+  public abstract java.lang.String getOrigin();
+  public abstract void select(java.lang.String);
+  public abstract void cancel();
+
+public final class com.cefrium.CefriumBrowser$DownloadItem
+  public int getId();
+  public java.lang.String getUrl();
+  public java.lang.String getSuggestedName();
+  public java.lang.String getMimeType();
+  public java.lang.String getFullPath();
+  public long getTotalBytes();
+  public long getReceivedBytes();
+  public long getCurrentSpeed();
+  public int getPercentComplete();
+  public boolean isComplete();
+  public boolean isCanceled();
+  public boolean isPaused();
+  public int getInterruptReason();
+  public boolean isInterrupted();
+  public void cancel();
+  public void pause();
+  public void resume();
+
+public interface com.cefrium.CefriumBrowser$HttpAuthCallback
+  public abstract void proceed(java.lang.String, java.lang.String);
+  public abstract void cancel();
+
+public interface com.cefrium.CefriumBrowser$HttpAuthHandler
+  public abstract void onHttpAuthRequest(java.lang.String, java.lang.String, int, boolean, com.cefrium.CefriumBrowser$HttpAuthCallback);
+
+public interface com.cefrium.CefriumBrowser$ImageCallback
+  public abstract void onImage(java.lang.String, android.graphics.Bitmap);
+
+public interface com.cefrium.CefriumBrowser$JsDialogCallback
+  public abstract void continueDialog(boolean, java.lang.String);
+
+public interface com.cefrium.CefriumBrowser$JsDialogHandler
+  public abstract boolean onJsDialog(int, java.lang.String, java.lang.String, com.cefrium.CefriumBrowser$JsDialogCallback);
+  public default boolean onBeforeUnloadDialog(java.lang.String, boolean, com.cefrium.CefriumBrowser$JsDialogCallback);
+  public default void onDialogResetState();
+  public default void onDialogClosed();
+
+public class com.cefrium.CefriumBrowser$NavigationEntry
+  public final boolean current;
+  public final java.lang.String url;
+  public final java.lang.String title;
+  public com.cefrium.CefriumBrowser$NavigationEntry(boolean, java.lang.String, java.lang.String);
+
+public interface com.cefrium.CefriumBrowser$OnContextMenuListener
+  public abstract void onContextMenu(java.lang.String, java.lang.String);
+
+public interface com.cefrium.CefriumBrowser$OnDownloadListener
+  public abstract void onDownloadUpdated(java.lang.String, java.lang.String, int, boolean, boolean);
+
+public interface com.cefrium.CefriumBrowser$OnFindResultListener
+  public abstract void onFindResult(int, int);
+
+public interface com.cefrium.CefriumBrowser$OnFullscreenChangedListener
+  public abstract void onFullscreenChanged(boolean);
+
+public interface com.cefrium.CefriumBrowser$OnLoadingStateChangedListener
+  public abstract void onLoadingStateChanged(boolean, boolean, boolean);
+
+public interface com.cefrium.CefriumBrowser$OnRenderProcessTerminatedListener
+  public abstract void onRenderProcessTerminated(int, int);
+
+public interface com.cefrium.CefriumBrowser$OnRequestInterceptedListener
+  public abstract void onRequestIntercepted(java.lang.String, java.lang.String, boolean);
+
+public interface com.cefrium.CefriumBrowser$OnTitleChangedListener
+  public abstract void onTitleChanged(java.lang.String);
+
+public interface com.cefrium.CefriumBrowser$OnUrlChangedListener
+  public abstract void onUrlChanged(java.lang.String);
+
+public interface com.cefrium.CefriumBrowser$PdfCallback
+  public abstract void onPdfPrinted(java.lang.String, boolean);
+
+public interface com.cefrium.CefriumBrowser$PermissionCallback
+  public abstract void respond(boolean);
+
+public interface com.cefrium.CefriumBrowser$PermissionHandler
+  public abstract void onPermissionRequest(java.lang.String, int, com.cefrium.CefriumBrowser$PermissionCallback);
+  public default void onDismissPermissionPrompt(long, int);
+
+public interface com.cefrium.CefriumBrowser$PopupHandler
+  public abstract boolean onOpenPopup(java.lang.String, boolean);
+  public default boolean onCreateWindow(com.cefrium.CefriumBrowser, java.lang.String, boolean);
+  public default void onCloseWindow(com.cefrium.CefriumBrowser);
+
+public interface com.cefrium.CefriumBrowser$PrintHandler
+  public abstract boolean onPrintRequested();
+
+public interface com.cefrium.CefriumBrowser$QueryCallback
+  public abstract void success(java.lang.String);
+  public abstract void failure(int, java.lang.String);
+
+public interface com.cefrium.CefriumBrowser$QueryHandler
+  public abstract boolean onQuery(long, java.lang.String, java.lang.String, com.cefrium.CefriumBrowser$QueryCallback);
+  public default boolean onQuery(long, java.lang.String, java.lang.String, boolean, com.cefrium.CefriumBrowser$QueryCallback);
+
+public interface com.cefrium.CefriumBrowser$QueryOriginPolicy
+  public abstract boolean allows(java.lang.String);
+  public default boolean allowsSubframes();
+  public default com.cefrium.CefriumBrowser$QueryOriginPolicy withSubframes();
+  public static java.lang.String originOf(java.lang.String);
+  public static com.cefrium.CefriumBrowser$QueryOriginPolicy exactly(java.lang.String...);
+  public static com.cefrium.CefriumBrowser$QueryOriginPolicy bundledAssets();
+  public static com.cefrium.CefriumBrowser$QueryOriginPolicy loopback();
+  public static com.cefrium.CefriumBrowser$QueryOriginPolicy anyOrigin();
+
+public final class com.cefrium.CefriumBrowser$QuickMenuCallback
+  public com.cefrium.CefriumBrowser$QuickMenuCallback(com.cefrium.CefriumBrowser);
+  public void cut();
+  public void copy();
+  public void paste();
+  public void cancel();
+
+public interface com.cefrium.CefriumBrowser$RequestInterceptor
+  public abstract boolean shouldBlockRequest(java.lang.String, java.lang.String, boolean);
+  public default boolean shouldBlockRequest(com.cefrium.CefriumBrowser$ResourceRequest);
+
+public final class com.cefrium.CefriumBrowser$ResourceRequest
+  public static final int TYPE_MAIN_FRAME = 0;
+  public static final int TYPE_SUB_FRAME = 1;
+  public static final int TYPE_STYLESHEET = 2;
+  public static final int TYPE_SCRIPT = 3;
+  public static final int TYPE_IMAGE = 4;
+  public static final int TYPE_FONT = 5;
+  public static final int TYPE_SUB_RESOURCE = 6;
+  public static final int TYPE_OBJECT = 7;
+  public static final int TYPE_MEDIA = 8;
+  public static final int TYPE_WORKER = 9;
+  public static final int TYPE_SHARED_WORKER = 10;
+  public static final int TYPE_PREFETCH = 11;
+  public static final int TYPE_FAVICON = 12;
+  public static final int TYPE_XHR = 13;
+  public static final int TYPE_PING = 14;
+  public static final int TYPE_SERVICE_WORKER = 15;
+  public static final int TYPE_CSP_REPORT = 16;
+  public static final int TYPE_PLUGIN_RESOURCE = 17;
+  public static final int TYPE_NAVIGATION_PRELOAD_MAIN_FRAME = 19;
+  public static final int TYPE_NAVIGATION_PRELOAD_SUB_FRAME = 20;
+  public final java.lang.String url;
+  public final java.lang.String method;
+  public final boolean isMainFrame;
+  public final int resourceType;
+  public final java.lang.String documentUrl;
+  public final java.lang.String topLevelUrl;
+
+public interface com.cefrium.CefriumBrowser$ScriptHandler
+  public abstract void remove();
+
+public interface com.cefrium.CefriumBrowser$SslErrorCallback
+  public abstract void proceed();
+  public abstract void cancel();
+
+public interface com.cefrium.CefriumBrowser$SslErrorHandler
+  public abstract void onSslError(java.lang.String, int, com.cefrium.CefriumBrowser$SslErrorCallback);
+
+public interface com.cefrium.CefriumCommandHandler
+  public default boolean onChromeCommand(int, int);
+
+public final class com.cefrium.CefriumContentRequest
+  public java.lang.String getMethod();
+  public java.lang.String getUrl();
+  public java.lang.String getPath();
+  public java.lang.String getQuery();
+  public java.lang.String getHeader(java.lang.String);
+  public java.util.Map<java.lang.String, java.lang.String> getHeaders();
+  public byte[] getBody();
+
+public final class com.cefrium.CefriumContentResponse
+  public com.cefrium.CefriumContentResponse(java.lang.String, java.io.InputStream);
+  public static com.cefrium.CefriumContentResponse ofText(java.lang.String, java.lang.String);
+  public com.cefrium.CefriumContentResponse setStatus(int, java.lang.String);
+  public com.cefrium.CefriumContentResponse setCharset(java.lang.String);
+  public com.cefrium.CefriumContentResponse setHeader(java.lang.String, java.lang.String);
+  public com.cefrium.CefriumContentResponse setContentLength(long);
+  public int getStatus();
+  public java.lang.String getReason();
+  public java.lang.String getMimeType();
+  public java.lang.String getCharset();
+  public java.lang.String getHeader(java.lang.String);
+  public java.util.Map<java.lang.String, java.lang.String> getHeaders();
+  public java.io.InputStream getBody();
+  public long getContentLength();
+
+public interface com.cefrium.CefriumContentServer
+  public abstract com.cefrium.CefriumContentResponse serve(com.cefrium.CefriumContentRequest) throws java.io.IOException;
+  public default com.cefrium.CefriumContentServer withResponseHeaders(java.util.Map<java.lang.String, java.lang.String>);
+
+public final class com.cefrium.CefriumContentServers
+  public static final java.lang.String WEBVIEW_ASSET_LOADER_ORIGIN = "https://appassets.androidplatform.net";
+  public static com.cefrium.CefriumContentServer assets(android.content.Context, java.lang.String);
+  public static com.cefrium.CefriumContentServer files(java.io.File);
+  public static com.cefrium.CefriumContentServer resources(android.content.Context);
+  public static java.lang.String mimeTypeOf(java.lang.String);
+
+public interface com.cefrium.CefriumDialogHandler
+  public static final int MODE_OPEN = 0;
+  public static final int MODE_OPEN_MULTIPLE = 1;
+  public static final int MODE_OPEN_FOLDER = 2;
+  public static final int MODE_SAVE = 3;
+  public abstract void onFileDialog(int, java.lang.String, java.lang.String[], com.cefrium.CefriumDialogHandler$FileDialogCallback);
+
+public interface com.cefrium.CefriumDialogHandler$FileDialogCallback
+  public abstract void select(java.lang.String[]);
+  public abstract void cancel();
+
+public interface com.cefrium.CefriumDisplayHandler
+  public default void onFaviconUrlChanged(java.lang.String[]);
+  public default void onLoadingProgress(double);
+  public default void onConsoleMessage(int, java.lang.String, java.lang.String, int);
+  public default void onStatusMessage(java.lang.String);
+  public default void onMediaAccessChange(boolean, boolean);
+
+public interface com.cefrium.CefriumDragHandler
+  public default boolean onDragEnter(int);
+  public default void onDraggableRegionsChanged(int[]);
+
+public interface com.cefrium.CefriumFocusHandler
+  public default void onTakeFocus(boolean);
+  public default boolean onSetFocus(int);
+  public default void onGotFocus();
+
+public interface com.cefrium.CefriumFrameHandler
+  public default void onFrameCreated(java.lang.String, boolean);
+  public default void onFrameDestroyed(java.lang.String, boolean);
+  public default void onFrameAttached(java.lang.String, boolean);
+  public default void onFrameDetached(java.lang.String, boolean);
+  public default void onMainFrameChanged(java.lang.String, boolean);
+
+public interface com.cefrium.CefriumIdentityHandler
+  public abstract boolean onShowAccountChooser(java.lang.String, java.util.List<com.cefrium.CefriumIdentityHandler$Account>, com.cefrium.CefriumIdentityHandler$Request);
+  public default void onAccountChooserClosed(com.cefrium.CefriumIdentityHandler$Request);
+
+public final class com.cefrium.CefriumIdentityHandler$Account
+  public final java.lang.String id;
+  public final java.lang.String name;
+  public final java.lang.String email;
+  public final java.lang.String pictureUrl;
+  public final java.lang.String identityProvider;
+  public final boolean returningUser;
+  public com.cefrium.CefriumIdentityHandler$Account(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, boolean);
+
+public interface com.cefrium.CefriumIdentityHandler$Request
+  public abstract void select(com.cefrium.CefriumIdentityHandler$Account);
+  public abstract void cancel();
+
+public final class com.cefrium.CefriumInitProvider extends android.content.ContentProvider
+  public com.cefrium.CefriumInitProvider();
+  public boolean onCreate();
+  public android.database.Cursor query(android.net.Uri, java.lang.String[], java.lang.String, java.lang.String[], java.lang.String);
+  public java.lang.String getType(android.net.Uri);
+  public android.net.Uri insert(android.net.Uri, android.content.ContentValues);
+  public int delete(android.net.Uri, java.lang.String, java.lang.String[]);
+  public int update(android.net.Uri, android.content.ContentValues, java.lang.String, java.lang.String[]);
+
+public interface com.cefrium.CefriumKeyboardHandler
+  public default boolean onPreKeyEvent(int, int, int);
+  public default boolean onKeyEvent(int, int, int);
+
+public interface com.cefrium.CefriumLoadHandler
+  public default void onLoadStart(java.lang.String);
+  public default void onLoadError(int, java.lang.String, java.lang.String);
+
+public class com.cefrium.CefriumMediaService extends android.app.Service
+  public com.cefrium.CefriumMediaService();
+  public int onStartCommand(android.content.Intent, int, int);
+  public android.os.IBinder onBind(android.content.Intent);
+
+public class com.cefrium.CefriumMediaSession
+
+public final class com.cefrium.CefriumPathContentServer implements com.cefrium.CefriumContentServer
+  public com.cefrium.CefriumContentResponse serve(com.cefrium.CefriumContentRequest) throws java.io.IOException;
+
+public final class com.cefrium.CefriumPathContentServer$Builder
+  public com.cefrium.CefriumPathContentServer$Builder();
+  public com.cefrium.CefriumPathContentServer$Builder addPath(java.lang.String, com.cefrium.CefriumContentServer);
+  public com.cefrium.CefriumPathContentServer build();
+
+public interface com.cefrium.CefriumPickerHandler
+  public static final int DATE = 8;
+  public static final int DATE_TIME_LOCAL = 10;
+  public static final int MONTH = 11;
+  public static final int TIME = 12;
+  public static final int WEEK = 13;
+  public default boolean onShowSelect(com.cefrium.CefriumPickerHandler$SelectItem[], int, boolean, com.cefrium.CefriumPickerHandler$SelectCallback);
+  public default boolean onShowDateTime(int, double, double, double, double, com.cefrium.CefriumPickerHandler$DateTimeCallback);
+  public default boolean onShowColor(int, int[], com.cefrium.CefriumPickerHandler$ColorCallback);
+
+public interface com.cefrium.CefriumPickerHandler$ColorCallback
+  public abstract void set(int);
+  public abstract void cancel();
+
+public interface com.cefrium.CefriumPickerHandler$DateTimeCallback
+  public abstract void set(double);
+  public abstract void cancel();
+
+public interface com.cefrium.CefriumPickerHandler$SelectCallback
+  public abstract void select(int[]);
+  public abstract void cancel();
+
+public final class com.cefrium.CefriumPickerHandler$SelectItem
+  public static final int OPTION = 0;
+  public static final int CHECKABLE_OPTION = 1;
+  public static final int GROUP = 2;
+  public static final int SEPARATOR = 3;
+  public final java.lang.String label;
+  public final int type;
+  public final boolean enabled;
+  public final boolean checked;
+  public com.cefrium.CefriumPickerHandler$SelectItem(java.lang.String, int, boolean, boolean);
+
+public final class com.cefrium.CefriumProfile
+  public static final java.lang.String WEBRTC_DEFAULT = "default";
+  public static final java.lang.String WEBRTC_DEFAULT_PUBLIC_AND_PRIVATE_INTERFACES = "default_public_and_private_interfaces";
+  public static final java.lang.String WEBRTC_DEFAULT_PUBLIC_INTERFACE_ONLY = "default_public_interface_only";
+  public static final java.lang.String WEBRTC_DISABLE_NON_PROXIED_UDP = "disable_non_proxied_udp";
+  public static final int DOWNLOAD_IN_PROGRESS = 0;
+  public static final int DOWNLOAD_COMPLETE = 1;
+  public static final int DOWNLOAD_CANCELED = 2;
+  public static final int DOWNLOAD_INTERRUPTED = 3;
+  public static com.cefrium.CefriumProfile getDefault();
+  public static com.cefrium.CefriumProfile incognito();
+  public static com.cefrium.CefriumProfile get(java.lang.String);
+  public java.lang.String getName();
+  public boolean isIncognito();
+  public java.io.File getDirectory();
+  public static boolean delete(java.lang.String);
+  public void listSiteData(com.cefrium.CefriumProfile$SiteDataCallback);
+  public void clearSiteData(java.lang.String, java.lang.Runnable);
+  public void followDefaultProfile();
+  public boolean setProxy(java.lang.String, java.lang.String);
+  public boolean setProxy(java.lang.String);
+  public boolean clearProxy();
+  public boolean setWebRtcIpHandlingPolicy(java.lang.String);
+  public void registerContentServer(java.lang.String, com.cefrium.CefriumContentServer);
+  public void unregisterContentServer(java.lang.String);
+  public boolean setAdBlockExceptions(java.util.Collection<java.lang.String>);
+  public void setProxyErrorListener(com.cefrium.CefriumProfile$ProxyErrorListener);
+  public void getDownloads(com.cefrium.CefriumProfile$DownloadsCallback);
+  public boolean setDownloadObserver(com.cefrium.CefriumProfile$DownloadObserver);
+  public boolean equals(java.lang.Object);
+  public int hashCode();
+
+public final class com.cefrium.CefriumProfile$Download
+  public java.lang.String getGuid();
+  public java.lang.String getUrl();
+  public java.lang.String getPath();
+  public java.lang.String getMimeType();
+  public int getState();
+  public int getInterruptReason();
+  public long getReceivedBytes();
+  public long getTotalBytes();
+  public long getStartTime();
+  public long getEndTime();
+  public boolean isPaused();
+  public boolean canResume();
+  public com.cefrium.CefriumProfile getProfile();
+  public boolean cancel();
+  public boolean pause();
+  public boolean resume();
+  public boolean remove();
+
+public interface com.cefrium.CefriumProfile$DownloadObserver
+  public abstract void onDownloadUpdated(com.cefrium.CefriumProfile$Download);
+
+public interface com.cefrium.CefriumProfile$DownloadsCallback
+  public abstract void onDownloads(java.util.List<com.cefrium.CefriumProfile$Download>);
+
+public interface com.cefrium.CefriumProfile$ProxyErrorListener
+  public abstract void onProxyError(com.cefrium.CefriumBrowser, java.lang.String, int, boolean);
+
+public final class com.cefrium.CefriumProfile$SiteData
+  public final java.lang.String site;
+  public final long storageBytes;
+  public final long cookieCount;
+
+public interface com.cefrium.CefriumProfile$SiteDataCallback
+  public abstract void onSiteData(java.util.List<com.cefrium.CefriumProfile$SiteData>);
+
+public final class com.cefrium.CefriumPush
+  public static boolean isWebPushMessage(android.os.Bundle);
+  public static boolean handleMessage(android.content.Context, java.lang.String, android.os.Bundle);
+  public static void setTransport(com.cefrium.CefriumPushTransport);
+  public static boolean deliverMessage(android.content.Context, java.lang.String, byte[]);
+
+public class com.cefrium.CefriumPushService extends com.google.firebase.messaging.FirebaseMessagingService
+  public com.cefrium.CefriumPushService();
+  public void onMessageReceived(com.google.firebase.messaging.RemoteMessage);
+
+public abstract class com.cefrium.CefriumPushTransport
+  public com.cefrium.CefriumPushTransport();
+  public abstract java.lang.String subscribe(java.lang.String, java.lang.String) throws java.io.IOException;
+  public abstract void unsubscribe(java.lang.String) throws java.io.IOException;
+
+public class com.cefrium.CefriumRelayTransport extends com.cefrium.CefriumPushTransport
+  public com.cefrium.CefriumRelayTransport(java.lang.String, java.lang.String);
+  public java.lang.String subscribe(java.lang.String, java.lang.String) throws java.io.IOException;
+  public void unsubscribe(java.lang.String);
+  protected java.lang.String getToken() throws java.io.IOException;
+
+public interface com.cefrium.CefriumRenderHandler
+  public abstract void onPaint(int, int, java.nio.ByteBuffer);
+  public default void onVirtualKeyboardRequested(int);
+  public default void onFocusedNodeChanged(boolean, java.lang.String, java.lang.String, java.lang.String);
+  public default void onQuickMenu(int, int, int, int, int, com.cefrium.CefriumBrowser$QuickMenuCallback);
+  public default void onTouchHandleChanged(com.cefrium.CefriumRenderHandler$TouchHandle);
+  [deprecated] public default void onTouchHandleStateChanged(int, int, int, boolean);
+  public default void onPopupPaint(int, int, int, int, java.nio.ByteBuffer);
+  public default void onPopupShow(boolean);
+  public default void onPopupSize(int, int, int, int);
+  public default void onImeCompositionRangeChanged(int, int, int, int);
+  public default void onTextSelectionChanged(java.lang.String);
+  public default void onScrollOffsetChanged(double, double);
+
+public final class com.cefrium.CefriumRenderHandler$TouchHandle
+  public static final int LEFT = 0;
+  public static final int CENTER = 1;
+  public static final int RIGHT = 2;
+  public static final int SIZE = 40;
+  public final int id;
+  public final boolean enabled;
+  public final int orientation;
+  public final boolean mirrorVertical;
+  public final boolean mirrorHorizontal;
+  public final int x;
+  public final int y;
+  public final float alpha;
+
+public interface com.cefrium.CefriumRequestHandler
+  public default void onOpenUrlFromTab(java.lang.String, int, boolean);
+  public default void onRenderUnresponsive();
+  public default void onRenderResponsive();
+  public default void onRenderViewReady();
+  public default void onDocumentAvailable();
+  public default void onSelectClientCertificate(boolean, java.lang.String, int, java.lang.String[], com.cefrium.CefriumRequestHandler$ClientCertificateCallback);
+  public default void onResourceRedirect(java.lang.String, java.lang.String);
+  public default void onResourceResponse(java.lang.String, int);
+  public default void onResourceLoadComplete(java.lang.String, int, long);
+  public default void onResponseData(java.lang.String, java.nio.ByteBuffer);
+  public default boolean onCanSendCookie(java.lang.String, java.lang.String, java.lang.String);
+  public default boolean onCanSaveCookie(java.lang.String, java.lang.String, java.lang.String);
+
+public interface com.cefrium.CefriumRequestHandler$ClientCertificateCallback
+  public abstract void select(int);
+  public abstract void cancel();
+
+public class com.cefrium.CefriumSurfaceContainer extends android.widget.FrameLayout implements androidx.core.view.NestedScrollingChild3
+  public com.cefrium.CefriumSurfaceContainer(android.content.Context);
+  public void onWindowFocusChanged(boolean);
+  public boolean onInterceptTouchEvent(android.view.MotionEvent);
+  public boolean onTouchEvent(android.view.MotionEvent);
+  public void setNestedScrollingEnabled(boolean);
+  public boolean isNestedScrollingEnabled();
+  public boolean startNestedScroll(int);
+  public void stopNestedScroll();
+  public boolean hasNestedScrollingParent();
+  public boolean dispatchNestedScroll(int, int, int, int, int[]);
+  public boolean dispatchNestedPreScroll(int, int, int[], int[]);
+  public boolean dispatchNestedFling(float, float, boolean);
+  public boolean dispatchNestedPreFling(float, float);
+  public boolean startNestedScroll(int, int);
+  public void stopNestedScroll(int);
+  public boolean hasNestedScrollingParent(int);
+  public boolean dispatchNestedScroll(int, int, int, int, int[], int);
+  public boolean dispatchNestedPreScroll(int, int, int[], int[], int);
+  public void dispatchNestedScroll(int, int, int, int, int[], int, int[]);
+
+public final class com.cefrium.ChildServices
+  leak: public class not named Cefrium*
+
+public class com.cefrium.ChildServices$Privileged0 extends org.chromium.content.app.PrivilegedProcessService
+  public com.cefrium.ChildServices$Privileged0();
+
+public class com.cefrium.ChildServices$Privileged1 extends org.chromium.content.app.PrivilegedProcessService
+  public com.cefrium.ChildServices$Privileged1();
+
+public class com.cefrium.ChildServices$Privileged2 extends org.chromium.content.app.PrivilegedProcessService
+  public com.cefrium.ChildServices$Privileged2();
+
+public class com.cefrium.ChildServices$Sandboxed0 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed0();
+
+public class com.cefrium.ChildServices$Sandboxed1 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed1();
+
+public class com.cefrium.ChildServices$Sandboxed10 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed10();
+
+public class com.cefrium.ChildServices$Sandboxed11 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed11();
+
+public class com.cefrium.ChildServices$Sandboxed12 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed12();
+
+public class com.cefrium.ChildServices$Sandboxed13 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed13();
+
+public class com.cefrium.ChildServices$Sandboxed14 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed14();
+
+public class com.cefrium.ChildServices$Sandboxed15 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed15();
+
+public class com.cefrium.ChildServices$Sandboxed16 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed16();
+
+public class com.cefrium.ChildServices$Sandboxed17 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed17();
+
+public class com.cefrium.ChildServices$Sandboxed18 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed18();
+
+public class com.cefrium.ChildServices$Sandboxed19 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed19();
+
+public class com.cefrium.ChildServices$Sandboxed2 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed2();
+
+public class com.cefrium.ChildServices$Sandboxed20 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed20();
+
+public class com.cefrium.ChildServices$Sandboxed21 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed21();
+
+public class com.cefrium.ChildServices$Sandboxed22 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed22();
+
+public class com.cefrium.ChildServices$Sandboxed23 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed23();
+
+public class com.cefrium.ChildServices$Sandboxed24 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed24();
+
+public class com.cefrium.ChildServices$Sandboxed25 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed25();
+
+public class com.cefrium.ChildServices$Sandboxed26 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed26();
+
+public class com.cefrium.ChildServices$Sandboxed27 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed27();
+
+public class com.cefrium.ChildServices$Sandboxed28 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed28();
+
+public class com.cefrium.ChildServices$Sandboxed29 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed29();
+
+public class com.cefrium.ChildServices$Sandboxed3 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed3();
+
+public class com.cefrium.ChildServices$Sandboxed30 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed30();
+
+public class com.cefrium.ChildServices$Sandboxed31 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed31();
+
+public class com.cefrium.ChildServices$Sandboxed32 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed32();
+
+public class com.cefrium.ChildServices$Sandboxed33 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed33();
+
+public class com.cefrium.ChildServices$Sandboxed34 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed34();
+
+public class com.cefrium.ChildServices$Sandboxed35 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed35();
+
+public class com.cefrium.ChildServices$Sandboxed36 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed36();
+
+public class com.cefrium.ChildServices$Sandboxed37 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed37();
+
+public class com.cefrium.ChildServices$Sandboxed38 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed38();
+
+public class com.cefrium.ChildServices$Sandboxed39 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed39();
+
+public class com.cefrium.ChildServices$Sandboxed4 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed4();
+
+public class com.cefrium.ChildServices$Sandboxed5 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed5();
+
+public class com.cefrium.ChildServices$Sandboxed6 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed6();
+
+public class com.cefrium.ChildServices$Sandboxed7 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed7();
+
+public class com.cefrium.ChildServices$Sandboxed8 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed8();
+
+public class com.cefrium.ChildServices$Sandboxed9 extends org.chromium.content.app.SandboxedProcessService
+  public com.cefrium.ChildServices$Sandboxed9();
+
+public final class com.cefrium.payments.CefPaymentInterfaceRegistrar
+  leak: public class not named Cefrium*
+  public static void register();
+
+public class com.cefrium.payments.CefPaymentRequestFactory implements org.chromium.services.service_manager.InterfaceFactory<org.chromium.payments.mojom.PaymentRequest>
+  leak: public class not named Cefrium*
+  leak: extends or implements an engine-internal type
+  public com.cefrium.payments.CefPaymentRequestFactory(org.chromium.content_public.browser.RenderFrameHost);
+    leak: names an engine-internal type
+  public org.chromium.payments.mojom.PaymentRequest createImpl();
+    leak: names an engine-internal type
+
+public final class com.cefrium.webauthn.CefAuthenticatorInterfaceRegistrar
+  leak: public class not named Cefrium*
+  public static void register();
