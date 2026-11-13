@@ -45,10 +45,10 @@ N="$("$ADB" devices 2>/dev/null | grep -c 'device$')"
 REGISTRY_VERSION=""
 [ "${1:-}" = "--registry" ] && { REGISTRY_VERSION="${2:?--registry needs a version}"; shift 2; }
 
-SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive kiosk-automotive-v2 kiosk-signage loaddata-baseurl osr-hud firebase-coexistence nested-scroll kotlin-arrow-sample profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process permissions sign-in printing"
+SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive kiosk-automotive-v2 kiosk-signage loaddata-baseurl osr-hud firebase-coexistence nested-scroll kotlin-arrow-sample profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process permissions sign-in printing app-content unifiedpush-demo"
 # Samples that write files/verdict.txt: launching without a crash is not enough
 # for them, the verdict must read PASS.
-VERDICT_SAMPLES="firebase-coexistence nested-scroll profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process permissions sign-in"
+VERDICT_SAMPLES="firebase-coexistence nested-scroll profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process permissions sign-in app-content"
 # Launch extras for samples that only run their check when asked.
 launch_extras() { case "$1" in sign-in) echo "--ez auto true" ;; esac; }
 # Samples whose launcher icon is a menu: start an activity that runs the engine.
@@ -57,7 +57,13 @@ launch_activity() { case "$1" in java-sample) echo ".AdBlockActivity" ;; esac; }
 FRESH_SAMPLES="engine-contacts drm-provisioning"
 # CEFRIUM_SMOKE_ONLY=<sample> runs just that one, for iterating on it. Not a
 # gate: a cut never sets it.
-if [ -n "${CEFRIUM_SMOKE_ONLY:-}" ]; then
+# feature-delivery is a scenario, not a launch (see the end): it installs as
+# Play splits and builds only against a published version (--registry).
+SCENARIO_FEATURE_DELIVERY=1
+if [ "${CEFRIUM_SMOKE_ONLY:-}" = feature-delivery ]; then
+  SAMPLES=""
+elif [ -n "${CEFRIUM_SMOKE_ONLY:-}" ]; then
+  SCENARIO_FEATURE_DELIVERY=""
   case " $SAMPLES " in
     *" $CEFRIUM_SMOKE_ONLY "*) SAMPLES="$CEFRIUM_SMOKE_ONLY" ;;
     *) echo "ERROR: CEFRIUM_SMOKE_ONLY: no sample '$CEFRIUM_SMOKE_ONLY'" >&2; exit 1 ;;
@@ -225,6 +231,20 @@ case " $SAMPLES " in *" java-sample "*)
     fails=$((fails+1))
   fi ;;
 esac
+# feature-delivery installs the app without the engine, then the engine split
+# as Play does, and needs a page rendered from it. Its modules resolve from a
+# Maven repository, so it runs on a published version only.
+if [ -n "$SCENARIO_FEATURE_DELIVERY" ] && [ -n "$REGISTRY_VERSION" ]; then
+  if ADB="$ADB" BUNDLETOOL="$SRC/third_party/android_build_tools/bundletool/cipd/bundletool.jar" \
+     "$ROOT/cefrium-sample/feature-delivery/run.sh" "-PcefriumVersion=$REGISTRY_VERSION" \
+     >"$LOGDIR/feature-delivery.log" 2>&1; then
+    echo "  feature-delivery (engine as a Play split): OK"
+  else
+    echo "  feature-delivery (engine as a Play split): FAIL -- $(tail -1 "$LOGDIR/feature-delivery.log")"
+    echo "      log: $LOGDIR/feature-delivery.log"
+    fails=$((fails+1))
+  fi
+fi
 echo "=== $((fails)) failure(s) ==="
 [ "$fails" -eq 0 ] || { echo "Sample smoke FAILED -- do not publish."; exit 1; }
 echo "All samples build + launch clean on device."
