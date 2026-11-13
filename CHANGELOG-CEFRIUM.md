@@ -15,6 +15,22 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [Unreleased]
+
+### Changed
+- **`onRequestIntercepted` is called on the UI thread** (`Callback` and
+  `OnRequestInterceptedListener`), like the rest of `Callback`, with the
+  request's whole URL. It ran on the network thread, so updating a view from
+  it threw, and URLs were cut at 200 characters.
+
+### Fixed
+- Touch injected into a surface browser (`sendTouchDown`/`Move`/`Up`,
+  `sendTap`) reaches the page as a finger: `pointerType` was empty.
+- Javadoc: the units of injected touch and mouse input are now stated per
+  mode. Late startup setters throw (the docs said they log a warning);
+  `reload()` revalidates the cache (the docs said it ignores it);
+  `setDarkMode` can be called right after creation.
+
 ## [0.20.0] - 2026-11-12
 
 Engine: **Chromium 156.0.8078.88 / CEF branch 8078** (was 156.0.8078.80; Chrome's
