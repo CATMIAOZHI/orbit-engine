@@ -1680,7 +1680,7 @@ Java_com_cefrium_CefriumBrowser_nativeCanGoBack(
   return false;
 }
 
-// Dark mode via CEF API: CefRequestContext::SetChromeColorSchemeMode.
+// Dark mode: prefers-color-scheme for this browser.
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeSetDarkMode(
     JNIEnv* env, jclass clazz, jlong native_ptr, jboolean dark) {

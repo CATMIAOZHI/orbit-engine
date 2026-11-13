@@ -369,7 +369,8 @@ class CefriumNavigator {
     }
 
     /**
-     * Configures the proxy for this browser's request context. [mode] is one of
+     * Configures the proxy of this browser's PROFILE (every browser of the profile
+     * uses it; see `CefriumBrowser.setProxy`). [mode] is one of
      * `CefriumBrowser.PROXY_*`; [server] is `"host:port"` for fixed servers, the
      * PAC URL for `PROXY_PAC`, ignored otherwise. Returns false if not applied.
      */

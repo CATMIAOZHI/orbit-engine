@@ -473,7 +473,7 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
       blocked_count_++;
     }
     if (env && intercepted_ && (observers & kInterceptListener)) {
-      jstring ju = env->NewStringUTF(url.substr(0, 200).c_str());
+      jstring ju = env->NewStringUTF(url.c_str());
       jstring jm = env->NewStringUTF(request->GetMethod().ToString().c_str());
       env->CallVoidMethod(jb, intercepted_, ju, jm, blocked);
       env->DeleteLocalRef(ju);
