@@ -195,6 +195,12 @@ public class CefriumContentServerTest {
     @Test
     public void unregisteredOriginIsNotServed() throws Exception {
         load(offscreen(), ORIGIN + "/read.html", "read:");
+        // The first page's own requests (its favicon comes after the load)
+        // settle before the unregister, so only the second page is counted.
+        for (int n = -1; n != asked.size(); ) {
+            n = asked.size();
+            Thread.sleep(1000);
+        }
         onMain(() -> CefriumProfile.getDefault().unregisterContentServer(ORIGIN));
         int before = asked.size();
         AtomicReference<CefriumBrowser> b = offscreen();
