@@ -462,6 +462,13 @@ if run stats;   then hdr "consumer-doc figures"
   # A framework call above minSdk without a version check crashes only on the
   # older Android versions, which the release devices do not run (issue #17).
   cef/cefrium_sdk/check-api-levels.sh
+  # The public API must be exactly the committed baseline (FEATURE-092): an
+  # API change lands with its regenerated api/*.api file, or the cut stops.
+  python3 cef/cefrium_sdk/api-dump.py --check out/release/cefrium-sdk.aar \
+    cef/cefrium_sdk/api/cefrium-sdk.api
+  python3 cef/cefrium_sdk/api-dump.py --check \
+    cef/cefrium_compose/build/outputs/aar/cefrium-compose-release.aar \
+    cef/cefrium_sdk/api/cefrium-compose.api
 fi
 if run sanity;  then hdr "local sanity (push-demo on the fresh AAR)"
   cp out/release/cefrium-sdk.aar "$ROOT/cefrium-sample/push-demo/app/libs/cefrium-sdk.aar"
