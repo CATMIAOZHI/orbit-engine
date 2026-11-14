@@ -873,8 +873,56 @@ class SdkDownloadHandler : public CefDownloadHandler {
     jclass cls = env->GetObjectClass(java_browser_);
     jmethodID method = env->GetMethodID(cls, "onDownloadUpdatedRich",
         "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
-        "JJIJZZZI)V");
+        "JJIJZZZII)V");
     if (!method) return;
+    // FEATURE-092: CefriumDownloadInterruptReason ordinal (NONE, FILE,
+    // NETWORK, SERVER, USER, OTHER), mapped by name: CEF's 30 values collapse
+    // to what an app can act on.
+    jint kind = 5;
+    switch (item->GetInterruptReason()) {
+      case CEF_DOWNLOAD_INTERRUPT_REASON_NONE:
+        kind = 0;
+        break;
+      case CEF_DOWNLOAD_INTERRUPT_REASON_FILE_FAILED:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_FILE_ACCESS_DENIED:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_FILE_NO_SPACE:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_FILE_NAME_TOO_LONG:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_FILE_TOO_LARGE:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_FILE_VIRUS_INFECTED:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_FILE_TRANSIENT_ERROR:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_FILE_BLOCKED:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_FILE_SECURITY_CHECK_FAILED:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_FILE_TOO_SHORT:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_FILE_HASH_MISMATCH:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_FILE_SAME_AS_SOURCE:
+        kind = 1;
+        break;
+      case CEF_DOWNLOAD_INTERRUPT_REASON_NETWORK_FAILED:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_NETWORK_TIMEOUT:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_NETWORK_DISCONNECTED:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_NETWORK_SERVER_DOWN:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_NETWORK_INVALID_REQUEST:
+        kind = 2;
+        break;
+      case CEF_DOWNLOAD_INTERRUPT_REASON_SERVER_FAILED:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_SERVER_NO_RANGE:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_SERVER_BAD_CONTENT:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_SERVER_UNAUTHORIZED:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_SERVER_CERT_PROBLEM:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_SERVER_FORBIDDEN:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_SERVER_UNREACHABLE:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_SERVER_CONTENT_LENGTH_MISMATCH:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_SERVER_CROSS_ORIGIN_REDIRECT:
+        kind = 3;
+        break;
+      case CEF_DOWNLOAD_INTERRUPT_REASON_USER_CANCELED:
+      case CEF_DOWNLOAD_INTERRUPT_REASON_USER_SHUTDOWN:
+        kind = 4;
+        break;
+      default:
+        kind = 5;
+        break;
+    }
     jstring j_url = env->NewStringUTF(item->GetURL().ToString().c_str());
     jstring j_name = env->NewStringUTF(name.c_str());
     jstring j_mime = env->NewStringUTF(item->GetMimeType().ToString().c_str());
@@ -886,7 +934,7 @@ class SdkDownloadHandler : public CefDownloadHandler {
         item->GetPercentComplete(),
         static_cast<jlong>(item->GetCurrentSpeed()),
         item->IsComplete(), item->IsCanceled(), item->IsPaused(),
-        static_cast<jint>(item->GetInterruptReason()));
+        static_cast<jint>(item->GetInterruptReason()), kind);
     env->DeleteLocalRef(j_url);
     env->DeleteLocalRef(j_name);
     env->DeleteLocalRef(j_mime);
