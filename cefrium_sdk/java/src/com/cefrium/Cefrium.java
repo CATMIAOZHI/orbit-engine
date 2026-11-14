@@ -941,17 +941,25 @@ public final class Cefrium {
         return nativeLoadYouTubeAdRules();
     }
 
-    /** Secure DNS off: the system resolver, as Chrome's "off". */
+    /**
+     * Secure DNS off: the system resolver, as Chrome's "off".
+     * @deprecated Use {@link CefriumSecureDnsMode#OFF}.
+     */
+    @Deprecated
     public static final String SECURE_DNS_OFF = "off";
     /**
      * Use DNS over HTTPS when the system's resolver has a provider that offers
      * it, and the system resolver otherwise; Chrome's default.
+     * @deprecated Use {@link CefriumSecureDnsMode#AUTOMATIC}.
      */
+    @Deprecated
     public static final String SECURE_DNS_AUTOMATIC = "automatic";
     /**
      * Only DNS over HTTPS through the given servers: if they cannot be reached,
      * names do not resolve.
+     * @deprecated Use {@link CefriumSecureDnsMode#SECURE}.
      */
+    @Deprecated
     public static final String SECURE_DNS_SECURE = "secure";
 
     /**
@@ -965,13 +973,32 @@ public final class Cefrium {
      *                  null or empty for none. Required for secure mode.
      * @return false if the mode or a template is not valid.
      * @throws IllegalStateException if not called on the main thread.
+     * @deprecated Use {@link #setSecureDns(CefriumSecureDnsMode, String)}.
      */
+    @Deprecated
     public static boolean setSecureDns(String mode, String templates) {
         if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
             throw new IllegalStateException("setSecureDns must be called on the main thread");
         }
         ensureInitialized();
         return nativeSetSecureDns(mode == null ? "" : mode, templates == null ? "" : templates);
+    }
+
+    /**
+     * Chrome's secure DNS (DNS over HTTPS) setting, for every browser of the
+     * app, kept across runs.
+     *
+     * @param templates DoH server URI templates (RFC 8484), separated by
+     *     spaces; null or empty for none. Required for
+     *     {@link CefriumSecureDnsMode#SECURE}.
+     * @return false if a template is not valid.
+     * @throws IllegalStateException if not called on the main thread.
+     */
+    @CefriumExperimental
+    @SuppressWarnings("deprecation")
+    public static boolean setSecureDns(CefriumSecureDnsMode mode, String templates) {
+        if (mode == null) throw new IllegalArgumentException("mode must not be null");
+        return setSecureDns(mode.pref, templates);
     }
 
     /**

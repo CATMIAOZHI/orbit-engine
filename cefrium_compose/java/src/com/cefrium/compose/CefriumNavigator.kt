@@ -443,6 +443,8 @@ class CefriumNavigator {
      * `CefriumBrowser.PROXY_*`; [server] is `"host:port"` for fixed servers, the
      * PAC URL for `PROXY_PAC`, ignored otherwise. Returns false if not applied.
      */
+    @Deprecated("The proxy is the profile's: CefriumProfile.setProxy(CefriumProxyMode, server)")
+    @Suppress("DEPRECATION")
     fun setProxy(mode: String, server: String?): Boolean {
         checkMainThread("setProxy")
         return state?.browser?.setProxy(mode, server) ?: false

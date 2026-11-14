@@ -33,9 +33,9 @@ public final class com.cefrium.Cefrium
   public static final java.lang.String VERSION;
   public static final java.lang.String CHROMIUM_VERSION;
   public static final java.lang.String EASYLIST_URL = "https://easylist.to/easylist/easylist.txt";
-  public static final java.lang.String SECURE_DNS_OFF = "off";
-  public static final java.lang.String SECURE_DNS_AUTOMATIC = "automatic";
-  public static final java.lang.String SECURE_DNS_SECURE = "secure";
+  [deprecated] public static final java.lang.String SECURE_DNS_OFF = "off";
+  [deprecated] public static final java.lang.String SECURE_DNS_AUTOMATIC = "automatic";
+  [deprecated] public static final java.lang.String SECURE_DNS_SECURE = "secure";
   public static synchronized void setComponentUpdatesEnabled(boolean);
   public static synchronized void setDataDirectory(java.io.File);
   public static synchronized java.io.File getDataDirectory();
@@ -59,7 +59,8 @@ public final class com.cefrium.Cefrium
   public static java.lang.String getChromiumVersion();
   public static int loadAdBlockList(java.lang.String);
   public static int loadYouTubeAdRules();
-  public static boolean setSecureDns(java.lang.String, java.lang.String);
+  [deprecated] public static boolean setSecureDns(java.lang.String, java.lang.String);
+  [experimental] public static boolean setSecureDns(com.cefrium.CefriumSecureDnsMode, java.lang.String);
   [experimental] public static void setRemoteDebuggingEnabled(boolean);
   public static void downloadAndLoadEasyList(android.content.Context);
   public static void downloadAndLoadEasyList(android.content.Context, com.cefrium.Cefrium$AdBlockListCallback);
@@ -103,11 +104,11 @@ public class com.cefrium.CefriumBrowser
   [deprecated] public static final int SETTING_ALLOW = 1;
   [deprecated] public static final int SETTING_BLOCK = 2;
   [deprecated] public static final int SETTING_ASK = 3;
-  public static final java.lang.String PROXY_DIRECT = "direct";
-  public static final java.lang.String PROXY_SYSTEM = "system";
-  public static final java.lang.String PROXY_AUTO_DETECT = "auto_detect";
-  public static final java.lang.String PROXY_FIXED = "fixed_servers";
-  public static final java.lang.String PROXY_PAC = "pac_script";
+  [deprecated] public static final java.lang.String PROXY_DIRECT = "direct";
+  [deprecated] public static final java.lang.String PROXY_SYSTEM = "system";
+  [deprecated] public static final java.lang.String PROXY_AUTO_DETECT = "auto_detect";
+  [deprecated] public static final java.lang.String PROXY_FIXED = "fixed_servers";
+  [deprecated] public static final java.lang.String PROXY_PAC = "pac_script";
   public static final int DEVICE_BLUETOOTH = 0;
   public static final int DEVICE_USB = 1;
   public static final int DEVICE_SERIAL = 2;
@@ -201,9 +202,9 @@ public class com.cefrium.CefriumBrowser
   [experimental] public void setChromeClient(com.cefrium.CefriumChromeClient);
   [experimental] public void setContentSetting(java.lang.String, com.cefrium.CefriumPermission, com.cefrium.CefriumContentSetting);
   [deprecated] public void setContentSetting(java.lang.String, int, int);
-  public boolean setProxy(java.lang.String, java.lang.String);
-  public boolean setProxy(java.lang.String);
-  public boolean clearProxy();
+  [deprecated] public boolean setProxy(java.lang.String, java.lang.String);
+  [deprecated] public boolean setProxy(java.lang.String);
+  [deprecated] public boolean clearProxy();
   [experimental] public void setIdentityHandler(com.cefrium.CefriumIdentityHandler);
   public void setDeviceChooserHandler(com.cefrium.CefriumBrowser$DeviceChooserHandler);
   [deprecated] public void setSslErrorHandler(com.cefrium.CefriumBrowser$SslErrorHandler);
@@ -854,10 +855,10 @@ public final class com.cefrium.CefriumPickerHandler$SelectItem
   public com.cefrium.CefriumPickerHandler$SelectItem(java.lang.String, int, boolean, boolean);
 
 public final class com.cefrium.CefriumProfile
-  public static final java.lang.String WEBRTC_DEFAULT = "default";
-  public static final java.lang.String WEBRTC_DEFAULT_PUBLIC_AND_PRIVATE_INTERFACES = "default_public_and_private_interfaces";
-  public static final java.lang.String WEBRTC_DEFAULT_PUBLIC_INTERFACE_ONLY = "default_public_interface_only";
-  public static final java.lang.String WEBRTC_DISABLE_NON_PROXIED_UDP = "disable_non_proxied_udp";
+  [deprecated] public static final java.lang.String WEBRTC_DEFAULT = "default";
+  [deprecated] public static final java.lang.String WEBRTC_DEFAULT_PUBLIC_AND_PRIVATE_INTERFACES = "default_public_and_private_interfaces";
+  [deprecated] public static final java.lang.String WEBRTC_DEFAULT_PUBLIC_INTERFACE_ONLY = "default_public_interface_only";
+  [deprecated] public static final java.lang.String WEBRTC_DISABLE_NON_PROXIED_UDP = "disable_non_proxied_udp";
   public static final int DOWNLOAD_IN_PROGRESS = 0;
   public static final int DOWNLOAD_COMPLETE = 1;
   public static final int DOWNLOAD_CANCELED = 2;
@@ -872,10 +873,12 @@ public final class com.cefrium.CefriumProfile
   public void listSiteData(com.cefrium.CefriumProfile$SiteDataCallback);
   public void clearSiteData(java.lang.String, java.lang.Runnable);
   public void followDefaultProfile();
-  public boolean setProxy(java.lang.String, java.lang.String);
+  [deprecated] public boolean setProxy(java.lang.String, java.lang.String);
+  [experimental] public boolean setProxy(com.cefrium.CefriumProxyMode, java.lang.String);
   public boolean setProxy(java.lang.String);
   public boolean clearProxy();
-  public boolean setWebRtcIpHandlingPolicy(java.lang.String);
+  [experimental] public boolean setWebRtcIpHandlingPolicy(com.cefrium.CefriumWebRtcIpPolicy);
+  [deprecated] public boolean setWebRtcIpHandlingPolicy(java.lang.String);
   public void registerContentServer(java.lang.String, com.cefrium.CefriumContentServer);
   public void unregisterContentServer(java.lang.String);
   public boolean setAdBlockExceptions(java.util.Collection<java.lang.String>);
@@ -921,6 +924,15 @@ public final class com.cefrium.CefriumProfile$SiteData
 
 public interface com.cefrium.CefriumProfile$SiteDataCallback
   public abstract void onSiteData(java.util.List<com.cefrium.CefriumProfile$SiteData>);
+
+[experimental] public final class com.cefrium.CefriumProxyMode extends java.lang.Enum<com.cefrium.CefriumProxyMode>
+  public static final com.cefrium.CefriumProxyMode DIRECT;
+  public static final com.cefrium.CefriumProxyMode SYSTEM;
+  public static final com.cefrium.CefriumProxyMode AUTO_DETECT;
+  public static final com.cefrium.CefriumProxyMode FIXED;
+  public static final com.cefrium.CefriumProxyMode PAC;
+  public static com.cefrium.CefriumProxyMode[] values();
+  public static com.cefrium.CefriumProxyMode valueOf(java.lang.String);
 
 public final class com.cefrium.CefriumPush
   public static boolean isWebPushMessage(android.os.Bundle);
@@ -1020,6 +1032,13 @@ public interface com.cefrium.CefriumRequestHandler$ClientCertificateCallback
   public static com.cefrium.CefriumResourceType[] values();
   public static com.cefrium.CefriumResourceType valueOf(java.lang.String);
 
+[experimental] public final class com.cefrium.CefriumSecureDnsMode extends java.lang.Enum<com.cefrium.CefriumSecureDnsMode>
+  public static final com.cefrium.CefriumSecureDnsMode OFF;
+  public static final com.cefrium.CefriumSecureDnsMode AUTOMATIC;
+  public static final com.cefrium.CefriumSecureDnsMode SECURE;
+  public static com.cefrium.CefriumSecureDnsMode[] values();
+  public static com.cefrium.CefriumSecureDnsMode valueOf(java.lang.String);
+
 [experimental] public final class com.cefrium.CefriumSslError
   public int getErrorCode();
   public java.lang.String getUrl();
@@ -1046,6 +1065,14 @@ public class com.cefrium.CefriumSurfaceContainer extends android.widget.FrameLay
   public boolean dispatchNestedScroll(int, int, int, int, int[], int);
   public boolean dispatchNestedPreScroll(int, int, int[], int[], int);
   public void dispatchNestedScroll(int, int, int, int, int[], int, int[]);
+
+[experimental] public final class com.cefrium.CefriumWebRtcIpPolicy extends java.lang.Enum<com.cefrium.CefriumWebRtcIpPolicy>
+  public static final com.cefrium.CefriumWebRtcIpPolicy DEFAULT;
+  public static final com.cefrium.CefriumWebRtcIpPolicy PUBLIC_AND_PRIVATE_INTERFACES;
+  public static final com.cefrium.CefriumWebRtcIpPolicy PUBLIC_INTERFACE_ONLY;
+  public static final com.cefrium.CefriumWebRtcIpPolicy DISABLE_NON_PROXIED_UDP;
+  public static com.cefrium.CefriumWebRtcIpPolicy[] values();
+  public static com.cefrium.CefriumWebRtcIpPolicy valueOf(java.lang.String);
 
 public final class com.cefrium.ChildServices
   leak: public class not named Cefrium*

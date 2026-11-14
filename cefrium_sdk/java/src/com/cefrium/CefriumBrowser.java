@@ -2655,11 +2655,23 @@ public class CefriumBrowser {
 
     // ── Proxy ──
 
-    /** Proxy modes for {@link #setProxy(String, String)} (Chromium proxy modes). */
+    /**
+     * Proxy modes for {@link #setProxy(String, String)} (Chromium proxy modes).
+     * @deprecated Use {@link CefriumProxyMode}.
+     */
+    @Deprecated
     public static final String PROXY_DIRECT = "direct";
+    /** @deprecated Use {@link CefriumProxyMode#SYSTEM}. */
+    @Deprecated
     public static final String PROXY_SYSTEM = "system";
+    /** @deprecated Use {@link CefriumProxyMode#AUTO_DETECT}. */
+    @Deprecated
     public static final String PROXY_AUTO_DETECT = "auto_detect";
+    /** @deprecated Use {@link CefriumProxyMode#FIXED}. */
+    @Deprecated
     public static final String PROXY_FIXED = "fixed_servers";
+    /** @deprecated Use {@link CefriumProxyMode#PAC}. */
+    @Deprecated
     public static final String PROXY_PAC = "pac_script";
 
     /**
@@ -2670,19 +2682,30 @@ public class CefriumBrowser {
      * the browser. See {@link CefriumProfile#setProxy(String, String)}.
      *
      * @return false if the engine rejected the setting.
+     * @deprecated The proxy is the profile's: use
+     *     {@code getProfile().setProxy(CefriumProxyMode, String)}.
      */
+    @Deprecated
     public boolean setProxy(String mode, String server) {
         checkThread("setProxy");
         return mProfile.setProxy(mode, server);
     }
 
-    /** Convenience: route all traffic through a fixed proxy {@code "host:port"}. */
+    /**
+     * Convenience: route all traffic through a fixed proxy {@code "host:port"}.
+     * @deprecated Use {@code getProfile().setProxy(server)}.
+     */
+    @Deprecated
     public boolean setProxy(String server) {
         checkThread("setProxy");
         return setProxy(PROXY_FIXED, server);
     }
 
-    /** Convenience: disable proxying (direct connection). */
+    /**
+     * Convenience: disable proxying (direct connection).
+     * @deprecated Use {@code getProfile().clearProxy()}.
+     */
+    @Deprecated
     public boolean clearProxy() {
         checkThread("clearProxy");
         return setProxy(PROXY_DIRECT, null);
