@@ -91,6 +91,23 @@ public interface CefriumChromeClient {
     }
 
     /**
+     * A key is about to reach the page. Return true to take it yourself: the
+     * page does not get it. Like {@code WebViewClient.shouldOverrideKeyEvent},
+     * with the Android key code and meta state. Keys an input method composes
+     * (no key code of their own) are not reported.
+     */
+    default boolean shouldOverrideKeyEvent(CefriumBrowser browser,
+            android.view.KeyEvent event) {
+        return false;
+    }
+
+    /**
+     * The page did not handle a key (no {@code preventDefault}), so the app
+     * may: for example a shortcut. Like {@code WebViewClient.onUnhandledKeyEvent}.
+     */
+    default void onUnhandledKeyEvent(CefriumBrowser browser, android.view.KeyEvent event) {}
+
+    /**
      * A page asks for permissions. Answer with {@code request.grant()} or
      * {@code request.deny()}, now or later (after asking the user). The
      * default denies.

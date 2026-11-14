@@ -12,7 +12,12 @@ package com.cefrium;
  *
  * <p>Called synchronously on the browser UI thread; the return value must be
  * decided synchronously.
+ *
+ * @deprecated Use {@link CefriumChromeClient#shouldOverrideKeyEvent} and
+ * {@link CefriumChromeClient#onUnhandledKeyEvent}: an Android KeyEvent instead of
+ * the engine's codes.
  */
+@Deprecated
 public interface CefriumKeyboardHandler {
     /**
      * Called before the event is sent to the renderer.
