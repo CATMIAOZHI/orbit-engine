@@ -903,6 +903,7 @@ public final class com.cefrium.CefriumProfile
   [deprecated] public boolean setWebRtcIpHandlingPolicy(java.lang.String);
   public void registerContentServer(java.lang.String, com.cefrium.CefriumContentServer);
   public void unregisterContentServer(java.lang.String);
+  [experimental] public void setResourceInterceptor(com.cefrium.CefriumResourceInterceptor);
   public boolean setAdBlockExceptions(java.util.Collection<java.lang.String>);
   public void setProxyErrorListener(com.cefrium.CefriumProfile$ProxyErrorListener);
   public void getDownloads(com.cefrium.CefriumProfile$DownloadsCallback);

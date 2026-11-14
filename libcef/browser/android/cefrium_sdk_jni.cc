@@ -200,11 +200,53 @@ class ProfilePrefsApplier : public CefRequestContextHandler {
                                      incognito ? std::string() : key_);
   }
 
+  // Requests of this profile that belong to no browser.
+  CefRefPtr<CefResourceRequestHandler> GetResourceRequestHandler(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request,
+      bool is_navigation,
+      bool is_download,
+      const CefString& request_initiator,
+      bool& disable_default_handling) override {
+    return cefrium_sdk::ProfileRequestHandler(key_, browser);
+  }
+
   IMPLEMENT_REFCOUNTING(ProfilePrefsApplier);
 
  private:
   const std::string key_;
 };
+// The default profile's requests that belong to no browser.
+class DefaultContextHandler : public CefRequestContextHandler {
+ public:
+  CefRefPtr<CefResourceRequestHandler> GetResourceRequestHandler(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request,
+      bool is_navigation,
+      bool is_download,
+      const CefString& request_initiator,
+      bool& disable_default_handling) override {
+    return cefrium_sdk::ProfileRequestHandler(std::string(), browser);
+  }
+
+  IMPLEMENT_REFCOUNTING(DefaultContextHandler);
+};
+
+// The default profile's browsers share the global context's storage; with an
+// interceptor set they are created on this context, which shares it and
+// carries the handler (CEF finds a context's handler through the frames of
+// the process a browser-less request comes from).
+CefRefPtr<CefRequestContext> DefaultHandlerContext() {
+  static base::NoDestructor<CefRefPtr<CefRequestContext>> context;
+  if (!*context) {
+    *context = CefRequestContext::CreateContext(
+        CefRequestContext::GetGlobalContext(), new DefaultContextHandler());
+  }
+  return *context;
+}
+
 int& IncognitoBrowserCount() {
   static int count = 0;
   return count;
@@ -334,6 +376,9 @@ CefRefPtr<CefRequestContext> ContextFor(SdkBrowserData* data) {
   }
   if (!data->profile.empty()) {
     return ProfileContext(data->profile);
+  }
+  if (cefrium_sdk::HasProfileInterceptor(std::string())) {
+    return DefaultHandlerContext();
   }
   return nullptr;
 }

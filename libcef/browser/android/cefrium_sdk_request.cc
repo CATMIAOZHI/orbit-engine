@@ -268,3 +268,88 @@ Java_com_cefrium_Cefrium_nativeFetchAdBlockList(
                           },
                           url, cefrium, id));
 }
+
+// FEATURE-092 2.5b: the profile interceptors, set from CefriumProfile on the
+// main thread and read on the IO thread.
+namespace {
+
+base::Lock& ProfileInterceptorsLock() {
+  static base::NoDestructor<base::Lock> lock;
+  return *lock;
+}
+
+std::map<std::string, cefrium_sdk::ProfileInterceptor>& ProfileInterceptors() {
+  static base::NoDestructor<std::map<std::string, cefrium_sdk::ProfileInterceptor>>
+      interceptors;
+  return *interceptors;
+}
+
+// As cefrium_sdk_jni.cc keys ProfilePrefs: kIncognitoKey, a name, or "" for
+// the default profile.
+std::string InterceptorKey(bool incognito, const std::string& name) {
+  return incognito ? std::string("\x01incognito") : name;
+}
+
+}  // namespace
+
+namespace cefrium_sdk {
+
+ProfileInterceptor ProfileInterceptorFor(const std::string& key) {
+  base::AutoLock lock(ProfileInterceptorsLock());
+  auto it = ProfileInterceptors().find(key);
+  return it == ProfileInterceptors().end() ? ProfileInterceptor()
+                                           : it->second;
+}
+
+bool HasProfileInterceptor(const std::string& key) {
+  base::AutoLock lock(ProfileInterceptorsLock());
+  return ProfileInterceptors().count(key) > 0;
+}
+
+CefRefPtr<CefResourceRequestHandler> ProfileRequestHandler(
+    const std::string& key,
+    CefRefPtr<CefBrowser> browser) {
+  if (browser) {
+    return nullptr;  // a browser's own handler has it
+  }
+  {
+    base::AutoLock lock(ProfileInterceptorsLock());
+    if (!ProfileInterceptors().count(key)) {
+      return nullptr;
+    }
+  }
+  return new ProfileResourceRequestHandler(key);
+}
+
+}  // namespace cefrium_sdk
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumProfile_nativeSetResourceInterceptor(
+    JNIEnv* env,
+    jclass clazz,
+    jboolean incognito,
+    jstring profile,
+    jobject java_profile,
+    jboolean intercepts) {
+  const std::string key = InterceptorKey(
+      incognito == JNI_TRUE, cefrium_sdk::JStr(env, profile).ToString());
+  base::AutoLock lock(ProfileInterceptorsLock());
+  if (!java_profile) {
+    ProfileInterceptors().erase(key);
+    return;
+  }
+  cefrium_sdk::ProfileInterceptor p;
+  p.profile.Reset(env, base::android::ScopedJavaLocalRef<jobject>::Adopt(
+                           env, env->NewLocalRef(java_profile)));
+  p.should_block = env->GetMethodID(clazz, "onProfileShouldBlock",
+                                    "(Ljava/lang/String;Ljava/lang/String;II)Z");
+  p.intercept = env->GetMethodID(
+      clazz, "onInterceptRequest",
+      "(JLjava/lang/String;Ljava/lang/String;[Ljava/lang/String;[B)V");
+  p.intercepts = intercepts == JNI_TRUE;
+  if (env->ExceptionCheck() || !p.should_block || !p.intercept) {
+    env->ExceptionClear();
+    return;
+  }
+  ProfileInterceptors()[key] = std::move(p);
+}

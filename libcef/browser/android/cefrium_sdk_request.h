@@ -16,6 +16,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include "base/android/scoped_java_ref.h"
 #include "base/base64.h"
 #include "cef/include/cef_app.h"
 #include "cef/libcef/browser/android/cef_autofill_client_android.h"
@@ -794,6 +795,76 @@ class SdkSubresourceRequestHandler : public CefResourceRequestHandler {
   CefRefPtr<SdkResourceRequestHandler> shared_;
   const std::string initiator_;
   IMPLEMENT_REFCOUNTING(SdkSubresourceRequestHandler);
+};
+
+// FEATURE-092 2.5b: CefriumProfile.setResourceInterceptor. Requests that
+// belong to no browser (a service worker's own and its fetches) reach the
+// profile's request context handler, not a browser's; the profile's
+// interceptor decides them. Keyed as ProfilePrefs: "" is the default profile.
+namespace cefrium_sdk {
+struct ProfileInterceptor {
+  base::android::ScopedJavaGlobalRef<jobject> profile;  // CefriumProfile
+  jmethodID should_block = nullptr;  // onProfileShouldBlock(String, String, int, int)Z
+  jmethodID intercept = nullptr;     // onInterceptRequest(J, String, String, String[], byte[])V
+  bool intercepts = false;           // the interceptor overrides shouldInterceptRequest
+};
+// Copies the profile's interceptor out under its lock; empty `profile` when
+// none is set.
+ProfileInterceptor ProfileInterceptorFor(const std::string& key);
+bool HasProfileInterceptor(const std::string& key);
+// The handler for a request of the profile `key` with no browser, or null.
+CefRefPtr<CefResourceRequestHandler> ProfileRequestHandler(
+    const std::string& key,
+    CefRefPtr<CefBrowser> browser);
+}  // namespace cefrium_sdk
+
+class ProfileResourceRequestHandler : public CefResourceRequestHandler {
+ public:
+  explicit ProfileResourceRequestHandler(std::string key)
+      : key_(std::move(key)) {}
+
+  ReturnValue OnBeforeResourceLoad(CefRefPtr<CefBrowser> browser,
+                                   CefRefPtr<CefFrame> frame,
+                                   CefRefPtr<CefRequest> request,
+                                   CefRefPtr<CefCallback> callback) override {
+    cefrium_sdk::ProfileInterceptor p = cefrium_sdk::ProfileInterceptorFor(key_);
+    JNIEnv* env = p.profile ? base::android::AttachCurrentThread() : nullptr;
+    if (!env) {
+      return RV_CONTINUE;
+    }
+    const cef_resource_type_t type = request->GetResourceType();
+    jstring ju = env->NewStringUTF(request->GetURL().ToString().c_str());
+    jstring jm = env->NewStringUTF(request->GetMethod().ToString().c_str());
+    const bool blocked = env->CallBooleanMethod(
+        p.profile.obj(), p.should_block, ju, jm, static_cast<jint>(type),
+        CefriumResourceType(type));
+    env->DeleteLocalRef(ju);
+    env->DeleteLocalRef(jm);
+    if (env->ExceptionCheck()) {
+      env->ExceptionClear();
+    }
+    if (blocked) {
+      return RV_CANCEL;
+    }
+    if (p.intercepts && callback &&
+        cefrium_sdk::StartInterception(env, p.profile.obj(), p.intercept,
+                                       request, callback)) {
+      return RV_CONTINUE_ASYNC;
+    }
+    return RV_CONTINUE;
+  }
+
+  CefRefPtr<CefResourceHandler> GetResourceHandler(
+      CefRefPtr<CefBrowser> browser,
+      CefRefPtr<CefFrame> frame,
+      CefRefPtr<CefRequest> request) override {
+    return cefrium_sdk::TakeInterceptedHandler(request->GetIdentifier());
+  }
+
+ private:
+  const std::string key_;
+
+  IMPLEMENT_REFCOUNTING(ProfileResourceRequestHandler);
 };
 
 class SdkRequestHandler : public CefRequestHandler {
