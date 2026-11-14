@@ -88,6 +88,11 @@ in the internal FEATURE-NNN.md working docs (not published).
   the UI thread.
 - WebView's history calls: `canGoForward()`, `canGoBackOrForward(n)`,
   `goBackOrForward(n)`, and `getTitle()`, `getProgress()`.
+- `@CefriumExperimental` marks the API outside the 1.0 freeze: what was
+  documented as experimental, the API new in this release (until a release
+  ships it unchanged), and `CefriumFrameHandler`, `CefriumCommandHandler`,
+  `CefriumDragHandler` and `CefriumFocusHandler`, kept for desktop CEF parity
+  and likely to go at 1.0 unless an app needs them.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 

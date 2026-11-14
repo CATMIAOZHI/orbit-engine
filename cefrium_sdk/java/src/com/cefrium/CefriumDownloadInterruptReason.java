@@ -4,6 +4,7 @@
 package com.cefrium;
 
 /** Why a download stopped before it completed. */
+@CefriumExperimental
 public enum CefriumDownloadInterruptReason {
     /** It did not stop. */
     NONE,

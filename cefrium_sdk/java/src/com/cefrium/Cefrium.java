@@ -330,6 +330,7 @@ public final class Cefrium {
      * @throws IllegalStateException with another value once the engine has
      *         started.
      */
+    @CefriumExperimental
     public static synchronized void setDrmPreprovisioningAtStartupEnabled(boolean enabled) {
         checkStartupSetting("setDrmPreprovisioningAtStartupEnabled",
                 enabled != sDrmPreprovisioningAtStartup);
@@ -986,6 +987,7 @@ public final class Cefrium {
      *
      * @throws IllegalStateException if not called on the main thread.
      */
+    @CefriumExperimental
     public static void setRemoteDebuggingEnabled(boolean enabled) {
         if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
             throw new IllegalStateException(

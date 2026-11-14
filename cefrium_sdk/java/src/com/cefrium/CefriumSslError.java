@@ -16,6 +16,7 @@ import java.util.List;
  * {@link CefriumNavigationClient#onSslError} sees it. Like
  * {@code android.net.http.SslError}, with the whole chain.
  */
+@CefriumExperimental
 public final class CefriumSslError {
     private final int mErrorCode;
     private final String mUrl;

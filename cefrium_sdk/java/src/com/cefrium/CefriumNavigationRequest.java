@@ -12,6 +12,7 @@ import java.util.TreeMap;
  * {@link CefriumNavigationClient#onBeforeNavigate} sees it. Like
  * {@code android.webkit.WebResourceRequest}.
  */
+@CefriumExperimental
 public final class CefriumNavigationRequest {
     private final String mUrl;
     private final String mMethod;

@@ -7,6 +7,7 @@ package com.cefrium;
  * Answers a file chooser (see {@link CefriumChromeClient#onShowFileChooser}),
  * from any thread. The first answer counts; the page waits until there is one.
  */
+@CefriumExperimental
 public interface CefriumFileChooserCallback {
     /** The chosen files: {@code content://} URIs or file paths. Empty cancels. */
     void select(String[] uris);

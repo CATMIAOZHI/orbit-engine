@@ -314,6 +314,7 @@ public class CefriumBrowser {
      * @throws IllegalArgumentException if a name is empty or contains a colon,
      *     or a name or value contains a line break
      */
+    @CefriumExperimental
     public void loadUrl(String url, java.util.Map<String, String> additionalHttpHeaders) {
         checkThread("loadUrl");
         if (additionalHttpHeaders == null || additionalHttpHeaders.isEmpty()) {
@@ -584,6 +585,7 @@ public class CefriumBrowser {
      * {@link CefriumNavigationClient}), or null to remove it. The last one set
      * wins.
      */
+    @CefriumExperimental
     public void setNavigationClient(CefriumNavigationClient client) {
         checkThread("setNavigationClient");
         mNavigationClient = client;
@@ -1052,6 +1054,7 @@ public class CefriumBrowser {
      * @param script         JavaScript source. Ignored if null.
      * @param resultCallback invoked on the UI thread; may be null.
      */
+    @CefriumExperimental
     public void evaluateJavaScript(String script,
             android.webkit.ValueCallback<String> resultCallback) {
         checkThread("evaluateJavaScript");
@@ -1136,6 +1139,7 @@ public class CefriumBrowser {
      * @param paramsJson the parameters as a JSON object, or null for none
      * @param callback   invoked once on the UI thread; may be null
      */
+    @CefriumExperimental
     public void executeDevToolsMethod(String method, String paramsJson,
             DevToolsCallback callback) {
         if (method == null) throw new IllegalArgumentException("method is null");
@@ -1163,6 +1167,7 @@ public class CefriumBrowser {
      * {@link #executeDevToolsMethod}.
      * <p>Experimental: it may still change before the 1.0 API freeze.</p>
      */
+    @CefriumExperimental
     public void setDevToolsEventListener(DevToolsEventListener listener) {
         checkThread("setDevToolsEventListener");
         mDevToolsEventListener = listener;
@@ -1695,6 +1700,7 @@ public class CefriumBrowser {
      *
      * <p>Experimental: it may still change before the 1.0 API freeze.</p>
      */
+    @CefriumExperimental
     public void printToPdf(String filePath, double paperWidthInches, double paperHeightInches,
             boolean landscape, PdfCallback callback) {
         checkThread("printToPdf");
@@ -1722,6 +1728,7 @@ public class CefriumBrowser {
      *
      * <p>Experimental: it may still change before the 1.0 API freeze.</p>
      */
+    @CefriumExperimental
     public void setTextSelectionActionModeCallback(android.view.ActionMode.Callback callback) {
         checkThread("setTextSelectionActionModeCallback");
         mTextSelectionCallback = callback;
@@ -1736,6 +1743,7 @@ public class CefriumBrowser {
      *
      * <p>Experimental: it may still change before the 1.0 API freeze.</p>
      */
+    @CefriumExperimental
     public String getSelectedText() {
         checkThread("getSelectedText");
         if (!isLive() || mSurfaceContainer == null) return "";
@@ -1769,6 +1777,7 @@ public class CefriumBrowser {
      *
      * <p>Experimental: it may still change before the 1.0 API freeze.</p>
      */
+    @CefriumExperimental
     public void setPrintHandler(PrintHandler handler) {
         checkThread("setPrintHandler");
         mPrintHandler = handler;
@@ -1784,6 +1793,7 @@ public class CefriumBrowser {
      *
      * @param documentName the document name the print dialog shows.
      */
+    @CefriumExperimental
     public android.print.PrintDocumentAdapter createPrintDocumentAdapter(String documentName) {
         checkThread("createPrintDocumentAdapter");
         return new CefriumPrintAdapter(this, documentName);
@@ -1798,6 +1808,7 @@ public class CefriumBrowser {
      * @throws IllegalStateException if the browser has no activity: a surface
      *         browser's own, or one given to {@link #setDialogActivity}.
      */
+    @CefriumExperimental
     public void print() {
         checkThread("print");
         android.app.Activity activity = dialogActivity();
@@ -2093,6 +2104,7 @@ public class CefriumBrowser {
         }
 
         /** What the request is for. */
+        @CefriumExperimental
         public CefriumResourceType getType() {
             return mType;
         }
@@ -2106,6 +2118,7 @@ public class CefriumBrowser {
      * of this browser (null removes it). The last one set wins, including one
      * set with {@link #setRequestInterceptor}.
      */
+    @CefriumExperimental
     public void setResourceInterceptor(CefriumResourceInterceptor interceptor) {
         checkThread("setResourceInterceptor");
         // The engine finds ContentServerHost from here: its threads cannot
@@ -2467,6 +2480,7 @@ public class CefriumBrowser {
      * wins. It decides permission requests instead of a
      * {@link PermissionHandler}.
      */
+    @CefriumExperimental
     public void setChromeClient(CefriumChromeClient client) {
         checkThread("setChromeClient");
         mChromeClient = client;
@@ -2598,6 +2612,7 @@ public class CefriumBrowser {
      * @param origin e.g. {@code "https://example.com"}
      * @throws IllegalArgumentException for {@link CefriumPermission#OTHER}
      */
+    @CefriumExperimental
     public void setContentSetting(String origin, CefriumPermission permission,
             CefriumContentSetting value) {
         checkThread("setContentSetting");
@@ -2762,6 +2777,7 @@ public class CefriumBrowser {
      *
      * <p>Experimental: it may still change before the 1.0 API freeze.</p>
      */
+    @CefriumExperimental
     public void setIdentityHandler(CefriumIdentityHandler handler) {
         checkThread("setIdentityHandler");
         mIdentityHandler = handler;
@@ -3103,6 +3119,7 @@ public class CefriumBrowser {
          *
          * <p>Experimental: it may still change before the 1.0 API freeze.</p>
          */
+        @CefriumExperimental
         default boolean onCreateWindow(CefriumBrowser popup, String targetUrl,
                 boolean userGesture) {
             return false;
@@ -3114,6 +3131,7 @@ public class CefriumBrowser {
          *
          * <p>Experimental: it may still change before the 1.0 API freeze.</p>
          */
+        @CefriumExperimental
         default void onCloseWindow(CefriumBrowser popup) {}
     }
 
@@ -3209,6 +3227,7 @@ public class CefriumBrowser {
     }
 
     /** @return true if the browser can navigate forward. */
+    @CefriumExperimental
     public boolean canGoForward() {
         checkThread("canGoForward");
         return isLive() && nativeCanGoForward(mNativePtr);
@@ -3218,6 +3237,7 @@ public class CefriumBrowser {
      * Whether the history has an entry {@code steps} away: negative is back,
      * positive forward. Like WebView's {@code canGoBackOrForward}.
      */
+    @CefriumExperimental
     public boolean canGoBackOrForward(int steps) {
         checkThread("canGoBackOrForward");
         return isLive() && nativeGoToOffset(mNativePtr, steps, false);
@@ -3228,18 +3248,21 @@ public class CefriumBrowser {
      * history, if there are that many; otherwise does nothing. Like WebView's
      * {@code goBackOrForward}.
      */
+    @CefriumExperimental
     public void goBackOrForward(int steps) {
         checkThread("goBackOrForward");
         if (isLive()) nativeGoToOffset(mNativePtr, steps, true);
     }
 
     /** The page's title, as the last title change gave it; null before the first. */
+    @CefriumExperimental
     public String getTitle() {
         checkThread("getTitle");
         return mLastTitle;
     }
 
     /** How much of the current load is done, 0 to 100; 100 when nothing is loading. */
+    @CefriumExperimental
     public int getProgress() {
         checkThread("getProgress");
         return mProgress;
@@ -4790,6 +4813,7 @@ public class CefriumBrowser {
         @Deprecated
         public int getInterruptReason() { return mInterruptReason; }
         /** Why the download stopped, {@code NONE} when it did not. */
+        @CefriumExperimental
         public CefriumDownloadInterruptReason getInterruption() { return mInterruption; }
         /**
          * The download stopped on an error and is neither complete nor
@@ -4816,6 +4840,7 @@ public class CefriumBrowser {
      * {@link CefriumDownloadClient}), or null to remove it. It decides instead
      * of a {@link CefriumDownloadHandler}.
      */
+    @CefriumExperimental
     public void setDownloadClient(CefriumDownloadClient client) {
         checkThread("setDownloadClient");
         mDownloadClient = client;
@@ -5011,12 +5036,14 @@ public class CefriumBrowser {
         if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
     /** Sets the focus handler. */
+    @CefriumExperimental
     public void setFocusHandler(CefriumFocusHandler handler) {
         checkThread("setFocusHandler");
         mFocusHandler = handler;
         if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
     /** Sets the drag handler. */
+    @CefriumExperimental
     public void setDragHandler(CefriumDragHandler handler) {
         checkThread("setDragHandler");
         mDragHandler = handler;
@@ -5036,12 +5063,14 @@ public class CefriumBrowser {
         }
     }
     /** Sets the frame lifecycle handler. */
+    @CefriumExperimental
     public void setFrameHandler(CefriumFrameHandler handler) {
         checkThread("setFrameHandler");
         mFrameHandler = handler;
         if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
     /** Sets the Chrome command handler. */
+    @CefriumExperimental
     public void setCommandHandler(CefriumCommandHandler handler) {
         checkThread("setCommandHandler");
         mCommandHandler = handler;

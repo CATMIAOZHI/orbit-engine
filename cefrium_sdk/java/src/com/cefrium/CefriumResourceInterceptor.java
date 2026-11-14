@@ -10,6 +10,7 @@ package com.cefrium;
  * client, it is NOT called on the UI thread: each method says which thread,
  * and an implementation must be thread-safe.
  */
+@CefriumExperimental
 public interface CefriumResourceInterceptor {
 
     /**

@@ -4,6 +4,7 @@
 package com.cefrium;
 
 /** A stored decision for a permission and an origin. */
+@CefriumExperimental
 public enum CefriumContentSetting {
     /** No stored decision: the engine's default applies. */
     DEFAULT,

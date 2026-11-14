@@ -4,6 +4,7 @@
 package com.cefrium;
 
 /** A web permission a page can ask for. See {@link CefriumPermissionRequest}. */
+@CefriumExperimental
 public enum CefriumPermission {
     /**
      * {@code navigator.geolocation}. The app must also hold

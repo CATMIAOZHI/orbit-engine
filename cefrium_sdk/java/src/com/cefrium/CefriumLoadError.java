@@ -4,6 +4,7 @@
 package com.cefrium;
 
 /** Why a page failed to load, like androidx {@code WebResourceErrorCompat}. */
+@CefriumExperimental
 public final class CefriumLoadError {
     private final int mErrorCode;
     private final String mDescription;

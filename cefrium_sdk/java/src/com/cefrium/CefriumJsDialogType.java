@@ -4,6 +4,7 @@
 package com.cefrium;
 
 /** Which JavaScript dialog a page opened. */
+@CefriumExperimental
 public enum CefriumJsDialogType {
     /** {@code alert()}: one button. */
     ALERT,

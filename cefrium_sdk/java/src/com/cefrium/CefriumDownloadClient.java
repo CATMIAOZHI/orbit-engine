@@ -11,6 +11,7 @@ package com.cefrium;
  * <p>Without a client a download starts on its own and is saved in the app's
  * own storage; from the next release it will be refused, as in WebView.
  */
+@CefriumExperimental
 public interface CefriumDownloadClient {
 
     /**

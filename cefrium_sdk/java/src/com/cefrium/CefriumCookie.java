@@ -4,6 +4,7 @@
 package com.cefrium;
 
 /** A cookie of a profile, as {@link CefriumCookieManager#getCookies} gives it. */
+@CefriumExperimental
 public final class CefriumCookie {
     /** The cookie's SameSite attribute. */
     public enum SameSite { UNSPECIFIED, NONE, LAX, STRICT }

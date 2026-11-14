@@ -71,6 +71,7 @@ class CefriumNavigator {
      * Navigates to [url], sending [additionalHttpHeaders] with the page's own
      * request. See `CefriumBrowser.loadUrl(String, Map)`.
      */
+    @com.cefrium.CefriumExperimental
     fun loadUrl(url: String, additionalHttpHeaders: Map<String, String>) {
         run("loadUrl") { it.loadUrl(url, additionalHttpHeaders) }
     }
@@ -347,6 +348,7 @@ class CefriumNavigator {
      * Sets the interceptor that may cancel or answer every request of this
      * browser (null removes it). See `CefriumBrowser.setResourceInterceptor`.
      */
+    @com.cefrium.CefriumExperimental
     fun setResourceInterceptor(interceptor: com.cefrium.CefriumResourceInterceptor?) {
         run("setResourceInterceptor") { it.setResourceInterceptor(interceptor) }
     }
@@ -364,6 +366,7 @@ class CefriumNavigator {
      * Sets the client that answers what pages ask of the app, permission
      * requests first (null removes it). See `CefriumBrowser.setChromeClient`.
      */
+    @com.cefrium.CefriumExperimental
     fun setChromeClient(client: com.cefrium.CefriumChromeClient?) {
         run("setChromeClient") { it.setChromeClient(client) }
     }
@@ -373,6 +376,7 @@ class CefriumNavigator {
      * removes it). See `CefriumBrowser.setNavigationClient`. The state this
      * view hoists keeps updating either way.
      */
+    @com.cefrium.CefriumExperimental
     fun setNavigationClient(client: com.cefrium.CefriumNavigationClient?) {
         run("setNavigationClient") { it.setNavigationClient(client) }
     }
@@ -381,6 +385,7 @@ class CefriumNavigator {
      * Stores a decision for [permission] on [origin], so the page is answered
      * without asking. See `CefriumBrowser.setContentSetting`.
      */
+    @com.cefrium.CefriumExperimental
     fun setContentSetting(
         origin: String,
         permission: com.cefrium.CefriumPermission,

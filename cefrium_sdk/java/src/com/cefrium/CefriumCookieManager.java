@@ -25,6 +25,7 @@ import java.util.function.Consumer;
  * syntax, but per profile and asynchronous: each method returns at once and
  * calls its callback on the UI thread. Callable from any thread.
  */
+@CefriumExperimental
 public final class CefriumCookieManager {
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
     private static final AtomicLong IDS = new AtomicLong(1);

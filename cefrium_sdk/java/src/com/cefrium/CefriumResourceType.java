@@ -4,6 +4,7 @@
 package com.cefrium;
 
 /** What a request is for, as {@link CefriumResourceInterceptor} sees it. */
+@CefriumExperimental
 public enum CefriumResourceType {
     /** A page loaded into the main frame. */
     MAIN_FRAME,

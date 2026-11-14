@@ -9,7 +9,11 @@ package com.cefrium;
  * {@link CefriumBrowser#setDragHandler(CefriumDragHandler)}.
  *
  * <p>Delivered on the browser UI thread.
+ *
+ * <p>Experimental: kept for parity with desktop CEF; no app has been seen to
+ * need it, so it may go at 1.0 unless one asks (FEATURE-092 D5).
  */
+@CefriumExperimental
 public interface CefriumDragHandler {
     /**
      * A drag entered the web view.

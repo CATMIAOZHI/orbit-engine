@@ -8,7 +8,11 @@ package com.cefrium;
  * Register with {@link CefriumBrowser#setCommandHandler(CefriumCommandHandler)}.
  *
  * <p>Called synchronously on the browser UI thread.
+ *
+ * <p>Experimental: kept for parity with desktop CEF; no app has been seen to
+ * need it, so it may go at 1.0 unless one asks (FEATURE-092 D5).
  */
+@CefriumExperimental
 public interface CefriumCommandHandler {
     /**
      * Execute (or veto) a Chrome command.

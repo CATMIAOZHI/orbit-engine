@@ -16,6 +16,7 @@ import java.util.List;
  *
  * <p>Experimental: it may still change before the 1.0 API freeze.</p>
  */
+@CefriumExperimental
 public interface CefriumIdentityHandler {
 
     /** An account an identity provider offers. */
