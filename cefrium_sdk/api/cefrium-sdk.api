@@ -268,8 +268,9 @@ public class com.cefrium.CefriumBrowser
   [deprecated] public void setOnFindResultListener(com.cefrium.CefriumBrowser$OnFindResultListener);
   public void find(java.lang.String, boolean, boolean, boolean);
   public void stopFinding(boolean);
-  public void setOnDownloadListener(com.cefrium.CefriumBrowser$OnDownloadListener);
-  public void setDownloadHandler(com.cefrium.CefriumBrowser$CefriumDownloadHandler);
+  [deprecated] public void setOnDownloadListener(com.cefrium.CefriumBrowser$OnDownloadListener);
+  public void setDownloadClient(com.cefrium.CefriumDownloadClient);
+  [deprecated] public void setDownloadHandler(com.cefrium.CefriumBrowser$CefriumDownloadHandler);
   public void cancelDownload(int);
   public void pauseDownload(int);
   public void resumeDownload(int);
@@ -312,7 +313,7 @@ public class com.cefrium.CefriumBrowser$Callback
   public void onDownloadUpdated(java.lang.String, java.lang.String, int, boolean, boolean);
   public void onContextMenu(java.lang.String, java.lang.String);
 
-public interface com.cefrium.CefriumBrowser$CefriumDownloadHandler
+[deprecated] public interface com.cefrium.CefriumBrowser$CefriumDownloadHandler
   public abstract void onBeforeDownload(com.cefrium.CefriumBrowser$DownloadItem, com.cefrium.CefriumBrowser$BeforeDownloadCallback);
   public abstract void onDownloadUpdated(com.cefrium.CefriumBrowser$DownloadItem);
 
@@ -363,7 +364,8 @@ public final class com.cefrium.CefriumBrowser$DownloadItem
   public boolean isComplete();
   public boolean isCanceled();
   public boolean isPaused();
-  public int getInterruptReason();
+  [deprecated] public int getInterruptReason();
+  public com.cefrium.CefriumDownloadInterruptReason getInterruption();
   public boolean isInterrupted();
   public void cancel();
   public void pause();
@@ -397,7 +399,7 @@ public class com.cefrium.CefriumBrowser$NavigationEntry
 [deprecated] public interface com.cefrium.CefriumBrowser$OnContextMenuListener
   public abstract void onContextMenu(java.lang.String, java.lang.String);
 
-public interface com.cefrium.CefriumBrowser$OnDownloadListener
+[deprecated] public interface com.cefrium.CefriumBrowser$OnDownloadListener
   public abstract void onDownloadUpdated(java.lang.String, java.lang.String, int, boolean, boolean);
 
 [deprecated] public interface com.cefrium.CefriumBrowser$OnFindResultListener
@@ -634,6 +636,20 @@ public interface com.cefrium.CefriumDialogHandler$FileDialogCallback
   public default void onConsoleMessage(int, java.lang.String, java.lang.String, int);
   public default void onStatusMessage(java.lang.String);
   public default void onMediaAccessChange(boolean, boolean);
+
+public interface com.cefrium.CefriumDownloadClient
+  public abstract void onBeforeDownload(com.cefrium.CefriumBrowser, com.cefrium.CefriumBrowser$DownloadItem, com.cefrium.CefriumBrowser$BeforeDownloadCallback);
+  public default void onDownloadUpdated(com.cefrium.CefriumBrowser, com.cefrium.CefriumBrowser$DownloadItem);
+
+public final class com.cefrium.CefriumDownloadInterruptReason extends java.lang.Enum<com.cefrium.CefriumDownloadInterruptReason>
+  public static final com.cefrium.CefriumDownloadInterruptReason NONE;
+  public static final com.cefrium.CefriumDownloadInterruptReason FILE;
+  public static final com.cefrium.CefriumDownloadInterruptReason NETWORK;
+  public static final com.cefrium.CefriumDownloadInterruptReason SERVER;
+  public static final com.cefrium.CefriumDownloadInterruptReason USER;
+  public static final com.cefrium.CefriumDownloadInterruptReason OTHER;
+  public static com.cefrium.CefriumDownloadInterruptReason[] values();
+  public static com.cefrium.CefriumDownloadInterruptReason valueOf(java.lang.String);
 
 public interface com.cefrium.CefriumDragHandler
   public default boolean onDragEnter(int);

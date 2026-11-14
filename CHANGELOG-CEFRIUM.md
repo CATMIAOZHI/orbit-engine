@@ -73,6 +73,13 @@ in the internal FEATURE-NNN.md working docs (not published).
   first parameter. A client that declines leaves the window to a
   `PopupHandler`, so `CefriumView`'s `onCreateWindow` keeps working when an
   app sets a chrome client.
+- **`CefriumDownloadClient`** (`setDownloadClient`): decide each download
+  (`onBeforeDownload`, answer from any thread) and follow it
+  (`onDownloadUpdated`); `DownloadItem.getInterruption()` gives a typed
+  `CefriumDownloadInterruptReason` (file, network, server, user) instead of
+  the engine's 30 codes.
+- A download that starts with no download client now logs a warning: from
+  the next release it will be refused, as in WebView.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 
@@ -102,6 +109,9 @@ in the internal FEATURE-NNN.md working docs (not published).
   `CefriumRequestHandler.onSelectClientCertificate`: use
   `CefriumNavigationClient`.
 - `PopupHandler` and `setPopupHandler`: use `CefriumChromeClient.onCreateWindow`.
+- `CefriumDownloadHandler`, `setDownloadHandler`, `OnDownloadListener`,
+  `setOnDownloadListener` and `DownloadItem.getInterruptReason()`: use
+  `CefriumDownloadClient` and `getInterruption()`.
 
 ### Changed
 - **`onRequestIntercepted` is called on the UI thread** (`Callback` and

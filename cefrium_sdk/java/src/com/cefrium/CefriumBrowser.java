@@ -4529,7 +4529,9 @@ public class CefriumBrowser {
     /**
      * Listener for download progress updates.
      * Uses CEF API: CefDownloadHandler.
+     * @deprecated Use {@link CefriumDownloadClient}.
      */
+    @Deprecated
     public interface OnDownloadListener {
         /**
          * @param name File name being downloaded.
@@ -4546,7 +4548,9 @@ public class CefriumBrowser {
 
     /**
      * Set the listener for download progress updates.
+     * @deprecated Use {@link CefriumDownloadClient}.
      */
+    @Deprecated
     public void setOnDownloadListener(OnDownloadListener listener) {
         checkThread("setOnDownloadListener");
         mDownloadListener = listener;
@@ -4573,6 +4577,8 @@ public class CefriumBrowser {
      *
      * <p>Callbacks arrive on the browser's UI thread.</p>
      */
+    /** @deprecated Use {@link CefriumDownloadClient}. */
+    @Deprecated
     public interface CefriumDownloadHandler {
         /**
          * A download is about to start. Decide asynchronously whether to allow
@@ -4612,12 +4618,25 @@ public class CefriumBrowser {
         private final long mTotalBytes, mReceivedBytes, mCurrentSpeed;
         private final int mPercent, mInterruptReason;
         private final boolean mComplete, mCanceled, mPaused;
+        private final CefriumDownloadInterruptReason mInterruption;
 
         DownloadItem(CefriumBrowser browser, int id, String url,
                      String suggestedName, String mimeType, String fullPath,
                      long totalBytes, long receivedBytes, long currentSpeed,
                      int percent, int interruptReason, boolean complete,
                      boolean canceled, boolean paused) {
+            this(browser, id, url, suggestedName, mimeType, fullPath, totalBytes,
+                    receivedBytes, currentSpeed, percent, interruptReason,
+                    CefriumDownloadInterruptReason.NONE, complete, canceled, paused);
+        }
+
+        DownloadItem(CefriumBrowser browser, int id, String url,
+                     String suggestedName, String mimeType, String fullPath,
+                     long totalBytes, long receivedBytes, long currentSpeed,
+                     int percent, int interruptReason,
+                     CefriumDownloadInterruptReason interruption, boolean complete,
+                     boolean canceled, boolean paused) {
+            mInterruption = interruption;
             mBrowser = browser; mId = id; mUrl = url;
             mSuggestedName = suggestedName; mMimeType = mimeType;
             mFullPath = fullPath; mTotalBytes = totalBytes;
@@ -4641,8 +4660,15 @@ public class CefriumBrowser {
         public boolean isComplete() { return mComplete; }
         public boolean isCanceled() { return mCanceled; }
         public boolean isPaused() { return mPaused; }
-        /** CEF {@code cef_download_interrupt_reason_t} (0 = none). */
+        /**
+         * CEF {@code cef_download_interrupt_reason_t} (0 = none).
+         * @deprecated Use {@link #getInterruption()}: these numbers are the
+         *     engine's and may change with it.
+         */
+        @Deprecated
         public int getInterruptReason() { return mInterruptReason; }
+        /** Why the download stopped, {@code NONE} when it did not. */
+        public CefriumDownloadInterruptReason getInterruption() { return mInterruption; }
         /**
          * The download stopped on an error and is neither complete nor
          * canceled; {@link #getInterruptReason()} says why.
@@ -4660,12 +4686,27 @@ public class CefriumBrowser {
     }
 
     private CefriumDownloadHandler mDownloadHandler;
+    private volatile CefriumDownloadClient mDownloadClient;
+    private boolean mWarnedDownloadWithoutClient;
+
+    /**
+     * Set the client that decides and follows this browser's downloads (see
+     * {@link CefriumDownloadClient}), or null to remove it. It decides instead
+     * of a {@link CefriumDownloadHandler}.
+     */
+    public void setDownloadClient(CefriumDownloadClient client) {
+        checkThread("setDownloadClient");
+        mDownloadClient = client;
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
+    }
 
     /**
      * Set the controllable download handler (allow/deny + cancel/pause/resume).
      * Pass {@code null} to remove it (downloads then auto-start, as with the
      * legacy {@link OnDownloadListener}).
+     * @deprecated Use {@link #setDownloadClient}.
      */
+    @Deprecated
     public void setDownloadHandler(CefriumDownloadHandler handler) {
         checkThread("setDownloadHandler");
         mDownloadHandler = handler;
@@ -4694,10 +4735,38 @@ public class CefriumBrowser {
         checkThread("resumeDownload"); controlDownload(id, 2); }
 
     // Called from native SdkDownloadHandler::OnBeforeDownload (UI thread).
-    @SuppressWarnings("unused")
+    @SuppressWarnings({"unused", "deprecation"})
     private void onBeforeDownload(int id, String url, String suggestedName,
                                   String mimeType, long totalBytes,
                                   String defaultPath) {
+        CefriumDownloadClient client = mDownloadClient;
+        if (client != null) {
+            final java.util.concurrent.atomic.AtomicBoolean answered =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+            client.onBeforeDownload(this, new DownloadItem(this, id, url, suggestedName,
+                    mimeType, defaultPath, totalBytes, 0, 0, 0, 0, false, false, false),
+                    new BeforeDownloadCallback() {
+                        @Override public void allow(String targetPath) {
+                            answer(true, targetPath != null ? targetPath : defaultPath);
+                        }
+                        @Override public void cancel() { answer(false, null); }
+                        private void answer(boolean allow, String path) {
+                            if (!answered.compareAndSet(false, true)) return;
+                            runOnUi(() -> {
+                                if (mNativePtr != 0 && !mClosed) {
+                                    nativeRespondBeforeDownload(mNativePtr, id, allow, path);
+                                }
+                            });
+                        }
+                    });
+            return;
+        }
+        if (mDownloadHandler == null && !mWarnedDownloadWithoutClient) {
+            mWarnedDownloadWithoutClient = true;
+            android.util.Log.w(TAG, "a download started with no download client and is saved"
+                    + " in the app's own storage. From the next release a download with no"
+                    + " client is refused, as in WebView: set one with setDownloadClient.");
+        }
         if (mDownloadHandler != null) {
             DownloadItem item = new DownloadItem(this, id, url, suggestedName,
                     mimeType, defaultPath, totalBytes, 0, 0, 0, 0, false, false,
@@ -4730,7 +4799,16 @@ public class CefriumBrowser {
                                        long totalBytes, long receivedBytes,
                                        int percent, long currentSpeed,
                                        boolean complete, boolean canceled,
-                                       boolean paused, int interruptReason) {
+                                       boolean paused, int interruptReason,
+                                       int interruption) {
+        CefriumDownloadClient client = mDownloadClient;
+        if (client != null) {
+            client.onDownloadUpdated(this, new DownloadItem(this, id, url, suggestedName,
+                    mimeType, fullPath, totalBytes, receivedBytes, currentSpeed, percent,
+                    interruptReason, CefriumDownloadInterruptReason.values()[interruption],
+                    complete, canceled, paused));
+            return;
+        }
         if (mDownloadHandler != null) {
             mDownloadHandler.onDownloadUpdated(new DownloadItem(this, id, url,
                     suggestedName, mimeType, fullPath, totalBytes, receivedBytes,
