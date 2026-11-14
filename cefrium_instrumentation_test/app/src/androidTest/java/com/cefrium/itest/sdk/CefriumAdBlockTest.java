@@ -343,4 +343,81 @@ public class CefriumAdBlockTest {
             forgetDownloads();
         }
     }
+
+    // ----- $popup ------------------------------------------------------------
+
+    /**
+     * The page at 127.0.0.1 opens a window on localhost with a gesture and
+     * titles itself "opened" or "refused" by what window.open returned. The
+     * app gives windows a browser of their own, so a refusal is the filter's.
+     */
+    private String openWindow(LocalHttpServer server, boolean adBlock) throws Exception {
+        Activity activity = activityRule.getActivity();
+        AtomicReference<String> title = new AtomicReference<>("");
+        CefriumBrowser[] holder = new CefriumBrowser[1];
+        activity.runOnUiThread(() -> {
+            CefriumBrowser b = browsers.track(new CefriumBrowser(200, 200, 1.0f));
+            b.setRenderHandler(new CefriumRenderHandler() {
+                @Override
+                public void onPaint(int width, int height, ByteBuffer px) {}
+            });
+            b.setAdBlockEnabled(adBlock);
+            b.setOnTitleChangedListener(title::set);
+            b.setPopupHandler(new CefriumBrowser.PopupHandler() {
+                @Override
+                public boolean onOpenPopup(String url, boolean gesture) {
+                    return true;
+                }
+
+                @Override
+                public boolean onCreateWindow(CefriumBrowser popup, String url, boolean gesture) {
+                    browsers.track(popup);
+                    return true;
+                }
+            });
+            holder[0] = b;
+            b.loadUrl(server.url() + "popup-opener");
+        });
+        long deadline = System.currentTimeMillis() + 20_000;
+        while (title.get().isEmpty() && System.currentTimeMillis() < deadline) Thread.sleep(100);
+        title.set("");
+        activity.runOnUiThread(() -> holder[0].executeDevToolsMethod("Runtime.evaluate",
+                "{\"expression\":\"document.title = window.open('" + server.localhostUrl()
+                        + "ad', 'w') ? 'opened' : 'refused';1\","
+                        + "\"userGesture\":true}", (ok, json) -> {}));
+        deadline = System.currentTimeMillis() + 15_000;
+        while (!title.get().equals("opened") && !title.get().equals("refused")
+                && System.currentTimeMillis() < deadline) {
+            Thread.sleep(100);
+        }
+        return title.get();
+    }
+
+    @Test
+    public void aPopupRuleRefusesTheWindow() throws Exception {
+        try (LocalHttpServer server = new LocalHttpServer("<title>p</title>")) {
+            Assert.assertTrue(load("||localhost^$popup") > 0);
+            Assert.assertEquals("refused", openWindow(server, true));
+        }
+        // A $popup rule is about windows only: the host's resources load.
+        try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
+            Assert.assertEquals("loaded count=0", fetch(server, "/x", null));
+        }
+    }
+
+    @Test
+    public void aResourceRuleDoesNotRefuseTheWindow() throws Exception {
+        try (LocalHttpServer server = new LocalHttpServer("<title>p</title>")) {
+            Assert.assertTrue(load("||localhost^") > 0);
+            Assert.assertEquals("opened", openWindow(server, true));
+        }
+    }
+
+    @Test
+    public void aPopupRuleIsOffWithAdBlockingOff() throws Exception {
+        try (LocalHttpServer server = new LocalHttpServer("<title>p</title>")) {
+            Assert.assertTrue(load("||localhost^$popup") > 0);
+            Assert.assertEquals("opened", openWindow(server, false));
+        }
+    }
 }

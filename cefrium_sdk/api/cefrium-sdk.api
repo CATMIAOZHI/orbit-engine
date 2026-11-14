@@ -109,25 +109,25 @@ public class com.cefrium.CefriumBrowser
   [deprecated] public static final java.lang.String PROXY_AUTO_DETECT = "auto_detect";
   [deprecated] public static final java.lang.String PROXY_FIXED = "fixed_servers";
   [deprecated] public static final java.lang.String PROXY_PAC = "pac_script";
-  public static final int DEVICE_BLUETOOTH = 0;
-  public static final int DEVICE_USB = 1;
-  public static final int DEVICE_SERIAL = 2;
-  public static final int QM_CAN_CUT = 2;
-  public static final int QM_CAN_COPY = 4;
-  public static final int QM_CAN_PASTE = 8;
-  public static final int TEXT_INPUT_MODE_DEFAULT = 0;
-  public static final int TEXT_INPUT_MODE_NONE = 1;
-  public static final int TEXT_INPUT_MODE_TEXT = 2;
-  public static final int TEXT_INPUT_MODE_TEL = 3;
-  public static final int TEXT_INPUT_MODE_URL = 4;
-  public static final int TEXT_INPUT_MODE_EMAIL = 5;
-  public static final int TEXT_INPUT_MODE_NUMERIC = 6;
-  public static final int TEXT_INPUT_MODE_DECIMAL = 7;
-  public static final int TEXT_INPUT_MODE_SEARCH = 8;
-  public static final int KEY_RAW_DOWN = 0;
-  public static final int KEY_DOWN = 1;
-  public static final int KEY_UP = 2;
-  public static final int KEY_CHAR = 3;
+  [deprecated] public static final int DEVICE_BLUETOOTH = 0;
+  [deprecated] public static final int DEVICE_USB = 1;
+  [deprecated] public static final int DEVICE_SERIAL = 2;
+  [deprecated] public static final int QM_CAN_CUT = 2;
+  [deprecated] public static final int QM_CAN_COPY = 4;
+  [deprecated] public static final int QM_CAN_PASTE = 8;
+  [deprecated] public static final int TEXT_INPUT_MODE_DEFAULT = 0;
+  [deprecated] public static final int TEXT_INPUT_MODE_NONE = 1;
+  [deprecated] public static final int TEXT_INPUT_MODE_TEXT = 2;
+  [deprecated] public static final int TEXT_INPUT_MODE_TEL = 3;
+  [deprecated] public static final int TEXT_INPUT_MODE_URL = 4;
+  [deprecated] public static final int TEXT_INPUT_MODE_EMAIL = 5;
+  [deprecated] public static final int TEXT_INPUT_MODE_NUMERIC = 6;
+  [deprecated] public static final int TEXT_INPUT_MODE_DECIMAL = 7;
+  [deprecated] public static final int TEXT_INPUT_MODE_SEARCH = 8;
+  [deprecated] public static final int KEY_RAW_DOWN = 0;
+  [deprecated] public static final int KEY_DOWN = 1;
+  [deprecated] public static final int KEY_UP = 2;
+  [deprecated] public static final int KEY_CHAR = 3;
   public static final int MOUSE_BUTTON_LEFT = 0;
   public static final int MOUSE_BUTTON_MIDDLE = 1;
   public static final int MOUSE_BUTTON_RIGHT = 2;
@@ -151,11 +151,11 @@ public class com.cefrium.CefriumBrowser
   public boolean getMediaPlaybackRequiresUserGesture();
   public com.cefrium.CefriumBrowser$ScriptHandler addDocumentStartJavaScript(java.lang.String, java.util.Set<java.lang.String>);
   [experimental] public void setNavigationClient(com.cefrium.CefriumNavigationClient);
-  public void setCallback(com.cefrium.CefriumBrowser$Callback);
+  [deprecated] public void setCallback(com.cefrium.CefriumBrowser$Callback);
   [deprecated] public void setOnUrlChangedListener(com.cefrium.CefriumBrowser$OnUrlChangedListener);
   [deprecated] public void setOnTitleChangedListener(com.cefrium.CefriumBrowser$OnTitleChangedListener);
   [deprecated] public void setOnFullscreenChangedListener(com.cefrium.CefriumBrowser$OnFullscreenChangedListener);
-  public void setOnRequestInterceptedListener(com.cefrium.CefriumBrowser$OnRequestInterceptedListener);
+  [deprecated] public void setOnRequestInterceptedListener(com.cefrium.CefriumBrowser$OnRequestInterceptedListener);
   public java.lang.String getUrl();
   public android.os.Bundle saveState();
   public void restoreState(android.os.Bundle);
@@ -240,7 +240,7 @@ public class com.cefrium.CefriumBrowser
   public void imeCommitText(java.lang.String, int);
   public void imeFinishComposingText(boolean);
   public void imeCancelComposition();
-  public void sendKeyEvent(int, int, int, int, char);
+  [deprecated] public void sendKeyEvent(int, int, int, int, char);
   public void sendKeyEvent(android.view.KeyEvent);
   public void sendTouchEvent(int, float, float, int);
   public void sendTouchDown(float, float);
@@ -309,7 +309,7 @@ public interface com.cefrium.CefriumBrowser$BeforeDownloadCallback
 public interface com.cefrium.CefriumBrowser$BitmapCallback
   public abstract void onBitmap(android.graphics.Bitmap);
 
-public class com.cefrium.CefriumBrowser$Callback
+[deprecated] public class com.cefrium.CefriumBrowser$Callback
   public com.cefrium.CefriumBrowser$Callback();
   public void onUrlChanged(java.lang.String);
   public void onTitleChanged(java.lang.String);
@@ -353,7 +353,8 @@ public interface com.cefrium.CefriumBrowser$DeviceChooserHandler
   public abstract void onDeviceChooserClosed(com.cefrium.CefriumBrowser$DeviceChooserSession);
 
 public interface com.cefrium.CefriumBrowser$DeviceChooserSession
-  public abstract int getType();
+  [deprecated] public abstract int getType();
+  public abstract com.cefrium.CefriumDeviceKind getKind();
   public abstract java.lang.String getOrigin();
   public abstract void select(java.lang.String);
   public abstract void cancel();
@@ -421,7 +422,7 @@ public class com.cefrium.CefriumBrowser$NavigationEntry
 [deprecated] public interface com.cefrium.CefriumBrowser$OnRenderProcessTerminatedListener
   public abstract void onRenderProcessTerminated(int, int);
 
-public interface com.cefrium.CefriumBrowser$OnRequestInterceptedListener
+[deprecated] public interface com.cefrium.CefriumBrowser$OnRequestInterceptedListener
   public abstract void onRequestIntercepted(java.lang.String, java.lang.String, boolean);
 
 [deprecated] public interface com.cefrium.CefriumBrowser$OnTitleChangedListener
@@ -467,7 +468,10 @@ public interface com.cefrium.CefriumBrowser$QueryOriginPolicy
   public static com.cefrium.CefriumBrowser$QueryOriginPolicy anyOrigin();
 
 public final class com.cefrium.CefriumBrowser$QuickMenuCallback
-  public com.cefrium.CefriumBrowser$QuickMenuCallback(com.cefrium.CefriumBrowser);
+  [deprecated] public com.cefrium.CefriumBrowser$QuickMenuCallback(com.cefrium.CefriumBrowser);
+  public boolean canCut();
+  public boolean canCopy();
+  public boolean canPaste();
   public void cut();
   public void copy();
   public void paste();
@@ -652,6 +656,22 @@ public final class com.cefrium.CefriumCookie$SameSite extends java.lang.Enum<com
   public void removeAllCookies(java.util.function.Consumer<java.lang.Integer>);
   public void flush(java.lang.Runnable);
 
+public final class com.cefrium.CefriumDateTimeInputType extends java.lang.Enum<com.cefrium.CefriumDateTimeInputType>
+  public static final com.cefrium.CefriumDateTimeInputType DATE;
+  public static final com.cefrium.CefriumDateTimeInputType DATETIME_LOCAL;
+  public static final com.cefrium.CefriumDateTimeInputType MONTH;
+  public static final com.cefrium.CefriumDateTimeInputType TIME;
+  public static final com.cefrium.CefriumDateTimeInputType WEEK;
+  public static com.cefrium.CefriumDateTimeInputType[] values();
+  public static com.cefrium.CefriumDateTimeInputType valueOf(java.lang.String);
+
+public final class com.cefrium.CefriumDeviceKind extends java.lang.Enum<com.cefrium.CefriumDeviceKind>
+  public static final com.cefrium.CefriumDeviceKind BLUETOOTH;
+  public static final com.cefrium.CefriumDeviceKind USB;
+  public static final com.cefrium.CefriumDeviceKind SERIAL;
+  public static com.cefrium.CefriumDeviceKind[] values();
+  public static com.cefrium.CefriumDeviceKind valueOf(java.lang.String);
+
 [deprecated] public interface com.cefrium.CefriumDialogHandler
   public static final int MODE_OPEN = 0;
   public static final int MODE_OPEN_MULTIPLE = 1;
@@ -823,13 +843,14 @@ public final class com.cefrium.CefriumPathContentServer$Builder
   public void deny();
 
 public interface com.cefrium.CefriumPickerHandler
-  public static final int DATE = 8;
-  public static final int DATE_TIME_LOCAL = 10;
-  public static final int MONTH = 11;
-  public static final int TIME = 12;
-  public static final int WEEK = 13;
+  [deprecated] public static final int DATE = 8;
+  [deprecated] public static final int DATE_TIME_LOCAL = 10;
+  [deprecated] public static final int MONTH = 11;
+  [deprecated] public static final int TIME = 12;
+  [deprecated] public static final int WEEK = 13;
   public default boolean onShowSelect(com.cefrium.CefriumPickerHandler$SelectItem[], int, boolean, com.cefrium.CefriumPickerHandler$SelectCallback);
-  public default boolean onShowDateTime(int, double, double, double, double, com.cefrium.CefriumPickerHandler$DateTimeCallback);
+  [deprecated] public default boolean onShowDateTime(int, double, double, double, double, com.cefrium.CefriumPickerHandler$DateTimeCallback);
+  public default boolean onShowDateTime(com.cefrium.CefriumDateTimeInputType, double, double, double, double, com.cefrium.CefriumPickerHandler$DateTimeCallback);
   public default boolean onShowColor(int, int[], com.cefrium.CefriumPickerHandler$ColorCallback);
 
 public interface com.cefrium.CefriumPickerHandler$ColorCallback
@@ -958,9 +979,11 @@ public class com.cefrium.CefriumRelayTransport extends com.cefrium.CefriumPushTr
 
 public interface com.cefrium.CefriumRenderHandler
   public abstract void onPaint(int, int, java.nio.ByteBuffer);
-  public default void onVirtualKeyboardRequested(int);
+  [deprecated] public default void onVirtualKeyboardRequested(int);
+  public default void onVirtualKeyboardRequested(com.cefrium.CefriumTextInputMode);
   public default void onFocusedNodeChanged(boolean, java.lang.String, java.lang.String, java.lang.String);
-  public default void onQuickMenu(int, int, int, int, int, com.cefrium.CefriumBrowser$QuickMenuCallback);
+  [deprecated] public default void onQuickMenu(int, int, int, int, int, com.cefrium.CefriumBrowser$QuickMenuCallback);
+  public default void onQuickMenu(int, int, int, int, com.cefrium.CefriumBrowser$QuickMenuCallback);
   public default void onTouchHandleChanged(com.cefrium.CefriumRenderHandler$TouchHandle);
   [deprecated] public default void onTouchHandleStateChanged(int, int, int, boolean);
   public default void onPopupPaint(int, int, int, int, java.nio.ByteBuffer);
@@ -1014,6 +1037,7 @@ public interface com.cefrium.CefriumRequestHandler$ClientCertificateCallback
 [experimental] public interface com.cefrium.CefriumResourceInterceptor
   public default boolean shouldBlockRequest(com.cefrium.CefriumBrowser$ResourceRequest);
   public default com.cefrium.CefriumContentResponse shouldInterceptRequest(com.cefrium.CefriumContentRequest);
+  public default void onRequestFiltered(java.lang.String, java.lang.String, boolean);
   public default void onResourceRedirect(java.lang.String, java.lang.String);
   public default void onResourceResponse(java.lang.String, int);
   public default void onResourceLoadComplete(java.lang.String, int, long);
@@ -1072,6 +1096,19 @@ public class com.cefrium.CefriumSurfaceContainer extends android.widget.FrameLay
   public boolean dispatchNestedScroll(int, int, int, int, int[], int);
   public boolean dispatchNestedPreScroll(int, int, int[], int[], int);
   public void dispatchNestedScroll(int, int, int, int, int[], int, int[]);
+
+public final class com.cefrium.CefriumTextInputMode extends java.lang.Enum<com.cefrium.CefriumTextInputMode>
+  public static final com.cefrium.CefriumTextInputMode DEFAULT;
+  public static final com.cefrium.CefriumTextInputMode NONE;
+  public static final com.cefrium.CefriumTextInputMode TEXT;
+  public static final com.cefrium.CefriumTextInputMode TEL;
+  public static final com.cefrium.CefriumTextInputMode URL;
+  public static final com.cefrium.CefriumTextInputMode EMAIL;
+  public static final com.cefrium.CefriumTextInputMode NUMERIC;
+  public static final com.cefrium.CefriumTextInputMode DECIMAL;
+  public static final com.cefrium.CefriumTextInputMode SEARCH;
+  public static com.cefrium.CefriumTextInputMode[] values();
+  public static com.cefrium.CefriumTextInputMode valueOf(java.lang.String);
 
 [experimental] public final class com.cefrium.CefriumWebRtcIpPolicy extends java.lang.Enum<com.cefrium.CefriumWebRtcIpPolicy>
   public static final com.cefrium.CefriumWebRtcIpPolicy DEFAULT;

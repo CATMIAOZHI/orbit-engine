@@ -15,15 +15,40 @@ package com.cefrium;
  * through the callback, exactly once; false falls back to the default.</p>
  */
 public interface CefriumPickerHandler {
-    /** {@code <input type=date>}. */
+    /**
+     * {@code <input type=date>}.
+     *
+     * @deprecated Use {@link CefriumDateTimeInputType}.
+     */
+    @Deprecated
     int DATE = 8;
-    /** {@code <input type=datetime-local>}. */
+    /**
+     * {@code <input type=datetime-local>}.
+     *
+     * @deprecated Use {@link CefriumDateTimeInputType}.
+     */
+    @Deprecated
     int DATE_TIME_LOCAL = 10;
-    /** {@code <input type=month>}. */
+    /**
+     * {@code <input type=month>}.
+     *
+     * @deprecated Use {@link CefriumDateTimeInputType}.
+     */
+    @Deprecated
     int MONTH = 11;
-    /** {@code <input type=time>}. */
+    /**
+     * {@code <input type=time>}.
+     *
+     * @deprecated Use {@link CefriumDateTimeInputType}.
+     */
+    @Deprecated
     int TIME = 12;
-    /** {@code <input type=week>}. */
+    /**
+     * {@code <input type=week>}.
+     *
+     * @deprecated Use {@link CefriumDateTimeInputType}.
+     */
+    @Deprecated
     int WEEK = 13;
 
     /** One entry of a {@code <select>}. */
@@ -93,10 +118,28 @@ public interface CefriumPickerHandler {
      *        otherwise milliseconds since 1970 UTC. NaN when the input is
      *        empty. {@code minimum}, {@code maximum} and {@code step} use the
      *        same units.
+     * @deprecated Use {@link #onShowDateTime(CefriumDateTimeInputType, double, double,
+     *     double, double, DateTimeCallback)}.
      */
+    @Deprecated
     default boolean onShowDateTime(int type, double value, double minimum, double maximum,
             double step, DateTimeCallback callback) {
         return false;
+    }
+
+    /**
+     * A date or time input wants its picker.
+     *
+     * @param value as Chromium represents it: for {@link CefriumDateTimeInputType#TIME}
+     *        milliseconds since midnight, for {@link CefriumDateTimeInputType#MONTH}
+     *        months since January 1970, otherwise milliseconds since 1970 UTC. NaN
+     *        when the input is empty. {@code minimum}, {@code maximum} and
+     *        {@code step} use the same units.
+     */
+    @SuppressWarnings("deprecation")
+    default boolean onShowDateTime(CefriumDateTimeInputType type, double value,
+            double minimum, double maximum, double step, DateTimeCallback callback) {
+        return onShowDateTime(type.engine, value, minimum, maximum, step, callback);
     }
 
     /**

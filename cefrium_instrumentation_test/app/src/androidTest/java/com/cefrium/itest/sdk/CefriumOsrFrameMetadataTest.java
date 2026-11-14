@@ -88,6 +88,8 @@ public class CefriumOsrFrameMetadataTest {
     public void longPressOnTextOpensTheQuickMenu() throws Exception {
         AtomicReference<String> title = new AtomicReference<>("");
         AtomicInteger flags = new AtomicInteger(-1);
+        java.util.concurrent.atomic.AtomicBoolean canCopy =
+                new java.util.concurrent.atomic.AtomicBoolean();
         CountDownLatch menu = new CountDownLatch(1);
         try (LocalHttpServer server = new LocalHttpServer("<html><body style='margin:0'>"
                 + "<p style='font-size:60px;margin:0;line-height:300px'>Selectable</p>"
@@ -100,6 +102,7 @@ public class CefriumOsrFrameMetadataTest {
                 public void onQuickMenu(int x, int y, int width, int height, int editFlags,
                         CefriumBrowser.QuickMenuCallback callback) {
                     flags.set(editFlags);
+                    canCopy.set(callback.canCopy());
                     callback.cancel();
                     menu.countDown();
                 }
@@ -112,6 +115,7 @@ public class CefriumOsrFrameMetadataTest {
                     menu.await(10, TimeUnit.SECONDS));
             Assert.assertTrue("the quick menu cannot copy: flags " + flags.get(),
                     (flags.get() & CefriumBrowser.QM_CAN_COPY) != 0);
+            Assert.assertTrue("the menu says it cannot copy", canCopy.get());
         }
     }
 }

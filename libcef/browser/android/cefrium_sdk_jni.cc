@@ -478,6 +478,15 @@ bool SdkLifeSpanHandler::OnBeforePopup(
     CefBrowserSettings& settings,
     CefRefPtr<CefDictionaryValue>& extra_info,
     bool* no_javascript_access) {
+  // A listed popup ad opens nothing, as in a browser with an ad blocker:
+  // window.open returns null to the page.
+  if (data_ && data_->client && data_->client->request_handler() &&
+      frame &&
+      data_->client->request_handler()->resource_request_handler()->BlocksPopup(
+          GURL(target_url.ToString()), GURL(frame->GetURL().ToString()))) {
+    return true;
+  }
+
   // FEATURE-086: a browser the app made for this popup (same mode and
   // profile), not created yet. CEF creates it with its client, so the page
   // keeps window.opener.

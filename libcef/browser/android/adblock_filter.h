@@ -19,8 +19,8 @@
 // `@@||host^$document` (no blocking on that site), and the options
 // third-party, domain=, and the resource types script, image, stylesheet,
 // object, xmlhttprequest, subdocument, ping, media, font, other (and their ~
-// negations). A rule with any other option is skipped rather than applied to
-// every request. Cosmetic (##) rules are ignored: this is network only.
+// negations), and popup. A rule with any other option is skipped rather than
+// applied to every request. Cosmetic (##) rules are ignored: this is network only.
 //
 // A filter is immutable once built. Loading builds a new one and publishes it
 // (see Current/Load below), so the IO thread never reads one being written.
@@ -44,6 +44,11 @@ class AdBlockFilter {
   bool ShouldBlock(const GURL& url,
                    const GURL& document,
                    cef_resource_type_t type) const;
+
+  // Whether a window the document at `opener` opens on `url` is a listed
+  // popup. Only $popup rules apply, as in Adblock Plus: a rule for a host's
+  // resources does not stop a window opening there.
+  bool ShouldBlockPopup(const GURL& url, const GURL& opener) const;
 
   size_t rule_count() const { return block_.count + allow_.count; }
 

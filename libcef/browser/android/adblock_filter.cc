@@ -57,6 +57,10 @@ uint32_t TypeBits(const std::string& option) {
 }
 
 constexpr uint32_t kAllTypes = (1u << RT_NUM_VALUES) - 1;
+// $popup: a window, not a resource. Outside kAllTypes, so a rule without the
+// option never matches a window and a $popup rule never matches a resource.
+constexpr uint32_t kPopupBit = 1u << 31;
+static_assert(RT_NUM_VALUES < 31, "resource types collide with kPopupBit");
 
 // host == domain, or host is a subdomain of it.
 bool OnDomain(const std::string& host, const std::string& domain) {
@@ -200,6 +204,8 @@ bool AdBlockFilter::ParseRule(const std::string& raw, int list) {
         // Hosts are case-insensitive and paths are compared as written.
       } else if (uint32_t bits = TypeBits(name)) {
         (negated ? exclude : include) |= bits;
+      } else if (name == "popup" && !negated) {
+        include |= kPopupBit;
       } else {
         // popup, csp, redirect, removeparam, ...: not ours to apply.
         return false;
@@ -244,7 +250,8 @@ bool AdBlockFilter::Matches(const Rule& rule,
   if (rule.document) {
     return true;
   }
-  if (rule.types && !(rule.types & type_bit)) {
+  if (type_bit == kPopupBit ? !(rule.types & kPopupBit)
+                             : (rule.types && !(rule.types & type_bit))) {
     return false;
   }
   if ((rule.third_party == 1 && !third_party) ||
@@ -300,6 +307,26 @@ bool AdBlockFilter::ShouldBlock(const GURL& url,
     return false;
   }
   return !allow_.Any(url, document, type_bit, third_party, false);
+}
+
+bool AdBlockFilter::ShouldBlockPopup(const GURL& url,
+                                     const GURL& opener) const {
+  if (!url.SchemeIsHTTPOrHTTPS()) {
+    return false;
+  }
+  const bool third_party =
+      !opener.is_valid() ||
+      !net::registry_controlled_domains::SameDomainOrHost(
+          url, opener,
+          net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
+  if (!block_.Any(url, opener, kPopupBit, third_party, false)) {
+    return false;
+  }
+  if (opener.is_valid() &&
+      allow_.Any(url, opener, kPopupBit, third_party, true)) {
+    return false;
+  }
+  return !allow_.Any(url, opener, kPopupBit, third_party, false);
 }
 
 void AdBlockFilter::AddYouTubeAdRules() {

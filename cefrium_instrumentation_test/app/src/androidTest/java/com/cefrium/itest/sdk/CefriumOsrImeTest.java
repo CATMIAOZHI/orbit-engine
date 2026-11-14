@@ -47,6 +47,9 @@ public class CefriumOsrImeTest {
     private final AtomicReference<String> focused = new AtomicReference<>("");
     // The last mode onVirtualKeyboardRequested asked for, -1 before any.
     private final AtomicReference<Integer> keyboard = new AtomicReference<>(-1);
+    // The same request, typed.
+    private final AtomicReference<com.cefrium.CefriumTextInputMode> keyboardTyped =
+            new AtomicReference<>();
 
     @After
     public void closeServer() {
@@ -100,6 +103,13 @@ public class CefriumOsrImeTest {
                 public void onVirtualKeyboardRequested(int inputMode) {
                     keyboard.set(inputMode);
                 }
+
+                // The typed call, passed on to the deprecated int one.
+                @Override
+                public void onVirtualKeyboardRequested(com.cefrium.CefriumTextInputMode mode) {
+                    keyboardTyped.set(mode);
+                    CefriumRenderHandler.super.onVirtualKeyboardRequested(mode);
+                }
             });
             b.setOnTitleChangedListener(title::set);
             b.loadUrl(server.url());
@@ -115,6 +125,7 @@ public class CefriumOsrImeTest {
     private void tap(CefriumBrowser b, float y) throws InterruptedException {
         focused.set("");
         keyboard.set(-1);
+        keyboardTyped.set(null);
         activityRule.getActivity().runOnUiThread(() -> b.sendTap(200f, y));
         waitFor(focused, "true:text");
     }
@@ -233,6 +244,25 @@ public class CefriumOsrImeTest {
         Assert.assertNotEquals("no keyboard request", -1, (int) keyboard.get());
         Assert.assertNotEquals("the keyboard was asked to hide",
                 CefriumBrowser.TEXT_INPUT_MODE_NONE, (int) keyboard.get());
+        // The typed call came first and carries the same request.
+        Assert.assertNotNull("no typed keyboard request", keyboardTyped.get());
+        Assert.assertEquals(keyboard.get().intValue(), keyboardTyped.get().ordinal());
+        Assert.assertNotEquals(com.cefrium.CefriumTextInputMode.NONE, keyboardTyped.get());
+    }
+
+    // The typed mode names the keyboard a field asks for: inputmode=numeric
+    // is NUMERIC, not the default.
+    @Test
+    public void aNumericFieldAsksForTheNumericKeyboard() throws Exception {
+        AtomicReference<String> title = new AtomicReference<>("");
+        open(mainFramePage("inputmode=numeric"), title);
+        long deadline = System.currentTimeMillis() + 5_000;
+        while (keyboardTyped.get() != com.cefrium.CefriumTextInputMode.NUMERIC
+                && System.currentTimeMillis() < deadline) {
+            Thread.sleep(100);
+        }
+        Assert.assertEquals(com.cefrium.CefriumTextInputMode.NUMERIC, keyboardTyped.get());
+        Assert.assertEquals(CefriumBrowser.TEXT_INPUT_MODE_NUMERIC, (int) keyboard.get());
     }
 
     @Test

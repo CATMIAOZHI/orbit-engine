@@ -37,6 +37,13 @@ public interface CefriumResourceInterceptor {
     // Notifications, on the network thread. A method that is not overridden
     // costs nothing: the engine only calls the ones an interceptor implements.
 
+    /**
+     * Every request, after the block decision: {@code blocked} is true when
+     * the built-in ad filter or {@link #shouldBlockRequest} refused it.
+     * Network thread.
+     */
+    default void onRequestFiltered(String url, String method, boolean blocked) {}
+
     /** A request was redirected to {@code newUrl}. Network thread. */
     default void onResourceRedirect(String oldUrl, String newUrl) {}
 
