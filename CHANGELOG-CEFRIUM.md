@@ -47,6 +47,14 @@ in the internal FEATURE-NNN.md working docs (not published).
   load start, loading state, progress (0-100), load errors
   (`CefriumLoadError`, net code) and the renderer's end
   (`CefriumRendererTerminationStatus`), unresponsive and responsive.
+- JavaScript dialogs on `CefriumChromeClient`: `onJsDialog` (typed
+  `CefriumJsDialogType`) and `onBeforeUnloadDialog`. The callback can be
+  answered from any thread, and only the first answer counts (a second call
+  used to reach the engine again).
+- File inputs on `CefriumChromeClient`: `onShowFileChooser` with
+  `CefriumFileChooserParams` (typed `Mode`, accept types, `createIntent()`
+  for the system picker, `parseResult()`) and a `CefriumFileChooserCallback`
+  answerable from any thread. Returning false keeps the SDK's own chooser.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 
@@ -64,6 +72,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   `setOnRenderProcessTerminated` listeners, `CefriumDisplayHandler`,
   `CefriumLoadHandler` and the `TERMINATION_` constants: use the two
   clients. They keep working until 1.0, alongside the clients.
+- `JsDialogHandler`, `setJsDialogHandler` and the `JS_DIALOG_` constants: use
+  `CefriumChromeClient.onJsDialog`.
+- `CefriumDialogHandler` and `setDialogHandler`: use
+  `CefriumChromeClient.onShowFileChooser`.
 
 ### Changed
 - **`onRequestIntercepted` is called on the UI thread** (`Callback` and

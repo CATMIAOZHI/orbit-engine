@@ -90,9 +90,9 @@ public class com.cefrium.CefriumBrowser
   public static final int SAME_SITE_NONE = 1;
   public static final int SAME_SITE_LAX = 2;
   public static final int SAME_SITE_STRICT = 3;
-  public static final int JS_DIALOG_ALERT = 0;
-  public static final int JS_DIALOG_CONFIRM = 1;
-  public static final int JS_DIALOG_PROMPT = 2;
+  [deprecated] public static final int JS_DIALOG_ALERT = 0;
+  [deprecated] public static final int JS_DIALOG_CONFIRM = 1;
+  [deprecated] public static final int JS_DIALOG_PROMPT = 2;
   [deprecated] public static final int PERMISSION_GEOLOCATION = 256;
   [deprecated] public static final int PERMISSION_CAMERA = 4;
   [deprecated] public static final int PERMISSION_MICROPHONE = 4096;
@@ -193,7 +193,7 @@ public class com.cefrium.CefriumBrowser
   public void stopLoading();
   public void setResourceInterceptor(com.cefrium.CefriumResourceInterceptor);
   [deprecated] public void setRequestInterceptor(com.cefrium.CefriumBrowser$RequestInterceptor);
-  public void setJsDialogHandler(com.cefrium.CefriumBrowser$JsDialogHandler);
+  [deprecated] public void setJsDialogHandler(com.cefrium.CefriumBrowser$JsDialogHandler);
   public void setPickerHandler(com.cefrium.CefriumPickerHandler);
   public void setDialogActivity(android.app.Activity);
   [deprecated] public void setPermissionHandler(com.cefrium.CefriumBrowser$PermissionHandler);
@@ -284,7 +284,7 @@ public class com.cefrium.CefriumBrowser
   public void setAudioHandler(com.cefrium.CefriumAudioHandler);
   public void setFrameHandler(com.cefrium.CefriumFrameHandler);
   public void setCommandHandler(com.cefrium.CefriumCommandHandler);
-  public void setDialogHandler(com.cefrium.CefriumDialogHandler);
+  [deprecated] public void setDialogHandler(com.cefrium.CefriumDialogHandler);
   public void fileDialogResult(long, java.lang.String[]);
   public void downloadImage(java.lang.String, int, com.cefrium.CefriumBrowser$ImageCallback);
   public void setFocus(boolean);
@@ -382,7 +382,7 @@ public interface com.cefrium.CefriumBrowser$ImageCallback
 public interface com.cefrium.CefriumBrowser$JsDialogCallback
   public abstract void continueDialog(boolean, java.lang.String);
 
-public interface com.cefrium.CefriumBrowser$JsDialogHandler
+[deprecated] public interface com.cefrium.CefriumBrowser$JsDialogHandler
   public abstract boolean onJsDialog(int, java.lang.String, java.lang.String, com.cefrium.CefriumBrowser$JsDialogCallback);
   public default boolean onBeforeUnloadDialog(java.lang.String, boolean, com.cefrium.CefriumBrowser$JsDialogCallback);
   public default void onDialogResetState();
@@ -515,6 +515,9 @@ public interface com.cefrium.CefriumChromeClient
   public default void onStatusMessage(com.cefrium.CefriumBrowser, java.lang.String);
   public default void onMediaAccessChanged(com.cefrium.CefriumBrowser, boolean, boolean);
   public default void onFindResult(com.cefrium.CefriumBrowser, int, int);
+  public default boolean onJsDialog(com.cefrium.CefriumBrowser, com.cefrium.CefriumJsDialogType, java.lang.String, java.lang.String, com.cefrium.CefriumBrowser$JsDialogCallback);
+  public default boolean onBeforeUnloadDialog(com.cefrium.CefriumBrowser, java.lang.String, boolean, com.cefrium.CefriumBrowser$JsDialogCallback);
+  public default boolean onShowFileChooser(com.cefrium.CefriumBrowser, com.cefrium.CefriumFileChooserParams, com.cefrium.CefriumFileChooserCallback);
   public default void onPermissionRequest(com.cefrium.CefriumBrowser, com.cefrium.CefriumPermissionRequest);
   public default void onPermissionRequestCanceled(com.cefrium.CefriumBrowser, com.cefrium.CefriumPermissionRequest);
 
@@ -579,7 +582,7 @@ public final class com.cefrium.CefriumContentSetting extends java.lang.Enum<com.
   public static com.cefrium.CefriumContentSetting[] values();
   public static com.cefrium.CefriumContentSetting valueOf(java.lang.String);
 
-public interface com.cefrium.CefriumDialogHandler
+[deprecated] public interface com.cefrium.CefriumDialogHandler
   public static final int MODE_OPEN = 0;
   public static final int MODE_OPEN_MULTIPLE = 1;
   public static final int MODE_OPEN_FOLDER = 2;
@@ -600,6 +603,25 @@ public interface com.cefrium.CefriumDialogHandler$FileDialogCallback
 public interface com.cefrium.CefriumDragHandler
   public default boolean onDragEnter(int);
   public default void onDraggableRegionsChanged(int[]);
+
+public interface com.cefrium.CefriumFileChooserCallback
+  public abstract void select(java.lang.String[]);
+  public abstract void cancel();
+
+public final class com.cefrium.CefriumFileChooserParams
+  public com.cefrium.CefriumFileChooserParams$Mode getMode();
+  public java.lang.String getTitle();
+  public java.util.List<java.lang.String> getAcceptTypes();
+  public android.content.Intent createIntent();
+  public static java.lang.String[] parseResult(int, android.content.Intent);
+
+public final class com.cefrium.CefriumFileChooserParams$Mode extends java.lang.Enum<com.cefrium.CefriumFileChooserParams$Mode>
+  public static final com.cefrium.CefriumFileChooserParams$Mode OPEN;
+  public static final com.cefrium.CefriumFileChooserParams$Mode OPEN_MULTIPLE;
+  public static final com.cefrium.CefriumFileChooserParams$Mode OPEN_FOLDER;
+  public static final com.cefrium.CefriumFileChooserParams$Mode SAVE;
+  public static com.cefrium.CefriumFileChooserParams$Mode[] values();
+  public static com.cefrium.CefriumFileChooserParams$Mode valueOf(java.lang.String);
 
 public interface com.cefrium.CefriumFocusHandler
   public default void onTakeFocus(boolean);
@@ -638,6 +660,13 @@ public final class com.cefrium.CefriumInitProvider extends android.content.Conte
   public android.net.Uri insert(android.net.Uri, android.content.ContentValues);
   public int delete(android.net.Uri, java.lang.String, java.lang.String[]);
   public int update(android.net.Uri, android.content.ContentValues, java.lang.String, java.lang.String[]);
+
+public final class com.cefrium.CefriumJsDialogType extends java.lang.Enum<com.cefrium.CefriumJsDialogType>
+  public static final com.cefrium.CefriumJsDialogType ALERT;
+  public static final com.cefrium.CefriumJsDialogType CONFIRM;
+  public static final com.cefrium.CefriumJsDialogType PROMPT;
+  public static com.cefrium.CefriumJsDialogType[] values();
+  public static com.cefrium.CefriumJsDialogType valueOf(java.lang.String);
 
 public interface com.cefrium.CefriumKeyboardHandler
   public default boolean onPreKeyEvent(int, int, int);

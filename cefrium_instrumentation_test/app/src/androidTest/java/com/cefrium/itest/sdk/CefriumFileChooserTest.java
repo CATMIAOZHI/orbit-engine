@@ -201,6 +201,55 @@ public class CefriumFileChooserTest {
         Assert.assertEquals("the default picker ran too", 0, hits.get());
     }
 
+    /**
+     * A chrome client gets the typed parameters on the UI thread, answers
+     * from another thread, and its answer is used; no picker starts.
+     */
+    @Test
+    public void chromeClientAnswers() throws Exception {
+        ComponentHostActivity activity = androidxRule.launchActivity(null);
+        AtomicReference<CefriumBrowser> b = new AtomicReference<>();
+        AtomicReference<String> seen = new AtomicReference<>();
+        activity.runOnUiThread(() -> {
+            CefriumBrowser browser = surface(activity);
+            browser.setChromeClient(new com.cefrium.CefriumChromeClient() {
+                @Override
+                public boolean onShowFileChooser(CefriumBrowser x,
+                        com.cefrium.CefriumFileChooserParams params,
+                        com.cefrium.CefriumFileChooserCallback callback) {
+                    seen.set((android.os.Looper.myLooper() == android.os.Looper.getMainLooper()
+                            ? "" : "OFF-UI ") + params.getMode() + " " + params.getAcceptTypes()
+                            + " " + params.createIntent().getAction());
+                    new Thread(() -> {
+                        callback.select(new String[] {file.toString()});
+                        callback.cancel();  // only the first answer counts
+                    }).start();
+                    return true;
+                }
+            });
+            b.set(browser);
+        });
+        String t = pick(activity, b, true);
+        Assert.assertEquals("OPEN [.txt] " + Intent.ACTION_GET_CONTENT, seen.get());
+        Assert.assertEquals("picked:" + name + ":" + CONTENT, t);
+        Assert.assertEquals("a picker started although the client answered", 0, hits.get());
+    }
+
+    /** A chrome client that returns false gets the SDK's own chooser. */
+    @Test
+    public void chromeClientDeclinesToTheDefault() throws Exception {
+        ComponentHostActivity activity = androidxRule.launchActivity(null);
+        AtomicReference<CefriumBrowser> b = new AtomicReference<>();
+        activity.runOnUiThread(() -> {
+            CefriumBrowser browser = surface(activity);
+            browser.setChromeClient(new com.cefrium.CefriumChromeClient() {});
+            b.set(browser);
+        });
+        String t = pick(activity, b, true);
+        Assert.assertEquals("the default picker did not start", 1, hits.get());
+        Assert.assertEquals("picked:" + name + ":" + CONTENT, t);
+    }
+
     // ---- helpers ----
 
     private String pickIn(Activity activity, boolean surface,
