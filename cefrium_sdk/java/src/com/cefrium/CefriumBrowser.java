@@ -910,6 +910,12 @@ public class CefriumBrowser {
     private static final android.os.Handler MAIN_HANDLER =
             new android.os.Handler(android.os.Looper.getMainLooper());
 
+    // Runs |r| now on the UI thread, or posts it there.
+    private static void runOnUi(Runnable r) {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) r.run();
+        else MAIN_HANDLER.post(r);
+    }
+
     // Called from native CefResourceRequestHandler::OnBeforeResourceLoad, on the
     // network thread. It only reports, so it is delivered on the UI thread like
     // every other Callback method, in request order.
@@ -2838,14 +2844,20 @@ public class CefriumBrowser {
      * Decides whether to continue loading a URL whose TLS certificate failed
      * validation (the WebView {@code onReceivedSslError} equivalent). Without a
      * handler set, the load is cancelled &mdash; the secure default.
+     * @deprecated Use {@link CefriumNavigationClient#onSslError}.
      */
+    @Deprecated
     public interface SslErrorHandler {
         void onSslError(String url, int certError, SslErrorCallback callback);
     }
 
     private SslErrorHandler mSslErrorHandler;
 
-    /** Sets the SSL/certificate error handler (null = cancel on every cert error). */
+    /**
+     * Sets the SSL/certificate error handler (null = cancel on every cert error).
+     * @deprecated Use {@link CefriumNavigationClient#onSslError}.
+     */
+    @Deprecated
     public void setSslErrorHandler(SslErrorHandler handler) {
         checkThread("setSslErrorHandler");
         mSslErrorHandler = handler;
@@ -2853,7 +2865,26 @@ public class CefriumBrowser {
     }
 
     // Called from native (UI thread) when a certificate fails validation.
-    private void onSslError(long id, String url, int certError) {
+    // |chain| is DER, the server's certificate first.
+    @SuppressWarnings({"unused", "deprecation"})
+    private void onSslError(long id, String url, int certError, byte[][] chain) {
+        CefriumNavigationClient nav = mNavigationClient;
+        if (nav != null) {
+            final java.util.concurrent.atomic.AtomicBoolean answered =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+            java.util.function.Consumer<Boolean> respond = proceed -> {
+                if (!answered.compareAndSet(false, true)) return;
+                runOnUi(() -> {
+                    if (mNativePtr != 0 && !mClosed) nativeRespondSslError(mNativePtr, id, proceed);
+                });
+            };
+            nav.onSslError(this, new CefriumSslError(certError, url, chain),
+                    new SslErrorCallback() {
+                        @Override public void proceed() { respond.accept(true); }
+                        @Override public void cancel() { respond.accept(false); }
+                    });
+            return;
+        }
         SslErrorHandler h = mSslErrorHandler;
         if (h == null) {
             if (mNativePtr != 0) nativeRespondSslError(mNativePtr, id, false);
@@ -2884,7 +2915,9 @@ public class CefriumBrowser {
      * Supplies credentials for an HTTP or proxy authentication challenge (the
      * WebView {@code onReceivedHttpAuthRequest} equivalent). Without a handler
      * set, the challenge is cancelled (no credentials supplied).
+     * @deprecated Use {@link CefriumNavigationClient#onHttpAuthRequest}.
      */
+    @Deprecated
     public interface HttpAuthHandler {
         void onHttpAuthRequest(String host, String realm, int port,
                                boolean isProxy, HttpAuthCallback callback);
@@ -2892,16 +2925,42 @@ public class CefriumBrowser {
 
     private HttpAuthHandler mHttpAuthHandler;
 
-    /** Sets the HTTP auth handler (null = cancel every auth challenge). */
+    /**
+     * Sets the HTTP auth handler (null = cancel every auth challenge).
+     * @deprecated Use {@link CefriumNavigationClient#onHttpAuthRequest}.
+     */
+    @Deprecated
     public void setHttpAuthHandler(HttpAuthHandler handler) {
         checkThread("setHttpAuthHandler");
         mHttpAuthHandler = handler;
         if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
-    // Called from native (UI thread) on an HTTP/proxy auth challenge.
+    // Called from native GetAuthCredentials, on the NETWORK thread (measured):
+    // delivered on the UI thread, as the navigation client promises.
+    @SuppressWarnings({"unused", "deprecation"})
     private void onHttpAuthRequest(long id, String host, String realm, int port,
                                    boolean isProxy) {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            MAIN_HANDLER.post(() -> onHttpAuthRequest(id, host, realm, port, isProxy));
+            return;
+        }
+        CefriumNavigationClient nav = mNavigationClient;
+        if (nav != null) {
+            final java.util.concurrent.atomic.AtomicBoolean answered =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+            nav.onHttpAuthRequest(this, host, realm, port, isProxy, new HttpAuthCallback() {
+                @Override public void proceed(String u, String p) { respond(u, p); }
+                @Override public void cancel() { respond(null, null); }
+                private void respond(String u, String p) {
+                    if (!answered.compareAndSet(false, true)) return;
+                    runOnUi(() -> {
+                        if (mNativePtr != 0 && !mClosed) nativeRespondHttpAuth(mNativePtr, id, u, p);
+                    });
+                }
+            });
+            return;
+        }
         HttpAuthHandler h = mHttpAuthHandler;
         if (h == null) {
             if (mNativePtr != 0) nativeRespondHttpAuth(mNativePtr, id, null, null);
@@ -4897,8 +4956,30 @@ public class CefriumBrowser {
         CefriumRequestHandler h = mRequestHandler;
         return h == null || h.onCanSaveCookie(url, name, value);
     }
+    @SuppressWarnings({"unused", "deprecation"})
     private void onSelectClientCertificate(final long id, boolean isProxy, String host,
                                            int port, String[] subjectNames) {
+        CefriumNavigationClient nav = mNavigationClient;
+        if (nav != null) {
+            final java.util.concurrent.atomic.AtomicBoolean answered =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+            java.util.function.IntConsumer respond = index -> {
+                if (!answered.compareAndSet(false, true)) return;
+                runOnUi(() -> {
+                    if (mNativePtr != 0 && !mClosed) {
+                        nativeSelectClientCertificate(mNativePtr, id, index);
+                    }
+                });
+            };
+            nav.onSelectClientCertificate(this, isProxy, host, port,
+                    java.util.Collections.unmodifiableList(java.util.Arrays.asList(
+                            subjectNames == null ? new String[0] : subjectNames)),
+                    new CefriumClientCertificateCallback() {
+                        @Override public void select(int index) { respond.accept(index); }
+                        @Override public void cancel() { respond.accept(-1); }
+                    });
+            return;
+        }
         CefriumRequestHandler h = mRequestHandler;
         if (h == null) {
             if (mNativePtr != 0) nativeSelectClientCertificate(mNativePtr, id, -1);

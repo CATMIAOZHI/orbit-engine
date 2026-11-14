@@ -205,8 +205,8 @@ public class com.cefrium.CefriumBrowser
   public boolean clearProxy();
   public void setIdentityHandler(com.cefrium.CefriumIdentityHandler);
   public void setDeviceChooserHandler(com.cefrium.CefriumBrowser$DeviceChooserHandler);
-  public void setSslErrorHandler(com.cefrium.CefriumBrowser$SslErrorHandler);
-  public void setHttpAuthHandler(com.cefrium.CefriumBrowser$HttpAuthHandler);
+  [deprecated] public void setSslErrorHandler(com.cefrium.CefriumBrowser$SslErrorHandler);
+  [deprecated] public void setHttpAuthHandler(com.cefrium.CefriumBrowser$HttpAuthHandler);
   public void setPopupHandler(com.cefrium.CefriumBrowser$PopupHandler);
   public boolean canGoBack();
   public void suspendMedia();
@@ -373,7 +373,7 @@ public interface com.cefrium.CefriumBrowser$HttpAuthCallback
   public abstract void proceed(java.lang.String, java.lang.String);
   public abstract void cancel();
 
-public interface com.cefrium.CefriumBrowser$HttpAuthHandler
+[deprecated] public interface com.cefrium.CefriumBrowser$HttpAuthHandler
   public abstract void onHttpAuthRequest(java.lang.String, java.lang.String, int, boolean, com.cefrium.CefriumBrowser$HttpAuthCallback);
 
 public interface com.cefrium.CefriumBrowser$ImageCallback
@@ -504,7 +504,7 @@ public interface com.cefrium.CefriumBrowser$SslErrorCallback
   public abstract void proceed();
   public abstract void cancel();
 
-public interface com.cefrium.CefriumBrowser$SslErrorHandler
+[deprecated] public interface com.cefrium.CefriumBrowser$SslErrorHandler
   public abstract void onSslError(java.lang.String, int, com.cefrium.CefriumBrowser$SslErrorCallback);
 
 public interface com.cefrium.CefriumChromeClient
@@ -523,6 +523,10 @@ public interface com.cefrium.CefriumChromeClient
   public default void onUnhandledKeyEvent(com.cefrium.CefriumBrowser, android.view.KeyEvent);
   public default void onPermissionRequest(com.cefrium.CefriumBrowser, com.cefrium.CefriumPermissionRequest);
   public default void onPermissionRequestCanceled(com.cefrium.CefriumBrowser, com.cefrium.CefriumPermissionRequest);
+
+public interface com.cefrium.CefriumClientCertificateCallback
+  public abstract void select(int);
+  public abstract void cancel();
 
 public interface com.cefrium.CefriumCommandHandler
   public default boolean onChromeCommand(int, int);
@@ -727,6 +731,9 @@ public interface com.cefrium.CefriumNavigationClient
   public default void onRenderProcessTerminated(com.cefrium.CefriumBrowser, com.cefrium.CefriumRendererTerminationStatus, int);
   public default void onRenderProcessUnresponsive(com.cefrium.CefriumBrowser);
   public default void onRenderProcessResponsive(com.cefrium.CefriumBrowser);
+  public default void onSslError(com.cefrium.CefriumBrowser, com.cefrium.CefriumSslError, com.cefrium.CefriumBrowser$SslErrorCallback);
+  public default void onHttpAuthRequest(com.cefrium.CefriumBrowser, java.lang.String, java.lang.String, int, boolean, com.cefrium.CefriumBrowser$HttpAuthCallback);
+  public default void onSelectClientCertificate(com.cefrium.CefriumBrowser, boolean, java.lang.String, int, java.util.List<java.lang.String>, com.cefrium.CefriumClientCertificateCallback);
 
 public final class com.cefrium.CefriumNavigationRequest
   public java.lang.String getUrl();
@@ -926,7 +933,7 @@ public interface com.cefrium.CefriumRequestHandler
   public default void onRenderResponsive();
   public default void onRenderViewReady();
   public default void onDocumentAvailable();
-  public default void onSelectClientCertificate(boolean, java.lang.String, int, java.lang.String[], com.cefrium.CefriumRequestHandler$ClientCertificateCallback);
+  [deprecated] public default void onSelectClientCertificate(boolean, java.lang.String, int, java.lang.String[], com.cefrium.CefriumRequestHandler$ClientCertificateCallback);
   public default void onResourceRedirect(java.lang.String, java.lang.String);
   public default void onResourceResponse(java.lang.String, int);
   public default void onResourceLoadComplete(java.lang.String, int, long);
@@ -959,6 +966,12 @@ public final class com.cefrium.CefriumResourceType extends java.lang.Enum<com.ce
   public static final com.cefrium.CefriumResourceType OTHER;
   public static com.cefrium.CefriumResourceType[] values();
   public static com.cefrium.CefriumResourceType valueOf(java.lang.String);
+
+public final class com.cefrium.CefriumSslError
+  public int getErrorCode();
+  public java.lang.String getUrl();
+  public java.security.cert.X509Certificate getCertificate();
+  public java.util.List<java.security.cert.X509Certificate> getCertificateChain();
 
 public class com.cefrium.CefriumSurfaceContainer extends android.widget.FrameLayout implements androidx.core.view.NestedScrollingChild3
   public com.cefrium.CefriumSurfaceContainer(android.content.Context);

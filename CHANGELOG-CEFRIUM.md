@@ -63,6 +63,11 @@ in the internal FEATURE-NNN.md working docs (not published).
   true keeps the key from it) and `onUnhandledKeyEvent` (keys the page did
   not cancel), as WebView's, with an Android `KeyEvent` (key code, action,
   meta state) instead of the engine's codes.
+- Certificate errors, HTTP authentication and client certificates on
+  `CefriumNavigationClient`: `onSslError` gets a `CefriumSslError` with the
+  net error code and the server's certificate chain (`X509Certificate`), so
+  an app can pin; `onHttpAuthRequest`; `onSelectClientCertificate`. Every
+  callback answers from any thread, the first answer counts.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 
@@ -88,6 +93,9 @@ in the internal FEATURE-NNN.md working docs (not published).
   `contextMenuCommand`: use `CefriumChromeClient.onContextMenu`.
 - `CefriumKeyboardHandler` and `setKeyboardHandler`: use
   `shouldOverrideKeyEvent` and `onUnhandledKeyEvent`.
+- `SslErrorHandler`, `HttpAuthHandler`, their setters and
+  `CefriumRequestHandler.onSelectClientCertificate`: use
+  `CefriumNavigationClient`.
 
 ### Changed
 - **`onRequestIntercepted` is called on the UI thread** (`Callback` and
@@ -96,6 +104,8 @@ in the internal FEATURE-NNN.md working docs (not published).
   it threw, and URLs were cut at 200 characters.
 
 ### Fixed
+- An `HttpAuthHandler` was called on the network thread, though documented
+  as the UI thread; it is called on the UI thread now.
 - "Copy link" and "Copy image URL" in an off-screen browser with no activity
   copied nothing; they use the application's clipboard now. A context menu
   nobody shows is closed instead of left pending.
