@@ -11,7 +11,13 @@ package com.cefrium;
  * {@link CefriumBrowser#setRequestHandler(CefriumRequestHandler)}.
  *
  * <p>Delivered on the browser UI thread.
+ *
+ * @deprecated Use {@link CefriumResourceInterceptor} for the resource events and
+ * cookie filter, {@link CefriumNavigationClient} for the renderer and the
+ * document. {@code onOpenUrlFromTab} and {@code onRenderViewReady} have no
+ * replacement: {@link CefriumChromeClient#onCreateWindow} sees new windows.
  */
+@Deprecated
 public interface CefriumRequestHandler {
     /** Supplies the chosen client certificate (or none) for an mTLS challenge. */
     interface ClientCertificateCallback {

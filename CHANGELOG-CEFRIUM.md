@@ -96,6 +96,12 @@ in the internal FEATURE-NNN.md working docs (not published).
 - Typed settings: `CefriumProfile.setProxy(CefriumProxyMode, server)`,
   `setWebRtcIpHandlingPolicy(CefriumWebRtcIpPolicy)` and
   `Cefrium.setSecureDns(CefriumSecureDnsMode, templates)`.
+- `CefriumResourceInterceptor` also notifies, on the network thread:
+  `onResourceRedirect`, `onResourceResponse`, `onResourceLoadComplete`,
+  `onResponseData` (the body as it arrives) and the cookie filter
+  `onCanSendCookie` / `onCanSaveCookie`. Only what an interceptor overrides
+  is called, so the body tap and the cookie filter need no switch.
+  `CefriumNavigationClient.onDocumentAvailable` is new.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 
@@ -134,6 +140,9 @@ in the internal FEATURE-NNN.md working docs (not published).
 - The string constants `PROXY_`, `WEBRTC_` and `SECURE_DNS_` and the methods
   that take them; `CefriumBrowser.setProxy`/`clearProxy`, which only forwarded
   to the profile: use the profile and the enums.
+- `CefriumRequestHandler`, `setRequestHandler`, `setResponseTapEnabled` and
+  `setCookieFilterEnabled`: use `CefriumResourceInterceptor` and
+  `CefriumNavigationClient`.
 
 ### Changed
 - **Touch injected into a surface browser takes device-independent pixels**
