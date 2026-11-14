@@ -1547,7 +1547,11 @@ public class CefriumBrowser {
 
     // ───────────────────────── Cookies ─────────────────────────
 
-    /** An HTTP cookie read from the browser's cookie store. */
+    /**
+     * An HTTP cookie read from the browser's cookie store.
+     * @deprecated Use {@link CefriumProfile#getCookieManager()}: per profile, with expiry.
+     */
+    @Deprecated
     public static final class Cookie {
         public final String name, value, domain, path;
         public final boolean secure, httpOnly;
@@ -1558,7 +1562,11 @@ public class CefriumBrowser {
         }
     }
 
-    /** Receives the result of {@link #getCookies}. Invoked on the UI thread. */
+    /**
+     * Receives the result of {@link #getCookies}. Invoked on the UI thread.
+     * @deprecated Use {@link CefriumProfile#getCookieManager()}: per profile, with expiry.
+     */
+    @Deprecated
     public interface CookieCallback {
         void onCookies(java.util.List<Cookie> cookies);
     }
@@ -1569,12 +1577,24 @@ public class CefriumBrowser {
             new java.util.concurrent.atomic.AtomicLong(1);
 
     // SameSite values for {@link #setCookie}; match Chromium's cookie SameSite.
+    /** @deprecated Use {@link CefriumProfile#getCookieManager()}. */
+    @Deprecated
     public static final int SAME_SITE_UNSPECIFIED = 0;
+    /** @deprecated Use {@link CefriumProfile#getCookieManager()}. */
+    @Deprecated
     public static final int SAME_SITE_NONE = 1;   // cross-site; REQUIRES secure=true
+    /** @deprecated Use {@link CefriumProfile#getCookieManager()}. */
+    @Deprecated
     public static final int SAME_SITE_LAX = 2;
+    /** @deprecated Use {@link CefriumProfile#getCookieManager()}. */
+    @Deprecated
     public static final int SAME_SITE_STRICT = 3;
 
-    /** Sets a session cookie for {@code url} (domain/path inferred from the URL). */
+    /**
+     * Sets a session cookie for {@code url} (domain/path inferred from the URL).
+     * @deprecated Use {@link CefriumProfile#getCookieManager()}: per profile, with expiry.
+     */
+    @Deprecated
     public void setCookie(String url, String name, String value) {
         checkThread("setCookie");
         setCookie(url, name, value, false, false, SAME_SITE_UNSPECIFIED);
@@ -1586,7 +1606,9 @@ public class CefriumBrowser {
      * embedded iframe needs): pass {@code secure=true} and
      * {@code sameSite=SAME_SITE_NONE} -- Chromium rejects {@code SameSite=None}
      * without {@code Secure}. domain/path are inferred from the URL.
+     * @deprecated Use {@link CefriumProfile#getCookieManager()}: per profile, with expiry.
      */
+    @Deprecated
     public void setCookie(String url, String name, String value,
                           boolean secure, boolean httpOnly, int sameSite) {
         checkThread("setCookie");
@@ -1595,7 +1617,11 @@ public class CefriumBrowser {
         }
     }
 
-    /** Reads cookies visible to {@code url}; the callback fires on the UI thread. */
+    /**
+     * Reads cookies visible to {@code url}; the callback fires on the UI thread.
+     * @deprecated Use {@link CefriumProfile#getCookieManager()}: per profile, with expiry.
+     */
+    @Deprecated
     public void getCookies(String url, CookieCallback callback) {
         checkThread("getCookies");
         requireCallback(callback);
@@ -1605,13 +1631,21 @@ public class CefriumBrowser {
         nativeGetCookies(mNativePtr, this, url, reqId);
     }
 
-    /** Deletes cookies for {@code url}; {@code name} null/empty = all for the URL. */
+    /**
+     * Deletes cookies for {@code url}; {@code name} null/empty = all for the URL.
+     * @deprecated Use {@link CefriumProfile#getCookieManager()}: per profile, with expiry.
+     */
+    @Deprecated
     public void deleteCookies(String url, String name) {
         checkThread("deleteCookies");
         if (isLive()) nativeDeleteCookies(mNativePtr, url, name == null ? "" : name);
     }
 
-    /** Persists the cookie store to disk. */
+    /**
+     * Persists the cookie store to disk.
+     * @deprecated Use {@link CefriumProfile#getCookieManager()}: per profile, with expiry.
+     */
+    @Deprecated
     public void flushCookies() {
         checkThread("flushCookies");
         if (isLive()) nativeFlushCookies(mNativePtr);

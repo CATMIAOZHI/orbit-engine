@@ -80,6 +80,12 @@ in the internal FEATURE-NNN.md working docs (not published).
   the engine's 30 codes.
 - A download that starts with no download client now logs a warning: from
   the next release it will be refused, as in WebView.
+- **`CefriumProfile.getCookieManager()`**: the cookies of a profile, as
+  WebView's `CookieManager` but asynchronous: `setCookie` with a
+  `Set-Cookie` value (Expires, Max-Age, Domain, Path, Secure, HttpOnly,
+  SameSite), `getCookie`, `getCookies` (`CefriumCookie` with expiry and
+  SameSite), `removeCookies`, `removeAllCookies`, `flush`. Results arrive on
+  the UI thread.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 
@@ -112,6 +118,9 @@ in the internal FEATURE-NNN.md working docs (not published).
 - `CefriumDownloadHandler`, `setDownloadHandler`, `OnDownloadListener`,
   `setOnDownloadListener` and `DownloadItem.getInterruptReason()`: use
   `CefriumDownloadClient` and `getInterruption()`.
+- The cookie methods of `CefriumBrowser` (`setCookie`, `getCookies`,
+  `deleteCookies`, `flushCookies`, `Cookie`, `CookieCallback`, `SAME_SITE_`):
+  use `CefriumProfile.getCookieManager()`, which also sets expiry.
 
 ### Changed
 - **A call to a closed browser throws `IllegalStateException`** instead of

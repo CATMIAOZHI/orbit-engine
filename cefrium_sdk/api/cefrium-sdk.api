@@ -86,10 +86,10 @@ public class com.cefrium.CefriumBrowser
   [deprecated] public static final int TERMINATION_CRASHED = 2;
   [deprecated] public static final int TERMINATION_OOM = 3;
   public static final int QUERY_ERROR_ORIGIN_DENIED = -403;
-  public static final int SAME_SITE_UNSPECIFIED = 0;
-  public static final int SAME_SITE_NONE = 1;
-  public static final int SAME_SITE_LAX = 2;
-  public static final int SAME_SITE_STRICT = 3;
+  [deprecated] public static final int SAME_SITE_UNSPECIFIED = 0;
+  [deprecated] public static final int SAME_SITE_NONE = 1;
+  [deprecated] public static final int SAME_SITE_LAX = 2;
+  [deprecated] public static final int SAME_SITE_STRICT = 3;
   [deprecated] public static final int JS_DIALOG_ALERT = 0;
   [deprecated] public static final int JS_DIALOG_CONFIRM = 1;
   [deprecated] public static final int JS_DIALOG_PROMPT = 2;
@@ -169,11 +169,11 @@ public class com.cefrium.CefriumBrowser
   public void executeDevToolsMethod(java.lang.String, java.lang.String, com.cefrium.CefriumBrowser$DevToolsCallback);
   public void setDevToolsEventListener(com.cefrium.CefriumBrowser$DevToolsEventListener);
   public void setQueryHandler(com.cefrium.CefriumBrowser$QueryOriginPolicy, com.cefrium.CefriumBrowser$QueryHandler);
-  public void setCookie(java.lang.String, java.lang.String, java.lang.String);
-  public void setCookie(java.lang.String, java.lang.String, java.lang.String, boolean, boolean, int);
-  public void getCookies(java.lang.String, com.cefrium.CefriumBrowser$CookieCallback);
-  public void deleteCookies(java.lang.String, java.lang.String);
-  public void flushCookies();
+  [deprecated] public void setCookie(java.lang.String, java.lang.String, java.lang.String);
+  [deprecated] public void setCookie(java.lang.String, java.lang.String, java.lang.String, boolean, boolean, int);
+  [deprecated] public void getCookies(java.lang.String, com.cefrium.CefriumBrowser$CookieCallback);
+  [deprecated] public void deleteCookies(java.lang.String, java.lang.String);
+  [deprecated] public void flushCookies();
   public void clearCache();
   public void printToPdf(java.lang.String, com.cefrium.CefriumBrowser$PdfCallback);
   public void printToPdf(java.lang.String, double, double, boolean, com.cefrium.CefriumBrowser$PdfCallback);
@@ -322,7 +322,7 @@ public final class com.cefrium.CefriumBrowser$ChooserDevice
   public final java.lang.String id;
   public final java.lang.String name;
 
-public final class com.cefrium.CefriumBrowser$Cookie
+[deprecated] public final class com.cefrium.CefriumBrowser$Cookie
   public final java.lang.String name;
   public final java.lang.String value;
   public final java.lang.String domain;
@@ -331,7 +331,7 @@ public final class com.cefrium.CefriumBrowser$Cookie
   public final boolean httpOnly;
   public com.cefrium.CefriumBrowser$Cookie(java.lang.String, java.lang.String, java.lang.String, java.lang.String, boolean, boolean);
 
-public interface com.cefrium.CefriumBrowser$CookieCallback
+[deprecated] public interface com.cefrium.CefriumBrowser$CookieCallback
   public abstract void onCookies(java.util.List<com.cefrium.CefriumBrowser$Cookie>);
 
 public interface com.cefrium.CefriumBrowser$DevToolsCallback
@@ -620,6 +620,32 @@ public final class com.cefrium.CefriumContextMenu$MediaType extends java.lang.En
   public static com.cefrium.CefriumContextMenu$MediaType[] values();
   public static com.cefrium.CefriumContextMenu$MediaType valueOf(java.lang.String);
 
+public final class com.cefrium.CefriumCookie
+  public java.lang.String getName();
+  public java.lang.String getValue();
+  public java.lang.String getDomain();
+  public java.lang.String getPath();
+  public boolean isSecure();
+  public boolean isHttpOnly();
+  public long getExpiresAtMillis();
+  public com.cefrium.CefriumCookie$SameSite getSameSite();
+
+public final class com.cefrium.CefriumCookie$SameSite extends java.lang.Enum<com.cefrium.CefriumCookie$SameSite>
+  public static final com.cefrium.CefriumCookie$SameSite UNSPECIFIED;
+  public static final com.cefrium.CefriumCookie$SameSite NONE;
+  public static final com.cefrium.CefriumCookie$SameSite LAX;
+  public static final com.cefrium.CefriumCookie$SameSite STRICT;
+  public static com.cefrium.CefriumCookie$SameSite[] values();
+  public static com.cefrium.CefriumCookie$SameSite valueOf(java.lang.String);
+
+public final class com.cefrium.CefriumCookieManager
+  public void setCookie(java.lang.String, java.lang.String, java.util.function.Consumer<java.lang.Boolean>);
+  public void getCookie(java.lang.String, java.util.function.Consumer<java.lang.String>);
+  public void getCookies(java.lang.String, java.util.function.Consumer<java.util.List<com.cefrium.CefriumCookie>>);
+  public void removeCookies(java.lang.String, java.lang.String, java.util.function.Consumer<java.lang.Integer>);
+  public void removeAllCookies(java.util.function.Consumer<java.lang.Integer>);
+  public void flush(java.lang.Runnable);
+
 [deprecated] public interface com.cefrium.CefriumDialogHandler
   public static final int MODE_OPEN = 0;
   public static final int MODE_OPEN_MULTIPLE = 1;
@@ -849,6 +875,7 @@ public final class com.cefrium.CefriumProfile
   public void setProxyErrorListener(com.cefrium.CefriumProfile$ProxyErrorListener);
   public void getDownloads(com.cefrium.CefriumProfile$DownloadsCallback);
   public boolean setDownloadObserver(com.cefrium.CefriumProfile$DownloadObserver);
+  public synchronized com.cefrium.CefriumCookieManager getCookieManager();
   public boolean equals(java.lang.Object);
   public int hashCode();
 

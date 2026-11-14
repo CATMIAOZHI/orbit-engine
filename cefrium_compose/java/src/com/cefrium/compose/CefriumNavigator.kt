@@ -165,6 +165,8 @@ class CefriumNavigator {
     // ── Cookies ──
 
     /** Sets a session cookie for [url] (domain/path inferred from the URL). */
+    @Deprecated("Use CefriumProfile.getCookieManager(): per profile, with expiry")
+    @Suppress("DEPRECATION")
     fun setCookie(url: String, name: String, value: String) {
         run("setCookie") { it.setCookie(url, name, value) }
     }
@@ -175,6 +177,8 @@ class CefriumNavigator {
      * [secure] = true and [sameSite] = [com.cefrium.CefriumBrowser.SAME_SITE_NONE]
      * (Chromium rejects SameSite=None without Secure).
      */
+    @Deprecated("Use CefriumProfile.getCookieManager(): per profile, with expiry")
+    @Suppress("DEPRECATION")
     fun setCookie(
         url: String,
         name: String,
@@ -187,16 +191,22 @@ class CefriumNavigator {
     }
 
     /** Reads cookies visible to [url]; [callback] fires on the UI thread. */
+    @Deprecated("Use CefriumProfile.getCookieManager(): per profile, with expiry")
+    @Suppress("DEPRECATION")
     fun getCookies(url: String, callback: com.cefrium.CefriumBrowser.CookieCallback) {
         run("getCookies") { it.getCookies(url, callback) }
     }
 
     /** Deletes cookies for [url]; [name] null = all cookies for the URL. */
+    @Deprecated("Use CefriumProfile.getCookieManager(): per profile, with expiry")
+    @Suppress("DEPRECATION")
     fun deleteCookies(url: String, name: String? = null) {
         run("deleteCookies") { it.deleteCookies(url, name) }
     }
 
     /** Persists the cookie store to disk. */
+    @Deprecated("Use CefriumProfile.getCookieManager(): per profile, with expiry")
+    @Suppress("DEPRECATION")
     fun flushCookies() {
         run("flushCookies") { it.flushCookies() }
     }

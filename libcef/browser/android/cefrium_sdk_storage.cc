@@ -13,6 +13,7 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/barrier_closure.h"
+#include "base/time/time.h"
 #include "cef/include/cef_cookie.h"
 #include "cef/include/cef_request_context.h"
 #include "cef/include/cef_task.h"
@@ -348,4 +349,262 @@ Java_com_cefrium_CefriumProfile_nativeClearSiteData(
             }
           },
           global, request_id, wanted));
+}
+
+// FEATURE-092: CefriumCookieManager, the cookies of a profile (its request
+// context), as android.webkit.CookieManager but asynchronous and per
+// profile. Results go to CefriumCookieManager's static on*() methods on the
+// UI thread, by request id. Expiry crosses JNI as Unix milliseconds (0 =
+// session) and SameSite as a CefriumCookie.SameSite ordinal, mapped by name.
+namespace {
+
+CefRefPtr<CefCookieManager> ProfileCookies(JNIEnv* env,
+                                           jboolean incognito,
+                                           jstring profile) {
+  CefRefPtr<CefRequestContext> context = cefrium::ContextForProfile(
+      incognito == JNI_TRUE, JStr(env, profile).ToString());
+  return context ? context->GetCookieManager(nullptr) : nullptr;
+}
+
+int64_t UnixMillisOf(const cef_basetime_t& t) {
+  return base::Time(CefBaseTime(t)).InMillisecondsSinceUnixEpoch();
+}
+
+int SameSiteOrdinal(cef_cookie_same_site_t s) {
+  switch (s) {
+    case CEF_COOKIE_SAME_SITE_NO_RESTRICTION:
+      return 1;
+    case CEF_COOKIE_SAME_SITE_LAX_MODE:
+      return 2;
+    case CEF_COOKIE_SAME_SITE_STRICT_MODE:
+      return 3;
+    case CEF_COOKIE_SAME_SITE_UNSPECIFIED:
+    case CEF_COOKIE_SAME_SITE_NUM_VALUES:
+      return 0;
+  }
+  return 0;
+}
+
+cef_cookie_same_site_t SameSiteOf(jint ordinal) {
+  switch (ordinal) {
+    case 1:
+      return CEF_COOKIE_SAME_SITE_NO_RESTRICTION;
+    case 2:
+      return CEF_COOKIE_SAME_SITE_LAX_MODE;
+    case 3:
+      return CEF_COOKIE_SAME_SITE_STRICT_MODE;
+    default:
+      return CEF_COOKIE_SAME_SITE_UNSPECIFIED;
+  }
+}
+
+// Calls a static void method of the CefriumCookieManager class |clazz|
+// (global ref, released here) with a request id and one more argument.
+void CallStatic(jclass clazz, const char* name, const char* sig, jlong id,
+                jlong arg) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  jmethodID m = env->GetStaticMethodID(clazz, name, sig);
+  if (m) {
+    if (sig[2] == 'Z') {  // "(JZ)V"; otherwise "(JI)V"
+      env->CallStaticVoidMethod(clazz, m, id, static_cast<jboolean>(arg != 0));
+    } else {
+      env->CallStaticVoidMethod(clazz, m, id, static_cast<jint>(arg));
+    }
+  }
+  env->ExceptionClear();
+  env->DeleteGlobalRef(clazz);
+}
+
+class ProfileSetCookieCallback : public CefSetCookieCallback {
+ public:
+  ProfileSetCookieCallback(jclass clazz, jlong id) : clazz_(clazz), id_(id) {}
+  void OnComplete(bool success) override {
+    CallStatic(clazz_, "onSetCookieDone", "(JZ)V", id_, success ? 1 : 0);
+  }
+
+ private:
+  jclass clazz_;
+  jlong id_;
+  IMPLEMENT_REFCOUNTING(ProfileSetCookieCallback);
+};
+
+class ProfileDeleteCookiesCallback : public CefDeleteCookiesCallback {
+ public:
+  ProfileDeleteCookiesCallback(jclass clazz, jlong id)
+      : clazz_(clazz), id_(id) {}
+  void OnComplete(int num_deleted) override {
+    CallStatic(clazz_, "onCookiesDeleted", "(JI)V", id_, num_deleted);
+  }
+
+ private:
+  jclass clazz_;
+  jlong id_;
+  IMPLEMENT_REFCOUNTING(ProfileDeleteCookiesCallback);
+};
+
+class ProfileFlushCallback : public CefCompletionCallback {
+ public:
+  ProfileFlushCallback(jclass clazz, jlong id) : clazz_(clazz), id_(id) {}
+  void OnComplete() override {
+    CallStatic(clazz_, "onFlushed", "(JZ)V", id_, 1);
+  }
+
+ private:
+  jclass clazz_;
+  jlong id_;
+  IMPLEMENT_REFCOUNTING(ProfileFlushCallback);
+};
+
+struct ProfileCookieRows {
+  std::vector<std::string> names, values, domains, paths;
+  std::vector<jboolean> secure, httponly;
+  std::vector<jlong> expires;
+  std::vector<jint> same_site;
+};
+
+void DeliverProfileCookies(jclass clazz, jlong id, ProfileCookieRows rows) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  const jsize n = static_cast<jsize>(rows.names.size());
+  auto strings = [env](const std::vector<std::string>& v) {
+    return base::android::ToJavaArrayOfStrings(env, v);
+  };
+  auto jn = strings(rows.names), jv = strings(rows.values),
+       jd = strings(rows.domains), jp = strings(rows.paths);
+  jbooleanArray js = env->NewBooleanArray(n), jh = env->NewBooleanArray(n);
+  jlongArray je = env->NewLongArray(n);
+  jintArray jss = env->NewIntArray(n);
+  if (n > 0) {
+    env->SetBooleanArrayRegion(js, 0, n, rows.secure.data());
+    env->SetBooleanArrayRegion(jh, 0, n, rows.httponly.data());
+    env->SetLongArrayRegion(je, 0, n, rows.expires.data());
+    env->SetIntArrayRegion(jss, 0, n, rows.same_site.data());
+  }
+  jmethodID m = env->GetStaticMethodID(
+      clazz, "onCookies",
+      "(J[Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/String;"
+      "[Ljava/lang/String;[Z[Z[J[I)V");
+  if (m) {
+    env->CallStaticVoidMethod(clazz, m, id, jn.obj(), jv.obj(), jd.obj(),
+                              jp.obj(), js, jh, je, jss);
+  }
+  env->ExceptionClear();
+  env->DeleteLocalRef(js);
+  env->DeleteLocalRef(jh);
+  env->DeleteLocalRef(je);
+  env->DeleteLocalRef(jss);
+  env->DeleteGlobalRef(clazz);
+}
+
+class ProfileCookieVisitor : public CefCookieVisitor {
+ public:
+  ProfileCookieVisitor(jclass clazz, jlong id) : clazz_(clazz), id_(id) {}
+  bool Visit(const CefCookie& c, int, int, bool&) override {
+    rows_.names.push_back(CefString(&c.name).ToString());
+    rows_.values.push_back(CefString(&c.value).ToString());
+    rows_.domains.push_back(CefString(&c.domain).ToString());
+    rows_.paths.push_back(CefString(&c.path).ToString());
+    rows_.secure.push_back(c.secure ? JNI_TRUE : JNI_FALSE);
+    rows_.httponly.push_back(c.httponly ? JNI_TRUE : JNI_FALSE);
+    rows_.expires.push_back(c.has_expires ? UnixMillisOf(c.expires) : 0);
+    rows_.same_site.push_back(SameSiteOrdinal(c.same_site));
+    return true;
+  }
+  // CEF releases the visitor when the visit is over, also when there was
+  // nothing to visit.
+  ~ProfileCookieVisitor() override {
+    CefPostTask(TID_UI, base::BindOnce(&DeliverProfileCookies, clazz_, id_,
+                                       std::move(rows_)));
+  }
+
+ private:
+  jclass clazz_;
+  jlong id_;
+  ProfileCookieRows rows_;
+  IMPLEMENT_REFCOUNTING(ProfileCookieVisitor);
+};
+
+}  // namespace
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumCookieManager_nativeSetCookie(
+    JNIEnv* env, jclass clazz, jboolean incognito, jstring profile,
+    jstring url, jstring name, jstring value, jstring domain, jstring path,
+    jboolean secure, jboolean http_only, jint same_site, jlong expires_ms,
+    jlong id) {
+  jclass global = static_cast<jclass>(env->NewGlobalRef(clazz));
+  CefRefPtr<CefCookieManager> mgr = ProfileCookies(env, incognito, profile);
+  if (!mgr) {
+    CallStatic(global, "onSetCookieDone", "(JZ)V", id, 0);
+    return;
+  }
+  CefCookie cookie;
+  CefString(&cookie.name) = JStr(env, name);
+  CefString(&cookie.value) = JStr(env, value);
+  CefString(&cookie.domain) = JStr(env, domain);
+  CefString(&cookie.path) = JStr(env, path);
+  cookie.secure = secure ? 1 : 0;
+  cookie.httponly = http_only ? 1 : 0;
+  cookie.same_site = SameSiteOf(same_site);
+  if (expires_ms != 0) {
+    cookie.has_expires = 1;
+    cookie.expires =
+        CefBaseTime(base::Time::FromMillisecondsSinceUnixEpoch(expires_ms));
+  }
+  if (!mgr->SetCookie(JStr(env, url), cookie,
+                      new ProfileSetCookieCallback(global, id))) {
+    // Rejected before it was tried (an invalid URL): no callback follows.
+    CallStatic(global, "onSetCookieDone", "(JZ)V", id, 0);
+  }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumCookieManager_nativeGetCookies(JNIEnv* env,
+                                                      jclass clazz,
+                                                      jboolean incognito,
+                                                      jstring profile,
+                                                      jstring url,
+                                                      jlong id) {
+  jclass global = static_cast<jclass>(env->NewGlobalRef(clazz));
+  CefRefPtr<CefCookieManager> mgr = ProfileCookies(env, incognito, profile);
+  CefRefPtr<ProfileCookieVisitor> visitor =
+      new ProfileCookieVisitor(global, id);
+  if (!mgr) {
+    return;  // the visitor delivers an empty list when it is released
+  }
+  CefString u = JStr(env, url);
+  if (u.empty()) {
+    mgr->VisitAllCookies(visitor);
+  } else {
+    mgr->VisitUrlCookies(u, /*includeHttpOnly=*/true, visitor);
+  }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumCookieManager_nativeDeleteCookies(JNIEnv* env,
+                                                         jclass clazz,
+                                                         jboolean incognito,
+                                                         jstring profile,
+                                                         jstring url,
+                                                         jstring name,
+                                                         jlong id) {
+  jclass global = static_cast<jclass>(env->NewGlobalRef(clazz));
+  CefRefPtr<CefCookieManager> mgr = ProfileCookies(env, incognito, profile);
+  if (!mgr || !mgr->DeleteCookies(JStr(env, url), JStr(env, name),
+                                  new ProfileDeleteCookiesCallback(global, id))) {
+    CallStatic(global, "onCookiesDeleted", "(JI)V", id, 0);
+  }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumCookieManager_nativeFlush(JNIEnv* env,
+                                                 jclass clazz,
+                                                 jboolean incognito,
+                                                 jstring profile,
+                                                 jlong id) {
+  jclass global = static_cast<jclass>(env->NewGlobalRef(clazz));
+  CefRefPtr<CefCookieManager> mgr = ProfileCookies(env, incognito, profile);
+  if (!mgr ||
+      !mgr->FlushStore(new ProfileFlushCallback(global, id))) {
+    CallStatic(global, "onFlushed", "(JZ)V", id, 0);
+  }
 }
