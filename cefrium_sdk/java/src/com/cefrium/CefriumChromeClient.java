@@ -108,6 +108,27 @@ public interface CefriumChromeClient {
     default void onUnhandledKeyEvent(CefriumBrowser browser, android.view.KeyEvent event) {}
 
     /**
+     * The page opened a window ({@code window.open}, {@code target=_blank}).
+     * {@code popup} is a new browser in this browser's mode and profile that
+     * loads {@code url} as that window: the page keeps {@code window.opener},
+     * so a sign-in popup can post its result back. Show it (its surface
+     * container, or its frames off-screen) and return true; it is yours to
+     * close. Return false and it is closed: then a {@code PopupHandler} set
+     * the old way decides, and without one the URL loads in this browser.
+     * Like {@code WebChromeClient.onCreateWindow}.
+     */
+    default boolean onCreateWindow(CefriumBrowser browser, CefriumBrowser popup, String url,
+            boolean userGesture) {
+        return false;
+    }
+
+    /**
+     * A window from {@link #onCreateWindow} called {@code window.close()}:
+     * remove it from the UI. It closes itself.
+     */
+    default void onCloseWindow(CefriumBrowser browser, CefriumBrowser popup) {}
+
+    /**
      * A page asks for permissions. Answer with {@code request.grant()} or
      * {@code request.deny()}, now or later (after asking the user). The
      * default denies.

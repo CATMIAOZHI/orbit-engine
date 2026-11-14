@@ -3006,6 +3006,8 @@ public class CefriumBrowser {
      * popup. Sign-in and payment popups need that reference: implement
      * {@link #onCreateWindow} for them.
      */
+    /** @deprecated Use {@link CefriumChromeClient#onCreateWindow}. */
+    @Deprecated
     public interface PopupHandler {
         /** Return true if you handled it (e.g. opened a new tab); false to load
             the target URL in this browser. */
@@ -3038,10 +3040,19 @@ public class CefriumBrowser {
 
     // The handler that took this browser as a popup (onCloseWindow).
     private PopupHandler mPopupOwner;
+    // The browser whose chrome client took this one as a window, for its
+    // onCloseWindow.
+    private CefriumBrowser mOpener;
 
     private PopupHandler mPopupHandler;
 
-    /** Sets a popup handler (null = load popups in this browser). */
+    /**
+     * Sets a popup handler (null = load popups in this browser). A
+     * {@link CefriumChromeClient} whose {@code onCreateWindow} takes the window
+     * goes first.
+     * @deprecated Use {@link CefriumChromeClient#onCreateWindow}.
+     */
+    @Deprecated
     public void setPopupHandler(PopupHandler handler) {
         checkThread("setPopupHandler");
         mPopupHandler = handler;
@@ -3056,13 +3067,27 @@ public class CefriumBrowser {
 
     // Called from native (UI thread) before onOpenPopup: the native browser of
     // the popup's window, or 0 when the app does not take it.
+    @SuppressWarnings({"unused", "deprecation"})
     private long onCreateWindow(String targetUrl, boolean userGesture) {
+        if (mClosed) return 0;
+        CefriumChromeClient chrome = mChromeClient;
+        if (chrome != null) {
+            CefriumBrowser popup = newPopupBrowser();
+            boolean taken = false;
+            try {
+                taken = chrome.onCreateWindow(this, popup, targetUrl, userGesture);
+            } finally {
+                if (!taken) popup.close();
+            }
+            if (taken && popup.isLive()) {
+                popup.mOpener = this;
+                popup.mDialogActivity = mDialogActivity;
+                return popup.mNativePtr;
+            }
+        }
         PopupHandler h = mPopupHandler;
-        if (h == null || mClosed) return 0;
-        CefriumBrowser popup = mSurfaceContainer != null
-                ? createSurfaceBrowser(mActivity, mProfile, true)
-                : new CefriumBrowser(Math.max(1, mOsrWidth), Math.max(1, mOsrHeight),
-                        mOsrScale, mProfile);
+        if (h == null) return 0;
+        CefriumBrowser popup = newPopupBrowser();
         boolean taken = false;
         try {
             taken = h.onCreateWindow(popup, targetUrl, userGesture);
@@ -3073,6 +3098,14 @@ public class CefriumBrowser {
         popup.mPopupOwner = h;
         popup.mDialogActivity = mDialogActivity;
         return popup.mNativePtr;
+    }
+
+    // A browser for a window this one opens: same mode and profile.
+    private CefriumBrowser newPopupBrowser() {
+        return mSurfaceContainer != null
+                ? createSurfaceBrowser(mActivity, mProfile, true)
+                : new CefriumBrowser(Math.max(1, mOsrWidth), Math.max(1, mOsrHeight),
+                        mOsrScale, mProfile);
     }
 
     // Called from native (UI thread) with the visited cookies for a getCookies request.
@@ -5061,6 +5094,9 @@ public class CefriumBrowser {
         // CEF continues its default close sequence.
         PopupHandler owner = mPopupOwner;
         if (owner != null) owner.onCloseWindow(this);
+        CefriumBrowser opener = mOpener;
+        CefriumChromeClient chrome = opener != null ? opener.mChromeClient : null;
+        if (chrome != null) chrome.onCloseWindow(opener, this);
     }
 
     // ---- Keyboard (synchronous, returns handled) ----
