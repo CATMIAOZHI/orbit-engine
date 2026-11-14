@@ -78,6 +78,14 @@ fi
 for f in "$SDK_AAR" "$COMPOSE_AAR"; do
   [ -f "$f" ] || { echo "ERROR: missing artifact under test: $f" >&2; exit 1; }
 done
+# The Compose AAR is whatever was built last: after a Compose edit it would
+# test the old code and pass for it (it did, 2026-11-14).
+if [ -z "$VERSION" ] && [ -n "$(find "$SRC/cef/cefrium_compose/java" -newer "$COMPOSE_AAR" -type f | head -1)" ]; then
+  echo "ERROR: $COMPOSE_AAR is older than the Compose sources. Rebuild it:" >&2
+  echo "  cp <sdk aar> cef/cefrium_compose/libs/cefrium-sdk.aar &&" \
+       "(cd cef/cefrium_compose && ./gradlew assembleRelease)" >&2
+  exit 1
+fi
 
 ADB="${ANDROID_HOME:-$SRC/third_party/android_sdk/public}/platform-tools/adb"
 [ -x "$ADB" ] || { echo "ERROR: no adb at $ADB" >&2; exit 1; }

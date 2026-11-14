@@ -36,6 +36,9 @@ public final class LocalHttpServer implements AutoCloseable {
     /** Each request seen, as "<request target> <User-Agent>", in order. */
     public final List<String> requests = new CopyOnWriteArrayList<>();
 
+    /** Each header line seen, as "<request target> <Name: value>", in order. */
+    public final List<String> headers = new CopyOnWriteArrayList<>();
+
     public LocalHttpServer(String html) throws Exception {
         this(html, null, null);
     }
@@ -61,7 +64,10 @@ public final class LocalHttpServer implements AutoCloseable {
                     String requestLine = in.readLine();
                     String line;
                     String ua = "";
+                    String seenTarget = requestLine == null || requestLine.split(" ").length < 2
+                            ? "" : requestLine.split(" ")[1];
                     while ((line = in.readLine()) != null && !line.isEmpty()) {
+                        headers.add(seenTarget + " " + line);
                         if (line.regionMatches(true, 0, "User-Agent:", 0, 11)) {
                             ua = line.substring(11).trim();
                         }

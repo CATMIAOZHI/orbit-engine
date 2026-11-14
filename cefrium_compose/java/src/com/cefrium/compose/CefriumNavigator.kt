@@ -67,6 +67,14 @@ class CefriumNavigator {
         run("loadUrl") { it.loadUrl(url) }
     }
 
+    /**
+     * Navigates to [url], sending [additionalHttpHeaders] with the page's own
+     * request. See `CefriumBrowser.loadUrl(String, Map)`.
+     */
+    fun loadUrl(url: String, additionalHttpHeaders: Map<String, String>) {
+        run("loadUrl") { it.loadUrl(url, additionalHttpHeaders) }
+    }
+
     /** Loads an HTML string directly. */
     fun loadHtml(html: String) {
         run("loadHtml") { it.loadHtml(html) }
@@ -325,7 +333,17 @@ class CefriumNavigator {
 
     // ── Request interceptor ──
 
+    /**
+     * Sets the interceptor that may cancel or answer every request of this
+     * browser (null removes it). See `CefriumBrowser.setResourceInterceptor`.
+     */
+    fun setResourceInterceptor(interceptor: com.cefrium.CefriumResourceInterceptor?) {
+        run("setResourceInterceptor") { it.setResourceInterceptor(interceptor) }
+    }
+
     /** Sets a programmatic request interceptor (block decisions; null clears). */
+    @Deprecated("Use setResourceInterceptor", ReplaceWith("setResourceInterceptor(interceptor)"))
+    @Suppress("DEPRECATION")
     fun setRequestInterceptor(interceptor: com.cefrium.CefriumBrowser.RequestInterceptor?) {
         run("setRequestInterceptor") { it.setRequestInterceptor(interceptor) }
     }

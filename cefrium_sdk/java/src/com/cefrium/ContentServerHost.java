@@ -143,17 +143,28 @@ final class ContentServerHost {
         if (active != null) closeQuietly(active.body);
     }
 
-    private static void respond(long id, Active active, CefriumContentServer server,
-            String method, String url, String[] headerPairs, byte[] body) {
+    /** Runs |task| on the content pool, where a server or interceptor may block. */
+    static void execute(Runnable task) {
+        POOL.execute(task);
+    }
+
+    /** The request the engine described, as servers and interceptors see it. */
+    static CefriumContentRequest requestOf(String method, String url, String[] headerPairs,
+            byte[] body) {
         Map<String, String> headers = new HashMap<>();
         for (int i = 0; i + 1 < headerPairs.length; i += 2) {
             headers.put(headerPairs[i], headerPairs[i + 1]);
         }
         Uri uri = Uri.parse(url);
         String path = uri.getPath();
-        CefriumContentRequest request = new CefriumContentRequest(method, url,
+        return new CefriumContentRequest(method, url,
                 path == null || path.isEmpty() ? "/" : path, uri.getEncodedQuery(),
                 headers, body);
+    }
+
+    private static void respond(long id, Active active, CefriumContentServer server,
+            String method, String url, String[] headerPairs, byte[] body) {
+        CefriumContentRequest request = requestOf(method, url, headerPairs, body);
 
         CefriumContentResponse response;
         try {

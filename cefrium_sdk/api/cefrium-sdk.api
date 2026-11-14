@@ -139,6 +139,7 @@ public class com.cefrium.CefriumBrowser
   public com.cefrium.CefriumBrowser(int, int, float, com.cefrium.CefriumProfile);
   public void setRenderHandler(com.cefrium.CefriumRenderHandler);
   public void loadUrl(java.lang.String);
+  public void loadUrl(java.lang.String, java.util.Map<java.lang.String, java.lang.String>);
   public void setBackgroundColor(int);
   public void goBack();
   public void goForward();
@@ -190,7 +191,8 @@ public class com.cefrium.CefriumBrowser
   public void loadHtmlWithBaseUrl(java.lang.String, java.lang.String);
   public void postUrl(java.lang.String, byte[]);
   public void stopLoading();
-  public void setRequestInterceptor(com.cefrium.CefriumBrowser$RequestInterceptor);
+  public void setResourceInterceptor(com.cefrium.CefriumResourceInterceptor);
+  [deprecated] public void setRequestInterceptor(com.cefrium.CefriumBrowser$RequestInterceptor);
   public void setJsDialogHandler(com.cefrium.CefriumBrowser$JsDialogHandler);
   public void setPickerHandler(com.cefrium.CefriumPickerHandler);
   public void setDialogActivity(android.app.Activity);
@@ -460,37 +462,38 @@ public final class com.cefrium.CefriumBrowser$QuickMenuCallback
   public void paste();
   public void cancel();
 
-public interface com.cefrium.CefriumBrowser$RequestInterceptor
+[deprecated] public interface com.cefrium.CefriumBrowser$RequestInterceptor extends com.cefrium.CefriumResourceInterceptor
   public abstract boolean shouldBlockRequest(java.lang.String, java.lang.String, boolean);
   public default boolean shouldBlockRequest(com.cefrium.CefriumBrowser$ResourceRequest);
 
 public final class com.cefrium.CefriumBrowser$ResourceRequest
-  public static final int TYPE_MAIN_FRAME = 0;
-  public static final int TYPE_SUB_FRAME = 1;
-  public static final int TYPE_STYLESHEET = 2;
-  public static final int TYPE_SCRIPT = 3;
-  public static final int TYPE_IMAGE = 4;
-  public static final int TYPE_FONT = 5;
-  public static final int TYPE_SUB_RESOURCE = 6;
-  public static final int TYPE_OBJECT = 7;
-  public static final int TYPE_MEDIA = 8;
-  public static final int TYPE_WORKER = 9;
-  public static final int TYPE_SHARED_WORKER = 10;
-  public static final int TYPE_PREFETCH = 11;
-  public static final int TYPE_FAVICON = 12;
-  public static final int TYPE_XHR = 13;
-  public static final int TYPE_PING = 14;
-  public static final int TYPE_SERVICE_WORKER = 15;
-  public static final int TYPE_CSP_REPORT = 16;
-  public static final int TYPE_PLUGIN_RESOURCE = 17;
-  public static final int TYPE_NAVIGATION_PRELOAD_MAIN_FRAME = 19;
-  public static final int TYPE_NAVIGATION_PRELOAD_SUB_FRAME = 20;
+  [deprecated] public static final int TYPE_MAIN_FRAME = 0;
+  [deprecated] public static final int TYPE_SUB_FRAME = 1;
+  [deprecated] public static final int TYPE_STYLESHEET = 2;
+  [deprecated] public static final int TYPE_SCRIPT = 3;
+  [deprecated] public static final int TYPE_IMAGE = 4;
+  [deprecated] public static final int TYPE_FONT = 5;
+  [deprecated] public static final int TYPE_SUB_RESOURCE = 6;
+  [deprecated] public static final int TYPE_OBJECT = 7;
+  [deprecated] public static final int TYPE_MEDIA = 8;
+  [deprecated] public static final int TYPE_WORKER = 9;
+  [deprecated] public static final int TYPE_SHARED_WORKER = 10;
+  [deprecated] public static final int TYPE_PREFETCH = 11;
+  [deprecated] public static final int TYPE_FAVICON = 12;
+  [deprecated] public static final int TYPE_XHR = 13;
+  [deprecated] public static final int TYPE_PING = 14;
+  [deprecated] public static final int TYPE_SERVICE_WORKER = 15;
+  [deprecated] public static final int TYPE_CSP_REPORT = 16;
+  [deprecated] public static final int TYPE_PLUGIN_RESOURCE = 17;
+  [deprecated] public static final int TYPE_NAVIGATION_PRELOAD_MAIN_FRAME = 19;
+  [deprecated] public static final int TYPE_NAVIGATION_PRELOAD_SUB_FRAME = 20;
   public final java.lang.String url;
   public final java.lang.String method;
   public final boolean isMainFrame;
-  public final int resourceType;
+  [deprecated] public final int resourceType;
   public final java.lang.String documentUrl;
   public final java.lang.String topLevelUrl;
+  public com.cefrium.CefriumResourceType getType();
 
 public interface com.cefrium.CefriumBrowser$ScriptHandler
   public abstract void remove();
@@ -802,6 +805,28 @@ public interface com.cefrium.CefriumRequestHandler
 public interface com.cefrium.CefriumRequestHandler$ClientCertificateCallback
   public abstract void select(int);
   public abstract void cancel();
+
+public interface com.cefrium.CefriumResourceInterceptor
+  public default boolean shouldBlockRequest(com.cefrium.CefriumBrowser$ResourceRequest);
+  public default com.cefrium.CefriumContentResponse shouldInterceptRequest(com.cefrium.CefriumContentRequest);
+
+public final class com.cefrium.CefriumResourceType extends java.lang.Enum<com.cefrium.CefriumResourceType>
+  public static final com.cefrium.CefriumResourceType MAIN_FRAME;
+  public static final com.cefrium.CefriumResourceType SUB_FRAME;
+  public static final com.cefrium.CefriumResourceType STYLESHEET;
+  public static final com.cefrium.CefriumResourceType SCRIPT;
+  public static final com.cefrium.CefriumResourceType IMAGE;
+  public static final com.cefrium.CefriumResourceType FONT;
+  public static final com.cefrium.CefriumResourceType MEDIA;
+  public static final com.cefrium.CefriumResourceType XHR;
+  public static final com.cefrium.CefriumResourceType WORKER;
+  public static final com.cefrium.CefriumResourceType SERVICE_WORKER;
+  public static final com.cefrium.CefriumResourceType PING;
+  public static final com.cefrium.CefriumResourceType FAVICON;
+  public static final com.cefrium.CefriumResourceType PREFETCH;
+  public static final com.cefrium.CefriumResourceType OTHER;
+  public static com.cefrium.CefriumResourceType[] values();
+  public static com.cefrium.CefriumResourceType valueOf(java.lang.String);
 
 public class com.cefrium.CefriumSurfaceContainer extends android.widget.FrameLayout implements androidx.core.view.NestedScrollingChild3
   public com.cefrium.CefriumSurfaceContainer(android.content.Context);
