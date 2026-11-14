@@ -8,6 +8,7 @@ package com.cefrium;
  * {@link CefriumNavigationClient#onSelectClientCertificate}), from any
  * thread. The first answer counts.
  */
+@CefriumExperimental
 public interface CefriumClientCertificateCallback {
     /** Use the certificate at {@code index} of the list offered. */
     void select(int index);

@@ -10,6 +10,7 @@ package com.cefrium;
  * implement only the ones you need. The browser is the first parameter, so one
  * client can serve several browsers.
  */
+@CefriumExperimental
 public interface CefriumNavigationClient {
 
     /**

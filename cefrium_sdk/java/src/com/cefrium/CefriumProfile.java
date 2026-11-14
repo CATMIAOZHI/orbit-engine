@@ -557,6 +557,7 @@ public final class CefriumProfile {
     private CefriumCookieManager mCookieManager;
 
     /** The cookies of this profile. See {@link CefriumCookieManager}. */
+    @CefriumExperimental
     public synchronized CefriumCookieManager getCookieManager() {
         if (mCookieManager == null) {
             mCookieManager = new CefriumCookieManager(mIncognito, nameForNative());

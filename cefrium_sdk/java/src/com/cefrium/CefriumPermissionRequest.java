@@ -14,6 +14,7 @@ import java.util.Set;
  * {@link #deny}, now or later, from any thread. The first answer counts; the
  * page waits until there is one.
  */
+@CefriumExperimental
 public final class CefriumPermissionRequest {
 
     /** How the browser delivers an answer. */

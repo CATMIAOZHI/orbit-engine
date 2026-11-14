@@ -35,7 +35,7 @@ SRC = os.path.abspath(os.path.join(HERE, '..', '..'))
 JAVAP = os.path.join(SRC, 'third_party', 'jdk', 'current', 'bin', 'javap')
 
 INTERNAL_TYPES = re.compile(r'\b(org\.chromium\.|org\.jni_zero\.|gen\.)')
-EXPERIMENTAL = 'com/cefrium/CefriumExperimental'
+EXPERIMENTAL = ('com/cefrium/CefriumExperimental', 'com.cefrium.CefriumExperimental')
 
 
 def javap(jar, classes, *flags):
@@ -83,14 +83,25 @@ def verbose_name(chunk_v):
 def tags(chunk_v):
   """Members (signature without constant value) -> set of tags, from -v."""
   out, member, cls = {}, None, set()
+  after_body = False  # past the class's closing brace: its own attributes
   for line in chunk_v:
+    if after_body:
+      if line.startswith('Deprecated: true'):
+        cls.add('deprecated')
+      if any(e in line for e in EXPERIMENTAL):
+        cls.add('experimental')
+      continue
+    if line == '}':
+      after_body = True
+      member = None
+      continue
     if re.match(r'^  \S.*;$', line):
       member = line.strip()
       out[member] = set()
     elif line.startswith('    ') and member is not None:
       if 'Deprecated: true' in line:
         out[member].add('deprecated')
-      if EXPERIMENTAL in line:
+      if any(e in line for e in EXPERIMENTAL):
         out[member].add('experimental')
       if line.lstrip().startswith('flags:') and 'ACC_SYNTHETIC' in line:
         out[member].add('synthetic')
@@ -98,7 +109,7 @@ def tags(chunk_v):
       member = None
       if line.startswith('Deprecated: true'):
         cls.add('deprecated')
-      if EXPERIMENTAL in line:
+      if any(e in line for e in EXPERIMENTAL):
         cls.add('experimental')
   return out, cls
 

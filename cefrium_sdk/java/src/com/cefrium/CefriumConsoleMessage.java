@@ -4,6 +4,7 @@
 package com.cefrium;
 
 /** A message a page wrote to its console, like {@code android.webkit.ConsoleMessage}. */
+@CefriumExperimental
 public final class CefriumConsoleMessage {
     /** How severe the message is. */
     public enum Level { VERBOSE, INFO, WARNING, ERROR }

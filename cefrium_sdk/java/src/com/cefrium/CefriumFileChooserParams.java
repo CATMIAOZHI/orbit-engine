@@ -13,6 +13,7 @@ import java.util.List;
  * What a file input asks for, as {@link CefriumChromeClient#onShowFileChooser}
  * sees it. Like {@code WebChromeClient.FileChooserParams}.
  */
+@CefriumExperimental
 public final class CefriumFileChooserParams {
     /** What the page wants chosen. */
     public enum Mode {

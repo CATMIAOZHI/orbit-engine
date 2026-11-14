@@ -4,6 +4,7 @@
 package com.cefrium;
 
 /** Why a page's renderer process ended. */
+@CefriumExperimental
 public enum CefriumRendererTerminationStatus {
     /** Ended abnormally, reason not otherwise known. */
     ABNORMAL,

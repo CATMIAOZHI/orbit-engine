@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * the items, then run the one chosen with {@link Item#execute} or close the
  * menu with {@link #cancel}; the first of those counts. Any thread.
  */
+@CefriumExperimental
 public final class CefriumContextMenu {
     /** What kind of media the menu is for. */
     public enum MediaType { NONE, IMAGE, VIDEO, AUDIO, OTHER }
