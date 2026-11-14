@@ -375,10 +375,25 @@ public class CefriumMediaSession {
         return PendingIntent.getService(mAppContext, action.hashCode(), i, flags);
     }
 
+    // What the service shows for the instant it must be foreground with no
+    // session left to show.
+    static Notification placeholderNotification(Context context) {
+        ensureChannel(context);
+        return new NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_media_play)
+                .setContentTitle("Media")
+                .setSilent(true)
+                .build();
+    }
+
     private void ensureChannel() {
+        ensureChannel(mAppContext);
+    }
+
+    private static void ensureChannel(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager nm =
-                    mAppContext.getSystemService(NotificationManager.class);
+                    context.getSystemService(NotificationManager.class);
             if (nm != null && nm.getNotificationChannel(CHANNEL_ID) == null) {
                 NotificationChannel ch = new NotificationChannel(CHANNEL_ID,
                         "Media playback", NotificationManager.IMPORTANCE_LOW);

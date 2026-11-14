@@ -173,6 +173,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   it threw, and URLs were cut at 200 characters.
 
 ### Fixed
+- Media controls could take the app down ("did not then call
+  startForeground") when playback stopped right as it started, for example a
+  video tab opened and closed in a row: the service now always calls
+  `startForeground()` before stopping.
 - An `HttpAuthHandler` was called on the network thread, though documented
   as the UI thread; it is called on the UI thread now.
 - "Copy link" and "Copy image URL" in an off-screen browser with no activity

@@ -32,6 +32,11 @@ public class CefriumMediaService extends Service {
     static final String ACTION_STOP = "com.cefrium.media.STOP";
     static final int NOTIFICATION_ID = 0xCEF1;
 
+    // startForegroundService() calls whose onStartCommand has not run yet,
+    // and whether a stop() arrived meanwhile. Main thread only.
+    private static int sPendingStarts;
+    private static boolean sStopPending;
+
     static void show(Context context, Notification notification) {
         // startForegroundService() obliges the service to call startForeground()
         // within seconds; without these permissions that call throws and the
@@ -42,9 +47,11 @@ public class CefriumMediaService extends Service {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(i);
+                sPendingStarts++;
             } else {
                 context.startService(i);
             }
+            sStopPending = false;
         } catch (Exception e) {
             // Android 12+ refuses a background service start. Allowed when the
             // service is already foreground, which is the case when one tab
@@ -69,6 +76,13 @@ public class CefriumMediaService extends Service {
     }
 
     static void stop(Context context) {
+        // Stopped before it called startForeground(), a service started with
+        // startForegroundService() takes the app down: let it call it, then
+        // stop.
+        if (sPendingStarts > 0) {
+            sStopPending = true;
+            return;
+        }
         context.stopService(new Intent(context, CefriumMediaService.class));
     }
 
@@ -76,6 +90,24 @@ public class CefriumMediaService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         CefriumMediaSession session = CefriumMediaSession.current();
         String action = intent != null ? intent.getAction() : null;
+        if (ACTION_SHOW.equals(action) && sPendingStarts > 0) {
+            // From startForegroundService(): startForeground() is owed even
+            // with nothing left to show.
+            sPendingStarts--;
+            Notification n = session != null ? session.buildNotification() : null;
+            if (n == null) n = CefriumMediaSession.placeholderNotification(this);
+            try {
+                startForeground(NOTIFICATION_ID, n);
+            } catch (Exception e) {
+                // Refused from the background (Android 12+): nothing owed.
+            }
+            if (session == null || (sStopPending && sPendingStarts == 0)) {
+                sStopPending = false;
+                stopForegroundCompat();
+                stopSelf();
+            }
+            return START_NOT_STICKY;
+        }
         if (session == null) {
             stopSelf();
             return START_NOT_STICKY;
