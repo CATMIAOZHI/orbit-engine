@@ -241,7 +241,9 @@ public final class CefriumProfile {
      * covered by a proxy; see {@link #setWebRtcIpHandlingPolicy}.
      *
      * @return false if the engine rejected the setting.
+     * @deprecated Use {@link #setProxy(CefriumProxyMode, String)}.
      */
+    @Deprecated
     public boolean setProxy(String mode, String server) {
         checkThread("setProxy");
         if (mode == null) throw new IllegalArgumentException("mode must not be null");
@@ -253,23 +255,65 @@ public final class CefriumProfile {
         return setPreference("proxy", json.append('}').toString());
     }
 
-    /** {@link #setProxy(String, String)} with {@code PROXY_FIXED}. */
+    /**
+     * Routes this profile's traffic as {@code mode} says; {@code server} is
+     * {@code "host:port"} or {@code "scheme://host:port"} (e.g.
+     * {@code "socks5://127.0.0.1:9050"}) for {@link CefriumProxyMode#FIXED},
+     * the PAC URL for {@link CefriumProxyMode#PAC}, and ignored otherwise.
+     * See {@link #setProxy(String, String)} for what a proxy covers.
+     *
+     * @return false if the engine rejected the setting.
+     */
+    @CefriumExperimental
+    public boolean setProxy(CefriumProxyMode mode, String server) {
+        if (mode == null) throw new IllegalArgumentException("mode must not be null");
+        return setProxyPref(mode.pref, server);
+    }
+
+    @SuppressWarnings("deprecation")
+    private boolean setProxyPref(String mode, String server) {
+        return setProxy(mode, server);
+    }
+
+    /** {@link #setProxy(CefriumProxyMode, String)} with {@link CefriumProxyMode#FIXED}. */
     public boolean setProxy(String server) {
-        return setProxy(CefriumBrowser.PROXY_FIXED, server);
+        return setProxy(CefriumProxyMode.FIXED, server);
     }
 
     /** Direct connections again. */
     public boolean clearProxy() {
-        return setProxy(CefriumBrowser.PROXY_DIRECT, null);
+        return setProxy(CefriumProxyMode.DIRECT, null);
     }
 
-    /** WebRTC policies for {@link #setWebRtcIpHandlingPolicy}, as in Chrome. */
+    /**
+     * WebRTC policies for {@link #setWebRtcIpHandlingPolicy(String)}, as in Chrome.
+     * @deprecated Use {@link CefriumWebRtcIpPolicy}.
+     */
+    @Deprecated
     public static final String WEBRTC_DEFAULT = "default";
+    /** @deprecated Use {@link CefriumWebRtcIpPolicy#PUBLIC_AND_PRIVATE_INTERFACES}. */
+    @Deprecated
     public static final String WEBRTC_DEFAULT_PUBLIC_AND_PRIVATE_INTERFACES =
             "default_public_and_private_interfaces";
+    /** @deprecated Use {@link CefriumWebRtcIpPolicy#PUBLIC_INTERFACE_ONLY}. */
+    @Deprecated
     public static final String WEBRTC_DEFAULT_PUBLIC_INTERFACE_ONLY =
             "default_public_interface_only";
+    /** @deprecated Use {@link CefriumWebRtcIpPolicy#DISABLE_NON_PROXIED_UDP}. */
+    @Deprecated
     public static final String WEBRTC_DISABLE_NON_PROXIED_UDP = "disable_non_proxied_udp";
+
+    /** Which interfaces WebRTC may use; see {@link CefriumWebRtcIpPolicy}. */
+    @CefriumExperimental
+    public boolean setWebRtcIpHandlingPolicy(CefriumWebRtcIpPolicy policy) {
+        if (policy == null) throw new IllegalArgumentException("policy must not be null");
+        return setWebRtcPref(policy.pref);
+    }
+
+    @SuppressWarnings("deprecation")
+    private boolean setWebRtcPref(String policy) {
+        return setWebRtcIpHandlingPolicy(policy);
+    }
 
     /**
      * Which network interfaces and transports WebRTC may use. A proxy does not
@@ -279,7 +323,9 @@ public final class CefriumProfile {
      * the proxy, and gathers no local or public address candidates.
      *
      * @return false if the engine rejected the setting.
+     * @deprecated Use {@link #setWebRtcIpHandlingPolicy(CefriumWebRtcIpPolicy)}.
      */
+    @Deprecated
     public boolean setWebRtcIpHandlingPolicy(String policy) {
         checkThread("setWebRtcIpHandlingPolicy");
         if (policy == null) throw new IllegalArgumentException("policy must not be null");

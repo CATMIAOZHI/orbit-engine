@@ -88,7 +88,7 @@ public final class com.cefrium.compose.CefriumBrowserPoolKt
   [deprecated] public final void setSslErrorHandler(com.cefrium.CefriumBrowser$SslErrorHandler);
   [deprecated] public final void setHttpAuthHandler(com.cefrium.CefriumBrowser$HttpAuthHandler);
   public final void setDeviceChooserHandler(com.cefrium.CefriumBrowser$DeviceChooserHandler);
-  public final boolean setProxy(java.lang.String, java.lang.String);
+  [deprecated] public final boolean setProxy(java.lang.String, java.lang.String);
   public final boolean setProxy(java.lang.String);
   public final boolean clearProxy();
   public final void captureBitmap(kotlin.jvm.functions.Function1<? super android.graphics.Bitmap, kotlin.Unit>);

@@ -93,6 +93,9 @@ in the internal FEATURE-NNN.md working docs (not published).
   ships it unchanged), and `CefriumFrameHandler`, `CefriumCommandHandler`,
   `CefriumDragHandler` and `CefriumFocusHandler`, kept for desktop CEF parity
   and likely to go at 1.0 unless an app needs them.
+- Typed settings: `CefriumProfile.setProxy(CefriumProxyMode, server)`,
+  `setWebRtcIpHandlingPolicy(CefriumWebRtcIpPolicy)` and
+  `Cefrium.setSecureDns(CefriumSecureDnsMode, templates)`.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 
@@ -128,6 +131,9 @@ in the internal FEATURE-NNN.md working docs (not published).
 - The cookie methods of `CefriumBrowser` (`setCookie`, `getCookies`,
   `deleteCookies`, `flushCookies`, `Cookie`, `CookieCallback`, `SAME_SITE_`):
   use `CefriumProfile.getCookieManager()`, which also sets expiry.
+- The string constants `PROXY_`, `WEBRTC_` and `SECURE_DNS_` and the methods
+  that take them; `CefriumBrowser.setProxy`/`clearProxy`, which only forwarded
+  to the profile: use the profile and the enums.
 
 ### Changed
 - **Touch injected into a surface browser takes device-independent pixels**

@@ -205,6 +205,32 @@ public class CefriumProxyTest {
         }
     }
 
+    // The typed settings (FEATURE-092): the same effect as the strings.
+    @Test
+    public void typedProxyModes() throws Exception {
+        try (LocalHttpServer proxy = proxyServer()) {
+            Assert.assertTrue(onMain(() -> CefriumProfile.getDefault().setProxy(
+                    com.cefrium.CefriumProxyMode.FIXED, proxyAddress(proxy))));
+            Assert.assertEquals("via-proxy", open(CefriumProfile.getDefault(), TARGET, null));
+            Assert.assertTrue(onMain(() -> CefriumProfile.getDefault().setProxy(
+                    com.cefrium.CefriumProxyMode.DIRECT, null)));
+            Assert.assertNotEquals("via-proxy", open(CefriumProfile.getDefault(), TARGET, null));
+        }
+    }
+
+    @Test
+    public void typedWebRtcPolicy() throws Exception {
+        try (LocalHttpServer server = new LocalHttpServer(CANDIDATES)) {
+            // The instrument first: without the policy there are candidates.
+            Assert.assertNotEquals("candidates:0",
+                    open(CefriumProfile.getDefault(), server.url(), null));
+            Assert.assertTrue(onMain(() -> CefriumProfile.getDefault().setWebRtcIpHandlingPolicy(
+                    com.cefrium.CefriumWebRtcIpPolicy.DISABLE_NON_PROXIED_UDP)));
+            Assert.assertEquals("candidates:0",
+                    open(CefriumProfile.getDefault(), server.url(), null));
+        }
+    }
+
     // WebRTC is inherited the same way: a private tab must not gather the
     // addresses the default profile hides.
     @Test

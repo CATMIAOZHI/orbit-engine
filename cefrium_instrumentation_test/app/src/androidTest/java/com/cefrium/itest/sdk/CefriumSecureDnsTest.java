@@ -45,7 +45,8 @@ public class CefriumSecureDnsTest {
 
     @After
     public void restoreTheDefault() throws Exception {
-        Assert.assertTrue(onMain(() -> Cefrium.setSecureDns(Cefrium.SECURE_DNS_AUTOMATIC, null)));
+        Assert.assertTrue(onMain(() -> Cefrium.setSecureDns(
+                com.cefrium.CefriumSecureDnsMode.AUTOMATIC, null)));
     }
 
     private boolean onMain(java.util.concurrent.Callable<Boolean> call) throws Exception {
@@ -66,7 +67,8 @@ public class CefriumSecureDnsTest {
     }
 
     /** Whether anything connects to a fresh listener while a host is loaded. */
-    private boolean lookupReachesTheServer(String mode, int waitSeconds) throws Exception {
+    private boolean lookupReachesTheServer(com.cefrium.CefriumSecureDnsMode mode, int waitSeconds)
+            throws Exception {
         try (ServerSocket server = new ServerSocket(0, 0, InetAddress.getByName("127.0.0.1"))) {
             String template = "https://127.0.0.1:" + server.getLocalPort() + "/dns-query{?dns}";
             Assert.assertTrue("the setting was refused",
@@ -97,13 +99,13 @@ public class CefriumSecureDnsTest {
     @Test
     public void secureModeSendsLookupsToTheServer() throws Exception {
         Assert.assertTrue("no lookup reached the DNS over HTTPS server",
-                lookupReachesTheServer(Cefrium.SECURE_DNS_SECURE, 15));
+                lookupReachesTheServer(com.cefrium.CefriumSecureDnsMode.SECURE, 15));
     }
 
     @Test
     public void offModeDoesNotUseTheServer() throws Exception {
         Assert.assertFalse("a lookup went to the DNS over HTTPS server with secure DNS off",
-                lookupReachesTheServer(Cefrium.SECURE_DNS_OFF, 6));
+                lookupReachesTheServer(com.cefrium.CefriumSecureDnsMode.OFF, 6));
     }
 
     @Test
