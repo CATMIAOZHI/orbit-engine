@@ -49,8 +49,21 @@ public interface CefriumRenderHandler {
      *                  {@code 0}) means an editable is focused and the keyboard
      *                  should be shown. The specific value also indicates the
      *                  preferred keyboard flavour (numeric, email, ...).
+     * @deprecated Use {@link #onVirtualKeyboardRequested(CefriumTextInputMode)}.
      */
+    @Deprecated
     default void onVirtualKeyboardRequested(int inputMode) {}
+
+    /**
+     * Called (OSR) when the page wants the soft keyboard shown or hidden: hide
+     * it for {@link CefriumTextInputMode#NONE}, otherwise show the keyboard
+     * the mode asks for (numeric, email, ...). Delivered on the Android main
+     * thread.
+     */
+    @SuppressWarnings("deprecation")
+    default void onVirtualKeyboardRequested(CefriumTextInputMode mode) {
+        onVirtualKeyboardRequested(mode.engine);
+    }
 
     /**
      * Called (OSR) when the focused editable node changes, carrying the field's
@@ -90,11 +103,29 @@ public interface CefriumRenderHandler {
      * @param height    Selection/anchor height.
      * @param editFlags Bitmask of available items (QM_CAN_*).
      * @param callback  Result callback (call exactly one method once).
+     * @deprecated Use {@link #onQuickMenu(int, int, int, int,
+     *     CefriumBrowser.QuickMenuCallback)}.
      */
+    @Deprecated
     default void onQuickMenu(int x, int y, int width, int height, int editFlags,
                              CefriumBrowser.QuickMenuCallback callback) {
         // Default: dismiss (no menu) so CEF does not wait on a response.
         callback.cancel();
+    }
+
+    /**
+     * Called (OSR) when the text-selection quick menu should be shown, e.g.
+     * after long-pressing a word: draw a menu at ({@code x},{@code y}), in view
+     * pixels, with the items {@code menu} says are available
+     * ({@code canCut()}, {@code canCopy()}, {@code canPaste()}), then call
+     * exactly one of its {@code cut()}, {@code copy()}, {@code paste()} or
+     * {@code cancel()}. The default dismisses it. Delivered on the Android
+     * main thread.
+     */
+    @SuppressWarnings("deprecation")
+    default void onQuickMenu(int x, int y, int width, int height,
+                             CefriumBrowser.QuickMenuCallback menu) {
+        onQuickMenu(x, y, width, height, menu.editFlags(), menu);
     }
 
     /**

@@ -126,6 +126,28 @@ public class CefriumOsrPickerTest {
         Assert.assertEquals("type=" + CefriumPickerHandler.DATE + " empty=true", seen.get());
     }
 
+    /** The typed overload: a week input reports WEEK, not an engine number. */
+    @Test
+    public void weekTyped() throws Exception {
+        AtomicReference<String> title = new AtomicReference<>("");
+        AtomicReference<String> seen = new AtomicReference<>();
+        CefriumBrowser b = open(page("<input type=week id=i" + FILL + ">", "'week:'+e.value"),
+                title, new CefriumPickerHandler() {
+                    @Override
+                    public boolean onShowDateTime(com.cefrium.CefriumDateTimeInputType type,
+                            double value, double min, double max, double step,
+                            DateTimeCallback callback) {
+                        seen.set("type=" + type);
+                        // 2026-10-26 00:00 UTC (Monday of week 44), in milliseconds.
+                        callback.set(1792972800000.0);
+                        return true;
+                    }
+                });
+        tap(b);
+        waitForTitle(title, "week:2026-W44");
+        Assert.assertEquals("type=WEEK", seen.get());
+    }
+
     @Test
     public void color() throws Exception {
         AtomicReference<String> title = new AtomicReference<>("");

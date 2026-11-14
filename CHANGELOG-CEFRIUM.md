@@ -107,6 +107,18 @@ in the internal FEATURE-NNN.md working docs (not published).
   reports its URL, title, history and fullscreen, and keeps
   `window.opener`. `CefriumNavigator.exitFullscreen()` leaves HTML
   fullscreen, for Back.
+- `CefriumResourceInterceptor.onRequestFiltered(url, method, blocked)`: every
+  request after the block decision (the built-in ad filter or
+  `shouldBlockRequest`), on the network thread.
+- Typed values for the off-screen handlers: `CefriumTextInputMode`
+  (`onVirtualKeyboardRequested`), `CefriumDateTimeInputType`
+  (`CefriumPickerHandler.onShowDateTime`), `QuickMenuCallback.canCut()`,
+  `canCopy()`, `canPaste()` (`onQuickMenu` without the flags) and
+  `CefriumDeviceKind` (`DeviceChooserSession.getKind()`). Overriding the old
+  int methods keeps working.
+- Ad blocking also stops windows: a list's `$popup` rules (as in EasyList)
+  keep a page from opening a listed ad window; `window.open` returns null.
+  Rules without `$popup` still never stop a window.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 
@@ -145,6 +157,14 @@ in the internal FEATURE-NNN.md working docs (not published).
 - The string constants `PROXY_`, `WEBRTC_` and `SECURE_DNS_` and the methods
   that take them; `CefriumBrowser.setProxy`/`clearProxy`, which only forwarded
   to the profile: use the profile and the enums.
+- `CefriumBrowser.Callback` and `setCallback`, `OnRequestInterceptedListener`
+  and `setOnRequestInterceptedListener`: use the clients and
+  `CefriumResourceInterceptor.onRequestFiltered`.
+- The int forms: `TEXT_INPUT_MODE_`, `QM_CAN_`, `DEVICE_` and `KEY_`
+  constants, `CefriumPickerHandler.DATE`..`WEEK`, the int
+  `onVirtualKeyboardRequested`, `onQuickMenu` and `onShowDateTime`,
+  `DeviceChooserSession.getType()` and `sendKeyEvent(int, ...)` (use
+  `sendKeyEvent(KeyEvent)`).
 - `CefriumRequestHandler`, `setRequestHandler`, `setResponseTapEnabled` and
   `setCookieFilterEnabled`: use `CefriumResourceInterceptor` and
   `CefriumNavigationClient`.

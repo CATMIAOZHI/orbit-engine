@@ -562,7 +562,13 @@ public class CefriumBrowser {
      *     }
      * });
      * </pre>
+     *
+     * @deprecated Use {@link CefriumNavigationClient} (URL, loading state),
+     *     {@link CefriumChromeClient} (title, fullscreen, find, context menu),
+     *     {@link CefriumDownloadClient} (downloads) and
+     *     {@link CefriumResourceInterceptor#onRequestFiltered} (requests).
      */
+    @Deprecated
     public static class Callback {
         public void onUrlChanged(String url) {}
         public void onTitleChanged(String title) {}
@@ -605,9 +611,10 @@ public class CefriumBrowser {
 
     /**
      * Set a unified callback for all browser events.
-     * This is the recommended way to handle events. Individual
-     * setOnXxxListener methods are also available for convenience.
+     *
+     * @deprecated Use the clients: see {@link Callback}.
      */
+    @Deprecated
     public void setCallback(Callback callback) {
         checkThread("setCallback");
         mCallback = callback;
@@ -641,7 +648,10 @@ public class CefriumBrowser {
      * {@link RequestInterceptor} blocked it. Called on the UI thread, after the
      * request has been let through or cancelled; to decide, use a
      * {@link RequestInterceptor}.
+     *
+     * @deprecated Use {@link CefriumResourceInterceptor#onRequestFiltered}.
      */
+    @Deprecated
     public interface OnRequestInterceptedListener {
         void onRequestIntercepted(String url, String method, boolean blocked);
     }
@@ -748,7 +758,10 @@ public class CefriumBrowser {
      * Set a listener told of every network request (see
      * {@link OnRequestInterceptedListener}), for inspection, debugging or
      * auditing. Called on the UI thread.
+     *
+     * @deprecated Use {@link CefriumResourceInterceptor#onRequestFiltered}.
      */
+    @Deprecated
     public void setOnRequestInterceptedListener(OnRequestInterceptedListener listener) {
         checkThread("setOnRequestInterceptedListener");
         mRequestListener = listener;
@@ -763,7 +776,11 @@ public class CefriumBrowser {
         int observers = 0;
         if (mRequestInterceptor != null) observers |= 1;
         if (overridesInterceptRequest(mRequestInterceptor)) observers |= 8;
-        if (mRequestListener != null || overridesRequestIntercepted(mCallback)) observers |= 2;
+        if (mRequestListener != null || overridesRequestIntercepted(mCallback)
+                || overrides(mRequestInterceptor, "onRequestFiltered", String.class,
+                        String.class, boolean.class)) {
+            observers |= 2;
+        }
         if (mRequestHandler != null || overrides(mRequestInterceptor, "onResourceRedirect",
                 String.class, String.class)
                 || overrides(mRequestInterceptor, "onResourceResponse", String.class, int.class)
@@ -995,6 +1012,9 @@ public class CefriumBrowser {
     // every other Callback method, in request order.
     @SuppressWarnings("unused")
     private void onRequestIntercepted(String url, String method, boolean blocked) {
+        CefriumResourceInterceptor interceptor = mRequestInterceptor;
+        if (interceptor != null) interceptor.onRequestFiltered(url, method, blocked);
+        if (mCallback == null && mRequestListener == null) return;
         MAIN_HANDLER.post(() -> {
             if (mCallback != null) mCallback.onRequestIntercepted(url, method, blocked);
             if (mRequestListener != null) {
@@ -1625,16 +1645,28 @@ public class CefriumBrowser {
             new java.util.concurrent.atomic.AtomicLong(1);
 
     // SameSite values for {@link #setCookie}; match Chromium's cookie SameSite.
-    /** @deprecated Use {@link CefriumProfile#getCookieManager()}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumProfile#getCookieManager()}.
+     */
     @Deprecated
     public static final int SAME_SITE_UNSPECIFIED = 0;
-    /** @deprecated Use {@link CefriumProfile#getCookieManager()}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumProfile#getCookieManager()}.
+     */
     @Deprecated
     public static final int SAME_SITE_NONE = 1;   // cross-site; REQUIRES secure=true
-    /** @deprecated Use {@link CefriumProfile#getCookieManager()}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumProfile#getCookieManager()}.
+     */
     @Deprecated
     public static final int SAME_SITE_LAX = 2;
-    /** @deprecated Use {@link CefriumProfile#getCookieManager()}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumProfile#getCookieManager()}.
+     */
     @Deprecated
     public static final int SAME_SITE_STRICT = 3;
 
@@ -2024,7 +2056,10 @@ public class CefriumBrowser {
      * must not touch the UI. Consulted for requests a loaded ad-block list did
      * not already block (see {@link Cefrium#loadAdBlockList}).
      */
-    /** @deprecated Use {@link CefriumResourceInterceptor}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumResourceInterceptor}.
+     */
     @Deprecated
     public interface RequestInterceptor extends CefriumResourceInterceptor {
         /** Return true to block (cancel) this request. */
@@ -2210,13 +2245,25 @@ public class CefriumBrowser {
 
     // ─────────────── JS dialogs ───────────────
 
-    /** alert(). @deprecated Use {@link CefriumJsDialogType#ALERT}. */
+    /**
+     * alert().
+     *
+     * @deprecated Use {@link CefriumJsDialogType#ALERT}.
+     */
     @Deprecated
     public static final int JS_DIALOG_ALERT = 0;
-    /** confirm(). @deprecated Use {@link CefriumJsDialogType#CONFIRM}. */
+    /**
+     * confirm().
+     *
+     * @deprecated Use {@link CefriumJsDialogType#CONFIRM}.
+     */
     @Deprecated
     public static final int JS_DIALOG_CONFIRM = 1;
-    /** prompt(). @deprecated Use {@link CefriumJsDialogType#PROMPT}. */
+    /**
+     * prompt().
+     *
+     * @deprecated Use {@link CefriumJsDialogType#PROMPT}.
+     */
     @Deprecated
     public static final int JS_DIALOG_PROMPT = 2;
 
@@ -2230,7 +2277,10 @@ public class CefriumBrowser {
      * (you MUST call the callback); return false to use the default Android
      * AlertDialog. Without a handler set, the default AlertDialog is shown.
      */
-    /** @deprecated Use {@link CefriumChromeClient#onJsDialog}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumChromeClient#onJsDialog}.
+     */
     @Deprecated
     public interface JsDialogHandler {
         boolean onJsDialog(int type, String message, String defaultPromptText,
@@ -2343,6 +2393,13 @@ public class CefriumBrowser {
         return true;
     }
 
+    @SuppressWarnings("deprecation")
+    private static boolean legacyShowDateTime(CefriumPickerHandler h, int type, double value,
+            double minimum, double maximum, double step,
+            CefriumPickerHandler.DateTimeCallback cb) {
+        return h.onShowDateTime(type, value, minimum, maximum, step, cb);
+    }
+
     private boolean onShowDateTime(long id, int type, double value, double minimum,
             double maximum, double step) {
         final boolean[] answered = {false};
@@ -2356,7 +2413,12 @@ public class CefriumBrowser {
             }
         };
         CefriumPickerHandler h = mPickerHandler;
-        if (h != null && h.onShowDateTime(type, value, minimum, maximum, step, cb)) return true;
+        CefriumDateTimeInputType kind = CefriumDateTimeInputType.fromEngine(type);
+        if (h != null && (kind != null
+                ? h.onShowDateTime(kind, value, minimum, maximum, step, cb)
+                : legacyShowDateTime(h, type, value, minimum, maximum, step, cb))) {
+            return true;
+        }
         android.app.Activity activity = dialogActivity();
         if (activity == null) return false;
         activity.runOnUiThread(() -> CefriumPickerDialogs.showDateTime(
@@ -2390,16 +2452,28 @@ public class CefriumBrowser {
     // engine's bits are mapped to them in cefrium_sdk_dialogs.h. Deprecated
     // with PermissionHandler: use CefriumPermission and CefriumChromeClient.
 
-    /** @deprecated Use {@link CefriumPermission#GEOLOCATION}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumPermission#GEOLOCATION}.
+     */
     @Deprecated
     public static final int PERMISSION_GEOLOCATION = 1 << 8;
-    /** @deprecated Use {@link CefriumPermission#CAMERA}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumPermission#CAMERA}.
+     */
     @Deprecated
     public static final int PERMISSION_CAMERA = 1 << 2;
-    /** @deprecated Use {@link CefriumPermission#MICROPHONE}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumPermission#MICROPHONE}.
+     */
     @Deprecated
     public static final int PERMISSION_MICROPHONE = 1 << 12;
-    /** @deprecated Use {@link CefriumPermission#NOTIFICATIONS}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumPermission#NOTIFICATIONS}.
+     */
     @Deprecated
     public static final int PERMISSION_NOTIFICATIONS = 1 << 15;
     /**
@@ -2626,13 +2700,22 @@ public class CefriumBrowser {
      */
     @Deprecated
     public static final int SETTING_DEFAULT = 0;
-    /** @deprecated Use {@link CefriumContentSetting#ALLOW}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumContentSetting#ALLOW}.
+     */
     @Deprecated
     public static final int SETTING_ALLOW = 1;
-    /** @deprecated Use {@link CefriumContentSetting#BLOCK}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumContentSetting#BLOCK}.
+     */
     @Deprecated
     public static final int SETTING_BLOCK = 2;
-    /** @deprecated Use {@link CefriumContentSetting#ASK}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumContentSetting#ASK}.
+     */
     @Deprecated
     public static final int SETTING_ASK = 3;
 
@@ -2693,16 +2776,28 @@ public class CefriumBrowser {
      */
     @Deprecated
     public static final String PROXY_DIRECT = "direct";
-    /** @deprecated Use {@link CefriumProxyMode#SYSTEM}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumProxyMode#SYSTEM}.
+     */
     @Deprecated
     public static final String PROXY_SYSTEM = "system";
-    /** @deprecated Use {@link CefriumProxyMode#AUTO_DETECT}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumProxyMode#AUTO_DETECT}.
+     */
     @Deprecated
     public static final String PROXY_AUTO_DETECT = "auto_detect";
-    /** @deprecated Use {@link CefriumProxyMode#FIXED}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumProxyMode#FIXED}.
+     */
     @Deprecated
     public static final String PROXY_FIXED = "fixed_servers";
-    /** @deprecated Use {@link CefriumProxyMode#PAC}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumProxyMode#PAC}.
+     */
     @Deprecated
     public static final String PROXY_PAC = "pac_script";
 
@@ -2745,9 +2840,24 @@ public class CefriumBrowser {
 
     // ── Device choosers (Web Bluetooth / WebUSB / Web Serial) ──
 
-    /** Device chooser kinds, passed to {@link DeviceChooserHandler}. */
+    /**
+     * Device chooser kinds, passed to {@link DeviceChooserHandler}.
+     *
+     * @deprecated Use {@link CefriumDeviceKind}.
+     */
+    @Deprecated
     public static final int DEVICE_BLUETOOTH = 0;
+    /**
+     *
+     * @deprecated Use {@link CefriumDeviceKind}.
+     */
+    @Deprecated
     public static final int DEVICE_USB = 1;
+    /**
+     *
+     * @deprecated Use {@link CefriumDeviceKind}.
+     */
+    @Deprecated
     public static final int DEVICE_SERIAL = 2;
 
     /** A candidate device offered to a {@link DeviceChooserSession}. */
@@ -2773,8 +2883,16 @@ public class CefriumBrowser {
      * called; further calls are ignored.
      */
     public interface DeviceChooserSession {
-        /** One of {@link #DEVICE_BLUETOOTH}, {@link #DEVICE_USB}, {@link #DEVICE_SERIAL}. */
+        /**
+         * One of {@link #DEVICE_BLUETOOTH}, {@link #DEVICE_USB}, {@link #DEVICE_SERIAL}.
+         *
+         * @deprecated Use {@link #getKind()}.
+         */
+        @Deprecated
         int getType();
+
+        /** Which Web API asked for a device. */
+        CefriumDeviceKind getKind();
 
         /** The origin (e.g. {@code "https://example.com"}) that requested a device. */
         String getOrigin();
@@ -2928,6 +3046,14 @@ public class CefriumBrowser {
         }
 
         @Override public int getType() { return mType; }
+
+        @Override public CefriumDeviceKind getKind() {
+            switch (mType) {
+                case DEVICE_USB: return CefriumDeviceKind.USB;
+                case DEVICE_SERIAL: return CefriumDeviceKind.SERIAL;
+                default: return CefriumDeviceKind.BLUETOOTH;
+            }
+        }
         @Override public String getOrigin() { return mOrigin; }
 
         @Override public void select(String deviceId) {
@@ -3156,7 +3282,10 @@ public class CefriumBrowser {
      * popup. Sign-in and payment popups need that reference: implement
      * {@link #onCreateWindow} for them.
      */
-    /** @deprecated Use {@link CefriumChromeClient#onCreateWindow}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumChromeClient#onCreateWindow}.
+     */
     @Deprecated
     public interface PopupHandler {
         /** Return true if you handled it (e.g. opened a new tab); false to load
@@ -3610,7 +3739,8 @@ public class CefriumBrowser {
         final CefriumRenderHandler handler = mRenderHandler;
         if (handler == null) return;
         new android.os.Handler(android.os.Looper.getMainLooper())
-                .post(() -> handler.onVirtualKeyboardRequested(inputMode));
+                .post(() -> handler.onVirtualKeyboardRequested(
+                        CefriumTextInputMode.fromEngine(inputMode)));
     }
 
     // FEATURE-062 follow-up (issue #9): focused editable node's value +
@@ -3626,11 +3756,26 @@ public class CefriumBrowser {
 
     // ── OSR text-selection quick menu (FEATURE-066) ──
 
-    /** Quick-menu edit-state flag: Cut is available (matches CEF QM_EDITFLAG_CAN_CUT). */
+    /**
+     * Quick-menu edit-state flag: Cut is available (matches CEF QM_EDITFLAG_CAN_CUT).
+     *
+     * @deprecated Use {@link QuickMenuCallback#canCut()}, {@code canCopy()}, {@code canPaste()}.
+     */
+    @Deprecated
     public static final int QM_CAN_CUT = 1 << 1;
-    /** Quick-menu edit-state flag: Copy is available. */
+    /**
+     * Quick-menu edit-state flag: Copy is available.
+     *
+     * @deprecated Use {@link QuickMenuCallback#canCut()}, {@code canCopy()}, {@code canPaste()}.
+     */
+    @Deprecated
     public static final int QM_CAN_COPY = 1 << 2;
-    /** Quick-menu edit-state flag: Paste is available. */
+    /**
+     * Quick-menu edit-state flag: Paste is available.
+     *
+     * @deprecated Use {@link QuickMenuCallback#canCut()}, {@code canCopy()}, {@code canPaste()}.
+     */
+    @Deprecated
     public static final int QM_CAN_PASTE = 1 << 3;
 
     /**
@@ -3639,7 +3784,28 @@ public class CefriumBrowser {
      * {@link CefriumRenderHandler#onQuickMenu}.
      */
     public final class QuickMenuCallback {
+        private final int mEditFlags;
         private boolean mDone;
+
+        QuickMenuCallback(int editFlags) {
+            mEditFlags = editFlags;
+        }
+
+        /** @deprecated The browser creates it; one made here offers nothing. */
+        @Deprecated
+        public QuickMenuCallback() {
+            this(0);
+        }
+
+        /** Cut is available. */
+        public boolean canCut() { return (mEditFlags & QM_CAN_CUT) != 0; }
+        /** Copy is available. */
+        public boolean canCopy() { return (mEditFlags & QM_CAN_COPY) != 0; }
+        /** Paste is available. */
+        public boolean canPaste() { return (mEditFlags & QM_CAN_PASTE) != 0; }
+
+        // The flags, for the deprecated onQuickMenu that takes them.
+        int editFlags() { return mEditFlags; }
         private void send(int command) {
             if (mDone) return;
             mDone = true;
@@ -3656,10 +3822,10 @@ public class CefriumBrowser {
     // touch-selection quick menu should be shown. Delivered on the main thread.
     private void onQuickMenu(int x, int y, int width, int height, int editFlags) {
         final CefriumRenderHandler handler = mRenderHandler;
-        final QuickMenuCallback cb = new QuickMenuCallback();
+        final QuickMenuCallback cb = new QuickMenuCallback(editFlags);
         if (handler == null) { cb.cancel(); return; }
         new android.os.Handler(android.os.Looper.getMainLooper())
-                .post(() -> handler.onQuickMenu(x, y, width, height, editFlags, cb));
+                .post(() -> handler.onQuickMenu(x, y, width, height, cb));
     }
 
     // Called from native (SdkRenderHandler::OnTouchHandleStateChanged, OSR).
@@ -3833,32 +3999,97 @@ public class CefriumBrowser {
     // default text field is DEFAULT (0), NOT NONE -- hide the keyboard only for
     // TEXT_INPUT_MODE_NONE (1); every other value means a field is focused and
     // the keyboard should be shown (the value also picks the keyboard flavour).
-    /** Default input mode (a normal focused field): show the keyboard. */
+    /**
+     * Default input mode (a normal focused field): show the keyboard.
+     *
+     * @deprecated Use {@link CefriumTextInputMode}.
+     */
+    @Deprecated
     public static final int TEXT_INPUT_MODE_DEFAULT = 0;
-    /** No virtual keyboard (nothing focused, or inputmode="none"): hide it. */
+    /**
+     * No virtual keyboard (nothing focused, or inputmode="none"): hide it.
+     *
+     * @deprecated Use {@link CefriumTextInputMode}.
+     */
+    @Deprecated
     public static final int TEXT_INPUT_MODE_NONE = 1;
-    /** Plain text keyboard. */
+    /**
+     * Plain text keyboard.
+     *
+     * @deprecated Use {@link CefriumTextInputMode}.
+     */
+    @Deprecated
     public static final int TEXT_INPUT_MODE_TEXT = 2;
-    /** Telephone keypad. */
+    /**
+     * Telephone keypad.
+     *
+     * @deprecated Use {@link CefriumTextInputMode}.
+     */
+    @Deprecated
     public static final int TEXT_INPUT_MODE_TEL = 3;
-    /** URL keyboard. */
+    /**
+     * URL keyboard.
+     *
+     * @deprecated Use {@link CefriumTextInputMode}.
+     */
+    @Deprecated
     public static final int TEXT_INPUT_MODE_URL = 4;
-    /** Email keyboard. */
+    /**
+     * Email keyboard.
+     *
+     * @deprecated Use {@link CefriumTextInputMode}.
+     */
+    @Deprecated
     public static final int TEXT_INPUT_MODE_EMAIL = 5;
-    /** Numeric keyboard. */
+    /**
+     * Numeric keyboard.
+     *
+     * @deprecated Use {@link CefriumTextInputMode}.
+     */
+    @Deprecated
     public static final int TEXT_INPUT_MODE_NUMERIC = 6;
-    /** Decimal keyboard. */
+    /**
+     * Decimal keyboard.
+     *
+     * @deprecated Use {@link CefriumTextInputMode}.
+     */
+    @Deprecated
     public static final int TEXT_INPUT_MODE_DECIMAL = 7;
-    /** Search keyboard. */
+    /**
+     * Search keyboard.
+     *
+     * @deprecated Use {@link CefriumTextInputMode}.
+     */
+    @Deprecated
     public static final int TEXT_INPUT_MODE_SEARCH = 8;
 
-    /** Key event type: raw key down (matches CEF {@code KEYEVENT_RAWKEYDOWN}). */
+    /**
+     * Key event type: raw key down (matches CEF {@code KEYEVENT_RAWKEYDOWN}).
+     *
+     * @deprecated Use {@link #sendKeyEvent(android.view.KeyEvent)}.
+     */
+    @Deprecated
     public static final int KEY_RAW_DOWN = 0;
-    /** Key event type: key down (matches CEF {@code KEYEVENT_KEYDOWN}). */
+    /**
+     * Key event type: key down (matches CEF {@code KEYEVENT_KEYDOWN}).
+     *
+     * @deprecated Use {@link #sendKeyEvent(android.view.KeyEvent)}.
+     */
+    @Deprecated
     public static final int KEY_DOWN = 1;
-    /** Key event type: key up (matches CEF {@code KEYEVENT_KEYUP}). */
+    /**
+     * Key event type: key up (matches CEF {@code KEYEVENT_KEYUP}).
+     *
+     * @deprecated Use {@link #sendKeyEvent(android.view.KeyEvent)}.
+     */
+    @Deprecated
     public static final int KEY_UP = 2;
-    /** Key event type: character (matches CEF {@code KEYEVENT_CHAR}). */
+    /**
+     * Key event type: character (matches CEF {@code KEYEVENT_CHAR}).
+     *
+     * @deprecated Use {@link #sendKeyEvent(android.view.KeyEvent)}.
+     */
+    @Deprecated
     public static final int KEY_CHAR = 3;
 
     /**
@@ -3875,7 +4106,10 @@ public class CefriumBrowser {
      * @param windowsKeyCode Windows virtual-key code (what Blink expects).
      * @param nativeKeyCode  Raw Android key code, or 0.
      * @param character      Produced character (for {@link #KEY_CHAR}), or 0.
+     * @deprecated Use {@link #sendKeyEvent(android.view.KeyEvent)}: Android's
+     *     key events, as a View takes them.
      */
+    @Deprecated
     public void sendKeyEvent(int type, int modifiers, int windowsKeyCode,
                              int nativeKeyCode, char character) {
         checkThread("sendKeyEvent");
@@ -4785,7 +5019,10 @@ public class CefriumBrowser {
      *
      * <p>Callbacks arrive on the browser's UI thread.</p>
      */
-    /** @deprecated Use {@link CefriumDownloadClient}. */
+    /**
+     *
+     * @deprecated Use {@link CefriumDownloadClient}.
+     */
     @Deprecated
     public interface CefriumDownloadHandler {
         /**

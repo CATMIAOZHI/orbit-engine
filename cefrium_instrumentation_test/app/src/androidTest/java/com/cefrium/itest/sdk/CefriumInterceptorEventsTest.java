@@ -136,4 +136,44 @@ public class CefriumInterceptorEventsTest {
             Assert.assertTrue("notified on the UI thread: " + onUi, onUi.isEmpty());
         }
     }
+
+    /**
+     * onRequestFiltered hears every request after the block decision, with
+     * nothing else set: the page, and a blocked image as blocked.
+     */
+    @Test
+    public void everyRequestAfterTheBlockDecision() throws Exception {
+        String page = "<!doctype html><title>filtered</title>"
+                + "<img src='/blocked.png'><img src='/allowed.png'>";
+        List<String> titles = new CopyOnWriteArrayList<>();
+        try (LocalHttpServer server = new LocalHttpServer(page)) {
+            activityRule.getActivity().runOnUiThread(() -> {
+                CefriumBrowser b = browsers.track(new CefriumBrowser(200, 200, 1.0f));
+                b.setOnTitleChangedListener(titles::add);
+                b.setResourceInterceptor(new CefriumResourceInterceptor() {
+                    @Override
+                    public boolean shouldBlockRequest(CefriumBrowser.ResourceRequest r) {
+                        return r.url.endsWith("/blocked.png");
+                    }
+
+                    @Override
+                    public void onRequestFiltered(String url, String method, boolean blocked) {
+                        add((blocked ? "blocked " : "passed ") + method + " " + url);
+                    }
+                });
+                b.loadUrl(server.url());
+            });
+            long end = SystemClock.uptimeMillis() + 20000;
+            while (SystemClock.uptimeMillis() < end
+                    && !(titles.contains("filtered") && has("blocked GET " + server.url()
+                            + "blocked.png") && has("passed GET " + server.url() + "allowed.png"))) {
+                Thread.sleep(100);
+            }
+            String all = events.toString();
+            Assert.assertTrue(all, has("passed GET " + server.url()));
+            Assert.assertTrue(all, has("blocked GET " + server.url() + "blocked.png"));
+            Assert.assertTrue(all, has("passed GET " + server.url() + "allowed.png"));
+            Assert.assertTrue("notified on the UI thread: " + onUi, onUi.isEmpty());
+        }
+    }
 }

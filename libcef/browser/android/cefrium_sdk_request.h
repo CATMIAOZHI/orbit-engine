@@ -433,6 +433,17 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
   }
   int blocked_count() const { return blocked_count_; }
 
+  // Whether this browser's ad blocking stops a window its document at
+  // `opener` opens on `url` (a listed popup ad).
+  bool BlocksPopup(const GURL& url, const GURL& opener) const {
+    if (!adblock_enabled_) {
+      return false;
+    }
+    std::shared_ptr<const AdBlockFilter> filter = AdBlockFilter::Current();
+    return filter && !AdBlockExceptions::Covers(incognito_, profile_, opener) &&
+           filter->ShouldBlockPopup(url, opener);
+  }
+
   // The Java browser is the same object for the browser's lifetime; the first
   // reference is kept, so the IO thread never sees it change.
   void SetJavaBrowser(JNIEnv* env, jobject java_browser) {
