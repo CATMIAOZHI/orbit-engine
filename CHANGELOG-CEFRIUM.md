@@ -86,6 +86,8 @@ in the internal FEATURE-NNN.md working docs (not published).
   SameSite), `getCookie`, `getCookies` (`CefriumCookie` with expiry and
   SameSite), `removeCookies`, `removeAllCookies`, `flush`. Results arrive on
   the UI thread.
+- WebView's history calls: `canGoForward()`, `canGoBackOrForward(n)`,
+  `goBackOrForward(n)`, and `getTitle()`, `getProgress()`.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 
@@ -123,6 +125,11 @@ in the internal FEATURE-NNN.md working docs (not published).
   use `CefriumProfile.getCookieManager()`, which also sets expiry.
 
 ### Changed
+- **`saveState()` saves the whole history** (every entry and its scroll and
+  form state), so a browser restored with `restoreState()` can go back, as in
+  WebView; it saved only the URL. A bundle from 0.20 still restores its URL.
+- `setUserAgentOverride(null)` is documented: it gives the engine's
+  User-Agent back.
 - **A call to a closed browser throws `IllegalStateException`** instead of
   doing nothing (a silent no-op hid the caller's bug). `isClosed()` is new.
   Still allowed after `close()`: `close()`, `isClosed()`, `getProfile()`,

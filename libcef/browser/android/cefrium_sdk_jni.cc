@@ -1727,6 +1727,33 @@ Java_com_cefrium_CefriumBrowser_nativeCanGoBack(
   return false;
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_cefrium_CefriumBrowser_nativeCanGoForward(
+    JNIEnv* env, jclass clazz, jlong native_ptr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (data && data->browser) return data->browser->CanGoForward();
+  return false;
+}
+
+// FEATURE-092: WebView's goBackOrForward / canGoBackOrForward. CEF has no
+// call for it (CefBrowser::GoBack/GoForward step by one), so it goes to the
+// NavigationController; an upstream candidate as CefBrowser::GoToOffset.
+// |go| false only asks.
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_cefrium_CefriumBrowser_nativeGoToOffset(JNIEnv* env,
+                                                 jclass clazz,
+                                                 jlong native_ptr,
+                                                 jint steps,
+                                                 jboolean go) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data || !data->browser) return JNI_FALSE;
+  auto* host = static_cast<CefBrowserHostBase*>(data->browser->GetHost().get());
+  content::WebContents* wc = host ? host->GetWebContents() : nullptr;
+  if (!wc || !wc->GetController().CanGoToOffset(steps)) return JNI_FALSE;
+  if (go == JNI_TRUE) wc->GetController().GoToOffset(steps);
+  return JNI_TRUE;
+}
+
 // Dark mode: prefers-color-scheme for this browser.
 extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeSetDarkMode(
