@@ -128,7 +128,9 @@ public class CefriumOopifInputTest {
     private static void tap(CefriumBrowser b, float x, float y) {
         Handler main = new Handler(Looper.getMainLooper());
         main.post(() -> {
-            float ty = y < 0 ? b.getSurfaceContainer().getHeight() + y : y;
+            // Touch takes DIPs: the view's height in pixels over the density.
+            float ty = y < 0 ? b.getSurfaceContainer().getHeight()
+                    / b.getSurfaceContainer().getResources().getDisplayMetrics().density + y : y;
             b.sendTouchDown(x, ty);
             main.postDelayed(() -> { if (!b.isClosed()) b.sendTouchUp(x, ty); }, 150);
         });

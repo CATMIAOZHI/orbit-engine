@@ -130,6 +130,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   use `CefriumProfile.getCookieManager()`, which also sets expiry.
 
 ### Changed
+- **Touch injected into a surface browser takes device-independent pixels**
+  (`sendTouchDown`/`Move`/`Up`, `sendTap`), like the mouse and an off-screen
+  browser: the units `getBoundingClientRect()` gives. It took the view's
+  physical pixels: divide coordinates you computed in pixels by the density.
 - **`saveState()` saves the whole history** (every entry and its scroll and
   form state), so a browser restored with `restoreState()` can go back, as in
   WebView; it saved only the URL. A bundle from 0.20 still restores its URL.

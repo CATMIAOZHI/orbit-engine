@@ -31,8 +31,8 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * The units of injected input, as the javadoc states them. Off-screen, touch
  * and mouse take device-independent pixels: at scale 2 a touch at (100, 60)
- * lands at CSS (100, 60), not (50, 30). On a surface browser the mouse takes
- * DIPs too, and touch takes the view's physical pixels.
+ * lands at CSS (100, 60), not (50, 30). A surface browser takes DIPs for both
+ * too.
  */
 @RunWith(AndroidJUnit4.class)
 public class CefriumInputUnitsTest {
@@ -116,14 +116,12 @@ public class CefriumInputUnitsTest {
         Assert.assertEquals("down:mouse:100,60", pointerDown(true, false));
     }
 
-    // A surface browser's touch goes through the view as a MotionEvent, in the
-    // view's physical pixels, and is a finger to the page.
+    // A surface browser's touch takes DIPs too (FEATURE-092 D3; it took the
+    // view's physical pixels, so this was "down:touch:57,34" at density 1.75),
+    // and is a finger to the page.
     @Test
-    public void surfaceTouchCoordinatesAreViewPixels() throws Exception {
-        float d = activityRule.getActivity().getResources().getDisplayMetrics().density;
-        String got = pointerDown(false, true);
-        Assert.assertEquals("density " + d, "down:touch:" + Math.round(100 / d) + ","
-                + Math.round(60 / d), got);
+    public void surfaceTouchCoordinatesAreDips() throws Exception {
+        Assert.assertEquals("down:touch:100,60", pointerDown(false, true));
     }
 
     @Test
