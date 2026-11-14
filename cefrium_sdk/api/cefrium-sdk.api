@@ -291,8 +291,8 @@ public class com.cefrium.CefriumBrowser
   public void exitFullscreen();
   public void startDownload(java.lang.String);
   public java.util.List<com.cefrium.CefriumBrowser$NavigationEntry> getNavigationEntries();
-  public void setOnContextMenuListener(com.cefrium.CefriumBrowser$OnContextMenuListener);
-  public void contextMenuCommand(int);
+  [deprecated] public void setOnContextMenuListener(com.cefrium.CefriumBrowser$OnContextMenuListener);
+  [deprecated] public void contextMenuCommand(int);
 
 public interface com.cefrium.CefriumBrowser$BeforeDownloadCallback
   public abstract void allow(java.lang.String);
@@ -394,7 +394,7 @@ public class com.cefrium.CefriumBrowser$NavigationEntry
   public final java.lang.String title;
   public com.cefrium.CefriumBrowser$NavigationEntry(boolean, java.lang.String, java.lang.String);
 
-public interface com.cefrium.CefriumBrowser$OnContextMenuListener
+[deprecated] public interface com.cefrium.CefriumBrowser$OnContextMenuListener
   public abstract void onContextMenu(java.lang.String, java.lang.String);
 
 public interface com.cefrium.CefriumBrowser$OnDownloadListener
@@ -518,6 +518,7 @@ public interface com.cefrium.CefriumChromeClient
   public default boolean onJsDialog(com.cefrium.CefriumBrowser, com.cefrium.CefriumJsDialogType, java.lang.String, java.lang.String, com.cefrium.CefriumBrowser$JsDialogCallback);
   public default boolean onBeforeUnloadDialog(com.cefrium.CefriumBrowser, java.lang.String, boolean, com.cefrium.CefriumBrowser$JsDialogCallback);
   public default boolean onShowFileChooser(com.cefrium.CefriumBrowser, com.cefrium.CefriumFileChooserParams, com.cefrium.CefriumFileChooserCallback);
+  public default boolean onContextMenu(com.cefrium.CefriumBrowser, com.cefrium.CefriumContextMenu);
   public default void onPermissionRequest(com.cefrium.CefriumBrowser, com.cefrium.CefriumPermissionRequest);
   public default void onPermissionRequestCanceled(com.cefrium.CefriumBrowser, com.cefrium.CefriumPermissionRequest);
 
@@ -581,6 +582,32 @@ public final class com.cefrium.CefriumContentSetting extends java.lang.Enum<com.
   public static final com.cefrium.CefriumContentSetting ASK;
   public static com.cefrium.CefriumContentSetting[] values();
   public static com.cefrium.CefriumContentSetting valueOf(java.lang.String);
+
+public final class com.cefrium.CefriumContextMenu
+  public java.util.List<com.cefrium.CefriumContextMenu$Item> getItems();
+  public java.lang.String getPageUrl();
+  public java.lang.String getLinkUrl();
+  public java.lang.String getSourceUrl();
+  public java.lang.String getSelectionText();
+  public boolean isEditable();
+  public com.cefrium.CefriumContextMenu$MediaType getMediaType();
+  public int getX();
+  public int getY();
+  public void cancel();
+
+public final class com.cefrium.CefriumContextMenu$Item
+  public java.lang.String getLabel();
+  public boolean isEnabled();
+  public void execute();
+
+public final class com.cefrium.CefriumContextMenu$MediaType extends java.lang.Enum<com.cefrium.CefriumContextMenu$MediaType>
+  public static final com.cefrium.CefriumContextMenu$MediaType NONE;
+  public static final com.cefrium.CefriumContextMenu$MediaType IMAGE;
+  public static final com.cefrium.CefriumContextMenu$MediaType VIDEO;
+  public static final com.cefrium.CefriumContextMenu$MediaType AUDIO;
+  public static final com.cefrium.CefriumContextMenu$MediaType OTHER;
+  public static com.cefrium.CefriumContextMenu$MediaType[] values();
+  public static com.cefrium.CefriumContextMenu$MediaType valueOf(java.lang.String);
 
 [deprecated] public interface com.cefrium.CefriumDialogHandler
   public static final int MODE_OPEN = 0;

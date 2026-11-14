@@ -81,6 +81,16 @@ public interface CefriumChromeClient {
     }
 
     /**
+     * The page asks for a context menu (a long press or a right click on a
+     * link or an image). Return true to show your own and answer through
+     * {@code menu}. Return false to leave it to a context-menu listener set
+     * the old way, or to close it.
+     */
+    default boolean onContextMenu(CefriumBrowser browser, CefriumContextMenu menu) {
+        return false;
+    }
+
+    /**
      * A page asks for permissions. Answer with {@code request.grant()} or
      * {@code request.deny()}, now or later (after asking the user). The
      * default denies.

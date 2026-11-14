@@ -68,6 +68,7 @@ android_library("cefrium_java") {
     "java/src/com/cefrium/CefriumLoadError.java",
     "java/src/com/cefrium/CefriumRendererTerminationStatus.java",
     "java/src/com/cefrium/CefriumContentSetting.java",
+    "java/src/com/cefrium/CefriumContextMenu.java",
     "java/src/com/cefrium/CefriumNavigationClient.java",
     "java/src/com/cefrium/CefriumPermission.java",
     "java/src/com/cefrium/CefriumPermissionRequest.java",
