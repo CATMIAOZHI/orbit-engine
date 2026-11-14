@@ -588,14 +588,18 @@ public class CefriumBrowser {
 
     /**
      * Listener for URL changes. Called by CEF's CefDisplayHandler::OnAddressChange.
+     * @deprecated Use {@link CefriumNavigationClient#onUrlChanged}.
      */
+    @Deprecated
     public interface OnUrlChangedListener {
         void onUrlChanged(String url);
     }
 
     /**
      * Listener for title changes. Called by CEF's CefDisplayHandler::OnTitleChange.
+     * @deprecated Use {@link CefriumChromeClient#onTitleChanged}.
      */
+    @Deprecated
     public interface OnTitleChangedListener {
         void onTitleChanged(String title);
     }
@@ -614,7 +618,9 @@ public class CefriumBrowser {
     /**
      * Listener for fullscreen mode changes. Called by CEF's
      * CefDisplayHandler::OnFullscreenModeChange.
+     * @deprecated Use {@link CefriumChromeClient#onFullscreenChanged}.
      */
+    @Deprecated
     public interface OnFullscreenChangedListener {
         void onFullscreenChanged(boolean fullscreen);
     }
@@ -622,19 +628,37 @@ public class CefriumBrowser {
     /**
      * Listener for loading state changes. Called by CEF's
      * CefLoadHandler::OnLoadingStateChange.
+     * @deprecated Use {@link CefriumNavigationClient#onLoadingStateChanged}.
      */
+    @Deprecated
     public interface OnLoadingStateChangedListener {
         void onLoadingStateChanged(boolean isLoading, boolean canGoBack,
                                    boolean canGoForward);
     }
 
-    /** Termination status: process exited abnormally. */
+    /**
+     * Termination status: process exited abnormally.
+     * @deprecated Use {@link CefriumRendererTerminationStatus}.
+     */
+    @Deprecated
     public static final int TERMINATION_ABNORMAL = 0;
-    /** Termination status: process was killed (e.g. by the OS low-memory killer). */
+    /**
+     * Termination status: process was killed (e.g. by the OS low-memory killer).
+     * @deprecated Use {@link CefriumRendererTerminationStatus}.
+     */
+    @Deprecated
     public static final int TERMINATION_KILLED = 1;
-    /** Termination status: process crashed. */
+    /**
+     * Termination status: process crashed.
+     * @deprecated Use {@link CefriumRendererTerminationStatus}.
+     */
+    @Deprecated
     public static final int TERMINATION_CRASHED = 2;
-    /** Termination status: process ran out of memory. */
+    /**
+     * Termination status: process ran out of memory.
+     * @deprecated Use {@link CefriumRendererTerminationStatus}.
+     */
+    @Deprecated
     public static final int TERMINATION_OOM = 3;
 
     /**
@@ -642,7 +666,9 @@ public class CefriumBrowser {
      * CefRequestHandler::OnRenderProcessTerminated. A renderer can die without
      * killing the app process and without a logcat FATAL -- use this to show a
      * reload UI (the page is now blank/dead) and to count renderer crashes.
+     * @deprecated Use {@link CefriumNavigationClient#onRenderProcessTerminated}.
      */
+    @Deprecated
     public interface OnRenderProcessTerminatedListener {
         /**
          * @param status one of TERMINATION_ABNORMAL, TERMINATION_KILLED,
@@ -654,7 +680,9 @@ public class CefriumBrowser {
 
     /**
      * Set a listener for URL changes during navigation.
+     * @deprecated Use {@link CefriumNavigationClient#onUrlChanged}.
      */
+    @Deprecated
     public void setOnUrlChangedListener(OnUrlChangedListener listener) {
         checkThread("setOnUrlChangedListener");
         mUrlListener = listener;
@@ -665,7 +693,9 @@ public class CefriumBrowser {
 
     /**
      * Set a listener for title changes.
+     * @deprecated Use {@link CefriumChromeClient#onTitleChanged}.
      */
+    @Deprecated
     public void setOnTitleChangedListener(OnTitleChangedListener listener) {
         checkThread("setOnTitleChangedListener");
         mTitleListener = listener;
@@ -674,7 +704,9 @@ public class CefriumBrowser {
 
     /**
      * Set a listener for fullscreen mode changes.
+     * @deprecated Use {@link CefriumChromeClient#onFullscreenChanged}.
      */
+    @Deprecated
     public void setOnFullscreenChangedListener(OnFullscreenChangedListener listener) {
         checkThread("setOnFullscreenChangedListener");
         mFullscreenListener = listener;
@@ -753,6 +785,8 @@ public class CefriumBrowser {
         mCurrentUrl = url;
         if (mCallback != null) mCallback.onUrlChanged(url);
         if (mUrlListener != null) mUrlListener.onUrlChanged(url);
+        CefriumNavigationClient nav = mNavigationClient;
+        if (nav != null) nav.onUrlChanged(this, url);
     }
 
     /** The current top-level URL, or {@code null} before the first navigation. */
@@ -827,7 +861,9 @@ public class CefriumBrowser {
 
     /**
      * Set a listener for loading state changes.
+     * @deprecated Use {@link CefriumNavigationClient#onLoadingStateChanged}.
      */
+    @Deprecated
     public void setOnLoadingStateChangedListener(OnLoadingStateChangedListener listener) {
         checkThread("setOnLoadingStateChangedListener");
         mLoadingListener = listener;
@@ -840,7 +876,9 @@ public class CefriumBrowser {
      * Set a listener notified when a renderer process for this browser dies.
      * The native CefRequestHandler is always installed, so no extra wiring is
      * needed -- the callback fires whenever the renderer terminates.
+     * @deprecated Use {@link CefriumNavigationClient#onRenderProcessTerminated}.
      */
+    @Deprecated
     public void setOnRenderProcessTerminatedListener(
             OnRenderProcessTerminatedListener listener) {
         checkThread("setOnRenderProcessTerminatedListener");
@@ -856,6 +894,8 @@ public class CefriumBrowser {
         mLastTitle = title;
         if (mCallback != null) mCallback.onTitleChanged(title);
         if (mTitleListener != null) mTitleListener.onTitleChanged(title);
+        CefriumChromeClient chrome = mChromeClient;
+        if (chrome != null) chrome.onTitleChanged(this, title);
     }
 
     // Called from native CefDisplayHandler::OnFullscreenModeChange.
@@ -863,6 +903,8 @@ public class CefriumBrowser {
     private void onFullscreenChanged(boolean fullscreen) {
         if (mCallback != null) mCallback.onFullscreenChanged(fullscreen);
         if (mFullscreenListener != null) mFullscreenListener.onFullscreenChanged(fullscreen);
+        CefriumChromeClient chrome = mChromeClient;
+        if (chrome != null) chrome.onFullscreenChanged(this, fullscreen);
     }
 
     private static final android.os.Handler MAIN_HANDLER =
@@ -887,6 +929,8 @@ public class CefriumBrowser {
                                        boolean canGoForward) {
         if (mCallback != null) mCallback.onLoadingStateChanged(isLoading, canGoBack, canGoForward);
         if (mLoadingListener != null) mLoadingListener.onLoadingStateChanged(isLoading, canGoBack, canGoForward);
+        CefriumNavigationClient nav = mNavigationClient;
+        if (nav != null) nav.onLoadingStateChanged(this, isLoading, canGoBack, canGoForward);
         if (!isLoading && !mPinchToZoomEnabled) {
             evaluateJavaScript(PINCH_ZOOM_DISABLE_JS);
         }
@@ -894,9 +938,19 @@ public class CefriumBrowser {
 
     // Called from native CefRequestHandler::OnRenderProcessTerminated.
     @SuppressWarnings("unused")
+    // |status| is a TERMINATION_ value (mapped from the engine's in native), or
+    // 4 for any other reason.
     private void onRenderProcessTerminated(int status, int errorCode) {
         if (mRenderProcessTerminatedListener != null) {
             mRenderProcessTerminatedListener.onRenderProcessTerminated(status, errorCode);
+        }
+        CefriumNavigationClient nav = mNavigationClient;
+        if (nav != null) {
+            CefriumRendererTerminationStatus[] all = CefriumRendererTerminationStatus.values();
+            nav.onRenderProcessTerminated(this,
+                    status >= 0 && status < all.length ? all[status]
+                            : CefriumRendererTerminationStatus.UNKNOWN,
+                    errorCode);
         }
     }
 
@@ -4302,7 +4356,9 @@ public class CefriumBrowser {
 
     /**
      * Listener for find-in-page results.
+     * @deprecated Use {@link CefriumChromeClient#onFindResult}.
      */
+    @Deprecated
     public interface OnFindResultListener {
         /**
          * @param activeMatch Current match ordinal (1-based).
@@ -4315,7 +4371,9 @@ public class CefriumBrowser {
 
     /**
      * Set the listener for find-in-page results.
+     * @deprecated Use {@link CefriumChromeClient#onFindResult}.
      */
+    @Deprecated
     public void setOnFindResultListener(OnFindResultListener listener) {
         checkThread("setOnFindResultListener");
         mFindListener = listener;
@@ -4354,6 +4412,8 @@ public class CefriumBrowser {
             mFindListener.onFindResult(activeMatch, totalMatches);
         }
         if (mCallback != null) mCallback.onFindResult(activeMatch, totalMatches);
+        CefriumChromeClient chrome = mChromeClient;
+        if (chrome != null) chrome.onFindResult(this, activeMatch, totalMatches);
     }
 
     /**
@@ -4582,13 +4642,21 @@ public class CefriumBrowser {
     private CefriumCommandHandler mCommandHandler;
     private CefriumDialogHandler mDialogHandler;
 
-    /** Sets the display handler (favicon, progress, console, status, media). */
+    /**
+     * Sets the display handler (favicon, progress, console, status, media).
+     * @deprecated Use {@link CefriumChromeClient}.
+     */
+    @Deprecated
     public void setDisplayHandler(CefriumDisplayHandler handler) {
         checkThread("setDisplayHandler");
         mDisplayHandler = handler;
         if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
-    /** Sets the per-frame load handler (load start / error). */
+    /**
+     * Sets the per-frame load handler (load start / error).
+     * @deprecated Use {@link CefriumNavigationClient}.
+     */
+    @Deprecated
     public void setLoadHandler(CefriumLoadHandler handler) {
         checkThread("setLoadHandler");
         mLoadHandler = handler;
@@ -4680,35 +4748,70 @@ public class CefriumBrowser {
     }
 
     // ---- Display bridge (called from native, UI thread) ----
+    @SuppressWarnings("deprecation")
     private void onFaviconUrlChanged(String[] iconUrls) {
         CefriumDisplayHandler h = mDisplayHandler;
         if (h != null) h.onFaviconUrlChanged(iconUrls);
+        CefriumChromeClient chrome = mChromeClient;
+        if (chrome != null) {
+            chrome.onFaviconUrlsChanged(this, java.util.Collections.unmodifiableList(
+                    java.util.Arrays.asList(iconUrls == null ? new String[0] : iconUrls)));
+        }
     }
+    @SuppressWarnings("deprecation")
     private void onLoadingProgress(double progress) {
         CefriumDisplayHandler h = mDisplayHandler;
         if (h != null) h.onLoadingProgress(progress);
+        CefriumNavigationClient nav = mNavigationClient;
+        if (nav != null) {
+            nav.onProgressChanged(this, (int) Math.round(Math.max(0, Math.min(1, progress)) * 100));
+        }
     }
-    private void onConsoleMessage(int level, String message, String source, int line) {
+    // |level| is the engine's severity (for CefriumDisplayHandler), |cefriumLevel|
+    // a CefriumConsoleMessage.Level ordinal mapped from it in native.
+    @SuppressWarnings("deprecation")
+    private void onConsoleMessage(int level, int cefriumLevel, String message, String source,
+            int line) {
         CefriumDisplayHandler h = mDisplayHandler;
         if (h != null) h.onConsoleMessage(level, message, source, line);
+        CefriumChromeClient chrome = mChromeClient;
+        if (chrome != null) {
+            chrome.onConsoleMessage(this, new CefriumConsoleMessage(
+                    CefriumConsoleMessage.Level.values()[cefriumLevel], message, source, line));
+        }
     }
+    @SuppressWarnings("deprecation")
     private void onStatusMessage(String value) {
         CefriumDisplayHandler h = mDisplayHandler;
         if (h != null) h.onStatusMessage(value);
+        CefriumChromeClient chrome = mChromeClient;
+        if (chrome != null) chrome.onStatusMessage(this, value == null ? "" : value);
     }
+    @SuppressWarnings("deprecation")
     private void onMediaAccessChange(boolean hasVideo, boolean hasAudio) {
         CefriumDisplayHandler h = mDisplayHandler;
         if (h != null) h.onMediaAccessChange(hasVideo, hasAudio);
+        CefriumChromeClient chrome = mChromeClient;
+        if (chrome != null) chrome.onMediaAccessChanged(this, hasVideo, hasAudio);
     }
 
     // ---- Load bridge ----
+    @SuppressWarnings("deprecation")
     private void onLoadStart(String url) {
         CefriumLoadHandler h = mLoadHandler;
         if (h != null) h.onLoadStart(url);
+        CefriumNavigationClient nav = mNavigationClient;
+        if (nav != null) nav.onLoadStart(this, url);
     }
+    @SuppressWarnings("deprecation")
     private void onLoadError(int errorCode, String errorText, String failedUrl) {
         CefriumLoadHandler h = mLoadHandler;
         if (h != null) h.onLoadError(errorCode, errorText, failedUrl);
+        CefriumNavigationClient nav = mNavigationClient;
+        if (nav != null) {
+            nav.onLoadError(this, new CefriumLoadError(errorCode,
+                    errorText == null ? "" : errorText, failedUrl));
+        }
     }
 
     // ---- Request bridge ----
@@ -4719,10 +4822,14 @@ public class CefriumBrowser {
     private void onRenderUnresponsive() {
         CefriumRequestHandler h = mRequestHandler;
         if (h != null) h.onRenderUnresponsive();
+        CefriumNavigationClient nav = mNavigationClient;
+        if (nav != null) nav.onRenderProcessUnresponsive(this);
     }
     private void onRenderResponsive() {
         CefriumRequestHandler h = mRequestHandler;
         if (h != null) h.onRenderResponsive();
+        CefriumNavigationClient nav = mNavigationClient;
+        if (nav != null) nav.onRenderProcessResponsive(this);
     }
     private void onRenderViewReady() {
         CefriumRequestHandler h = mRequestHandler;

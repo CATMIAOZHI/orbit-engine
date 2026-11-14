@@ -649,13 +649,31 @@ class SdkDisplayHandler : public CefDisplayHandler {
     JNIEnv* env = base::android::AttachCurrentThread();
     if (!env) return false;
     jclass cls = env->GetObjectClass(java_browser_);
-    jmethodID method = env->GetMethodID(cls, "onConsoleMessage",
-                                        "(ILjava/lang/String;Ljava/lang/String;I)V");
+    jmethodID method = env->GetMethodID(
+        cls, "onConsoleMessage", "(IILjava/lang/String;Ljava/lang/String;I)V");
     if (method) {
+      // FEATURE-092: CefriumConsoleMessage.Level ordinal (VERBOSE, INFO,
+      // WARNING, ERROR); the raw severity still goes to CefriumDisplayHandler.
+      int cefrium_level = 1;
+      switch (level) {
+        case LOGSEVERITY_VERBOSE:
+          cefrium_level = 0;
+          break;
+        case LOGSEVERITY_WARNING:
+          cefrium_level = 2;
+          break;
+        case LOGSEVERITY_ERROR:
+        case LOGSEVERITY_FATAL:
+          cefrium_level = 3;
+          break;
+        default:
+          cefrium_level = 1;
+          break;
+      }
       jstring j_msg = env->NewStringUTF(message.ToString().c_str());
       jstring j_src = env->NewStringUTF(source.ToString().c_str());
       env->CallVoidMethod(java_browser_, method, static_cast<jint>(level),
-                          j_msg, j_src, line);
+                          static_cast<jint>(cefrium_level), j_msg, j_src, line);
       env->DeleteLocalRef(j_msg);
       env->DeleteLocalRef(j_src);
     }

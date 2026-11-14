@@ -25,4 +25,39 @@ public interface CefriumNavigationClient {
     default boolean onBeforeNavigate(CefriumBrowser browser, CefriumNavigationRequest request) {
         return false;
     }
+
+    /** The address of the page changed (a navigation, or the page's own history). */
+    default void onUrlChanged(CefriumBrowser browser, String url) {}
+
+    /** The page started loading {@code url} (WebView's {@code onPageStarted}). */
+    default void onLoadStart(CefriumBrowser browser, String url) {}
+
+    /**
+     * The browser started or stopped loading. {@code loading == false} is
+     * WebView's {@code onPageFinished}. The back and forward states are the
+     * ones after the change.
+     */
+    default void onLoadingStateChanged(CefriumBrowser browser, boolean loading,
+            boolean canGoBack, boolean canGoForward) {}
+
+    /** How much of the page has loaded, 0 to 100 (WebView's {@code onProgressChanged}). */
+    default void onProgressChanged(CefriumBrowser browser, int percent) {}
+
+    /** The page failed to load (WebView's {@code onReceivedError}, main frame). */
+    default void onLoadError(CefriumBrowser browser, CefriumLoadError error) {}
+
+    /**
+     * The page's renderer process ended; the page is gone until it is loaded
+     * again ({@link CefriumBrowser#reload}).
+     *
+     * @param errorCode the process's exit code, 0 if none
+     */
+    default void onRenderProcessTerminated(CefriumBrowser browser,
+            CefriumRendererTerminationStatus status, int errorCode) {}
+
+    /** The page's renderer stopped answering (a long-running script, for example). */
+    default void onRenderProcessUnresponsive(CefriumBrowser browser) {}
+
+    /** The renderer answers again after {@link #onRenderProcessUnresponsive}. */
+    default void onRenderProcessResponsive(CefriumBrowser browser) {}
 }

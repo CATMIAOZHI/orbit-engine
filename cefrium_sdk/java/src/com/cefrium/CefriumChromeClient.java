@@ -12,6 +12,34 @@ package com.cefrium;
  */
 public interface CefriumChromeClient {
 
+    /** The page's title changed. */
+    default void onTitleChanged(CefriumBrowser browser, String title) {}
+
+    /**
+     * The page's icon URLs changed, best first (may be empty). Fetch one with
+     * {@link CefriumBrowser#downloadImage}.
+     */
+    default void onFaviconUrlsChanged(CefriumBrowser browser, java.util.List<String> urls) {}
+
+    /** The page entered or left fullscreen ({@code element.requestFullscreen()}). */
+    default void onFullscreenChanged(CefriumBrowser browser, boolean fullscreen) {}
+
+    /** The page wrote to its console. */
+    default void onConsoleMessage(CefriumBrowser browser, CefriumConsoleMessage message) {}
+
+    /** The text to show for the link under the pointer; empty when it leaves the link. */
+    default void onStatusMessage(CefriumBrowser browser, String text) {}
+
+    /** The page started or stopped using the camera or the microphone. */
+    default void onMediaAccessChanged(CefriumBrowser browser, boolean camera,
+            boolean microphone) {}
+
+    /**
+     * A result of {@link CefriumBrowser#find}: the active match (1-based, 0
+     * when none) and the number of matches.
+     */
+    default void onFindResult(CefriumBrowser browser, int activeMatch, int matches) {}
+
     /**
      * A page asks for permissions. Answer with {@code request.grant()} or
      * {@code request.deny()}, now or later (after asking the user). The

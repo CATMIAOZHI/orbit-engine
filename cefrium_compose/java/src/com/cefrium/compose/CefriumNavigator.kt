@@ -359,6 +359,15 @@ class CefriumNavigator {
     }
 
     /**
+     * Sets the client told of this browser's navigations and loads (null
+     * removes it). See `CefriumBrowser.setNavigationClient`. The state this
+     * view hoists keeps updating either way.
+     */
+    fun setNavigationClient(client: com.cefrium.CefriumNavigationClient?) {
+        run("setNavigationClient") { it.setNavigationClient(client) }
+    }
+
+    /**
      * Stores a decision for [permission] on [origin], so the page is answered
      * without asking. See `CefriumBrowser.setContentSetting`.
      */

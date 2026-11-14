@@ -11,7 +11,10 @@ package com.cefrium;
  * {@link CefriumBrowser#setLoadHandler(CefriumLoadHandler)}.
  *
  * <p>Delivered on the browser UI thread.
+ *
+ * @deprecated Use {@link CefriumNavigationClient}.
  */
+@Deprecated
 public interface CefriumLoadHandler {
     /** The main frame started loading {@code url}. */
     default void onLoadStart(String url) {}

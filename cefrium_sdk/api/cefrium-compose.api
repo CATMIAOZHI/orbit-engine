@@ -81,6 +81,7 @@ public final class com.cefrium.compose.CefriumNavigator
   public final void setResourceInterceptor(com.cefrium.CefriumResourceInterceptor);
   [deprecated] public final void setRequestInterceptor(com.cefrium.CefriumBrowser$RequestInterceptor);
   public final void setChromeClient(com.cefrium.CefriumChromeClient);
+  public final void setNavigationClient(com.cefrium.CefriumNavigationClient);
   public final void setContentSetting(java.lang.String, com.cefrium.CefriumPermission, com.cefrium.CefriumContentSetting);
   [deprecated] public final void setPermissionHandler(com.cefrium.CefriumBrowser$PermissionHandler);
   [deprecated] public final void setContentSetting(java.lang.String, int, int);
