@@ -53,11 +53,11 @@ public final class com.cefrium.compose.CefriumNavigator
   public final byte[] serializeNavigationState();
   public final void setPullToRefreshEnabled(boolean);
   public final void evaluateJavaScript(java.lang.String);
-  public final void setCookie(java.lang.String, java.lang.String, java.lang.String);
-  public final void setCookie(java.lang.String, java.lang.String, java.lang.String, boolean, boolean, int);
-  public final void getCookies(java.lang.String, com.cefrium.CefriumBrowser$CookieCallback);
-  public final void deleteCookies(java.lang.String, java.lang.String);
-  public final void flushCookies();
+  [deprecated] public final void setCookie(java.lang.String, java.lang.String, java.lang.String);
+  [deprecated] public final void setCookie(java.lang.String, java.lang.String, java.lang.String, boolean, boolean, int);
+  [deprecated] public final void getCookies(java.lang.String, com.cefrium.CefriumBrowser$CookieCallback);
+  [deprecated] public final void deleteCookies(java.lang.String, java.lang.String);
+  [deprecated] public final void flushCookies();
   public final void clearCache();
   public final void printToPdf(java.lang.String, com.cefrium.CefriumBrowser$PdfCallback);
   public final void setUserAgentOverride(java.lang.String);
