@@ -75,7 +75,7 @@ public class CefriumTouchTest {
             browser.setOnLoadingStateChangedListener((loading, back, fwd) -> {
                 if (!loading && !tapped[0]) {
                     tapped[0] = true;
-                    main.postDelayed(() -> browser.sendTap(150, 300), 700);
+                    main.postDelayed(() -> { if (!browser.isClosed()) browser.sendTap(150, 300); }, 700);
                 }
             });
             browser.loadUrl(server.url());

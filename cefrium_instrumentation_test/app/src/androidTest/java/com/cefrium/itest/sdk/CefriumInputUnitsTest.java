@@ -97,7 +97,7 @@ public class CefriumInputUnitsTest {
                     b.sendMouseClick(100, 60, CefriumBrowser.MOUSE_BUTTON_LEFT);
                 } else {
                     b.sendTouchDown(100, 60);
-                    main.postDelayed(() -> b.sendTouchUp(100, 60), 150);
+                    main.postDelayed(() -> { if (!b.isClosed()) b.sendTouchUp(100, 60); }, 150);
                 }
             });
             Assert.assertTrue("no pointerdown reached the page; titles " + titles,

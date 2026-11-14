@@ -316,7 +316,7 @@ public class CefriumFileChooserTest {
                 float x = surface ? browser.getSurfaceContainer().getWidth() / 2f : 200;
                 float y = surface ? browser.getSurfaceContainer().getHeight() / 2f : 150;
                 browser.sendTouchDown(x, y);
-                main.postDelayed(() -> browser.sendTouchUp(x, y), 150);
+                main.postDelayed(() -> { if (!browser.isClosed()) browser.sendTouchUp(x, y); }, 150);
             });
             boolean reported = done.await(20, TimeUnit.SECONDS);
             Assert.assertTrue("the input reported nothing; picker hits " + hits.get()

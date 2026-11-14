@@ -215,6 +215,35 @@ public class CefriumBrowser {
                     + " must be called on the main thread, not on "
                     + Thread.currentThread().getName());
         }
+        // FEATURE-092 D1: a closed browser does nothing, so a call to it is a
+        // bug in the caller, reported where it happens rather than ignored.
+        // Not for the hooks an activity or a layout calls whatever the
+        // browser's state (results, lifecycle, removing the view).
+        if (mClosed && !CALLABLE_AFTER_CLOSE.contains(method)) {
+            throw new IllegalStateException("CefriumBrowser." + method
+                    + " called after close()");
+        }
+    }
+
+    private static final java.util.Set<String> CALLABLE_AFTER_CLOSE = new java.util.HashSet<>(
+            java.util.Arrays.asList("close", "isClosed", "getProfile", "getSurfaceContainer",
+                    "onPause", "onResume", "onActivityResult", "onRequestPermissionsResult"));
+
+    /**
+     * Whether {@link #close} was called. After it every method throws
+     * {@link IllegalStateException}, except {@code close()}, {@code isClosed()},
+     * {@code getProfile()}, {@code getSurfaceContainer()} (to remove the view)
+     * and the hooks an activity forwards: {@code onPause()}, {@code onResume()},
+     * {@code onActivityResult()} and {@code onRequestPermissionsResult()}, which
+     * then do nothing.
+     */
+    public boolean isClosed() {
+        checkThread("isClosed");
+        return mClosed;
+    }
+
+    private static void requireCallback(Object callback) {
+        if (callback == null) throw new IllegalArgumentException("callback must not be null");
     }
 
     private boolean mClosedCallLogged;
@@ -1569,7 +1598,8 @@ public class CefriumBrowser {
     /** Reads cookies visible to {@code url}; the callback fires on the UI thread. */
     public void getCookies(String url, CookieCallback callback) {
         checkThread("getCookies");
-        if (!isLive() || callback == null) return;
+        requireCallback(callback);
+        if (!isLive()) return;
         long reqId = mCookieReqId.getAndIncrement();
         mCookieCallbacks.put(reqId, callback);
         nativeGetCookies(mNativePtr, this, url, reqId);
@@ -1608,7 +1638,8 @@ public class CefriumBrowser {
     /** Renders the current page to a PDF at {@code filePath} (async). */
     public void printToPdf(String filePath, PdfCallback callback) {
         checkThread("printToPdf");
-        if (!isLive() || callback == null) return;
+        requireCallback(callback);
+        if (!isLive()) return;
         printToPdf(filePath, 0, 0, false, callback);
     }
 
@@ -1622,7 +1653,8 @@ public class CefriumBrowser {
     public void printToPdf(String filePath, double paperWidthInches, double paperHeightInches,
             boolean landscape, PdfCallback callback) {
         checkThread("printToPdf");
-        if (!isLive() || callback == null) return;
+        requireCallback(callback);
+        if (!isLive()) return;
         long id = mPdfReqId.getAndIncrement();
         mPdfCallbacks.put(id, callback);
         nativePrintToPdf(mNativePtr, this, filePath, id, paperWidthInches, paperHeightInches,
@@ -3254,6 +3286,7 @@ public class CefriumBrowser {
      */
     public void onPause() {
         checkThread("onPause");
+        if (mClosed) return;  // an activity hook: nothing to pause
         setPageVisible(false);
         suspendMedia();
         setAudioMuted(true);
@@ -3266,6 +3299,7 @@ public class CefriumBrowser {
      */
     public void onResume() {
         checkThread("onResume");
+        if (mClosed) return;  // an activity hook: nothing to resume
         setAudioMuted(false);
         setPageVisible(true);
         resumeMedia();
@@ -3494,9 +3528,7 @@ public class CefriumBrowser {
      */
     public void captureBitmap(BitmapCallback callback) {
         checkThread("captureBitmap");
-        if (callback == null) {
-            return;
-        }
+        requireCallback(callback);
         if (mContentViewRenderView != null) {
             // Surface mode: PixelCopy the rendering SurfaceView.
             android.view.SurfaceView sv = findSurfaceView(mContentViewRenderView);
@@ -4149,7 +4181,11 @@ public class CefriumBrowser {
         // not focused." before any permission check even runs). Wired here,
         // after mNativePtr exists, and seeded from the current window state
         // because the view is attached before the native browser is created.
-        browser.mSurfaceContainer.setFocusSink(browser::setFocus);
+        // The window can regain focus after close(): an internal call must not
+        // hit the public method's closed-browser check.
+        browser.mSurfaceContainer.setFocusSink(focused -> {
+            if (!browser.mClosed) browser.setFocus(focused);
+        });
 
         // Install the native display callback unconditionally.
         //
@@ -4195,6 +4231,7 @@ public class CefriumBrowser {
     public boolean onActivityResult(int requestCode, int resultCode,
                                     android.content.Intent data) {
         checkThread("onActivityResult");
+        if (mClosed) return false;  // forwarded by the activity: not ours any more
         if (requestCode == DefaultFileChooser.REQUEST_CODE && mPendingFileDialog >= 0) {
             long id = mPendingFileDialog;
             mPendingFileDialog = -1;
@@ -4218,6 +4255,7 @@ public class CefriumBrowser {
     public boolean onRequestPermissionsResult(int requestCode, String[] permissions,
                                               int[] grantResults) {
         checkThread("onRequestPermissionsResult");
+        if (mClosed) return false;  // forwarded by the activity: not ours any more
         return mWindowAndroid != null
                 && mWindowAndroid.handlePermissionResult(requestCode, permissions, grantResults);
     }
@@ -5392,8 +5430,9 @@ public class CefriumBrowser {
      */
     public void downloadImage(String url, int maxSize, ImageCallback callback) {
         checkThread("downloadImage");
+        requireCallback(callback);
         if (!isLive() || url == null) return;
-        if (callback != null) mPendingImages.put(url, callback);
+        mPendingImages.put(url, callback);
         nativeDownloadImage(mNativePtr, url, this, maxSize);
     }
     private void onImageDownloaded(String url, byte[] pngBytes) {

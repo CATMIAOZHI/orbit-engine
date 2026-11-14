@@ -170,12 +170,18 @@ public class CefriumSdkTest {
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.close();
-            // These should log warnings but not crash.
-            browser.goBack();
-            browser.goForward();
-            browser.reload();
-            browser.find("test", true, false, false);
-            latch.countDown();
+            // FEATURE-092 D1: each throws after close().
+            int threw = 0;
+            Runnable[] calls = {browser::goBack, browser::goForward, browser::reload,
+                    () -> browser.find("test", true, false, false)};
+            for (Runnable call : calls) {
+                try {
+                    call.run();
+                } catch (IllegalStateException expected) {
+                    threw++;
+                }
+            }
+            if (threw == calls.length) latch.countDown();
         });
 
         Assert.assertTrue("Close test timed out",

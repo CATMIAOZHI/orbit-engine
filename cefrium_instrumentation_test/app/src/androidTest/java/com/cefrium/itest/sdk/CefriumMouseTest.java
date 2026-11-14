@@ -83,9 +83,9 @@ public class CefriumMouseTest {
                     injected[0] = true;
                     // Give the windowed compositor a moment to present a frame, then
                     // inject at a point inside the (full-viewport) page.
-                    main.postDelayed(() -> browser.sendMouseMove(150, 300), 600);
-                    main.postDelayed(() -> browser.sendLeftClick(150, 300), 1100);
-                    main.postDelayed(() -> browser.sendRightClick(150, 300), 1600);
+                    main.postDelayed(() -> { if (!browser.isClosed()) browser.sendMouseMove(150, 300); }, 600);
+                    main.postDelayed(() -> { if (!browser.isClosed()) browser.sendLeftClick(150, 300); }, 1100);
+                    main.postDelayed(() -> { if (!browser.isClosed()) browser.sendRightClick(150, 300); }, 1600);
                 }
             });
             browser.loadUrl(server.url());
