@@ -60,4 +60,36 @@ public interface CefriumNavigationClient {
 
     /** The renderer answers again after {@link #onRenderProcessUnresponsive}. */
     default void onRenderProcessResponsive(CefriumBrowser browser) {}
+
+    /**
+     * A certificate failed validation. Call {@code callback.proceed()} to load
+     * anyway (for example after checking {@code error.getCertificate()}
+     * against a pinned one) or {@code cancel()}; now or later, from any
+     * thread. The default cancels.
+     */
+    default void onSslError(CefriumBrowser browser, CefriumSslError error,
+            CefriumBrowser.SslErrorCallback callback) {
+        callback.cancel();
+    }
+
+    /**
+     * A server or proxy asks for a user name and password (HTTP
+     * authentication). Answer with {@code callback.proceed(user, password)}
+     * or {@code cancel()}, from any thread. The default cancels.
+     */
+    default void onHttpAuthRequest(CefriumBrowser browser, String host, String realm,
+            int port, boolean isProxy, CefriumBrowser.HttpAuthCallback callback) {
+        callback.cancel();
+    }
+
+    /**
+     * A server asks for a client certificate (mutual TLS). Pick one of
+     * {@code subjects} by index, or cancel to go on without one. The default
+     * cancels.
+     */
+    default void onSelectClientCertificate(CefriumBrowser browser, boolean isProxy,
+            String host, int port, java.util.List<String> subjects,
+            CefriumClientCertificateCallback callback) {
+        callback.cancel();
+    }
 }

@@ -53,7 +53,9 @@ public interface CefriumRequestHandler {
      * @param port         The requesting port.
      * @param subjectNames Display names of the offered certificates, by index.
      * @param callback     Selection callback.
+     * @deprecated Use {@link CefriumNavigationClient#onSelectClientCertificate}.
      */
+    @Deprecated
     default void onSelectClientCertificate(boolean isProxy, String host, int port,
                                            String[] subjectNames,
                                            ClientCertificateCallback callback) {

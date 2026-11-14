@@ -33,6 +33,13 @@ public final class LocalHttpServer implements AutoCloseable {
     /** A request to {@code /redirect/<path>} is answered 302 to {@code /<path>}. */
     public static final String REDIRECT = "/redirect/";
 
+    /**
+     * A request under {@code /auth/} without an {@code Authorization} header is
+     * answered 401 with a Basic challenge for realm {@link #REALM}.
+     */
+    public static final String AUTH = "/auth/";
+    public static final String REALM = "cefrium-test";
+
     /** Each request seen, as "<request target> <User-Agent>", in order. */
     public final List<String> requests = new CopyOnWriteArrayList<>();
 
@@ -66,8 +73,12 @@ public final class LocalHttpServer implements AutoCloseable {
                     String ua = "";
                     String seenTarget = requestLine == null || requestLine.split(" ").length < 2
                             ? "" : requestLine.split(" ")[1];
+                    boolean authorized = false;
                     while ((line = in.readLine()) != null && !line.isEmpty()) {
                         headers.add(seenTarget + " " + line);
+                        if (line.regionMatches(true, 0, "Authorization:", 0, 14)) {
+                            authorized = true;
+                        }
                         if (line.regionMatches(true, 0, "User-Agent:", 0, 11)) {
                             ua = line.substring(11).trim();
                         }
@@ -81,6 +92,13 @@ public final class LocalHttpServer implements AutoCloseable {
                     OutputStream out = s.getOutputStream();
                     String target = requestLine == null || requestLine.split(" ").length < 2
                             ? "" : requestLine.split(" ")[1];
+                    if (target.startsWith(AUTH) && !authorized) {
+                        out.write(("HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\""
+                                + REALM + "\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                                .getBytes(StandardCharsets.UTF_8));
+                        out.flush();
+                        continue;
+                    }
                     if (target.startsWith(REDIRECT)) {
                         out.write(("HTTP/1.1 302 Found\r\nLocation: /"
                                 + target.substring(REDIRECT.length())

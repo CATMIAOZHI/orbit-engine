@@ -85,8 +85,8 @@ public final class com.cefrium.compose.CefriumNavigator
   public final void setContentSetting(java.lang.String, com.cefrium.CefriumPermission, com.cefrium.CefriumContentSetting);
   [deprecated] public final void setPermissionHandler(com.cefrium.CefriumBrowser$PermissionHandler);
   [deprecated] public final void setContentSetting(java.lang.String, int, int);
-  public final void setSslErrorHandler(com.cefrium.CefriumBrowser$SslErrorHandler);
-  public final void setHttpAuthHandler(com.cefrium.CefriumBrowser$HttpAuthHandler);
+  [deprecated] public final void setSslErrorHandler(com.cefrium.CefriumBrowser$SslErrorHandler);
+  [deprecated] public final void setHttpAuthHandler(com.cefrium.CefriumBrowser$HttpAuthHandler);
   public final void setDeviceChooserHandler(com.cefrium.CefriumBrowser$DeviceChooserHandler);
   public final boolean setProxy(java.lang.String, java.lang.String);
   public final boolean setProxy(java.lang.String);

@@ -398,11 +398,15 @@ class CefriumNavigator {
     }
 
     /** Sets the SSL/certificate error handler (proceed/cancel; null = cancel all). */
+    @Deprecated("Use setNavigationClient (onSslError)")
+    @Suppress("DEPRECATION")
     fun setSslErrorHandler(handler: com.cefrium.CefriumBrowser.SslErrorHandler?) {
         run("setSslErrorHandler") { it.setSslErrorHandler(handler) }
     }
 
     /** Sets the HTTP auth handler (supply credentials/cancel; null = cancel all). */
+    @Deprecated("Use setNavigationClient (onHttpAuthRequest)")
+    @Suppress("DEPRECATION")
     fun setHttpAuthHandler(handler: com.cefrium.CefriumBrowser.HttpAuthHandler?) {
         run("setHttpAuthHandler") { it.setHttpAuthHandler(handler) }
     }

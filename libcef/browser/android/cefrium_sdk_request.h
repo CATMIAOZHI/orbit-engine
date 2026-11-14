@@ -66,6 +66,8 @@
 #include "cef/include/cef_resource_handler.h"
 #include "cef/include/cef_response.h"
 #include "cef/include/cef_callback.h"
+#include "cef/include/cef_ssl_info.h"
+#include "cef/include/cef_x509_certificate.h"
 #include <algorithm>
 #include <atomic>
 #include <cstring>
@@ -1000,11 +1002,36 @@ class SdkRequestHandler : public CefRequestHandler {
     JNIEnv* env = base::android::AttachCurrentThread();
     jclass cls = env->GetObjectClass(java_browser_);
     jmethodID mid =
-        env->GetMethodID(cls, "onSslError", "(JLjava/lang/String;I)V");
+        env->GetMethodID(cls, "onSslError", "(JLjava/lang/String;I[[B)V");
     if (mid) {
       jstring jurl = env->NewStringUTF(request_url.ToString().c_str());
+      // FEATURE-092: the certificate chain, DER, leaf first, as
+      // android.net.http.SslError.getCertificate gives the leaf.
+      std::vector<CefRefPtr<CefBinaryValue>> ders;
+      if (CefRefPtr<CefX509Certificate> cert =
+              ssl_info ? ssl_info->GetX509Certificate() : nullptr) {
+        ders.push_back(cert->GetDEREncoded());
+        CefX509Certificate::IssuerChainBinaryList issuers;
+        cert->GetDEREncodedIssuerChain(issuers);
+        ders.insert(ders.end(), issuers.begin(), issuers.end());
+      }
+      jclass bytes_cls = env->FindClass("[B");
+      jobjectArray jchain = env->NewObjectArray(
+          static_cast<jsize>(ders.size()), bytes_cls, nullptr);
+      for (size_t i = 0; i < ders.size(); ++i) {
+        if (!ders[i]) continue;
+        std::vector<uint8_t> buf(ders[i]->GetSize());
+        if (!buf.empty()) ders[i]->GetData(buf.data(), buf.size(), 0);
+        jbyteArray jb = env->NewByteArray(static_cast<jsize>(buf.size()));
+        env->SetByteArrayRegion(jb, 0, static_cast<jsize>(buf.size()),
+                                reinterpret_cast<const jbyte*>(buf.data()));
+        env->SetObjectArrayElement(jchain, static_cast<jsize>(i), jb);
+        env->DeleteLocalRef(jb);
+      }
       env->CallVoidMethod(java_browser_, mid, static_cast<jlong>(id), jurl,
-                          static_cast<jint>(cert_error));
+                          static_cast<jint>(cert_error), jchain);
+      env->DeleteLocalRef(jchain);
+      env->DeleteLocalRef(bytes_cls);
       env->DeleteLocalRef(jurl);
     } else {
       RespondSslError(id, false);
