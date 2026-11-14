@@ -3937,8 +3937,9 @@ public class CefriumBrowser {
 
     /** Press a finger down at (x, y). Pair with {@link #sendTouchUp} (with
      * {@link #sendTouchMove} in between) for drags/swipes, or use {@link #sendTap}.
-     * Coordinates are the view's physical pixels for a surface browser, and
-     * device-independent pixels (physical / scale) for an off-screen one. */
+     * Coordinates are device-independent pixels from the view's upper-left
+     * corner, as {@code getBoundingClientRect()} gives them (an off-screen
+     * browser: physical / its scale). */
     public void sendTouchDown(float x, float y) {
         checkThread("sendTouchDown"); injectTouch(0, x, y); }
 
@@ -3978,6 +3979,13 @@ public class CefriumBrowser {
     // content EventForwarder (full gesture pipeline); OSR -> native CEF touch path.
     private void injectTouch(int action, float x, float y) {
         if (mSurfaceContainer != null) {
+            // FEATURE-092 D3: DIPs, as everywhere else in the API; the view
+            // takes physical pixels, at the display's scale Chromium uses.
+            float scale = mWindowAndroid != null
+                    ? mWindowAndroid.getDisplay().getDipScale()
+                    : mSurfaceContainer.getResources().getDisplayMetrics().density;
+            x *= scale;
+            y *= scale;
             org.chromium.content_public.browser.WebContents wc = webContents();
             if (wc == null) return;
             org.chromium.ui.base.EventForwarder ef = wc.getEventForwarder();
