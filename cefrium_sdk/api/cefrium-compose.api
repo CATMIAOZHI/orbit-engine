@@ -50,6 +50,7 @@ public final class com.cefrium.compose.CefriumBrowserPoolKt
   public final void reload();
   public final void navigateBack();
   public final void navigateForward();
+  public final void exitFullscreen();
   public final byte[] serializeNavigationState();
   public final void setPullToRefreshEnabled(boolean);
   public final void evaluateJavaScript(java.lang.String);
@@ -122,6 +123,7 @@ public final class com.cefrium.compose.CefriumViewKt
 public final class com.cefrium.compose.CefriumViewKt$WhenMappings
 
 public final class com.cefrium.compose.CefriumViewState implements androidx.compose.runtime.RememberObserver
+  public static final com.cefrium.compose.CefriumViewState$Companion Companion;
   public com.cefrium.compose.CefriumViewState(java.lang.String, byte[], boolean, com.cefrium.CefriumProfile);
   public final java.lang.String getInitialUrl();
   public final byte[] getNavigationState();
@@ -153,6 +155,12 @@ public final class com.cefrium.compose.CefriumViewState implements androidx.comp
   public void onRemembered();
   public void onForgotten();
   public void onAbandoned();
+  public static final com.cefrium.compose.CefriumViewState forWindow(com.cefrium.CefriumBrowser, java.lang.String, boolean);
+  public static final com.cefrium.compose.CefriumViewState forWindow(com.cefrium.CefriumBrowser, java.lang.String);
+
+public final class com.cefrium.compose.CefriumViewState$Companion
+  public final com.cefrium.compose.CefriumViewState forWindow(com.cefrium.CefriumBrowser, java.lang.String, boolean);
+  public final com.cefrium.compose.CefriumViewState forWindow(com.cefrium.CefriumBrowser, java.lang.String);
 
 public final class com.cefrium.compose.CefriumViewStateKt
   public static final com.cefrium.compose.CefriumViewState rememberCefriumViewState(java.lang.String, boolean, com.cefrium.CefriumProfile, androidx.compose.runtime.Composer, int, int);

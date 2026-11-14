@@ -70,9 +70,11 @@ enum class BackgroundMediaPolicy {
  *        every host lifecycle event with the [CefriumBrowser], so the host can
  *        implement any custom media/visibility policy (mute, pause, stop, nothing).
  * @param onCreateWindow The page opened a window (window.open, a
- *        `target=_blank` link). Show `popup` with [CefriumWindow] and return
- *        true: the page keeps `window.opener`, as sign-in and payment popups
- *        need. Return false (or omit) to load the URL in this view instead.
+ *        `target=_blank` link). Show `popup` and return true: the page keeps
+ *        `window.opener`, as sign-in and payment popups need. A browser shows
+ *        it as a tab: [CefriumViewState.forWindow] gives it its URL, history
+ *        and fullscreen. [CefriumWindow] shows it bare, for a short-lived
+ *        dialog. Return false (or omit) to load the URL in this view instead.
  *        Experimental: it may still change before the 1.0 API freeze.
  * @param onCloseWindow A window from [onCreateWindow] called `window.close()`:
  *        stop showing it. It closes itself.

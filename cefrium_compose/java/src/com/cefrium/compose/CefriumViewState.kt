@@ -149,10 +149,16 @@ class CefriumViewState(
 
     private var closed = false
 
+    // A window the page opened, adopted by [forWindow]: used instead of a new
+    // browser, and already loading its own URL.
+    private var window: CefriumBrowser? = null
+
     /** Returns the existing browser or creates one (loading [initialUrl] once). */
     internal fun getOrCreateBrowser(activity: Activity): CefriumBrowser {
         browser?.let { return it }
-        val b = CefriumBrowser.createWithSurface(
+        val adopted = window
+        window = null
+        val b = adopted ?: CefriumBrowser.createWithSurface(
             activity,
             profile ?: if (incognito) CefriumProfile.incognito() else CefriumProfile.getDefault(),
         )
@@ -238,7 +244,10 @@ class CefriumViewState(
             }
         })
         browser = b
-        if (navigationState != null) {
+        if (adopted != null) {
+            // The window loads what the page asked for.
+            lastLoadedUrl = adopted.url?.takeIf { it.isNotEmpty() }
+        } else if (navigationState != null) {
             // Restore the saved back/forward stack (loads the current entry).
             b.restoreNavigationState(navigationState)
         } else {
@@ -264,6 +273,31 @@ class CefriumViewState(
         closed = true
         browser?.close()
         browser = null
+        window?.close()
+        window = null
+    }
+
+    companion object {
+        /**
+         * A state for a window the page opened, handed to [CefriumView]'s
+         * `onCreateWindow`: show it with [CefriumView] like any page, for
+         * example as a new tab, and it reports its URL, title, history and
+         * fullscreen like one. The page keeps `window.opener`. The state owns
+         * `popup` from now on: [close] closes it.
+         *
+         * Pass the opener's [incognito] so the caller knows the window is
+         * private; its storage is the opener's either way.
+         *
+         * Experimental: it may still change before the 1.0 API freeze.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun forWindow(
+            popup: CefriumBrowser,
+            url: String,
+            incognito: Boolean = false,
+        ): CefriumViewState =
+            CefriumViewState(url, incognito = incognito).also { it.window = popup }
     }
 
     // RememberObserver — auto-close for states made via rememberCefriumViewState.
