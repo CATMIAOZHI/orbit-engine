@@ -207,7 +207,7 @@ public class com.cefrium.CefriumBrowser
   public void setDeviceChooserHandler(com.cefrium.CefriumBrowser$DeviceChooserHandler);
   [deprecated] public void setSslErrorHandler(com.cefrium.CefriumBrowser$SslErrorHandler);
   [deprecated] public void setHttpAuthHandler(com.cefrium.CefriumBrowser$HttpAuthHandler);
-  public void setPopupHandler(com.cefrium.CefriumBrowser$PopupHandler);
+  [deprecated] public void setPopupHandler(com.cefrium.CefriumBrowser$PopupHandler);
   public boolean canGoBack();
   public void suspendMedia();
   public void resumeMedia();
@@ -431,7 +431,7 @@ public interface com.cefrium.CefriumBrowser$PdfCallback
   public abstract void onPermissionRequest(java.lang.String, int, com.cefrium.CefriumBrowser$PermissionCallback);
   public default void onDismissPermissionPrompt(long, int);
 
-public interface com.cefrium.CefriumBrowser$PopupHandler
+[deprecated] public interface com.cefrium.CefriumBrowser$PopupHandler
   public abstract boolean onOpenPopup(java.lang.String, boolean);
   public default boolean onCreateWindow(com.cefrium.CefriumBrowser, java.lang.String, boolean);
   public default void onCloseWindow(com.cefrium.CefriumBrowser);
@@ -521,6 +521,8 @@ public interface com.cefrium.CefriumChromeClient
   public default boolean onContextMenu(com.cefrium.CefriumBrowser, com.cefrium.CefriumContextMenu);
   public default boolean shouldOverrideKeyEvent(com.cefrium.CefriumBrowser, android.view.KeyEvent);
   public default void onUnhandledKeyEvent(com.cefrium.CefriumBrowser, android.view.KeyEvent);
+  public default boolean onCreateWindow(com.cefrium.CefriumBrowser, com.cefrium.CefriumBrowser, java.lang.String, boolean);
+  public default void onCloseWindow(com.cefrium.CefriumBrowser, com.cefrium.CefriumBrowser);
   public default void onPermissionRequest(com.cefrium.CefriumBrowser, com.cefrium.CefriumPermissionRequest);
   public default void onPermissionRequestCanceled(com.cefrium.CefriumBrowser, com.cefrium.CefriumPermissionRequest);
 

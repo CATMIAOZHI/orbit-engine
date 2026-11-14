@@ -68,6 +68,11 @@ in the internal FEATURE-NNN.md working docs (not published).
   net error code and the server's certificate chain (`X509Certificate`), so
   an app can pin; `onHttpAuthRequest`; `onSelectClientCertificate`. Every
   callback answers from any thread, the first answer counts.
+- Windows on `CefriumChromeClient`: `onCreateWindow(browser, popup, url,
+  userGesture)` and `onCloseWindow(browser, popup)`, with the opener as
+  first parameter. A client that declines leaves the window to a
+  `PopupHandler`, so `CefriumView`'s `onCreateWindow` keeps working when an
+  app sets a chrome client.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 
@@ -96,6 +101,7 @@ in the internal FEATURE-NNN.md working docs (not published).
 - `SslErrorHandler`, `HttpAuthHandler`, their setters and
   `CefriumRequestHandler.onSelectClientCertificate`: use
   `CefriumNavigationClient`.
+- `PopupHandler` and `setPopupHandler`: use `CefriumChromeClient.onCreateWindow`.
 
 ### Changed
 - **`onRequestIntercepted` is called on the UI thread** (`Callback` and
