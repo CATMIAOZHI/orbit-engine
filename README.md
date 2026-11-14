@@ -338,8 +338,8 @@ cef/
 The authoritative on-device suite is `cefrium_instrumentation_test/`, a
 self-contained Gradle module (not part of the GN/ninja build) that consumes the
 built AARs and exercises the public SDK exactly as a consumer would, so a clone
-of this repo is self-verifying, independent of the samples repo: **83 test
-classes, 264 `@Test` methods** across the Java SDK (core, hardening, the
+of this repo is self-verifying, independent of the samples repo: **84 test
+classes, 265 `@Test` methods** across the Java SDK (core, hardening, the
 `window.cefriumQuery` JS bridge, navigation, cookies, settings, the request
 interceptor, permissions, PDF, media, popups, JS dialogs, nested scroll, SSL
 and HTTP auth) and the Compose API (`CefriumView` tab keep-alive,
