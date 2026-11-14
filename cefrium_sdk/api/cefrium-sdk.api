@@ -93,16 +93,16 @@ public class com.cefrium.CefriumBrowser
   public static final int JS_DIALOG_ALERT = 0;
   public static final int JS_DIALOG_CONFIRM = 1;
   public static final int JS_DIALOG_PROMPT = 2;
-  public static final int PERMISSION_GEOLOCATION = 256;
-  public static final int PERMISSION_CAMERA = 4;
-  public static final int PERMISSION_MICROPHONE = 4096;
-  public static final int PERMISSION_NOTIFICATIONS = 32768;
-  public static final int PERMISSION_CLIPBOARD = 16;
-  public static final int PERMISSION_NFC = 1073741824;
-  public static final int SETTING_DEFAULT = 0;
-  public static final int SETTING_ALLOW = 1;
-  public static final int SETTING_BLOCK = 2;
-  public static final int SETTING_ASK = 3;
+  [deprecated] public static final int PERMISSION_GEOLOCATION = 256;
+  [deprecated] public static final int PERMISSION_CAMERA = 4;
+  [deprecated] public static final int PERMISSION_MICROPHONE = 4096;
+  [deprecated] public static final int PERMISSION_NOTIFICATIONS = 32768;
+  [deprecated] public static final int PERMISSION_CLIPBOARD = 16;
+  [deprecated] public static final int PERMISSION_NFC = 1073741824;
+  [deprecated] public static final int SETTING_DEFAULT = 0;
+  [deprecated] public static final int SETTING_ALLOW = 1;
+  [deprecated] public static final int SETTING_BLOCK = 2;
+  [deprecated] public static final int SETTING_ASK = 3;
   public static final java.lang.String PROXY_DIRECT = "direct";
   public static final java.lang.String PROXY_SYSTEM = "system";
   public static final java.lang.String PROXY_AUTO_DETECT = "auto_detect";
@@ -196,8 +196,10 @@ public class com.cefrium.CefriumBrowser
   public void setJsDialogHandler(com.cefrium.CefriumBrowser$JsDialogHandler);
   public void setPickerHandler(com.cefrium.CefriumPickerHandler);
   public void setDialogActivity(android.app.Activity);
-  public void setPermissionHandler(com.cefrium.CefriumBrowser$PermissionHandler);
-  public void setContentSetting(java.lang.String, int, int);
+  [deprecated] public void setPermissionHandler(com.cefrium.CefriumBrowser$PermissionHandler);
+  public void setChromeClient(com.cefrium.CefriumChromeClient);
+  public void setContentSetting(java.lang.String, com.cefrium.CefriumPermission, com.cefrium.CefriumContentSetting);
+  [deprecated] public void setContentSetting(java.lang.String, int, int);
   public boolean setProxy(java.lang.String, java.lang.String);
   public boolean setProxy(java.lang.String);
   public boolean clearProxy();
@@ -422,10 +424,10 @@ public interface com.cefrium.CefriumBrowser$OnUrlChangedListener
 public interface com.cefrium.CefriumBrowser$PdfCallback
   public abstract void onPdfPrinted(java.lang.String, boolean);
 
-public interface com.cefrium.CefriumBrowser$PermissionCallback
+[deprecated] public interface com.cefrium.CefriumBrowser$PermissionCallback
   public abstract void respond(boolean);
 
-public interface com.cefrium.CefriumBrowser$PermissionHandler
+[deprecated] public interface com.cefrium.CefriumBrowser$PermissionHandler
   public abstract void onPermissionRequest(java.lang.String, int, com.cefrium.CefriumBrowser$PermissionCallback);
   public default void onDismissPermissionPrompt(long, int);
 
@@ -505,6 +507,10 @@ public interface com.cefrium.CefriumBrowser$SslErrorCallback
 public interface com.cefrium.CefriumBrowser$SslErrorHandler
   public abstract void onSslError(java.lang.String, int, com.cefrium.CefriumBrowser$SslErrorCallback);
 
+public interface com.cefrium.CefriumChromeClient
+  public default void onPermissionRequest(com.cefrium.CefriumBrowser, com.cefrium.CefriumPermissionRequest);
+  public default void onPermissionRequestCanceled(com.cefrium.CefriumBrowser, com.cefrium.CefriumPermissionRequest);
+
 public interface com.cefrium.CefriumCommandHandler
   public default boolean onChromeCommand(int, int);
 
@@ -543,6 +549,14 @@ public final class com.cefrium.CefriumContentServers
   public static com.cefrium.CefriumContentServer files(java.io.File);
   public static com.cefrium.CefriumContentServer resources(android.content.Context);
   public static java.lang.String mimeTypeOf(java.lang.String);
+
+public final class com.cefrium.CefriumContentSetting extends java.lang.Enum<com.cefrium.CefriumContentSetting>
+  public static final com.cefrium.CefriumContentSetting DEFAULT;
+  public static final com.cefrium.CefriumContentSetting ALLOW;
+  public static final com.cefrium.CefriumContentSetting BLOCK;
+  public static final com.cefrium.CefriumContentSetting ASK;
+  public static com.cefrium.CefriumContentSetting[] values();
+  public static com.cefrium.CefriumContentSetting valueOf(java.lang.String);
 
 public interface com.cefrium.CefriumDialogHandler
   public static final int MODE_OPEN = 0;
@@ -637,6 +651,23 @@ public final class com.cefrium.CefriumPathContentServer$Builder
   public com.cefrium.CefriumPathContentServer$Builder();
   public com.cefrium.CefriumPathContentServer$Builder addPath(java.lang.String, com.cefrium.CefriumContentServer);
   public com.cefrium.CefriumPathContentServer build();
+
+public final class com.cefrium.CefriumPermission extends java.lang.Enum<com.cefrium.CefriumPermission>
+  public static final com.cefrium.CefriumPermission GEOLOCATION;
+  public static final com.cefrium.CefriumPermission CAMERA;
+  public static final com.cefrium.CefriumPermission MICROPHONE;
+  public static final com.cefrium.CefriumPermission NOTIFICATIONS;
+  public static final com.cefrium.CefriumPermission CLIPBOARD_READ;
+  public static final com.cefrium.CefriumPermission NFC;
+  public static final com.cefrium.CefriumPermission OTHER;
+  public static com.cefrium.CefriumPermission[] values();
+  public static com.cefrium.CefriumPermission valueOf(java.lang.String);
+
+public final class com.cefrium.CefriumPermissionRequest
+  public java.lang.String getOrigin();
+  public java.util.Set<com.cefrium.CefriumPermission> getPermissions();
+  public void grant();
+  public void deny();
 
 public interface com.cefrium.CefriumPickerHandler
   public static final int DATE = 8;

@@ -32,6 +32,13 @@ in the internal FEATURE-NNN.md working docs (not published).
   method, headers and body) from a background thread, or returns null for the
   network, with Range and `HEAD` handled. `ResourceRequest.getType()` returns
   a `CefriumResourceType`.
+- **`CefriumChromeClient`** (`setChromeClient`), WebView's `WebChromeClient`;
+  first, permissions: `onPermissionRequest` gets a `CefriumPermissionRequest`
+  (origin, a set of `CefriumPermission`, `grant()`/`deny()` from any thread)
+  and `onPermissionRequestCanceled`. `setContentSetting(origin,
+  CefriumPermission, CefriumContentSetting)`. The engine's permission bits
+  are mapped to Cefrium's own values, so an engine update can no longer
+  renumber them (as NFC was in 0.20.0).
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 
@@ -40,6 +47,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   `CefriumResourceInterceptor`); `ResourceRequest.resourceType` and its
   `TYPE_` constants, which are the engine's numbers (use `getType()`).
   Removed at 1.0.
+- `PermissionHandler`, `PermissionCallback`, `setPermissionHandler`, the
+  `PERMISSION_` and `SETTING_` constants and `setContentSetting(String, int,
+  int)`: use `CefriumChromeClient`, `CefriumPermission` and
+  `CefriumContentSetting`. Removed at 1.0.
 
 ### Changed
 - **`onRequestIntercepted` is called on the UI thread** (`Callback` and
@@ -48,6 +59,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   it threw, and URLs were cut at 200 characters.
 
 ### Fixed
+- **`setContentSetting` with `PERMISSION_CLIPBOARD` set the origin's
+  notifications instead**: allowing the clipboard allowed notifications. It
+  now sets the clipboard; an unknown permission or value throws
+  `IllegalArgumentException` instead of setting notifications.
 - Touch injected into a surface browser (`sendTouchDown`/`Move`/`Up`,
   `sendTap`) reaches the page as a finger: `pointerType` was empty.
 - Javadoc: the units of injected touch and mouse input are now stated per

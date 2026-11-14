@@ -130,6 +130,29 @@ answered for you. To only watch requests, use
 `webView.loadUrl(url, headers)` -> `browser.loadUrl(url, headers)`: the
 headers go with the page's own request only, as in WebView.
 
+## Permissions (`onPermissionRequest`)
+
+```java
+browser.setChromeClient(new CefriumChromeClient() {
+    @Override
+    public void onPermissionRequest(CefriumBrowser b, CefriumPermissionRequest r) {
+        if (r.getPermissions().equals(EnumSet.of(CefriumPermission.CAMERA))
+                && r.getOrigin().equals("https://meet.example.com")) {
+            r.grant();
+        } else {
+            r.deny();
+        }
+    }
+});
+// Decide in advance, without a prompt:
+browser.setContentSetting("https://app.example.com",
+        CefriumPermission.NOTIFICATIONS, CefriumContentSetting.ALLOW);
+```
+
+As WebView's `PermissionRequest`: grant or deny now or later, from any
+thread; the first answer counts. Permissions are an enum set instead of
+`RESOURCE_*` strings. Without a client every request is denied.
+
 ## App content: `WebViewAssetLoader`
 
 Content shipped in the APK (a web app, a game, offline pages) needs an https

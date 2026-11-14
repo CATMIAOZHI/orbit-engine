@@ -2184,25 +2184,43 @@ public class CefriumBrowser {
 
     // ── Permissions ──
 
-    /** Permission types (bitmask, from cef_permission_request_types_t). */
+    // The PERMISSION_ bits are Cefrium's own values, kept as published; the
+    // engine's bits are mapped to them in cefrium_sdk_dialogs.h. Deprecated
+    // with PermissionHandler: use CefriumPermission and CefriumChromeClient.
+
+    /** @deprecated Use {@link CefriumPermission#GEOLOCATION}. */
+    @Deprecated
     public static final int PERMISSION_GEOLOCATION = 1 << 8;
+    /** @deprecated Use {@link CefriumPermission#CAMERA}. */
+    @Deprecated
     public static final int PERMISSION_CAMERA = 1 << 2;
+    /** @deprecated Use {@link CefriumPermission#MICROPHONE}. */
+    @Deprecated
     public static final int PERMISSION_MICROPHONE = 1 << 12;
+    /** @deprecated Use {@link CefriumPermission#NOTIFICATIONS}. */
+    @Deprecated
     public static final int PERMISSION_NOTIFICATIONS = 1 << 15;
-    /** Clipboard read (navigator.clipboard.readText). Writing needs no prompt. */
+    /**
+     * Clipboard read (navigator.clipboard.readText). Writing needs no prompt.
+     * @deprecated Use {@link CefriumPermission#CLIPBOARD_READ}.
+     */
+    @Deprecated
     public static final int PERMISSION_CLIPBOARD = 1 << 4;
     /**
      * Web NFC (NDEFReader scan/write). Also declare {@code android.permission.NFC}
      * in your manifest and have NFC enabled on the device. Grant this in your
      * {@link PermissionHandler} (or pre-authorize via {@link #setContentSetting}
      * with {@link #SETTING_ALLOW}).
+     * @deprecated Use {@link CefriumPermission#NFC}.
      */
-    // Bit 30, matching CEF_PERMISSION_TYPE_NFC. It was 29 until CEF 8078 took
-    // that bit for AMBIENT_LOGIN; these two values must stay in lockstep or NFC
-    // permission requests are routed as something else.
+    @Deprecated
     public static final int PERMISSION_NFC = 1 << 30;
 
-    /** Receives the app's grant/deny decision for a permission request. */
+    /**
+     * Receives the app's grant/deny decision for a permission request.
+     * @deprecated Use {@link CefriumPermissionRequest}.
+     */
+    @Deprecated
     public interface PermissionCallback {
         void respond(boolean grant);
     }
@@ -2251,7 +2269,11 @@ public class CefriumBrowser {
      *     {@link #loadHtmlWithBaseUrl(String, String)}, which gives the
      *     document the base URL's origin.</li>
      * </ul>
+     *
+     * @deprecated Use {@link CefriumChromeClient#onPermissionRequest}: a
+     *     typed request instead of engine bits.
      */
+    @Deprecated
     public interface PermissionHandler {
         void onPermissionRequest(String origin, int permissions, PermissionCallback callback);
 
@@ -2265,15 +2287,86 @@ public class CefriumBrowser {
 
     private PermissionHandler mPermissionHandler;
 
-    /** Sets the permission handler (null = deny all web permission requests). */
+    /**
+     * Sets the permission handler (null = deny all web permission requests).
+     * A {@link CefriumChromeClient} set with {@link #setChromeClient} decides
+     * instead when there is one.
+     * @deprecated Use {@link #setChromeClient}.
+     */
+    @Deprecated
     public void setPermissionHandler(PermissionHandler handler) {
         checkThread("setPermissionHandler");
         mPermissionHandler = handler;
         if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
 
-    // Called from native (UI thread) when a page requests a permission.
-    private void onPermissionRequest(long promptId, String origin, int permissions) {
+    private volatile CefriumChromeClient mChromeClient;
+    private final java.util.Map<Long, CefriumPermissionRequest> mPendingPermissions =
+            new java.util.HashMap<>();
+
+    /**
+     * Set the client that answers what pages ask of the app (see
+     * {@link CefriumChromeClient}), or null to remove it. The last one set
+     * wins. It decides permission requests instead of a
+     * {@link PermissionHandler}.
+     */
+    public void setChromeClient(CefriumChromeClient client) {
+        checkThread("setChromeClient");
+        mChromeClient = client;
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
+    }
+
+    private static final int[] PERMISSION_BITS = {PERMISSION_GEOLOCATION, PERMISSION_CAMERA,
+            PERMISSION_MICROPHONE, PERMISSION_NOTIFICATIONS, PERMISSION_CLIPBOARD,
+            PERMISSION_NFC};
+    private static final CefriumPermission[] PERMISSION_VALUES = {
+            CefriumPermission.GEOLOCATION, CefriumPermission.CAMERA,
+            CefriumPermission.MICROPHONE, CefriumPermission.NOTIFICATIONS,
+            CefriumPermission.CLIPBOARD_READ, CefriumPermission.NFC};
+
+    private static int permissionBit(CefriumPermission p) {
+        for (int i = 0; i < PERMISSION_VALUES.length; i++) {
+            if (PERMISSION_VALUES[i] == p) return PERMISSION_BITS[i];
+        }
+        throw new IllegalArgumentException("no setting for " + p);
+    }
+
+    // Answers a permission request on the UI thread, once.
+    private void respondPermission(long promptId, boolean grant) {
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            MAIN_HANDLER.post(() -> respondPermission(promptId, grant));
+            return;
+        }
+        mPendingPermissions.remove(promptId);
+        if (mNativePtr != 0 && !mClosed) nativeRespondPermission(mNativePtr, promptId, grant);
+    }
+
+    // Called from native (UI thread) when a page requests a permission:
+    // |permissions| are Cefrium's bits, |unmapped| the engine's bits that have
+    // none (they reach a PermissionHandler as before, and a chrome client as
+    // CefriumPermission.OTHER).
+    @SuppressWarnings("unused")
+    private void onPermissionRequest(long promptId, String origin, int permissions,
+            int unmapped) {
+        CefriumChromeClient client = mChromeClient;
+        if (client != null) {
+            java.util.EnumSet<CefriumPermission> set =
+                    java.util.EnumSet.noneOf(CefriumPermission.class);
+            for (int i = 0; i < PERMISSION_BITS.length; i++) {
+                if ((permissions & PERMISSION_BITS[i]) != 0) set.add(PERMISSION_VALUES[i]);
+            }
+            if (unmapped != 0) set.add(CefriumPermission.OTHER);
+            CefriumPermissionRequest request = new CefriumPermissionRequest(origin, set,
+                    grant -> respondPermission(promptId, grant));
+            mPendingPermissions.put(promptId, request);
+            client.onPermissionRequest(this, request);
+            return;
+        }
+        legacyPermissionRequest(promptId, origin, permissions | unmapped);
+    }
+
+    @SuppressWarnings("deprecation")
+    private void legacyPermissionRequest(long promptId, String origin, int permissions) {
         PermissionHandler h = mPermissionHandler;
         if (h == null) {
             if (mNativePtr != 0) nativeRespondPermission(mNativePtr, promptId, false);
@@ -2324,11 +2417,36 @@ public class CefriumBrowser {
 
     // ── Per-origin content settings ──
 
-    /** Content setting values for {@link #setContentSetting}. */
+    /**
+     * Content setting values for {@link #setContentSetting(String, int, int)}.
+     * @deprecated Use {@link CefriumContentSetting}.
+     */
+    @Deprecated
     public static final int SETTING_DEFAULT = 0;
+    /** @deprecated Use {@link CefriumContentSetting#ALLOW}. */
+    @Deprecated
     public static final int SETTING_ALLOW = 1;
+    /** @deprecated Use {@link CefriumContentSetting#BLOCK}. */
+    @Deprecated
     public static final int SETTING_BLOCK = 2;
+    /** @deprecated Use {@link CefriumContentSetting#ASK}. */
+    @Deprecated
     public static final int SETTING_ASK = 3;
+
+    /**
+     * Stores a decision for {@code permission} on {@code origin}, so the page
+     * is answered without asking: for example allow notifications for your own
+     * web app. Applies to this browser's profile.
+     *
+     * @param origin e.g. {@code "https://example.com"}
+     * @throws IllegalArgumentException for {@link CefriumPermission#OTHER}
+     */
+    public void setContentSetting(String origin, CefriumPermission permission,
+            CefriumContentSetting value) {
+        checkThread("setContentSetting");
+        int bit = permissionBit(permission);
+        if (isLive()) nativeSetContentSetting(mNativePtr, origin, bit, value.ordinal());
+    }
 
     /**
      * Sets a per-origin web-permission content setting without showing a prompt.
@@ -2344,9 +2462,20 @@ public class CefriumBrowser {
      * @param value one of the {@code SETTING_*} constants
      *     ({@link #SETTING_ALLOW}, {@link #SETTING_BLOCK}, {@link #SETTING_ASK},
      *     {@link #SETTING_DEFAULT})
+     * @throws IllegalArgumentException for another permission or value (the
+     *     clipboard is now its own setting; it used to set notifications)
+     * @deprecated Use {@link #setContentSetting(String, CefriumPermission,
+     *     CefriumContentSetting)}.
      */
+    @Deprecated
     public void setContentSetting(String requestingUrl, int permission, int value) {
         checkThread("setContentSetting");
+        boolean known = false;
+        for (int bit : PERMISSION_BITS) known |= bit == permission;
+        if (!known || value < SETTING_DEFAULT || value > SETTING_ASK) {
+            throw new IllegalArgumentException(
+                    "permission " + permission + ", value " + value);
+        }
         if (isLive()) {
             nativeSetContentSetting(mNativePtr, requestingUrl, permission, value);
         }
@@ -4676,7 +4805,15 @@ public class CefriumBrowser {
     }
 
     // ---- Permission auto-dismiss ----
+    @SuppressWarnings({"unused", "deprecation"})
     private void onDismissPermissionPrompt(long promptId, int result) {
+        CefriumPermissionRequest request = mPendingPermissions.remove(promptId);
+        CefriumChromeClient client = mChromeClient;
+        if (request != null) {
+            request.cancel();
+            if (client != null) client.onPermissionRequestCanceled(this, request);
+            return;
+        }
         PermissionHandler h = mPermissionHandler;
         if (h != null) h.onDismissPermissionPrompt(promptId, result);
     }

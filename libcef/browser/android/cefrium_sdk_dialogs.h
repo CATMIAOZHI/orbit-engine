@@ -238,6 +238,44 @@ class SdkJSDialogHandler : public CefJSDialogHandler {
 // this MUST always handle the prompt (return true) so requests never fall
 // through to Chromium's default Android Java permission dialog, which is not
 // wired in CEF-Android and crashes (PermissionDialogJavaDelegate::CreateDialog).
+// FEATURE-092: Cefrium's permission bits (CefriumBrowser.PERMISSION_* and
+// CefriumPermission), owned by Cefrium and kept at their published values.
+// CEF's bits are mapped to them by name, so a renumbering in CEF (NFC moved
+// from bit 29 to 30 in 8078) cannot reach apps.
+constexpr uint32_t kCefriumPermissionCamera = 1u << 2;
+constexpr uint32_t kCefriumPermissionClipboard = 1u << 4;
+constexpr uint32_t kCefriumPermissionGeolocation = 1u << 8;
+constexpr uint32_t kCefriumPermissionMicrophone = 1u << 12;
+constexpr uint32_t kCefriumPermissionNotifications = 1u << 15;
+constexpr uint32_t kCefriumPermissionNfc = 1u << 30;
+
+// The Cefrium bits of CEF's |cef| mask; |unmapped| gets the CEF bits that
+// have no Cefrium value.
+inline uint32_t CefriumPermissionBits(uint32_t cef, uint32_t* unmapped) {
+  struct Pair {
+    uint32_t cef;
+    uint32_t cefrium;
+  };
+  static constexpr Pair kPairs[] = {
+      {CEF_PERMISSION_TYPE_CAMERA_STREAM, kCefriumPermissionCamera},
+      {CEF_PERMISSION_TYPE_CLIPBOARD, kCefriumPermissionClipboard},
+      {CEF_PERMISSION_TYPE_GEOLOCATION, kCefriumPermissionGeolocation},
+      {CEF_PERMISSION_TYPE_MIC_STREAM, kCefriumPermissionMicrophone},
+      {CEF_PERMISSION_TYPE_NOTIFICATIONS, kCefriumPermissionNotifications},
+      {CEF_PERMISSION_TYPE_NFC, kCefriumPermissionNfc},
+  };
+  uint32_t out = 0;
+  uint32_t rest = cef;
+  for (const Pair& p : kPairs) {
+    if (cef & p.cef) {
+      out |= p.cefrium;
+      rest &= ~p.cef;
+    }
+  }
+  *unmapped = rest;
+  return out;
+}
+
 class SdkPermissionHandler : public CefPermissionHandler {
  public:
   void SetJavaBrowser(JNIEnv* env, jobject jb) {
@@ -265,12 +303,16 @@ class SdkPermissionHandler : public CefPermissionHandler {
     JNIEnv* env = base::android::AttachCurrentThread();
     jclass cls = env->GetObjectClass(java_browser_);
     jmethodID mid = env->GetMethodID(cls, "onPermissionRequest",
-                                     "(JLjava/lang/String;I)V");
+                                     "(JLjava/lang/String;II)V");
     if (mid) {
       jstring jorigin =
           env->NewStringUTF(requesting_origin.ToString().c_str());
+      uint32_t unmapped = 0;
+      const uint32_t bits =
+          CefriumPermissionBits(requested_permissions, &unmapped);
       env->CallVoidMethod(java_browser_, mid, static_cast<jlong>(prompt_id),
-                          jorigin, static_cast<jint>(requested_permissions));
+                          jorigin, static_cast<jint>(bits),
+                          static_cast<jint>(unmapped));
       env->DeleteLocalRef(jorigin);
     } else {
       Respond(prompt_id, false);
@@ -300,22 +342,22 @@ class SdkPermissionHandler : public CefPermissionHandler {
       id = (1ULL << 63) | (next_media_id_++);
       pending_media_[id] = std::make_pair(callback, requested_permissions);
     }
-    jint java_mask = 0;
+    uint32_t java_mask = 0;
     if (requested_permissions & CEF_MEDIA_PERMISSION_DEVICE_VIDEO_CAPTURE) {
-      java_mask |= (1 << 2);   // PERMISSION_CAMERA
+      java_mask |= kCefriumPermissionCamera;
     }
     if (requested_permissions & CEF_MEDIA_PERMISSION_DEVICE_AUDIO_CAPTURE) {
-      java_mask |= (1 << 12);  // PERMISSION_MICROPHONE
+      java_mask |= kCefriumPermissionMicrophone;
     }
     JNIEnv* env = base::android::AttachCurrentThread();
     jclass cls = env->GetObjectClass(java_browser_);
     jmethodID mid = env->GetMethodID(cls, "onPermissionRequest",
-                                     "(JLjava/lang/String;I)V");
+                                     "(JLjava/lang/String;II)V");
     if (mid) {
       jstring jorigin =
           env->NewStringUTF(requesting_origin.ToString().c_str());
       env->CallVoidMethod(java_browser_, mid, static_cast<jlong>(id), jorigin,
-                          java_mask);
+                          static_cast<jint>(java_mask), 0);
       env->DeleteLocalRef(jorigin);
     } else {
       Respond(id, false);
