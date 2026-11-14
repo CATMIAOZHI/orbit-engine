@@ -162,6 +162,9 @@ fun CefriumView(
             backgroundMediaPolicy != BackgroundMediaPolicy.NONE)) {
         DisposableEffect(lifecycleOwner, browser, backgroundMediaPolicy, onHostLifecycle) {
             val observer = LifecycleEventObserver { _, event ->
+                // The state or a pool can close the browser while this observer
+                // is still registered; a closed browser throws on every call.
+                if (browser.isClosed) return@LifecycleEventObserver
                 val override = onHostLifecycle
                 if (override != null) {
                     override(event, browser)

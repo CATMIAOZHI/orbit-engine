@@ -130,7 +130,7 @@ public class CefriumOopifInputTest {
         main.post(() -> {
             float ty = y < 0 ? b.getSurfaceContainer().getHeight() + y : y;
             b.sendTouchDown(x, ty);
-            main.postDelayed(() -> b.sendTouchUp(x, ty), 150);
+            main.postDelayed(() -> { if (!b.isClosed()) b.sendTouchUp(x, ty); }, 150);
         });
     }
 

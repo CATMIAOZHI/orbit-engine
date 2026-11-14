@@ -108,13 +108,13 @@ public class CefriumJsDialogTest {
                 // (input never reaching the page again) fails every repeat.
                 final Runnable[] clickUntilSeen = new Runnable[1];
                 clickUntilSeen[0] = () -> {
-                    if (clicked.getCount() == 0) return;
+                    if (clicked.getCount() == 0 || b.isClosed()) return;
                     b.sendLeftClick(150, 300);
                     main.postDelayed(clickUntilSeen[0], 1000);
                 };
                 final Runnable[] tapUntilSeen = new Runnable[1];
                 tapUntilSeen[0] = () -> {
-                    if (tapped.getCount() == 0) return;
+                    if (tapped.getCount() == 0 || b.isClosed()) return;
                     b.sendTap(150, 300);
                     main.postDelayed(tapUntilSeen[0], 1000);
                 };

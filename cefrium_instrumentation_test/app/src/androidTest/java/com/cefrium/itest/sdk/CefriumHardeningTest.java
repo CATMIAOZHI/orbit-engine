@@ -216,14 +216,16 @@ public class CefriumHardeningTest {
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.close();
-            // All of these should log warnings but not crash
-            browser.loadUrl("data:text/html,<title>CefriumTest</title><h1>ok</h1>");
-            browser.goBack();
-            browser.goForward();
-            browser.reload();
-            browser.find("test", true, false, false);
-            browser.stopFinding(true);
-            browser.setDarkMode(true);
+            // FEATURE-092 D1: a call after close() throws, so the caller's bug
+            // shows where it is; the activity's lifecycle hooks do not.
+            assertThrowsAfterClose(() -> browser.loadUrl(
+                    "data:text/html,<title>CefriumTest</title><h1>ok</h1>"));
+            assertThrowsAfterClose(browser::goBack);
+            assertThrowsAfterClose(browser::goForward);
+            assertThrowsAfterClose(browser::reload);
+            assertThrowsAfterClose(() -> browser.find("test", true, false, false));
+            assertThrowsAfterClose(() -> browser.stopFinding(true));
+            assertThrowsAfterClose(() -> browser.setDarkMode(true));
             browser.onPause();
             browser.onResume();
             latch.countDown();
@@ -240,15 +242,15 @@ public class CefriumHardeningTest {
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.close();
-            // Setting callbacks after close should not crash
-            browser.setCallback(new CefriumBrowser.Callback() {
+            // Setting a callback after close() throws (FEATURE-092 D1).
+            assertThrowsAfterClose(() -> browser.setCallback(new CefriumBrowser.Callback() {
                 @Override
                 public void onUrlChanged(String url) {}
-            });
-            browser.setOnUrlChangedListener(url -> {});
-            browser.setOnTitleChangedListener(title -> {});
-            browser.setOnLoadingStateChangedListener((l, b, f) -> {});
-            browser.setOnFindResultListener((o, t) -> {});
+            }));
+            assertThrowsAfterClose(() -> browser.setOnUrlChangedListener(url -> {}));
+            assertThrowsAfterClose(() -> browser.setOnTitleChangedListener(title -> {}));
+            assertThrowsAfterClose(() -> browser.setOnLoadingStateChangedListener((l, b, f) -> {}));
+            assertThrowsAfterClose(() -> browser.setOnFindResultListener((o, t) -> {}));
             latch.countDown();
         });
 
@@ -291,9 +293,9 @@ public class CefriumHardeningTest {
         activity.runOnUiThread(() -> {
             CefriumBrowser browser = browsers.createWithSurface(activity);
             browser.close();
-            // Context menu command after close should not crash
-            browser.contextMenuCommand(1);
-            browser.contextMenuCommand(-1);
+            // A context menu command after close() throws (FEATURE-092 D1).
+            assertThrowsAfterClose(() -> browser.contextMenuCommand(1));
+            assertThrowsAfterClose(() -> browser.contextMenuCommand(-1));
             latch.countDown();
         });
 
@@ -315,5 +317,14 @@ public class CefriumHardeningTest {
         });
 
         Assert.assertTrue(latch.await(5, TimeUnit.SECONDS));
+    }
+
+    private static void assertThrowsAfterClose(Runnable call) {
+        try {
+            call.run();
+        } catch (IllegalStateException expected) {
+            return;
+        }
+        throw new AssertionError("a call after close() did not throw");
     }
 }

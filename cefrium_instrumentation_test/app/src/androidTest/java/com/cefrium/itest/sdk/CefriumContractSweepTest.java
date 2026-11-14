@@ -126,9 +126,17 @@ public class CefriumContractSweepTest {
     /**
      * The contract, in one process: off the main thread every public method
      * throws IllegalStateException (executeDevToolsMethod posts instead);
-     * after close() and before the browser exists none throws anything else.
+     * after close() each throws IllegalStateException but the few an activity
+     * or a layout calls anyway; before the browser exists none throws
+     * anything else.
      * A method that crashes instead ends the suite run.
      */
+    // What may be called after close() without throwing (FEATURE-092 D1).
+    private static final java.util.Set<String> CALLABLE_AFTER_CLOSE = new java.util.HashSet<>(
+            java.util.Arrays.asList("isClosed", "getProfile", "getSurfaceContainer", "onPause",
+                    "onResume", "onActivityResult", "onRequestPermissionsResult",
+                    "executeDevToolsMethod"));
+
     private void contractHolds() throws Exception {
         java.util.List<String> broken = new java.util.ArrayList<>();
         java.util.List<Method> methods = new java.util.ArrayList<>();
@@ -192,6 +200,10 @@ public class CefriumContractSweepTest {
                             && !o.startsWith("THREW IllegalStateException")
                             && !o.startsWith("THREW IllegalArgumentException"))) {
                         broken.add(mode + " " + signature(m) + ": " + o);
+                    } else if (mode.equals("closed") && !CALLABLE_AFTER_CLOSE.contains(m.getName())
+                            && !o.startsWith("THREW IllegalStateException")) {
+                        // FEATURE-092 D1: a call after close() throws.
+                        broken.add("closed " + signature(m) + " did not throw: " + o);
                     }
                 }
             }

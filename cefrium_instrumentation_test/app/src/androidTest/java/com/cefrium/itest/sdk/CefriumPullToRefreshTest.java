@@ -80,15 +80,16 @@ public class CefriumPullToRefreshTest {
             final CountDownLatch pulled = new CountDownLatch(1);
             main.postDelayed(() -> {
                 CefriumBrowser b = created.get();
+                if (b.isClosed()) return;
                 b.setPullToRefreshEnabled(enable);
                 float x = 300f;
                 b.sendTouchDown(x, 200f);
                 for (int i = 1; i <= 20; i++) {
                     final float y = 200f + i * 40f;
-                    main.postDelayed(() -> b.sendTouchMove(x, y), i * 16L);
+                    main.postDelayed(() -> { if (!b.isClosed()) b.sendTouchMove(x, y); }, i * 16L);
                 }
                 main.postDelayed(() -> {
-                    b.sendTouchUp(x, 1000f);
+                    if (!b.isClosed()) b.sendTouchUp(x, 1000f);
                     pulled.countDown();
                 }, 21 * 16L + 50);
             }, 1000);

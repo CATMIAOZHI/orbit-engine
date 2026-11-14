@@ -139,6 +139,7 @@ public class CefriumPaintBeforeLoadTest {
                         // Inject once a frame has been produced, while the page
                         // is still loading.
                         main.postDelayed(() -> {
+                            if (browser.isClosed()) return;
                             loadingAtClick[0] = loading[0];
                             browser.sendLeftClick(150, 300);
                         }, 300);

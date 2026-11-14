@@ -114,6 +114,14 @@ in the internal FEATURE-NNN.md working docs (not published).
   `CefriumDownloadClient` and `getInterruption()`.
 
 ### Changed
+- **A call to a closed browser throws `IllegalStateException`** instead of
+  doing nothing (a silent no-op hid the caller's bug). `isClosed()` is new.
+  Still allowed after `close()`: `close()`, `isClosed()`, `getProfile()`,
+  `getSurfaceContainer()` (to remove the view) and the hooks an activity
+  forwards (`onPause`, `onResume`, `onActivityResult`,
+  `onRequestPermissionsResult`), which then do nothing.
+- `getCookies`, `printToPdf`, `captureBitmap` and `downloadImage` throw
+  `IllegalArgumentException` for a null callback; they did nothing.
 - **`onRequestIntercepted` is called on the UI thread** (`Callback` and
   `OnRequestInterceptedListener`), like the rest of `Callback`, with the
   request's whole URL. It ran on the network thread, so updating a view from

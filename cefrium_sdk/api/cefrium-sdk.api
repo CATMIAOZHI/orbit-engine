@@ -137,6 +137,7 @@ public class com.cefrium.CefriumBrowser
   public com.cefrium.CefriumBrowser(int, int);
   public com.cefrium.CefriumBrowser(int, int, float);
   public com.cefrium.CefriumBrowser(int, int, float, com.cefrium.CefriumProfile);
+  public boolean isClosed();
   public void setRenderHandler(com.cefrium.CefriumRenderHandler);
   public void loadUrl(java.lang.String);
   public void loadUrl(java.lang.String, java.util.Map<java.lang.String, java.lang.String>);
