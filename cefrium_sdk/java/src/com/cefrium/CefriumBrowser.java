@@ -4707,7 +4707,12 @@ public class CefriumBrowser {
         if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
         updateRequestObservers();
     }
-    /** Sets the keyboard handler (intercept keys before the page). */
+    /**
+     * Sets the keyboard handler (intercept keys before the page).
+     * @deprecated Use {@link CefriumChromeClient#shouldOverrideKeyEvent} and
+     *     {@link CefriumChromeClient#onUnhandledKeyEvent}.
+     */
+    @Deprecated
     public void setKeyboardHandler(CefriumKeyboardHandler handler) {
         checkThread("setKeyboardHandler");
         mKeyboardHandler = handler;
@@ -4978,13 +4983,31 @@ public class CefriumBrowser {
     }
 
     // ---- Keyboard (synchronous, returns handled) ----
-    private boolean onPreKeyEvent(int type, int windowsKeyCode, int modifiers) {
+    // Windows' VK_PROCESSKEY: a key an input method is composing, which has no
+    // Android key of its own.
+    private static final int VKEY_PROCESSKEY = 229;
+
+    // Called from native CefKeyboardHandler, before the page (|pre|) or after
+    // it declined the key. |type|, |windowsKeyCode| and |modifiers| are the
+    // engine's, for CefriumKeyboardHandler; |action| (0 down, 1 up, -1 none),
+    // |keyCode| and |meta| are Android's, mapped in native.
+    @SuppressWarnings({"unused", "deprecation"})
+    private boolean onKeyEventFromEngine(boolean pre, int type, int windowsKeyCode,
+            int modifiers, int action, int keyCode, int meta) {
         CefriumKeyboardHandler h = mKeyboardHandler;
-        return h != null && h.onPreKeyEvent(type, windowsKeyCode, modifiers);
-    }
-    private boolean onKeyEvent(int type, int windowsKeyCode, int modifiers) {
-        CefriumKeyboardHandler h = mKeyboardHandler;
-        return h != null && h.onKeyEvent(type, windowsKeyCode, modifiers);
+        boolean handled = h != null && (pre ? h.onPreKeyEvent(type, windowsKeyCode, modifiers)
+                : h.onKeyEvent(type, windowsKeyCode, modifiers));
+        CefriumChromeClient chrome = mChromeClient;
+        if (chrome == null || action < 0 || keyCode <= 0 || windowsKeyCode == VKEY_PROCESSKEY) {
+            return handled;
+        }
+        long now = android.os.SystemClock.uptimeMillis();
+        android.view.KeyEvent event = new android.view.KeyEvent(now, now,
+                action == 0 ? android.view.KeyEvent.ACTION_DOWN : android.view.KeyEvent.ACTION_UP,
+                keyCode, 0, meta);
+        if (pre) return chrome.shouldOverrideKeyEvent(this, event) || handled;
+        chrome.onUnhandledKeyEvent(this, event);
+        return handled;
     }
 
     // ---- Focus ----

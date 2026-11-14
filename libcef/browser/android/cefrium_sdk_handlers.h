@@ -1227,30 +1227,57 @@ class SdkFindHandler : public CefFindHandler {
 class SdkKeyboardHandler : public CefKeyboardHandler {
  public:
   void SetJavaBrowser(JNIEnv* env, jobject jb) {
-    if (jb) java_browser_ = env->NewGlobalRef(jb);
+    // Called for every handler a browser sets: keep the first reference only.
+    if (jb && !java_browser_) java_browser_ = env->NewGlobalRef(jb);
   }
   bool OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
                      const CefKeyEvent& event,
                      CefEventHandle os_event,
                      bool* is_keyboard_shortcut) override {
-    return CallJavaKey("onPreKeyEvent", event);
+    return CallJavaKey(true, event);
   }
   bool OnKeyEvent(CefRefPtr<CefBrowser> browser,
                   const CefKeyEvent& event,
                   CefEventHandle os_event) override {
-    return CallJavaKey("onKeyEvent", event);
+    return CallJavaKey(false, event);
   }
-  bool CallJavaKey(const char* name, const CefKeyEvent& event) {
+  // FEATURE-092: Java gets the engine's values for CefriumKeyboardHandler
+  // and, for CefriumChromeClient's KeyEvent, the Android action (0 down, 1
+  // up, -1 none: a CHAR event has no KeyEvent) and meta state, mapped by
+  // name. native_key_code is the Android key code (measured on the surface
+  // path; the off-screen path sets it from the app's KeyEvent).
+  bool CallJavaKey(bool pre, const CefKeyEvent& event) {
     if (!java_browser_) return false;
     JNIEnv* env = base::android::AttachCurrentThread();
     if (!env) return false;
+    jint action = -1;
+    switch (event.type) {
+      case KEYEVENT_RAWKEYDOWN:
+      case KEYEVENT_KEYDOWN:
+        action = 0;
+        break;
+      case KEYEVENT_KEYUP:
+        action = 1;
+        break;
+      case KEYEVENT_CHAR:
+        action = -1;
+        break;
+    }
+    jint meta = 0;
+    if (event.modifiers & EVENTFLAG_SHIFT_DOWN) meta |= 0x1;          // META_SHIFT_ON
+    if (event.modifiers & EVENTFLAG_ALT_DOWN) meta |= 0x2;            // META_ALT_ON
+    if (event.modifiers & EVENTFLAG_CONTROL_DOWN) meta |= 0x1000;     // META_CTRL_ON
+    if (event.modifiers & EVENTFLAG_COMMAND_DOWN) meta |= 0x10000;    // META_META_ON
+    if (event.modifiers & EVENTFLAG_CAPS_LOCK_ON) meta |= 0x100000;   // META_CAPS_LOCK_ON
     jclass cls = env->GetObjectClass(java_browser_);
-    jmethodID mid = env->GetMethodID(cls, name, "(III)Z");
+    jmethodID mid = env->GetMethodID(cls, "onKeyEventFromEngine", "(ZIIIIII)Z");
     jboolean handled = JNI_FALSE;
     if (mid) {
       handled = env->CallBooleanMethod(
-          java_browser_, mid, static_cast<jint>(event.type),
-          event.windows_key_code, static_cast<jint>(event.modifiers));
+          java_browser_, mid, pre ? JNI_TRUE : JNI_FALSE,
+          static_cast<jint>(event.type), event.windows_key_code,
+          static_cast<jint>(event.modifiers), action, event.native_key_code,
+          meta);
     }
     env->DeleteLocalRef(cls);
     return handled == JNI_TRUE;

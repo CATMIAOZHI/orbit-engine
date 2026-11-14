@@ -59,6 +59,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   `CefriumContextMenu` with the link, image, page, selection, media type,
   position and its entries (`Item.execute()`, `cancel()`, any thread), so no
   engine id or "id|label" string reaches the app.
+- Keys on `CefriumChromeClient`: `shouldOverrideKeyEvent` (before the page;
+  true keeps the key from it) and `onUnhandledKeyEvent` (keys the page did
+  not cancel), as WebView's, with an Android `KeyEvent` (key code, action,
+  meta state) instead of the engine's codes.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 
@@ -82,6 +86,8 @@ in the internal FEATURE-NNN.md working docs (not published).
   `CefriumChromeClient.onShowFileChooser`.
 - `OnContextMenuListener`, `setOnContextMenuListener` and
   `contextMenuCommand`: use `CefriumChromeClient.onContextMenu`.
+- `CefriumKeyboardHandler` and `setKeyboardHandler`: use
+  `shouldOverrideKeyEvent` and `onUnhandledKeyEvent`.
 
 ### Changed
 - **`onRequestIntercepted` is called on the UI thread** (`Callback` and
