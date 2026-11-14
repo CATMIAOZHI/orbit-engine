@@ -19,7 +19,10 @@ package com.cefrium;
  * {@link CefriumBrowser#onActivityResult}.
  *
  * <p>Delivered on the Android main thread so you can launch an Intent directly.
+ *
+ * @deprecated Use {@link CefriumChromeClient#onShowFileChooser}.
  */
+@Deprecated
 public interface CefriumDialogHandler {
     /** File dialog mode: open a single file. */
     int MODE_OPEN = 0;

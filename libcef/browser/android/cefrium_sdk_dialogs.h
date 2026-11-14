@@ -135,8 +135,23 @@ class SdkJSDialogHandler : public CefJSDialogHandler {
     if (mid) {
       jstring jmsg = env->NewStringUTF(message_text.ToString().c_str());
       jstring jdef = env->NewStringUTF(default_prompt_text.ToString().c_str());
-      env->CallVoidMethod(java_browser_, mid, static_cast<jint>(dialog_type),
-                          token, jmsg, jdef);
+      // FEATURE-092: CefriumJsDialogType ordinal (ALERT, CONFIRM, PROMPT),
+      // also the published JS_DIALOG_ values, mapped by name.
+      jint type = 0;
+      switch (dialog_type) {
+        case JSDIALOGTYPE_ALERT:
+          type = 0;
+          break;
+        case JSDIALOGTYPE_CONFIRM:
+          type = 1;
+          break;
+        case JSDIALOGTYPE_PROMPT:
+          type = 2;
+          break;
+        case JSDIALOGTYPE_NUM_VALUES:
+          break;
+      }
+      env->CallVoidMethod(java_browser_, mid, type, token, jmsg, jdef);
       env->DeleteLocalRef(jmsg);
       env->DeleteLocalRef(jdef);
       dispatched = true;
@@ -674,9 +689,26 @@ class SdkDialogHandler : public CefDialogHandler {
       jstring j_title = env->NewStringUTF(title.ToString().c_str());
       // False: Java leaves it to the engine's own chooser (a surface browser
       // with no app handler), which needs the browser's WindowAndroid.
-      dispatched = env->CallBooleanMethod(java_browser_, mid, id,
-                                          static_cast<jint>(mode), j_title,
-                                          arr) == JNI_TRUE;
+      // FEATURE-092: CefriumFileChooserParams.Mode ordinal, also the published
+      // CefriumDialogHandler.MODE_ values, mapped by name.
+      jint java_mode = 0;
+      switch (mode) {
+        case FILE_DIALOG_OPEN:
+        case FILE_DIALOG_NUM_VALUES:
+          java_mode = 0;
+          break;
+        case FILE_DIALOG_OPEN_MULTIPLE:
+          java_mode = 1;
+          break;
+        case FILE_DIALOG_OPEN_FOLDER:
+          java_mode = 2;
+          break;
+        case FILE_DIALOG_SAVE:
+          java_mode = 3;
+          break;
+      }
+      dispatched = env->CallBooleanMethod(java_browser_, mid, id, java_mode,
+                                          j_title, arr) == JNI_TRUE;
       if (env->ExceptionCheck()) {
         env->ExceptionClear();
         dispatched = false;

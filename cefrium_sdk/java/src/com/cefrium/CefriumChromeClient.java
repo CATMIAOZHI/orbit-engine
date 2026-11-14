@@ -41,6 +41,46 @@ public interface CefriumChromeClient {
     default void onFindResult(CefriumBrowser browser, int activeMatch, int matches) {}
 
     /**
+     * A page opened {@code alert()}, {@code confirm()} or {@code prompt()}.
+     * Return true to show your own dialog and answer through {@code callback}
+     * (now or later, from any thread; the first answer counts): {@code
+     * success} is OK, {@code userInput} the prompt's text. Return false for
+     * the engine's own dialog. The page waits until there is an answer.
+     *
+     * @param defaultText a prompt's initial text, empty otherwise
+     */
+    default boolean onJsDialog(CefriumBrowser browser, CefriumJsDialogType type,
+            String message, String defaultText, CefriumBrowser.JsDialogCallback callback) {
+        return false;
+    }
+
+    /**
+     * A page asks whether to leave it ({@code beforeunload}, for example a
+     * form with unsaved changes). Return true to ask the user and answer
+     * through {@code callback}: {@code success} leaves the page. Return false
+     * to leave without asking.
+     *
+     * @param isReload whether the page is being reloaded rather than left
+     */
+    default boolean onBeforeUnloadDialog(CefriumBrowser browser, String message,
+            boolean isReload, CefriumBrowser.JsDialogCallback callback) {
+        return false;
+    }
+
+    /**
+     * A file input ({@code <input type=file>}) asks for files. Return true to
+     * show your own chooser and answer through {@code callback}; {@code
+     * params.createIntent()} gives the system picker's intent. Return false
+     * for the SDK's chooser: the engine's on a surface browser (camera, photo
+     * picker, filtered by {@code accept}), the system picker on an off-screen
+     * browser's dialog activity.
+     */
+    default boolean onShowFileChooser(CefriumBrowser browser, CefriumFileChooserParams params,
+            CefriumFileChooserCallback callback) {
+        return false;
+    }
+
+    /**
      * A page asks for permissions. Answer with {@code request.grant()} or
      * {@code request.deny()}, now or later (after asking the user). The
      * default denies.

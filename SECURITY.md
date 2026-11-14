@@ -133,7 +133,7 @@ is a derivative, whatever it is called.
 Cefrium is pre-1.0 and the public API can still change, which is a
 compatibility statement rather than a security one. The engine is a standard
 Chromium build with the Android port's patches, validated on real devices on
-every release by a 241-test on-device suite that a release cannot skip. Use it
+every release by a 245-test on-device suite that a release cannot skip. Use it
 with the same care you would give any browser engine you embed: keep it
 updated, because that is the only way engine fixes reach your users. The SDK
 does not check for newer versions itself, at build time or at run time: that

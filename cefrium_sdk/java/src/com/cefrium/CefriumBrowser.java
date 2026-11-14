@@ -2080,9 +2080,15 @@ public class CefriumBrowser {
 
     // ─────────────── JS dialogs ───────────────
 
-    /** alert() */   public static final int JS_DIALOG_ALERT = 0;
-    /** confirm() */ public static final int JS_DIALOG_CONFIRM = 1;
-    /** prompt() */  public static final int JS_DIALOG_PROMPT = 2;
+    /** alert(). @deprecated Use {@link CefriumJsDialogType#ALERT}. */
+    @Deprecated
+    public static final int JS_DIALOG_ALERT = 0;
+    /** confirm(). @deprecated Use {@link CefriumJsDialogType#CONFIRM}. */
+    @Deprecated
+    public static final int JS_DIALOG_CONFIRM = 1;
+    /** prompt(). @deprecated Use {@link CefriumJsDialogType#PROMPT}. */
+    @Deprecated
+    public static final int JS_DIALOG_PROMPT = 2;
 
     /** Resolves a JS dialog. */
     public interface JsDialogCallback {
@@ -2094,6 +2100,8 @@ public class CefriumBrowser {
      * (you MUST call the callback); return false to use the default Android
      * AlertDialog. Without a handler set, the default AlertDialog is shown.
      */
+    /** @deprecated Use {@link CefriumChromeClient#onJsDialog}. */
+    @Deprecated
     public interface JsDialogHandler {
         boolean onJsDialog(int type, String message, String defaultPromptText,
                            JsDialogCallback callback);
@@ -2117,7 +2125,12 @@ public class CefriumBrowser {
 
     private JsDialogHandler mJsDialogHandler;
 
-    /** Sets a custom JS-dialog handler (null = default Android AlertDialog). */
+    /**
+     * Sets a custom JS-dialog handler (null = default Android AlertDialog). A
+     * {@link CefriumChromeClient} decides instead when one is set.
+     * @deprecated Use {@link CefriumChromeClient#onJsDialog}.
+     */
+    @Deprecated
     public void setJsDialogHandler(JsDialogHandler handler) {
         checkThread("setJsDialogHandler");
         mJsDialogHandler = handler;
@@ -2125,15 +2138,20 @@ public class CefriumBrowser {
     }
 
     // Called from native (UI thread) when the page opens alert/confirm/prompt.
+    // |type| is a CefriumJsDialogType ordinal (= JS_DIALOG_), mapped in native.
+    @SuppressWarnings("deprecation")
     private void onJsDialog(int type, long token, String message, String defaultPrompt) {
-        JsDialogCallback cb = (success, userInput) -> {
-            if (mNativePtr != 0) {
-                nativeJsDialogResult(mNativePtr, token, success,
-                        userInput == null ? "" : userInput);
+        JsDialogCallback cb = jsDialogAnswer(token, true);
+        CefriumChromeClient chrome = mChromeClient;
+        if (chrome != null) {
+            if (chrome.onJsDialog(this, CefriumJsDialogType.values()[type], message,
+                    defaultPrompt == null ? "" : defaultPrompt, cb)) {
+                return;
             }
-        };
-        JsDialogHandler h = mJsDialogHandler;
-        if (h != null && h.onJsDialog(type, message, defaultPrompt, cb)) return;
+        } else {
+            JsDialogHandler h = mJsDialogHandler;
+            if (h != null && h.onJsDialog(type, message, defaultPrompt, cb)) return;
+        }
         android.app.Activity activity = dialogActivity();
         if (activity == null) { cb.continueDialog(false, ""); return; }
         activity.runOnUiThread(() -> showDefaultJsDialog(activity, type, message, defaultPrompt, cb));
@@ -4735,8 +4753,11 @@ public class CefriumBrowser {
     /**
      * Sets the file-chooser dialog handler ({@code <input type=file>}), for a
      * chooser of the app's own. Without one the default chooser is shown; see
-     * {@link CefriumDialogHandler}.
+     * {@link CefriumDialogHandler}. A {@link CefriumChromeClient} decides
+     * instead when one is set.
+     * @deprecated Use {@link CefriumChromeClient#onShowFileChooser}.
      */
+    @Deprecated
     public void setDialogHandler(CefriumDialogHandler handler) {
         checkThread("setDialogHandler");
         mDialogHandler = handler;
@@ -4892,13 +4913,37 @@ public class CefriumBrowser {
         h.onSelectClientCertificate(isProxy, host, port, subjectNames, cb);
     }
 
-    // ---- beforeunload (reuses the JS-dialog resolve path) ----
-    private void onBeforeUnloadDialog(final long token, String message, boolean isReload) {
-        JsDialogCallback cb = (success, userInput) -> {
-            if (mNativePtr != 0) nativeJsDialogResult(mNativePtr, token, success, "");
+    // The answer to dialog |token|: the first call counts, from any thread.
+    private JsDialogCallback jsDialogAnswer(long token, boolean withText) {
+        final java.util.concurrent.atomic.AtomicBoolean answered =
+                new java.util.concurrent.atomic.AtomicBoolean();
+        return new JsDialogCallback() {
+            @Override
+            public void continueDialog(boolean success, String userInput) {
+                if (!answered.compareAndSet(false, true)) return;
+                String text = withText && userInput != null ? userInput : "";
+                Runnable r = () -> {
+                    if (mNativePtr != 0 && !mClosed) {
+                        nativeJsDialogResult(mNativePtr, token, success, text);
+                    }
+                };
+                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) r.run();
+                else MAIN_HANDLER.post(r);
+            }
         };
-        JsDialogHandler h = mJsDialogHandler;
-        if (h != null && h.onBeforeUnloadDialog(message, isReload, cb)) return;
+    }
+
+    // ---- beforeunload (reuses the JS-dialog resolve path) ----
+    @SuppressWarnings("deprecation")
+    private void onBeforeUnloadDialog(final long token, String message, boolean isReload) {
+        JsDialogCallback cb = jsDialogAnswer(token, false);
+        CefriumChromeClient chrome = mChromeClient;
+        if (chrome != null) {
+            if (chrome.onBeforeUnloadDialog(this, message, isReload, cb)) return;
+        } else {
+            JsDialogHandler h = mJsDialogHandler;
+            if (h != null && h.onBeforeUnloadDialog(message, isReload, cb)) return;
+        }
         // No handler: allow the navigation (do not block).
         cb.continueDialog(true, "");
     }
@@ -5019,9 +5064,29 @@ public class CefriumBrowser {
 
     // ---- File chooser (async by id; delivered on main so it can start an Intent) ----
     // Returns false to leave it to the engine's own chooser.
+    // |mode| is a CefriumFileChooserParams.Mode ordinal, mapped in native.
+    @SuppressWarnings("deprecation")
     private boolean onFileDialog(final long id, final int mode, final String title,
                                  final String[] acceptFilters) {
-        final CefriumDialogHandler h = mDialogHandler;
+        CefriumChromeClient chrome = mChromeClient;
+        if (chrome != null) {
+            final java.util.concurrent.atomic.AtomicBoolean answered =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+            CefriumFileChooserCallback cb = new CefriumFileChooserCallback() {
+                @Override public void select(String[] uris) {
+                    answer(uris == null ? new String[0] : uris);
+                }
+                @Override public void cancel() { answer(new String[0]); }
+                private void answer(String[] uris) {
+                    if (!answered.compareAndSet(false, true)) return;
+                    postMain(() -> fileDialogDone(id, uris));
+                }
+            };
+            CefriumFileChooserParams params = new CefriumFileChooserParams(
+                    CefriumFileChooserParams.Mode.values()[mode], title, acceptFilters);
+            if (chrome.onShowFileChooser(this, params, cb)) return true;
+        }
+        final CefriumDialogHandler h = chrome != null ? null : mDialogHandler;
         if (h == null) {
             // A surface browser: the engine's chooser, as Chrome's (camera,
             // photo picker, accept types), on its window.
@@ -5058,7 +5123,7 @@ public class CefriumBrowser {
     private long mPendingFileDialog = -1;
 
     private void fileDialogDone(long id, String[] uris) {
-        if (mNativePtr != 0) nativeFileDialogResult(mNativePtr, id, uris);
+        if (mNativePtr != 0 && !mClosed) nativeFileDialogResult(mNativePtr, id, uris);
     }
 
     /** Delivers a file-chooser selection (empty/null cancels). See {@link CefriumDialogHandler}. */
