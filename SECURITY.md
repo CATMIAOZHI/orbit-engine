@@ -82,7 +82,7 @@ switchable from the SDK: the component updater and network time queries. See
 
 ## How security fixes reach you
 
-Current engine: **Chromium 156.0.8078.88 / CEF branch 8078**.
+Current engine: **Chromium 156.0.8078.96 / CEF branch 8078**.
 
 Cefrium inherits Chromium's vulnerabilities and Chromium's fixes. There are no
 independent engine patches, and there are no backports: a fix arrives as an
