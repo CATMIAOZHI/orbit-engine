@@ -2180,6 +2180,20 @@ public class CefriumBrowser {
     private volatile CefriumResourceInterceptor mRequestInterceptor;
     private static boolean sContentHostReady;
 
+    // For CefriumProfile's interceptor: the engine finds ContentServerHost
+    // from here. Main thread.
+    static void ensureContentHost() {
+        if (!sContentHostReady) {
+            sContentHostReady = nativeInitContentHost(ContentServerHost.class);
+        }
+    }
+
+    // A profile interceptor's answer to decision |id|; null lets the request
+    // go to the network.
+    static void interceptDecision(long id, CefriumContentResponse answer) {
+        nativeOnInterceptDecision(id, answer == null ? null : request -> answer);
+    }
+
     /**
      * Sets the interceptor that sees, and may cancel or answer, every request
      * of this browser (null removes it). The last one set wins, including one

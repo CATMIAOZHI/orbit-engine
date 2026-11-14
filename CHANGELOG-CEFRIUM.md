@@ -119,6 +119,10 @@ in the internal FEATURE-NNN.md working docs (not published).
 - Ad blocking also stops windows: a list's `$popup` rules (as in EasyList)
   keep a page from opening a listed ad window; `window.open` returns null.
   Rules without `$popup` still never stop a window.
+- `CefriumProfile.setResourceInterceptor`: the requests of a profile that
+  belong to no browser (a service worker's own and its fetches) can be
+  blocked or answered, as a browser's are. Set it before creating the
+  browsers whose pages register the workers.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 

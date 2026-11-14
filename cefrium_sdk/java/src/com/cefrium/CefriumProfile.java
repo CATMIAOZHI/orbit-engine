@@ -407,6 +407,73 @@ public final class CefriumProfile {
     private static native void nativeUnregisterContentServer(boolean incognito, String profile,
             String host);
 
+    // ----- Requests that belong to no browser -----
+
+    private volatile CefriumResourceInterceptor mInterceptor;
+
+    /**
+     * The interceptor for this profile's requests that belong to no browser:
+     * a service worker's own requests and its fetches. A browser's requests
+     * go to the browser's interceptor
+     * ({@link CefriumBrowser#setResourceInterceptor}). Only
+     * {@link CefriumResourceInterceptor#shouldBlockRequest} (its request has no
+     * document) and {@link CefriumResourceInterceptor#shouldInterceptRequest}
+     * are called. Null removes it. Call on the main thread, before creating
+     * the browsers whose pages register the service workers.
+     *
+     * <p>Experimental: it may still change before the 1.0 API freeze.</p>
+     */
+    @CefriumExperimental
+    public void setResourceInterceptor(CefriumResourceInterceptor interceptor) {
+        checkThread("setResourceInterceptor");
+        root();
+        boolean intercepts = interceptor != null && overridesIntercept(interceptor);
+        if (intercepts) CefriumBrowser.ensureContentHost();
+        mInterceptor = interceptor;
+        nativeSetResourceInterceptor(mIncognito, nameForNative(),
+                interceptor == null ? null : this, intercepts);
+    }
+
+    private static boolean overridesIntercept(CefriumResourceInterceptor i) {
+        try {
+            return i.getClass().getMethod("shouldInterceptRequest",
+                    CefriumContentRequest.class).getDeclaringClass()
+                    != CefriumResourceInterceptor.class;
+        } catch (NoSuchMethodException e) {
+            return false;
+        }
+    }
+
+    // Called from native on the network thread.
+    @SuppressWarnings("unused")
+    private boolean onProfileShouldBlock(String url, String method, int resourceType, int type) {
+        CefriumResourceInterceptor i = mInterceptor;
+        return i != null && i.shouldBlockRequest(new CefriumBrowser.ResourceRequest(url, method,
+                false, resourceType, CefriumResourceType.values()[type], "", ""));
+    }
+
+    // Called from native on the network thread; the request waits for the
+    // decision, taken on the content pool.
+    @SuppressWarnings("unused")
+    private void onInterceptRequest(long id, String method, String url, String[] headers,
+            byte[] body) {
+        CefriumResourceInterceptor i = mInterceptor;
+        ContentServerHost.execute(() -> {
+            CefriumContentResponse response = null;
+            try {
+                if (i != null) {
+                    response = i.shouldInterceptRequest(
+                            ContentServerHost.requestOf(method, url, headers, body));
+                }
+            } finally {
+                CefriumBrowser.interceptDecision(id, response);
+            }
+        });
+    }
+
+    private static native void nativeSetResourceInterceptor(boolean incognito, String profile,
+            CefriumProfile javaProfile, boolean intercepts);
+
     // ----- Ad blocking -----
 
     /**
