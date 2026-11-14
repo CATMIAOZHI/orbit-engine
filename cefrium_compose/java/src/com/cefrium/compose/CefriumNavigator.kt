@@ -350,17 +350,40 @@ class CefriumNavigator {
 
     // ── Permissions ──
 
+    /**
+     * Sets the client that answers what pages ask of the app, permission
+     * requests first (null removes it). See `CefriumBrowser.setChromeClient`.
+     */
+    fun setChromeClient(client: com.cefrium.CefriumChromeClient?) {
+        run("setChromeClient") { it.setChromeClient(client) }
+    }
+
+    /**
+     * Stores a decision for [permission] on [origin], so the page is answered
+     * without asking. See `CefriumBrowser.setContentSetting`.
+     */
+    fun setContentSetting(
+        origin: String,
+        permission: com.cefrium.CefriumPermission,
+        value: com.cefrium.CefriumContentSetting,
+    ) {
+        run("setContentSetting") { it.setContentSetting(origin, permission, value) }
+    }
+
     /** Sets the web permission handler (geolocation, camera, mic; null = deny all). */
+    @Deprecated("Use setChromeClient", ReplaceWith("setChromeClient(client)"))
+    @Suppress("DEPRECATION")
     fun setPermissionHandler(handler: com.cefrium.CefriumBrowser.PermissionHandler?) {
         run("setPermissionHandler") { it.setPermissionHandler(handler) }
     }
 
     /**
-     * Pre-grants (or blocks) a per-origin web permission without a prompt — e.g.
-     * allow Web Notifications for your own origin so service-worker
-     * `showNotification()` works without asking. [permission] is one of
-     * `CefriumBrowser.PERMISSION_*`; [value] one of `CefriumBrowser.SETTING_*`.
+     * Pre-grants (or blocks) a per-origin web permission without a prompt.
+     * [permission] is one of `CefriumBrowser.PERMISSION_*`; [value] one of
+     * `CefriumBrowser.SETTING_*`.
      */
+    @Deprecated("Use the CefriumPermission / CefriumContentSetting overload")
+    @Suppress("DEPRECATION")
     fun setContentSetting(requestingUrl: String, permission: Int, value: Int) {
         run("setContentSetting") { it.setContentSetting(requestingUrl, permission, value) }
     }

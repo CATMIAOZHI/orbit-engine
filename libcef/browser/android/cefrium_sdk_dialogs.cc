@@ -51,23 +51,33 @@ Java_com_cefrium_CefriumBrowser_nativeDeviceChooserCancel(
 }
 
 // Maps a CefriumBrowser.PERMISSION_* mask to a CEF content setting type.
-static cef_content_setting_types_t SdkPermissionToContentType(jint permission) {
-  switch (permission) {
-    case (1 << 8):   // PERMISSION_GEOLOCATION
-      return CEF_CONTENT_SETTING_TYPE_GEOLOCATION;
-    case (1 << 2):   // PERMISSION_CAMERA
-      return CEF_CONTENT_SETTING_TYPE_MEDIASTREAM_CAMERA;
-    case (1 << 12):  // PERMISSION_MICROPHONE
-      return CEF_CONTENT_SETTING_TYPE_MEDIASTREAM_MIC;
-    // Use the enum, not a literal: this bit moved from 29 to 30 when CEF 8078
-    // took 29 for AMBIENT_LOGIN, and a literal here would have silently kept
-    // mapping the old bit. The neighbouring cases mirror the Java constants.
-    case CEF_PERMISSION_TYPE_NFC:  // PERMISSION_NFC
-      return CEF_CONTENT_SETTING_TYPE_NFC;
-    case (1 << 15):  // PERMISSION_NOTIFICATIONS
-    default:
-      return CEF_CONTENT_SETTING_TYPE_NOTIFICATIONS;
+// |permission| is one of Cefrium's bits (kCefriumPermission*), never CEF's.
+// False for any other value (Java rejects those before they get here). The
+// clipboard used to fall through to notifications, so allowing the clipboard
+// for an origin allowed its notifications.
+static bool SdkPermissionToContentType(jint permission,
+                                       cef_content_setting_types_t* type) {
+  switch (static_cast<uint32_t>(permission)) {
+    case kCefriumPermissionGeolocation:
+      *type = CEF_CONTENT_SETTING_TYPE_GEOLOCATION;
+      return true;
+    case kCefriumPermissionCamera:
+      *type = CEF_CONTENT_SETTING_TYPE_MEDIASTREAM_CAMERA;
+      return true;
+    case kCefriumPermissionMicrophone:
+      *type = CEF_CONTENT_SETTING_TYPE_MEDIASTREAM_MIC;
+      return true;
+    case kCefriumPermissionNfc:
+      *type = CEF_CONTENT_SETTING_TYPE_NFC;
+      return true;
+    case kCefriumPermissionNotifications:
+      *type = CEF_CONTENT_SETTING_TYPE_NOTIFICATIONS;
+      return true;
+    case kCefriumPermissionClipboard:
+      *type = CEF_CONTENT_SETTING_TYPE_CLIPBOARD_READ_WRITE;
+      return true;
   }
+  return false;
 }
 
 // Maps a CefriumBrowser.SETTING_* value to a CEF content setting value.
@@ -102,13 +112,13 @@ Java_com_cefrium_CefriumBrowser_nativeSetContentSetting(
                    CefRefPtr<CefBrowser> browser) {
                   CefRefPtr<CefRequestContext> context =
                       browser->GetHost()->GetRequestContext();
-                  if (!context) {
+                  cef_content_setting_types_t type;
+                  if (!context ||
+                      !SdkPermissionToContentType(permission, &type)) {
                     return;
                   }
-                  context->SetContentSetting(
-                      CefString(url), CefString(),
-                      SdkPermissionToContentType(permission),
-                      SdkIntToSettingValue(value));
+                  context->SetContentSetting(CefString(url), CefString(), type,
+                                             SdkIntToSettingValue(value));
                 },
                 cefrium_sdk::JStr(env, url_jstr).ToString(), static_cast<int>(permission),
                 static_cast<int>(value)));
