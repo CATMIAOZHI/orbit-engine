@@ -81,10 +81,10 @@ public interface com.cefrium.CefriumAudioHandler
   public default void onAudioStreamError(java.lang.String);
 
 public class com.cefrium.CefriumBrowser
-  public static final int TERMINATION_ABNORMAL = 0;
-  public static final int TERMINATION_KILLED = 1;
-  public static final int TERMINATION_CRASHED = 2;
-  public static final int TERMINATION_OOM = 3;
+  [deprecated] public static final int TERMINATION_ABNORMAL = 0;
+  [deprecated] public static final int TERMINATION_KILLED = 1;
+  [deprecated] public static final int TERMINATION_CRASHED = 2;
+  [deprecated] public static final int TERMINATION_OOM = 3;
   public static final int QUERY_ERROR_ORIGIN_DENIED = -403;
   public static final int SAME_SITE_UNSPECIFIED = 0;
   public static final int SAME_SITE_NONE = 1;
@@ -150,17 +150,17 @@ public class com.cefrium.CefriumBrowser
   public com.cefrium.CefriumBrowser$ScriptHandler addDocumentStartJavaScript(java.lang.String, java.util.Set<java.lang.String>);
   public void setNavigationClient(com.cefrium.CefriumNavigationClient);
   public void setCallback(com.cefrium.CefriumBrowser$Callback);
-  public void setOnUrlChangedListener(com.cefrium.CefriumBrowser$OnUrlChangedListener);
-  public void setOnTitleChangedListener(com.cefrium.CefriumBrowser$OnTitleChangedListener);
-  public void setOnFullscreenChangedListener(com.cefrium.CefriumBrowser$OnFullscreenChangedListener);
+  [deprecated] public void setOnUrlChangedListener(com.cefrium.CefriumBrowser$OnUrlChangedListener);
+  [deprecated] public void setOnTitleChangedListener(com.cefrium.CefriumBrowser$OnTitleChangedListener);
+  [deprecated] public void setOnFullscreenChangedListener(com.cefrium.CefriumBrowser$OnFullscreenChangedListener);
   public void setOnRequestInterceptedListener(com.cefrium.CefriumBrowser$OnRequestInterceptedListener);
   public java.lang.String getUrl();
   public android.os.Bundle saveState();
   public void restoreState(android.os.Bundle);
   public byte[] serializeNavigationState();
   public void restoreNavigationState(byte[]);
-  public void setOnLoadingStateChangedListener(com.cefrium.CefriumBrowser$OnLoadingStateChangedListener);
-  public void setOnRenderProcessTerminatedListener(com.cefrium.CefriumBrowser$OnRenderProcessTerminatedListener);
+  [deprecated] public void setOnLoadingStateChangedListener(com.cefrium.CefriumBrowser$OnLoadingStateChangedListener);
+  [deprecated] public void setOnRenderProcessTerminatedListener(com.cefrium.CefriumBrowser$OnRenderProcessTerminatedListener);
   public void reload();
   public void evaluateJavaScript(java.lang.String);
   public void evaluateJavaScriptInFocusedFrame(java.lang.String);
@@ -265,7 +265,7 @@ public class com.cefrium.CefriumBrowser
   public android.widget.FrameLayout getSurfaceContainer();
   public void setMediaSessionEnabled(boolean);
   public void setMediaSessionActivity(android.app.PendingIntent);
-  public void setOnFindResultListener(com.cefrium.CefriumBrowser$OnFindResultListener);
+  [deprecated] public void setOnFindResultListener(com.cefrium.CefriumBrowser$OnFindResultListener);
   public void find(java.lang.String, boolean, boolean, boolean);
   public void stopFinding(boolean);
   public void setOnDownloadListener(com.cefrium.CefriumBrowser$OnDownloadListener);
@@ -273,8 +273,8 @@ public class com.cefrium.CefriumBrowser
   public void cancelDownload(int);
   public void pauseDownload(int);
   public void resumeDownload(int);
-  public void setDisplayHandler(com.cefrium.CefriumDisplayHandler);
-  public void setLoadHandler(com.cefrium.CefriumLoadHandler);
+  [deprecated] public void setDisplayHandler(com.cefrium.CefriumDisplayHandler);
+  [deprecated] public void setLoadHandler(com.cefrium.CefriumLoadHandler);
   public void setResponseTapEnabled(boolean);
   public void setCookieFilterEnabled(boolean);
   public void setRequestHandler(com.cefrium.CefriumRequestHandler);
@@ -400,25 +400,25 @@ public interface com.cefrium.CefriumBrowser$OnContextMenuListener
 public interface com.cefrium.CefriumBrowser$OnDownloadListener
   public abstract void onDownloadUpdated(java.lang.String, java.lang.String, int, boolean, boolean);
 
-public interface com.cefrium.CefriumBrowser$OnFindResultListener
+[deprecated] public interface com.cefrium.CefriumBrowser$OnFindResultListener
   public abstract void onFindResult(int, int);
 
-public interface com.cefrium.CefriumBrowser$OnFullscreenChangedListener
+[deprecated] public interface com.cefrium.CefriumBrowser$OnFullscreenChangedListener
   public abstract void onFullscreenChanged(boolean);
 
-public interface com.cefrium.CefriumBrowser$OnLoadingStateChangedListener
+[deprecated] public interface com.cefrium.CefriumBrowser$OnLoadingStateChangedListener
   public abstract void onLoadingStateChanged(boolean, boolean, boolean);
 
-public interface com.cefrium.CefriumBrowser$OnRenderProcessTerminatedListener
+[deprecated] public interface com.cefrium.CefriumBrowser$OnRenderProcessTerminatedListener
   public abstract void onRenderProcessTerminated(int, int);
 
 public interface com.cefrium.CefriumBrowser$OnRequestInterceptedListener
   public abstract void onRequestIntercepted(java.lang.String, java.lang.String, boolean);
 
-public interface com.cefrium.CefriumBrowser$OnTitleChangedListener
+[deprecated] public interface com.cefrium.CefriumBrowser$OnTitleChangedListener
   public abstract void onTitleChanged(java.lang.String);
 
-public interface com.cefrium.CefriumBrowser$OnUrlChangedListener
+[deprecated] public interface com.cefrium.CefriumBrowser$OnUrlChangedListener
   public abstract void onUrlChanged(java.lang.String);
 
 public interface com.cefrium.CefriumBrowser$PdfCallback
@@ -508,11 +508,32 @@ public interface com.cefrium.CefriumBrowser$SslErrorHandler
   public abstract void onSslError(java.lang.String, int, com.cefrium.CefriumBrowser$SslErrorCallback);
 
 public interface com.cefrium.CefriumChromeClient
+  public default void onTitleChanged(com.cefrium.CefriumBrowser, java.lang.String);
+  public default void onFaviconUrlsChanged(com.cefrium.CefriumBrowser, java.util.List<java.lang.String>);
+  public default void onFullscreenChanged(com.cefrium.CefriumBrowser, boolean);
+  public default void onConsoleMessage(com.cefrium.CefriumBrowser, com.cefrium.CefriumConsoleMessage);
+  public default void onStatusMessage(com.cefrium.CefriumBrowser, java.lang.String);
+  public default void onMediaAccessChanged(com.cefrium.CefriumBrowser, boolean, boolean);
+  public default void onFindResult(com.cefrium.CefriumBrowser, int, int);
   public default void onPermissionRequest(com.cefrium.CefriumBrowser, com.cefrium.CefriumPermissionRequest);
   public default void onPermissionRequestCanceled(com.cefrium.CefriumBrowser, com.cefrium.CefriumPermissionRequest);
 
 public interface com.cefrium.CefriumCommandHandler
   public default boolean onChromeCommand(int, int);
+
+public final class com.cefrium.CefriumConsoleMessage
+  public com.cefrium.CefriumConsoleMessage$Level level();
+  public java.lang.String message();
+  public java.lang.String sourceId();
+  public int lineNumber();
+
+public final class com.cefrium.CefriumConsoleMessage$Level extends java.lang.Enum<com.cefrium.CefriumConsoleMessage$Level>
+  public static final com.cefrium.CefriumConsoleMessage$Level VERBOSE;
+  public static final com.cefrium.CefriumConsoleMessage$Level INFO;
+  public static final com.cefrium.CefriumConsoleMessage$Level WARNING;
+  public static final com.cefrium.CefriumConsoleMessage$Level ERROR;
+  public static com.cefrium.CefriumConsoleMessage$Level[] values();
+  public static com.cefrium.CefriumConsoleMessage$Level valueOf(java.lang.String);
 
 public final class com.cefrium.CefriumContentRequest
   public java.lang.String getMethod();
@@ -569,7 +590,7 @@ public interface com.cefrium.CefriumDialogHandler$FileDialogCallback
   public abstract void select(java.lang.String[]);
   public abstract void cancel();
 
-public interface com.cefrium.CefriumDisplayHandler
+[deprecated] public interface com.cefrium.CefriumDisplayHandler
   public default void onFaviconUrlChanged(java.lang.String[]);
   public default void onLoadingProgress(double);
   public default void onConsoleMessage(int, java.lang.String, java.lang.String, int);
@@ -622,7 +643,12 @@ public interface com.cefrium.CefriumKeyboardHandler
   public default boolean onPreKeyEvent(int, int, int);
   public default boolean onKeyEvent(int, int, int);
 
-public interface com.cefrium.CefriumLoadHandler
+public final class com.cefrium.CefriumLoadError
+  public int getErrorCode();
+  public java.lang.String getDescription();
+  public java.lang.String getFailedUrl();
+
+[deprecated] public interface com.cefrium.CefriumLoadHandler
   public default void onLoadStart(java.lang.String);
   public default void onLoadError(int, java.lang.String, java.lang.String);
 
@@ -635,6 +661,14 @@ public class com.cefrium.CefriumMediaSession
 
 public interface com.cefrium.CefriumNavigationClient
   public default boolean onBeforeNavigate(com.cefrium.CefriumBrowser, com.cefrium.CefriumNavigationRequest);
+  public default void onUrlChanged(com.cefrium.CefriumBrowser, java.lang.String);
+  public default void onLoadStart(com.cefrium.CefriumBrowser, java.lang.String);
+  public default void onLoadingStateChanged(com.cefrium.CefriumBrowser, boolean, boolean, boolean);
+  public default void onProgressChanged(com.cefrium.CefriumBrowser, int);
+  public default void onLoadError(com.cefrium.CefriumBrowser, com.cefrium.CefriumLoadError);
+  public default void onRenderProcessTerminated(com.cefrium.CefriumBrowser, com.cefrium.CefriumRendererTerminationStatus, int);
+  public default void onRenderProcessUnresponsive(com.cefrium.CefriumBrowser);
+  public default void onRenderProcessResponsive(com.cefrium.CefriumBrowser);
 
 public final class com.cefrium.CefriumNavigationRequest
   public java.lang.String getUrl();
@@ -818,6 +852,15 @@ public final class com.cefrium.CefriumRenderHandler$TouchHandle
   public final int x;
   public final int y;
   public final float alpha;
+
+public final class com.cefrium.CefriumRendererTerminationStatus extends java.lang.Enum<com.cefrium.CefriumRendererTerminationStatus>
+  public static final com.cefrium.CefriumRendererTerminationStatus ABNORMAL;
+  public static final com.cefrium.CefriumRendererTerminationStatus KILLED;
+  public static final com.cefrium.CefriumRendererTerminationStatus CRASHED;
+  public static final com.cefrium.CefriumRendererTerminationStatus OOM;
+  public static final com.cefrium.CefriumRendererTerminationStatus UNKNOWN;
+  public static com.cefrium.CefriumRendererTerminationStatus[] values();
+  public static com.cefrium.CefriumRendererTerminationStatus valueOf(java.lang.String);
 
 public interface com.cefrium.CefriumRequestHandler
   public default void onOpenUrlFromTab(java.lang.String, int, boolean);

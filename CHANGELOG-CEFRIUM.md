@@ -39,6 +39,14 @@ in the internal FEATURE-NNN.md working docs (not published).
   CefriumPermission, CefriumContentSetting)`. The engine's permission bits
   are mapped to Cefrium's own values, so an engine update can no longer
   renumber them (as NFC was in 0.20.0).
+- The two clients carry the page's events, typed and on the UI thread, with
+  the browser as first parameter (one client can serve several browsers):
+  `CefriumChromeClient` gets the title, favicon URLs, fullscreen, console
+  messages (`CefriumConsoleMessage` with a `Level`), link status, camera and
+  microphone use and find results; `CefriumNavigationClient` gets the URL,
+  load start, loading state, progress (0-100), load errors
+  (`CefriumLoadError`, net code) and the renderer's end
+  (`CefriumRendererTerminationStatus`), unresponsive and responsive.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 
@@ -51,6 +59,11 @@ in the internal FEATURE-NNN.md working docs (not published).
   `PERMISSION_` and `SETTING_` constants and `setContentSetting(String, int,
   int)`: use `CefriumChromeClient`, `CefriumPermission` and
   `CefriumContentSetting`. Removed at 1.0.
+- The `setOnUrlChanged`, `setOnTitleChanged`, `setOnLoadingStateChanged`,
+  `setOnFullscreenChanged`, `setOnFindResult` and
+  `setOnRenderProcessTerminated` listeners, `CefriumDisplayHandler`,
+  `CefriumLoadHandler` and the `TERMINATION_` constants: use the two
+  clients. They keep working until 1.0, alongside the clients.
 
 ### Changed
 - **`onRequestIntercepted` is called on the UI thread** (`Callback` and

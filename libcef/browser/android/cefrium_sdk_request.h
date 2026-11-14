@@ -876,8 +876,26 @@ class SdkRequestHandler : public CefRequestHandler {
     // Permanent public API (not benchmark-gated): a renderer can die without
     // killing the app process and without a logcat FATAL -- flagships need this
     // to show a reload UI, and the crash matrix counts renderer_crash_count from
-    // it. status: TS_ABNORMAL_TERMINATION=0, TS_PROCESS_WAS_KILLED=1,
-    // TS_PROCESS_CRASHED=2, TS_PROCESS_OOM=3 (cef_termination_status_t).
+    // it. Java gets Cefrium's TERMINATION_ values (CefriumBrowser), mapped by
+    // name: 0 abnormal, 1 killed, 2 crashed, 3 OOM, 4 any other.
+    int cefrium_status = 4;
+    switch (status) {
+      case TS_ABNORMAL_TERMINATION:
+        cefrium_status = 0;
+        break;
+      case TS_PROCESS_WAS_KILLED:
+        cefrium_status = 1;
+        break;
+      case TS_PROCESS_CRASHED:
+        cefrium_status = 2;
+        break;
+      case TS_PROCESS_OOM:
+        cefrium_status = 3;
+        break;
+      default:
+        cefrium_status = 4;
+        break;
+    }
     if (java_browser_) {
       JNIEnv* env = base::android::AttachCurrentThread();
       if (env) {
@@ -885,7 +903,8 @@ class SdkRequestHandler : public CefRequestHandler {
         jmethodID mid =
             env->GetMethodID(cls, "onRenderProcessTerminated", "(II)V");
         if (mid) {
-          env->CallVoidMethod(java_browser_, mid, static_cast<jint>(status),
+          env->CallVoidMethod(java_browser_, mid,
+                              static_cast<jint>(cefrium_status),
                               static_cast<jint>(error_code));
         }
         env->DeleteLocalRef(cls);

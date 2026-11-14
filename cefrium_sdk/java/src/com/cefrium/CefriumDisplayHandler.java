@@ -12,7 +12,10 @@ package com.cefrium;
  * {@link CefriumBrowser#setDisplayHandler(CefriumDisplayHandler)}.
  *
  * <p>Delivered on the browser UI thread.
+ *
+ * @deprecated Use {@link CefriumChromeClient} and {@link CefriumNavigationClient#onProgressChanged}.
  */
+@Deprecated
 public interface CefriumDisplayHandler {
     /**
      * The page's favicon URLs changed (WebView {@code onReceivedIcon} /
