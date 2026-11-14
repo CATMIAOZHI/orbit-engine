@@ -102,6 +102,11 @@ in the internal FEATURE-NNN.md working docs (not published).
   `onCanSendCookie` / `onCanSaveCookie`. Only what an interceptor overrides
   is called, so the body tap and the cookie filter need no switch.
   `CefriumNavigationClient.onDocumentAvailable` is new.
+- Compose: `CefriumViewState.forWindow(popup, url)` shows a window the page
+  opened (`onCreateWindow`) as a page of its own, for example a tab: it
+  reports its URL, title, history and fullscreen, and keeps
+  `window.opener`. `CefriumNavigator.exitFullscreen()` leaves HTML
+  fullscreen, for Back.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 

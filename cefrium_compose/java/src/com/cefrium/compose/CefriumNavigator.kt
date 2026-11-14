@@ -138,6 +138,14 @@ class CefriumNavigator {
     }
 
     /**
+     * Leaves HTML fullscreen, as Back does in Chrome while a video is
+     * fullscreen. [CefriumViewState.isFullscreen] turns false when it is done.
+     */
+    fun exitFullscreen() {
+        run("exitFullscreen") { it.exitFullscreen() }
+    }
+
+    /**
      * Serializes this tab's back/forward navigation stack for session restore
      * (see [CefriumBrowser.serializeNavigationState]); null if nothing to save.
      * Restore by constructing a CefriumViewState with the bytes as navigationState.
