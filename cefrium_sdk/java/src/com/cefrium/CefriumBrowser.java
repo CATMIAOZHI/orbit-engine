@@ -5385,7 +5385,9 @@ public class CefriumBrowser {
 
     /**
      * Listener for context menu events (long press on links/images).
+     * @deprecated Use {@link CefriumChromeClient#onContextMenu}.
      */
+    @Deprecated
     public interface OnContextMenuListener {
         /**
          * @param menuItems Menu items as "id|label" lines separated by newlines.
@@ -5397,8 +5399,11 @@ public class CefriumBrowser {
     private OnContextMenuListener mContextMenuListener;
 
     /**
-     * Set the listener for context menu events.
+     * Set the listener for context menu events. A {@link CefriumChromeClient}
+     * that shows the menu goes first.
+     * @deprecated Use {@link CefriumChromeClient#onContextMenu}.
      */
+    @Deprecated
     public void setOnContextMenuListener(OnContextMenuListener listener) {
         checkThread("setOnContextMenuListener");
         mContextMenuListener = listener;
@@ -5410,7 +5415,10 @@ public class CefriumBrowser {
      * Use -1 to cancel.
      *
      * @param commandId The selected command ID, or -1 to cancel.
+     * @deprecated Use {@link CefriumContextMenu.Item#execute} and
+     *     {@link CefriumContextMenu#cancel}.
      */
+    @Deprecated
     public void contextMenuCommand(int commandId) {
         checkThread("contextMenuCommand");
         if (isLive()) nativeContextMenuCommand(mNativePtr, commandId);
@@ -5419,10 +5427,14 @@ public class CefriumBrowser {
     // Called from native to copy text to Android clipboard.
     @SuppressWarnings("unused")
     private void copyToClipboard(String text) {
-        if (mActivity != null) {
+        // The application context: an off-screen browser may have no activity,
+        // and then "Copy link" copied nothing.
+        android.content.Context context = mActivity != null ? mActivity
+                : org.chromium.base.ContextUtils.getApplicationContext();
+        if (context != null) {
             android.content.ClipboardManager clipboard =
                     (android.content.ClipboardManager)
-                    mActivity.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+                    context.getSystemService(android.content.Context.CLIPBOARD_SERVICE);
             if (clipboard != null) {
                 clipboard.setPrimaryClip(
                         android.content.ClipData.newPlainText("Cefrium", text));
@@ -5430,10 +5442,43 @@ public class CefriumBrowser {
         }
     }
 
-    // Called from native CefContextMenuHandler::RunContextMenu.
-    @SuppressWarnings("unused")
-    private void onContextMenu(String menuItems, String url) {
-        if (mCallback != null) mCallback.onContextMenu(menuItems, url);
-        if (mContextMenuListener != null) mContextMenuListener.onContextMenu(menuItems, url);
+    // Called from native CefContextMenuHandler::RunContextMenu: the items (the
+    // SDK's own ids) and the parameters. |mediaType| is a
+    // CefriumContextMenu.MediaType ordinal, mapped in native.
+    @SuppressWarnings({"unused", "deprecation"})
+    private void onContextMenuShown(int[] ids, String[] labels, boolean[] enabled,
+            String pageUrl, String linkUrl, String sourceUrl, String selectionText,
+            boolean editable, int mediaType, int x, int y) {
+        CefriumChromeClient chrome = mChromeClient;
+        if (chrome != null) {
+            CefriumContextMenu menu = new CefriumContextMenu(ids, labels, enabled, pageUrl,
+                    linkUrl, sourceUrl, selectionText, editable,
+                    CefriumContextMenu.MediaType.values()[mediaType], x, y, id -> {
+                        Runnable r = () -> {
+                            if (mNativePtr != 0 && !mClosed) nativeContextMenuCommand(mNativePtr, id);
+                        };
+                        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+                            r.run();
+                        } else {
+                            MAIN_HANDLER.post(r);
+                        }
+                    });
+            if (chrome.onContextMenu(this, menu)) return;
+        }
+        if (mCallback == null && mContextMenuListener == null) {
+            // Nobody shows it: close it, or the engine keeps waiting for it.
+            if (mNativePtr != 0) nativeContextMenuCommand(mNativePtr, -1);
+            return;
+        }
+        StringBuilder items = new StringBuilder();
+        for (int i = 0; i < ids.length; i++) {
+            if (i > 0) items.append('\n');
+            items.append(ids[i]).append('|').append(labels[i]);
+        }
+        String url = linkUrl != null && !linkUrl.isEmpty() ? linkUrl : sourceUrl;
+        if (mCallback != null) mCallback.onContextMenu(items.toString(), url);
+        if (mContextMenuListener != null) {
+            mContextMenuListener.onContextMenu(items.toString(), url);
+        }
     }
 }

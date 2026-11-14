@@ -55,6 +55,10 @@ in the internal FEATURE-NNN.md working docs (not published).
   `CefriumFileChooserParams` (typed `Mode`, accept types, `createIntent()`
   for the system picker, `parseResult()`) and a `CefriumFileChooserCallback`
   answerable from any thread. Returning false keeps the SDK's own chooser.
+- The context menu on `CefriumChromeClient.onContextMenu`: a
+  `CefriumContextMenu` with the link, image, page, selection, media type,
+  position and its entries (`Item.execute()`, `cancel()`, any thread), so no
+  engine id or "id|label" string reaches the app.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
 
@@ -76,6 +80,8 @@ in the internal FEATURE-NNN.md working docs (not published).
   `CefriumChromeClient.onJsDialog`.
 - `CefriumDialogHandler` and `setDialogHandler`: use
   `CefriumChromeClient.onShowFileChooser`.
+- `OnContextMenuListener`, `setOnContextMenuListener` and
+  `contextMenuCommand`: use `CefriumChromeClient.onContextMenu`.
 
 ### Changed
 - **`onRequestIntercepted` is called on the UI thread** (`Callback` and
@@ -84,6 +90,9 @@ in the internal FEATURE-NNN.md working docs (not published).
   it threw, and URLs were cut at 200 characters.
 
 ### Fixed
+- "Copy link" and "Copy image URL" in an off-screen browser with no activity
+  copied nothing; they use the application's clipboard now. A context menu
+  nobody shows is closed instead of left pending.
 - **`setContentSetting` with `PERMISSION_CLIPBOARD` set the origin's
   notifications instead**: allowing the clipboard allowed notifications. It
   now sets the clipboard; an unknown permission or value throws

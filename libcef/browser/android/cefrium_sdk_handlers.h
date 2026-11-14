@@ -954,30 +954,72 @@ class SdkContextMenuHandler : public CefContextMenuHandler {
       return true;
     }
 
-    // Build menu items string: "id1|label1\nid2|label2\n..."
-    std::string menu_data;
-    for (size_t i = 0; i < model->GetCount(); i++) {
-      if (i > 0) menu_data += "\n";
-      menu_data += std::to_string(model->GetCommandIdAt(i)) + "|" +
-                   model->GetLabelAt(i).ToString();
-    }
-
     pending_callback_ = callback;
 
-    // Call Java to show AlertDialog.
+    // FEATURE-092: the items and the parameters, typed, for
+    // CefriumContextMenu (and the legacy "id|label" listener, built in Java).
+    // The ids are the SDK's own (OnBeforeContextMenu), never shown to apps.
     JNIEnv* env = base::android::AttachCurrentThread();
-    jclass cls = env->GetObjectClass(java_browser_);
-    jmethodID method = env->GetMethodID(cls, "onContextMenu",
-        "(Ljava/lang/String;Ljava/lang/String;)V");
-    if (method) {
-      jstring j_menu = env->NewStringUTF(menu_data.c_str());
-      std::string url = params->GetLinkUrl().ToString();
-      if (url.empty()) url = params->GetSourceUrl().ToString();
-      jstring j_url = env->NewStringUTF(url.c_str());
-      env->CallVoidMethod(java_browser_, method, j_menu, j_url);
-      env->DeleteLocalRef(j_menu);
-      env->DeleteLocalRef(j_url);
+    const jsize n = static_cast<jsize>(model->GetCount());
+    std::vector<jint> ids(n);
+    std::vector<jboolean> enabled(n);
+    std::vector<std::string> labels(n);
+    for (jsize i = 0; i < n; i++) {
+      ids[i] = model->GetCommandIdAt(i);
+      enabled[i] = model->IsEnabledAt(i) ? JNI_TRUE : JNI_FALSE;
+      labels[i] = model->GetLabelAt(i).ToString();
     }
+    jintArray j_ids = env->NewIntArray(n);
+    env->SetIntArrayRegion(j_ids, 0, n, ids.data());
+    jbooleanArray j_enabled = env->NewBooleanArray(n);
+    env->SetBooleanArrayRegion(j_enabled, 0, n, enabled.data());
+    base::android::ScopedJavaLocalRef<jobjectArray> j_labels =
+        base::android::ToJavaArrayOfStrings(env, labels);
+    jint media = 4;  // CefriumContextMenu.MediaType.OTHER
+    switch (params->GetMediaType()) {
+      case CM_MEDIATYPE_NONE:
+        media = 0;
+        break;
+      case CM_MEDIATYPE_IMAGE:
+        media = 1;
+        break;
+      case CM_MEDIATYPE_VIDEO:
+        media = 2;
+        break;
+      case CM_MEDIATYPE_AUDIO:
+        media = 3;
+        break;
+      default:
+        media = 4;
+        break;
+    }
+    jclass cls = env->GetObjectClass(java_browser_);
+    jmethodID method = env->GetMethodID(
+        cls, "onContextMenuShown",
+        "([I[Ljava/lang/String;[ZLjava/lang/String;Ljava/lang/String;"
+        "Ljava/lang/String;Ljava/lang/String;ZIII)V");
+    if (method) {
+      auto str = [env](const CefString& v) {
+        return env->NewStringUTF(v.ToString().c_str());
+      };
+      jstring j_page = str(params->GetPageUrl());
+      jstring j_link = str(params->GetLinkUrl());
+      jstring j_source = str(params->GetSourceUrl());
+      jstring j_selection = str(params->GetSelectionText());
+      env->CallVoidMethod(java_browser_, method, j_ids, j_labels.obj(),
+                          j_enabled, j_page, j_link, j_source, j_selection,
+                          params->IsEditable() ? JNI_TRUE : JNI_FALSE, media,
+                          params->GetXCoord(), params->GetYCoord());
+      env->DeleteLocalRef(j_page);
+      env->DeleteLocalRef(j_link);
+      env->DeleteLocalRef(j_source);
+      env->DeleteLocalRef(j_selection);
+    } else {
+      CancelMenu();
+    }
+    env->DeleteLocalRef(j_ids);
+    env->DeleteLocalRef(j_enabled);
+    env->DeleteLocalRef(cls);
     return true;  // We handle display.
   }
 
