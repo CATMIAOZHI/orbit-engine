@@ -847,6 +847,53 @@ Java_com_cefrium_CefriumBrowser_nativeLoadUrl(
   env->ReleaseStringUTFChars(url_jstr, url);
 }
 
+// FEATURE-092: loadUrl(url, headers), WebView's loadUrl(String, Map). The
+// headers go on the main resource only, as LoadURLParams.extra_headers does
+// for WebView. CefFrame::LoadRequest cannot do this: it goes through the
+// renderer and fails cross-origin (cef_frame.h). |headers| alternates names
+// and values; Java has rejected CR and LF in them.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeLoadUrlWithHeaders(
+    JNIEnv* env, jobject thiz, jlong native_ptr, jstring url_jstr,
+    jobjectArray headers_jarr) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data) return;
+  std::string extra;
+  const jsize n = headers_jarr ? env->GetArrayLength(headers_jarr) : 0;
+  for (jsize i = 0; i + 1 < n; i += 2) {
+    auto name = static_cast<jstring>(env->GetObjectArrayElement(headers_jarr, i));
+    auto value =
+        static_cast<jstring>(env->GetObjectArrayElement(headers_jarr, i + 1));
+    extra += cefrium_sdk::JStr(env, name).ToString() + ": " +
+             cefrium_sdk::JStr(env, value).ToString() + "\r\n";
+    env->DeleteLocalRef(name);
+    env->DeleteLocalRef(value);
+  }
+  std::string url = cefrium_sdk::JStr(env, url_jstr).ToString();
+  if (!data->browser && !data->popup_pending) {
+    // An off-screen browser is created by its first load; create it empty and
+    // load once it exists.
+    CefWindowInfo window_info;
+    window_info.SetAsWindowless(0);
+    CefBrowserSettings browser_settings;
+    browser_settings.background_color = data->background_color;
+    CefBrowserHost::CreateBrowserSync(window_info, data->client, CefString(),
+                                      browser_settings, nullptr,
+                                      ContextFor(data));
+  }
+  RunWhenCreated(data, base::BindOnce(
+                           [](std::string u, std::string h,
+                              CefRefPtr<CefBrowser> b) {
+                             static_cast<CefFrameHostImpl*>(
+                                 b->GetMainFrame().get())
+                                 ->LoadURLWithExtras(
+                                     u, content::Referrer(),
+                                     CefFrameHostImpl::kPageTransitionExplicit,
+                                     h);
+                           },
+                           url, extra));
+}
+
 // Reap render processes left orphaned (0 RenderFrameHosts) after a browser closes
 // -- e.g. when CefriumBrowserPool evicts an LRU browser. CloseBrowser destroys the
 // WebContents but Chromium may keep the child process around; on process-per-browser

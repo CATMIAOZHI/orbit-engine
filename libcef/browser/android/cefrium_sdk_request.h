@@ -362,6 +362,52 @@ class AdBlockExceptions {
 // not the site.
 bool IsProxyError(cef_errorcode_t error);
 
+// FEATURE-092: the ordinal of com.cefrium.CefriumResourceType for |type|, so
+// no CEF value reaches the public API. Keep in the enum's order. No default:
+// a value CEF adds fails the build here instead of reaching apps as a number.
+inline int CefriumResourceType(cef_resource_type_t type) {
+  enum { MAIN_FRAME, SUB_FRAME, STYLESHEET, SCRIPT, IMAGE, FONT, MEDIA, XHR,
+         WORKER, SERVICE_WORKER, PING, FAVICON, PREFETCH, OTHER };
+  switch (type) {
+    case RT_MAIN_FRAME:
+    case RT_NAVIGATION_PRELOAD_MAIN_FRAME:
+      return MAIN_FRAME;
+    case RT_SUB_FRAME:
+    case RT_NAVIGATION_PRELOAD_SUB_FRAME:
+      return SUB_FRAME;
+    case RT_STYLESHEET:
+      return STYLESHEET;
+    case RT_SCRIPT:
+      return SCRIPT;
+    case RT_IMAGE:
+      return IMAGE;
+    case RT_FONT_RESOURCE:
+      return FONT;
+    case RT_MEDIA:
+      return MEDIA;
+    case RT_XHR:
+      return XHR;
+    case RT_WORKER:
+    case RT_SHARED_WORKER:
+      return WORKER;
+    case RT_SERVICE_WORKER:
+      return SERVICE_WORKER;
+    case RT_PING:
+    case RT_CSP_REPORT:
+      return PING;
+    case RT_FAVICON:
+      return FAVICON;
+    case RT_PREFETCH:
+      return PREFETCH;
+    case RT_SUB_RESOURCE:
+    case RT_OBJECT:
+    case RT_PLUGIN_RESOURCE:
+    case RT_NUM_VALUES:
+      return OTHER;
+  }
+  return OTHER;
+}
+
 class SdkResourceRequestHandler : public CefResourceRequestHandler {
  public:
   // Which Java listeners exist, from CefriumBrowser.updateRequestObservers().
@@ -371,6 +417,7 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
     kInterceptor = 1 << 0,       // RequestInterceptor
     kInterceptListener = 1 << 1,  // onRequestIntercepted
     kResourceEvents = 1 << 2,     // CefriumRequestHandler redirect/response/complete
+    kResponseInterceptor = 1 << 3,  // shouldInterceptRequest overridden
   };
 
   void SetResponseTapEnabled(bool e) { response_tap_enabled_ = e; }
@@ -393,8 +440,11 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
     jclass cls = env->GetObjectClass(java_browser);
     should_block_ = env->GetMethodID(
         cls, "onShouldBlockRequest",
-        "(Ljava/lang/String;Ljava/lang/String;ZILjava/lang/String;"
+        "(Ljava/lang/String;Ljava/lang/String;ZIILjava/lang/String;"
         "Ljava/lang/String;)Z");
+    intercept_ = env->GetMethodID(
+        cls, "onInterceptRequest",
+        "(JLjava/lang/String;Ljava/lang/String;[Ljava/lang/String;[B)V");
     intercepted_ = env->GetMethodID(
         cls, "onRequestIntercepted", "(Ljava/lang/String;Ljava/lang/String;Z)V");
     redirect_ = env->GetMethodID(cls, "onResourceRedirect",
@@ -417,7 +467,7 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
       CefRefPtr<CefFrame> frame,
       CefRefPtr<CefRequest> request,
       CefRefPtr<CefCallback> callback) override {
-    return BeforeResourceLoad(browser, frame, request, std::string());
+    return BeforeResourceLoad(browser, frame, request, std::string(), callback);
   }
 
   // |initiator| is the origin of the document that made the request, as the
@@ -426,11 +476,13 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
       CefRefPtr<CefBrowser> browser,
       CefRefPtr<CefFrame> frame,
       CefRefPtr<CefRequest> request,
-      const std::string& initiator) {
+      const std::string& initiator,
+      CefRefPtr<CefCallback> callback) {
     const int observers = observers_;
     std::shared_ptr<const AdBlockFilter> filter =
         adblock_enabled_ ? AdBlockFilter::Current() : nullptr;
-    if (!filter && !(observers & (kInterceptor | kInterceptListener))) {
+    if (!filter && !(observers & (kInterceptor | kInterceptListener |
+                                  kResponseInterceptor))) {
       return RV_CONTINUE;
     }
     const std::string url = request->GetURL().ToString();
@@ -463,7 +515,8 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
       jstring jt = env->NewStringUTF(top.c_str());
       blocked = env->CallBooleanMethod(jb, should_block_, ju, jm,
                                        frame && frame->IsMain(),
-                                       static_cast<jint>(type), jd, jt);
+                                       static_cast<jint>(type),
+                                       CefriumResourceType(type), jd, jt);
       env->DeleteLocalRef(ju);
       env->DeleteLocalRef(jm);
       env->DeleteLocalRef(jd);
@@ -479,7 +532,17 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
       env->DeleteLocalRef(ju);
       env->DeleteLocalRef(jm);
     }
-    return blocked ? RV_CANCEL : RV_CONTINUE;
+    if (blocked) {
+      return RV_CANCEL;
+    }
+    // FEATURE-092: the interceptor may answer instead of the network; the
+    // request waits for its decision (GetResourceHandler then serves it).
+    if (env && intercept_ && callback && (observers & kResponseInterceptor) &&
+        cefrium_sdk::StartInterception(env, jb, intercept_, request,
+                                       callback)) {
+      return RV_CONTINUE_ASYNC;
+    }
+    return RV_CONTINUE;
   }
 
   // Serve a registered loadHtmlWithBaseUrl document as a real network response.
@@ -490,12 +553,16 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
       CefRefPtr<CefBrowser> browser,
       CefRefPtr<CefFrame> frame,
       CefRefPtr<CefRequest> request) override {
+    // Taken first so an answer never lingers; a loadHtmlWithBaseUrl document
+    // still wins, as WebView does not intercept loadDataWithBaseURL.
+    CefRefPtr<CefResourceHandler> intercepted =
+        cefrium_sdk::TakeInterceptedHandler(request->GetIdentifier());
     const std::string url = request->GetURL().ToString();
     base::AutoLock lock(PendingDocsLock());
     auto& docs = PendingDocs();
     auto it = docs.find(url);
     if (it == docs.end()) {
-      return nullptr;
+      return intercepted;
     }
     PendingDataDoc doc = std::move(it->second);
     docs.erase(it);
@@ -638,6 +705,7 @@ class SdkResourceRequestHandler : public CefResourceRequestHandler {
   std::atomic<jobject> java_browser_{nullptr};
   jmethodID should_block_ = nullptr;
   jmethodID intercepted_ = nullptr;
+  jmethodID intercept_ = nullptr;
   jmethodID redirect_ = nullptr;
   jmethodID response_ = nullptr;
   jmethodID complete_ = nullptr;
@@ -663,7 +731,8 @@ class SdkSubresourceRequestHandler : public CefResourceRequestHandler {
                                    CefRefPtr<CefFrame> frame,
                                    CefRefPtr<CefRequest> request,
                                    CefRefPtr<CefCallback> callback) override {
-    return shared_->BeforeResourceLoad(browser, frame, request, initiator_);
+    return shared_->BeforeResourceLoad(browser, frame, request, initiator_,
+                                       callback);
   }
   CefRefPtr<CefResourceHandler> GetResourceHandler(
       CefRefPtr<CefBrowser> browser,

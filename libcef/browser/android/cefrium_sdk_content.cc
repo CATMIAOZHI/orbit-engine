@@ -106,6 +106,40 @@ class JavaServer : public base::RefCountedThreadSafe<JavaServer> {
 
 class ContentResourceHandler;
 
+// A request's headers as alternating names and values.
+ScopedJavaLocalRef<jobjectArray> HeadersOf(JNIEnv* env,
+                                           CefRefPtr<CefRequest> request) {
+  CefRequest::HeaderMap headers;
+  request->GetHeaderMap(headers);
+  std::vector<std::string> pairs;
+  for (const auto& [name, value] : headers) {
+    pairs.push_back(name.ToString());
+    pairs.push_back(value.ToString());
+  }
+  return base::android::ToJavaArrayOfStrings(env, pairs);
+}
+
+// A request's body bytes; null when it has no body.
+ScopedJavaLocalRef<jbyteArray> BodyOf(JNIEnv* env,
+                                      CefRefPtr<CefRequest> request) {
+  CefRefPtr<CefPostData> post = request->GetPostData();
+  if (!post) {
+    return ScopedJavaLocalRef<jbyteArray>();
+  }
+  std::string body;
+  CefPostData::ElementVector elements;
+  post->GetElements(elements);
+  for (const auto& element : elements) {
+    // Files and blobs are not read here; see getBody().
+    if (element->GetType() == PDE_TYPE_BYTES && element->GetBytesCount()) {
+      const size_t start = body.size();
+      body.resize(start + element->GetBytesCount());
+      element->GetBytes(element->GetBytesCount(), body.data() + start);
+    }
+  }
+  return base::android::ToJavaByteArray(env, body);
+}
+
 // The requests Java is answering, by id. Java's answers find their handler
 // here; a cancelled request is gone, and its late answers are dropped.
 base::Lock& LiveLock() {
@@ -154,33 +188,9 @@ class ContentResourceHandler : public CefResourceHandler {
     }
 
     JNIEnv* env = AttachCurrentThread();
-    CefRequest::HeaderMap headers;
-    request->GetHeaderMap(headers);
-    std::vector<std::string> pairs;
-    for (const auto& [name, value] : headers) {
-      pairs.push_back(name.ToString());
-      pairs.push_back(value.ToString());
-    }
-    ScopedJavaLocalRef<jobjectArray> j_headers =
-        base::android::ToJavaArrayOfStrings(env, pairs);
+    ScopedJavaLocalRef<jobjectArray> j_headers = HeadersOf(env, request);
 
-    std::string body;
-    if (CefRefPtr<CefPostData> post = request->GetPostData()) {
-      CefPostData::ElementVector elements;
-      post->GetElements(elements);
-      for (const auto& element : elements) {
-        // Files and blobs are not read here; see getBody().
-        if (element->GetType() == PDE_TYPE_BYTES && element->GetBytesCount()) {
-          const size_t start = body.size();
-          body.resize(start + element->GetBytesCount());
-          element->GetBytes(element->GetBytesCount(), body.data() + start);
-        }
-      }
-    }
-    ScopedJavaLocalRef<jbyteArray> j_body;
-    if (request->GetPostData()) {
-      j_body = base::android::ToJavaByteArray(env, body);
-    }
+    ScopedJavaLocalRef<jbyteArray> j_body = BodyOf(env, request);
 
     const Host& host = JavaHost();
     env->CallStaticVoidMethod(
@@ -382,7 +392,79 @@ constexpr char kScheme[] = "https";
 
 }  // namespace
 
+namespace {
+
+// FEATURE-092: CefriumResourceInterceptor.shouldInterceptRequest. Java
+// decides on its content pool while the request waits (RV_CONTINUE_ASYNC);
+// an answer is then served by a ContentResourceHandler, null lets the
+// request go to the network.
+struct PendingDecision {
+  CefRefPtr<CefCallback> callback;
+  uint64_t request_id;
+};
+base::Lock& InterceptLock() {
+  static base::NoDestructor<base::Lock> lock;
+  return *lock;
+}
+std::map<jlong, PendingDecision>& PendingDecisions() {
+  static base::NoDestructor<std::map<jlong, PendingDecision>> pending;
+  return *pending;
+}
+std::map<uint64_t, scoped_refptr<JavaServer>>& Answered() {
+  static base::NoDestructor<std::map<uint64_t, scoped_refptr<JavaServer>>> a;
+  return *a;
+}
+
+}  // namespace
+
 namespace cefrium_sdk {
+
+bool StartInterception(JNIEnv* env,
+                       jobject java_browser,
+                       jmethodID method,
+                       CefRefPtr<CefRequest> request,
+                       CefRefPtr<CefCallback> callback) {
+  if (!JavaHost().start) {
+    return false;  // no interceptor was ever set on the main thread
+  }
+  static std::atomic<jlong> next_id{1};
+  const jlong id = next_id++;
+  {
+    base::AutoLock lock(InterceptLock());
+    PendingDecisions()[id] = {callback, request->GetIdentifier()};
+  }
+  ScopedJavaLocalRef<jobjectArray> headers = HeadersOf(env, request);
+  ScopedJavaLocalRef<jbyteArray> body = BodyOf(env, request);
+  env->CallVoidMethod(
+      java_browser, method, id,
+      base::android::ConvertUTF8ToJavaString(env,
+                                             request->GetMethod().ToString())
+          .obj(),
+      base::android::ConvertUTF8ToJavaString(env, request->GetURL().ToString())
+          .obj(),
+      headers.obj(), body.obj());
+  if (env->ExceptionCheck()) {
+    ClearException(env);
+    base::AutoLock lock(InterceptLock());
+    PendingDecisions().erase(id);
+    return false;
+  }
+  return true;
+}
+
+CefRefPtr<CefResourceHandler> TakeInterceptedHandler(uint64_t request_id) {
+  scoped_refptr<JavaServer> server;
+  {
+    base::AutoLock lock(InterceptLock());
+    auto it = Answered().find(request_id);
+    if (it == Answered().end()) {
+      return nullptr;
+    }
+    server = it->second;
+    Answered().erase(it);
+  }
+  return new ContentResourceHandler(server);
+}
 
 void ApplyContentServers(CefRefPtr<CefRequestContext> context,
                          bool incognito,
@@ -502,4 +584,37 @@ Java_com_cefrium_ContentServerHost_nativeOnSkipped(JNIEnv* env,
   if (CefRefPtr<ContentResourceHandler> handler = Find(id)) {
     handler->OnSkipped(result);
   }
+}
+
+// The interceptor's answer for decision |id|: |server| serves the response,
+// or null for the network. Any thread.
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeOnInterceptDecision(JNIEnv* env,
+                                                         jclass,
+                                                         jlong id,
+                                                         jobject server) {
+  CefRefPtr<CefCallback> callback;
+  {
+    base::AutoLock lock(InterceptLock());
+    auto it = PendingDecisions().find(id);
+    if (it == PendingDecisions().end()) {
+      return;
+    }
+    callback = it->second.callback;
+    if (server) {
+      Answered()[it->second.request_id] =
+          base::MakeRefCounted<JavaServer>(env, server);
+    }
+    PendingDecisions().erase(it);
+  }
+  callback->Continue();
+}
+
+// Looks up ContentServerHost on the main thread, where app classes are
+// visible, before the first interception.
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_cefrium_CefriumBrowser_nativeInitContentHost(JNIEnv* env,
+                                                     jclass,
+                                                     jclass host_class) {
+  return InitJavaHost(env, host_class) ? JNI_TRUE : JNI_FALSE;
 }

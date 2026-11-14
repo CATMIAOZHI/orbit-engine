@@ -103,14 +103,32 @@ webView.setWebViewClient(new WebViewClient() {
 });
 ```
 
-### Cefrium (full access -- all methods, all headers)
+### Cefrium
 ```java
-browser.setOnRequestInterceptedListener((url, method, blocked) -> {
-    // Every request: GET, POST, PUT, etc.
-    // blocked = true if ad blocker matched
-    Log.i("Network", method + " " + url + (blocked ? " BLOCKED" : ""));
+browser.setResourceInterceptor(new CefriumResourceInterceptor() {
+    @Override   // network thread, fast: true cancels
+    public boolean shouldBlockRequest(CefriumBrowser.ResourceRequest r) {
+        return r.getType() == CefriumResourceType.SCRIPT && r.url.contains("tracker");
+    }
+    @Override   // background thread, may block: null = the network
+    public CefriumContentResponse shouldInterceptRequest(CefriumContentRequest r) {
+        if (r.getUrl().startsWith("https://www.example.com/")) {
+            return CefriumContentResponse.ofText("text/html", offlineCopy(r.getPath()));
+        }
+        return null;
+    }
 });
 ```
+
+Unlike WebView, `shouldInterceptRequest` sees every method with its headers
+and body (a POST's body included), and Range requests and `HEAD` are
+answered for you. To only watch requests, use
+`setOnRequestInterceptedListener` (UI thread).
+
+### Headers on a load
+
+`webView.loadUrl(url, headers)` -> `browser.loadUrl(url, headers)`: the
+headers go with the page's own request only, as in WebView.
 
 ## App content: `WebViewAssetLoader`
 

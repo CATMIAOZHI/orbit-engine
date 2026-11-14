@@ -20,8 +20,11 @@
 #include "base/functional/callback.h"
 #include "base/synchronization/lock.h"
 #include "cef/include/cef_browser.h"
+#include "cef/include/cef_callback.h"
 #include "cef/include/cef_registration.h"
+#include "cef/include/cef_request.h"
 #include "cef/include/cef_request_context.h"
+#include "cef/include/cef_resource_handler.h"
 #include "cef/libcef/browser/android/browser_surface_android.h"
 #include "ui/android/window_android.h"
 
@@ -108,6 +111,21 @@ void RegisterScriptedPrint();
 void ApplyContentServers(CefRefPtr<CefRequestContext> context,
                          bool incognito,
                          const std::string& profile);
+
+// FEATURE-092 (cefrium_sdk_content.cc): asks the Java interceptor of
+// |java_browser| (|method| is its onInterceptRequest) about |request| on the
+// content pool; |callback| continues the request once Java has answered.
+// False if Java could not be asked: the request then goes on unchanged. IO
+// thread.
+bool StartInterception(JNIEnv* env,
+                       jobject java_browser,
+                       jmethodID method,
+                       CefRefPtr<CefRequest> request,
+                       CefRefPtr<CefCallback> callback);
+
+// The handler serving the interceptor's answer for request |request_id|, or
+// null when it answered null (the network). IO thread.
+CefRefPtr<CefResourceHandler> TakeInterceptedHandler(uint64_t request_id);
 
 // The UTF-8 contents of |j|, empty for null.
 CefString JStr(JNIEnv* env, jstring j);

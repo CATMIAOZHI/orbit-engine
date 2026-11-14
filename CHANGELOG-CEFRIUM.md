@@ -24,8 +24,22 @@ in the internal FEATURE-NNN.md working docs (not published).
   on; return true to cancel it, for example to open a link in another app.
   Not called for `loadUrl` or back/forward. `CefriumNavigationRequest` gives
   the URL, method, frame, redirect, gesture and headers.
+- **`loadUrl(url, headers)`**, WebView's `loadUrl(String, Map)`: the headers
+  go with the page's own request, not with its resources.
+- **`CefriumResourceInterceptor`** (`setResourceInterceptor`), WebView's
+  `shouldInterceptRequest` and more: `shouldBlockRequest` cancels on the
+  network thread; `shouldInterceptRequest` answers any request (any URL,
+  method, headers and body) from a background thread, or returns null for the
+  network, with Range and `HEAD` handled. `ResourceRequest.getType()` returns
+  a `CefriumResourceType`.
 - The public API is checked at every release against a committed baseline
   (`cefrium_sdk/api/`), so an API change cannot ship unnoticed.
+
+### Deprecated
+- `RequestInterceptor` and `setRequestInterceptor` (use
+  `CefriumResourceInterceptor`); `ResourceRequest.resourceType` and its
+  `TYPE_` constants, which are the engine's numbers (use `getType()`).
+  Removed at 1.0.
 
 ### Changed
 - **`onRequestIntercepted` is called on the UI thread** (`Callback` and

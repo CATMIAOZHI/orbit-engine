@@ -276,6 +276,42 @@ public class CefriumBrowser {
     }
 
     /**
+     * Navigate to a URL, sending {@code additionalHttpHeaders} with the page's
+     * own request (not with the resources it loads), as WebView's
+     * {@code loadUrl(String, Map)}. A header the engine sets itself
+     * ({@code User-Agent}, {@code Cookie}) may be replaced by the engine's
+     * value.
+     *
+     * @throws IllegalArgumentException if a name is empty or contains a colon,
+     *     or a name or value contains a line break
+     */
+    public void loadUrl(String url, java.util.Map<String, String> additionalHttpHeaders) {
+        checkThread("loadUrl");
+        if (additionalHttpHeaders == null || additionalHttpHeaders.isEmpty()) {
+            loadUrl(url);
+            return;
+        }
+        String[] pairs = new String[additionalHttpHeaders.size() * 2];
+        int i = 0;
+        for (java.util.Map.Entry<String, String> e : additionalHttpHeaders.entrySet()) {
+            String name = e.getKey();
+            String value = e.getValue() == null ? "" : e.getValue();
+            if (name == null || name.trim().isEmpty() || name.indexOf(':') >= 0
+                    || hasLineBreak(name) || hasLineBreak(value)) {
+                throw new IllegalArgumentException("bad header: " + name);
+            }
+            pairs[i++] = name.trim();
+            pairs[i++] = value;
+        }
+        if (!checkNative("loadUrl")) return;
+        nativeLoadUrlWithHeaders(mNativePtr, url, pairs);
+    }
+
+    private static boolean hasLineBreak(String s) {
+        return s.indexOf('\r') >= 0 || s.indexOf('\n') >= 0;
+    }
+
+    /**
      * Sets the background colour, as ARGB: what shows where the page draws no
      * background of its own, and before its first frame. The default is opaque
      * white.
@@ -663,9 +699,21 @@ public class CefriumBrowser {
         if (mNativePtr == 0) return;
         int observers = 0;
         if (mRequestInterceptor != null) observers |= 1;
+        if (overridesInterceptRequest(mRequestInterceptor)) observers |= 8;
         if (mRequestListener != null || overridesRequestIntercepted(mCallback)) observers |= 2;
         if (mRequestHandler != null) observers |= 4;
         nativeSetRequestObservers(mNativePtr, observers);
+    }
+
+    private static boolean overridesInterceptRequest(CefriumResourceInterceptor i) {
+        if (i == null) return false;
+        try {
+            return i.getClass().getMethod("shouldInterceptRequest",
+                    CefriumContentRequest.class).getDeclaringClass()
+                    != CefriumResourceInterceptor.class;
+        } catch (NoSuchMethodException e) {
+            return true;
+        }
     }
 
     private static boolean overridesRequestIntercepted(Callback callback) {
@@ -1794,7 +1842,9 @@ public class CefriumBrowser {
      * must not touch the UI. Consulted for requests a loaded ad-block list did
      * not already block (see {@link Cefrium#loadAdBlockList}).
      */
-    public interface RequestInterceptor {
+    /** @deprecated Use {@link CefriumResourceInterceptor}. */
+    @Deprecated
+    public interface RequestInterceptor extends CefriumResourceInterceptor {
         /** Return true to block (cancel) this request. */
         boolean shouldBlockRequest(String url, String method, boolean isMainFrame);
 
@@ -1803,46 +1853,74 @@ public class CefriumBrowser {
          * the resource type and the documents behind the request; the browser
          * calls it, and by default it calls the three-argument form.
          */
+        @Override
         default boolean shouldBlockRequest(ResourceRequest request) {
             return shouldBlockRequest(request.url, request.method, request.isMainFrame);
         }
     }
 
-    /** A request as {@link RequestInterceptor} sees it. */
+    /** A request as {@link CefriumResourceInterceptor} sees it. */
     public static final class ResourceRequest {
+        // The TYPE_ constants are the engine's numbers, deprecated with
+        // resourceType: use getType() and CefriumResourceType.
         /** A page loaded into the main frame. */
+        @Deprecated
         public static final int TYPE_MAIN_FRAME = 0;
         /** A page loaded into an iframe. */
+        @Deprecated
         public static final int TYPE_SUB_FRAME = 1;
+        @Deprecated
         public static final int TYPE_STYLESHEET = 2;
+        @Deprecated
         public static final int TYPE_SCRIPT = 3;
+        @Deprecated
         public static final int TYPE_IMAGE = 4;
+        @Deprecated
         public static final int TYPE_FONT = 5;
         /** Anything else a page loads that has no type of its own. */
+        @Deprecated
         public static final int TYPE_SUB_RESOURCE = 6;
         /** {@code <object>} and {@code <embed>}. */
+        @Deprecated
         public static final int TYPE_OBJECT = 7;
         /** Audio and video. */
+        @Deprecated
         public static final int TYPE_MEDIA = 8;
+        @Deprecated
         public static final int TYPE_WORKER = 9;
+        @Deprecated
         public static final int TYPE_SHARED_WORKER = 10;
+        @Deprecated
         public static final int TYPE_PREFETCH = 11;
+        @Deprecated
         public static final int TYPE_FAVICON = 12;
         /** {@code fetch()} and {@code XMLHttpRequest}. */
+        @Deprecated
         public static final int TYPE_XHR = 13;
         /** {@code navigator.sendBeacon} and {@code <a ping>}. */
+        @Deprecated
         public static final int TYPE_PING = 14;
+        @Deprecated
         public static final int TYPE_SERVICE_WORKER = 15;
+        @Deprecated
         public static final int TYPE_CSP_REPORT = 16;
+        @Deprecated
         public static final int TYPE_PLUGIN_RESOURCE = 17;
+        @Deprecated
         public static final int TYPE_NAVIGATION_PRELOAD_MAIN_FRAME = 19;
+        @Deprecated
         public static final int TYPE_NAVIGATION_PRELOAD_SUB_FRAME = 20;
 
         public final String url;
         public final String method;
         /** Whether the main frame made the request (true for its own navigation). */
         public final boolean isMainFrame;
-        /** One of the {@code TYPE_} constants. */
+        /**
+         * One of the {@code TYPE_} constants.
+         * @deprecated Use {@link #getType()}: these numbers are the engine's
+         *     and may change with it.
+         */
+        @Deprecated
         public final int resourceType;
         /**
          * The document that made the request: for a subresource the page that
@@ -1862,20 +1940,50 @@ public class CefriumBrowser {
          */
         public final String topLevelUrl;
 
+        private final CefriumResourceType mType;
+
         ResourceRequest(String url, String method, boolean isMainFrame, int resourceType,
-                String documentUrl, String topLevelUrl) {
+                CefriumResourceType type, String documentUrl, String topLevelUrl) {
             this.url = url;
             this.method = method;
             this.isMainFrame = isMainFrame;
             this.resourceType = resourceType;
+            mType = type;
             this.documentUrl = documentUrl;
             this.topLevelUrl = topLevelUrl;
         }
+
+        /** What the request is for. */
+        public CefriumResourceType getType() {
+            return mType;
+        }
     }
 
-    private volatile RequestInterceptor mRequestInterceptor;
+    private volatile CefriumResourceInterceptor mRequestInterceptor;
+    private static boolean sContentHostReady;
 
-    /** Sets a programmatic request interceptor (null clears it). */
+    /**
+     * Sets the interceptor that sees, and may cancel or answer, every request
+     * of this browser (null removes it). The last one set wins, including one
+     * set with {@link #setRequestInterceptor}.
+     */
+    public void setResourceInterceptor(CefriumResourceInterceptor interceptor) {
+        checkThread("setResourceInterceptor");
+        // The engine finds ContentServerHost from here: its threads cannot
+        // look up app classes.
+        if (!sContentHostReady && overridesInterceptRequest(interceptor)) {
+            sContentHostReady = nativeInitContentHost(ContentServerHost.class);
+        }
+        mRequestInterceptor = interceptor;
+        if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
+        updateRequestObservers();
+    }
+
+    /**
+     * Sets a programmatic request interceptor (null clears it).
+     * @deprecated Use {@link #setResourceInterceptor}.
+     */
+    @Deprecated
     public void setRequestInterceptor(RequestInterceptor interceptor) {
         checkThread("setRequestInterceptor");
         mRequestInterceptor = interceptor;
@@ -1887,10 +1995,33 @@ public class CefriumBrowser {
 
     // Called from native (IO thread) for every request not already ad-blocked.
     private boolean onShouldBlockRequest(String url, String method, boolean isMainFrame,
-            int resourceType, String documentUrl, String topLevelUrl) {
-        RequestInterceptor i = mRequestInterceptor;
-        return i != null && i.shouldBlockRequest(new ResourceRequest(
-                url, method, isMainFrame, resourceType, documentUrl, topLevelUrl));
+            int resourceType, int type, String documentUrl, String topLevelUrl) {
+        CefriumResourceInterceptor i = mRequestInterceptor;
+        return i != null && i.shouldBlockRequest(new ResourceRequest(url, method,
+                isMainFrame, resourceType, CefriumResourceType.values()[type], documentUrl,
+                topLevelUrl));
+    }
+
+    // Called from native (IO thread) when the interceptor overrides
+    // shouldInterceptRequest; decision |id| waits for nativeOnInterceptDecision.
+    // An interceptor that throws crashes the app, as WebView's does, after the
+    // request is let go.
+    @SuppressWarnings("unused")
+    private void onInterceptRequest(long id, String method, String url, String[] headers,
+            byte[] body) {
+        CefriumResourceInterceptor i = mRequestInterceptor;
+        ContentServerHost.execute(() -> {
+            CefriumContentResponse response = null;
+            try {
+                if (i != null && !mClosed) {
+                    response = i.shouldInterceptRequest(
+                            ContentServerHost.requestOf(method, url, headers, body));
+                }
+            } finally {
+                final CefriumContentResponse answer = response;
+                nativeOnInterceptDecision(id, answer == null ? null : request -> answer);
+            }
+        });
     }
 
     // ─────────────── JS dialogs ───────────────
@@ -4837,6 +4968,10 @@ public class CefriumBrowser {
     private static native void nativeBindJavaBrowser(long nativePtr, CefriumBrowser browser);
     private static native boolean nativeSetBackgroundColor(long nativePtr, int argb);
     private static native void nativeLoadUrl(long nativePtr, String url);
+    private static native boolean nativeInitContentHost(Class<?> hostClass);
+    private static native void nativeOnInterceptDecision(long id, CefriumContentServer server);
+    private static native void nativeLoadUrlWithHeaders(long nativePtr, String url,
+            String[] headers);
     private static native void nativeLoadDataWithBaseUrl(long nativePtr, String baseUrl,
             String data, String mimeType, String encoding, String historyUrl);
     private static native void nativeInvalidate(long nativePtr);

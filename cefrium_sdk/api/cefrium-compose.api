@@ -41,6 +41,7 @@ public final class com.cefrium.compose.CefriumNavigator
   public final boolean getCanGoBack();
   public final boolean getCanGoForward();
   public final void loadUrl(java.lang.String);
+  public final void loadUrl(java.lang.String, java.util.Map<java.lang.String, java.lang.String>);
   public final void loadHtml(java.lang.String);
   public final void loadHtmlWithBaseUrl(java.lang.String, java.lang.String);
   public final void loadDataWithBaseUrl(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String);
@@ -77,7 +78,8 @@ public final class com.cefrium.compose.CefriumNavigator
   public final void sendTouchUp(float, float);
   public final void sendTap(float, float);
   public final void sendSwipe(float, float, float, float, int);
-  public final void setRequestInterceptor(com.cefrium.CefriumBrowser$RequestInterceptor);
+  public final void setResourceInterceptor(com.cefrium.CefriumResourceInterceptor);
+  [deprecated] public final void setRequestInterceptor(com.cefrium.CefriumBrowser$RequestInterceptor);
   public final void setPermissionHandler(com.cefrium.CefriumBrowser$PermissionHandler);
   public final void setContentSetting(java.lang.String, int, int);
   public final void setSslErrorHandler(com.cefrium.CefriumBrowser$SslErrorHandler);
