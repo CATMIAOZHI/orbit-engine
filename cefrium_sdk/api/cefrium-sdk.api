@@ -210,6 +210,11 @@ public class com.cefrium.CefriumBrowser
   [deprecated] public void setHttpAuthHandler(com.cefrium.CefriumBrowser$HttpAuthHandler);
   [deprecated] public void setPopupHandler(com.cefrium.CefriumBrowser$PopupHandler);
   public boolean canGoBack();
+  public boolean canGoForward();
+  public boolean canGoBackOrForward(int);
+  public void goBackOrForward(int);
+  public java.lang.String getTitle();
+  public int getProgress();
   public void suspendMedia();
   public void resumeMedia();
   public void setAudioMuted(boolean);

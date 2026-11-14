@@ -827,29 +827,40 @@ public class CefriumBrowser {
     // ── State preservation (Activity recreation: rotation, process death) ──
 
     /**
-     * Captures restorable browser state (the current URL) into a Bundle. Call
-     * from {@code Activity.onSaveInstanceState} and pass the result to
-     * {@link #restoreState} after recreating the browser.
+     * Captures this browser's history (every entry, with its scroll and form
+     * state, and the current one) and URL into a Bundle, as WebView's
+     * {@code saveState}. Call from {@code Activity.onSaveInstanceState} and
+     * pass the result to {@link #restoreState} on the new browser.
      */
     public android.os.Bundle saveState() {
         checkThread("saveState");
         android.os.Bundle state = new android.os.Bundle();
         if (mCurrentUrl != null) state.putString(STATE_URL, mCurrentUrl);
+        byte[] history = isLive() ? nativeSerializeNavigationState(mNativePtr) : null;
+        if (history != null && history.length > 0) state.putByteArray(STATE_HISTORY, history);
         return state;
     }
 
     /**
-     * Restores state previously captured by {@link #saveState} — re-navigates to
-     * the saved URL. No-op if {@code state} is null or holds no saved URL.
+     * Restores what {@link #saveState} captured: the whole history, so Back
+     * works, or only the URL when the bundle has no history (one written
+     * before 0.21). Call it on a fresh browser, before its first load, as
+     * WebView asks. No-op for null or an empty bundle.
      */
     public void restoreState(android.os.Bundle state) {
         checkThread("restoreState");
         if (state == null) return;
+        byte[] history = state.getByteArray(STATE_HISTORY);
+        if (history != null && history.length > 0) {
+            restoreNavigationState(history);
+            return;
+        }
         String url = state.getString(STATE_URL);
         if (url != null && !url.isEmpty()) loadUrl(url);
     }
 
     private static final String STATE_URL = "com.cefrium.browser.url";
+    private static final String STATE_HISTORY = "com.cefrium.browser.navigation";
 
     /**
      * Serializes this tab's full back/forward navigation stack (each entry's URL
@@ -1834,6 +1845,8 @@ public class CefriumBrowser {
      * ({@code navigator.userAgentData}); for those, call
      * {@code Emulation.setUserAgentOverride} with {@code userAgentMetadata}
      * through {@link #executeDevToolsMethod}.
+     *
+     * @param userAgent the User-Agent; null or empty restores the engine's own
      */
     public void setUserAgentOverride(String userAgent) {
         checkThread("setUserAgentOverride");
@@ -3193,6 +3206,43 @@ public class CefriumBrowser {
     public boolean canGoBack() {
         checkThread("canGoBack");
         return isLive() && nativeCanGoBack(mNativePtr);
+    }
+
+    /** @return true if the browser can navigate forward. */
+    public boolean canGoForward() {
+        checkThread("canGoForward");
+        return isLive() && nativeCanGoForward(mNativePtr);
+    }
+
+    /**
+     * Whether the history has an entry {@code steps} away: negative is back,
+     * positive forward. Like WebView's {@code canGoBackOrForward}.
+     */
+    public boolean canGoBackOrForward(int steps) {
+        checkThread("canGoBackOrForward");
+        return isLive() && nativeGoToOffset(mNativePtr, steps, false);
+    }
+
+    /**
+     * Goes {@code steps} entries back (negative) or forward (positive) in the
+     * history, if there are that many; otherwise does nothing. Like WebView's
+     * {@code goBackOrForward}.
+     */
+    public void goBackOrForward(int steps) {
+        checkThread("goBackOrForward");
+        if (isLive()) nativeGoToOffset(mNativePtr, steps, true);
+    }
+
+    /** The page's title, as the last title change gave it; null before the first. */
+    public String getTitle() {
+        checkThread("getTitle");
+        return mLastTitle;
+    }
+
+    /** How much of the current load is done, 0 to 100; 100 when nothing is loading. */
+    public int getProgress() {
+        checkThread("getProgress");
+        return mProgress;
     }
 
     // ---- Media / page lifecycle controls ----------------------------------
@@ -5026,8 +5076,11 @@ public class CefriumBrowser {
                     java.util.Arrays.asList(iconUrls == null ? new String[0] : iconUrls)));
         }
     }
+    private volatile int mProgress = 100;
+
     @SuppressWarnings("deprecation")
     private void onLoadingProgress(double progress) {
+        mProgress = (int) Math.round(Math.max(0, Math.min(1, progress)) * 100);
         CefriumDisplayHandler h = mDisplayHandler;
         if (h != null) h.onLoadingProgress(progress);
         CefriumNavigationClient nav = mNavigationClient;
@@ -5568,6 +5621,8 @@ public class CefriumBrowser {
     private static native void nativeBindJavaBrowser(long nativePtr, CefriumBrowser browser);
     private static native boolean nativeSetBackgroundColor(long nativePtr, int argb);
     private static native void nativeLoadUrl(long nativePtr, String url);
+    private static native boolean nativeCanGoForward(long nativePtr);
+    private static native boolean nativeGoToOffset(long nativePtr, int steps, boolean go);
     private static native boolean nativeInitContentHost(Class<?> hostClass);
     private static native void nativeOnInterceptDecision(long id, CefriumContentServer server);
     private static native void nativeLoadUrlWithHeaders(long nativePtr, String url,
