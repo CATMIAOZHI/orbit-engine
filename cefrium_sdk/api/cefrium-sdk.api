@@ -283,9 +283,9 @@ public class com.cefrium.CefriumBrowser
   public void resumeDownload(int);
   [deprecated] public void setDisplayHandler(com.cefrium.CefriumDisplayHandler);
   [deprecated] public void setLoadHandler(com.cefrium.CefriumLoadHandler);
-  public void setResponseTapEnabled(boolean);
-  public void setCookieFilterEnabled(boolean);
-  public void setRequestHandler(com.cefrium.CefriumRequestHandler);
+  [deprecated] public void setResponseTapEnabled(boolean);
+  [deprecated] public void setCookieFilterEnabled(boolean);
+  [deprecated] public void setRequestHandler(com.cefrium.CefriumRequestHandler);
   [deprecated] public void setKeyboardHandler(com.cefrium.CefriumKeyboardHandler);
   [experimental] public void setFocusHandler(com.cefrium.CefriumFocusHandler);
   [experimental] public void setDragHandler(com.cefrium.CefriumDragHandler);
@@ -782,6 +782,7 @@ public class com.cefrium.CefriumMediaSession
   public default void onProgressChanged(com.cefrium.CefriumBrowser, int);
   public default void onLoadError(com.cefrium.CefriumBrowser, com.cefrium.CefriumLoadError);
   public default void onRenderProcessTerminated(com.cefrium.CefriumBrowser, com.cefrium.CefriumRendererTerminationStatus, int);
+  public default void onDocumentAvailable(com.cefrium.CefriumBrowser);
   public default void onRenderProcessUnresponsive(com.cefrium.CefriumBrowser);
   public default void onRenderProcessResponsive(com.cefrium.CefriumBrowser);
   public default void onSslError(com.cefrium.CefriumBrowser, com.cefrium.CefriumSslError, com.cefrium.CefriumBrowser$SslErrorCallback);
@@ -992,7 +993,7 @@ public final class com.cefrium.CefriumRenderHandler$TouchHandle
   public static com.cefrium.CefriumRendererTerminationStatus[] values();
   public static com.cefrium.CefriumRendererTerminationStatus valueOf(java.lang.String);
 
-public interface com.cefrium.CefriumRequestHandler
+[deprecated] public interface com.cefrium.CefriumRequestHandler
   public default void onOpenUrlFromTab(java.lang.String, int, boolean);
   public default void onRenderUnresponsive();
   public default void onRenderResponsive();
@@ -1013,6 +1014,12 @@ public interface com.cefrium.CefriumRequestHandler$ClientCertificateCallback
 [experimental] public interface com.cefrium.CefriumResourceInterceptor
   public default boolean shouldBlockRequest(com.cefrium.CefriumBrowser$ResourceRequest);
   public default com.cefrium.CefriumContentResponse shouldInterceptRequest(com.cefrium.CefriumContentRequest);
+  public default void onResourceRedirect(java.lang.String, java.lang.String);
+  public default void onResourceResponse(java.lang.String, int);
+  public default void onResourceLoadComplete(java.lang.String, int, long);
+  public default void onResponseData(java.lang.String, java.nio.ByteBuffer);
+  public default boolean onCanSendCookie(java.lang.String, java.lang.String, java.lang.String);
+  public default boolean onCanSaveCookie(java.lang.String, java.lang.String, java.lang.String);
 
 [experimental] public final class com.cefrium.CefriumResourceType extends java.lang.Enum<com.cefrium.CefriumResourceType>
   public static final com.cefrium.CefriumResourceType MAIN_FRAME;

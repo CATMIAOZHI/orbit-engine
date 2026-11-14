@@ -764,8 +764,40 @@ public class CefriumBrowser {
         if (mRequestInterceptor != null) observers |= 1;
         if (overridesInterceptRequest(mRequestInterceptor)) observers |= 8;
         if (mRequestListener != null || overridesRequestIntercepted(mCallback)) observers |= 2;
-        if (mRequestHandler != null) observers |= 4;
+        if (mRequestHandler != null || overrides(mRequestInterceptor, "onResourceRedirect",
+                String.class, String.class)
+                || overrides(mRequestInterceptor, "onResourceResponse", String.class, int.class)
+                || overrides(mRequestInterceptor, "onResourceLoadComplete", String.class,
+                        int.class, long.class)) {
+            observers |= 4;
+        }
         nativeSetRequestObservers(mNativePtr, observers);
+        // The body tap and the cookie filter cost per chunk and per cookie: on
+        // only when asked for, explicitly or by an interceptor that implements
+        // them.
+        nativeSetResponseTapEnabled(mNativePtr, mResponseTapRequested
+                || overrides(mRequestInterceptor, "onResponseData", String.class,
+                        java.nio.ByteBuffer.class));
+        nativeSetCookieFilterEnabled(mNativePtr, mCookieFilterRequested
+                || overrides(mRequestInterceptor, "onCanSendCookie", String.class, String.class,
+                        String.class)
+                || overrides(mRequestInterceptor, "onCanSaveCookie", String.class, String.class,
+                        String.class));
+    }
+
+    private boolean mResponseTapRequested;
+    private boolean mCookieFilterRequested;
+
+    // Whether |i| implements |name| itself rather than taking the interface's default.
+    private static boolean overrides(CefriumResourceInterceptor i, String name,
+            Class<?>... params) {
+        if (i == null) return false;
+        try {
+            return i.getClass().getMethod(name, params).getDeclaringClass()
+                    != CefriumResourceInterceptor.class;
+        } catch (NoSuchMethodException e) {
+            return false;
+        }
     }
 
     private static boolean overridesInterceptRequest(CefriumResourceInterceptor i) {
@@ -5028,27 +5060,39 @@ public class CefriumBrowser {
         mLoadHandler = handler;
         if (isLive()) nativeSetDisplayCallback(mNativePtr, this);
     }
-    /** Sets the request handler (open-in-tab, hung renderer, client cert, resource events). */
     /**
      * Enable the opt-in response-body tap ({@link CefriumRequestHandler#onResponseData}).
      * Off by default; enabling it copies each response body chunk across JNI
      * (a hot path). Requires a request handler set to receive the data.
+     * @deprecated A {@link CefriumResourceInterceptor} that overrides
+     *     {@code onResponseData} turns it on by itself.
      */
+    @Deprecated
     public void setResponseTapEnabled(boolean enabled) {
         checkThread("setResponseTapEnabled");
-        if (isLive()) nativeSetResponseTapEnabled(mNativePtr, enabled);
+        mResponseTapRequested = enabled;
+        updateRequestObservers();
     }
 
     /**
      * Enable the opt-in per-cookie access filter
      * ({@link CefriumRequestHandler#onCanSendCookie}/{@code onCanSaveCookie}).
      * Off by default; enabling it calls the handler per cookie (a hot path).
+     * @deprecated A {@link CefriumResourceInterceptor} that overrides
+     *     {@code onCanSendCookie} or {@code onCanSaveCookie} turns it on by itself.
      */
+    @Deprecated
     public void setCookieFilterEnabled(boolean enabled) {
         checkThread("setCookieFilterEnabled");
-        if (isLive()) nativeSetCookieFilterEnabled(mNativePtr, enabled);
+        mCookieFilterRequested = enabled;
+        updateRequestObservers();
     }
 
+    /**
+     * Sets the request handler (open-in-tab, hung renderer, client cert, resource events).
+     * @deprecated See {@link CefriumRequestHandler}.
+     */
+    @Deprecated
     public void setRequestHandler(CefriumRequestHandler handler) {
         checkThread("setRequestHandler");
         mRequestHandler = handler;
@@ -5219,18 +5263,27 @@ public class CefriumBrowser {
     private void onDocumentAvailable() {
         CefriumRequestHandler h = mRequestHandler;
         if (h != null) h.onDocumentAvailable();
+        CefriumNavigationClient nav = mNavigationClient;
+        if (nav != null) nav.onDocumentAvailable(this);
     }
+    // The resource events and the taps below arrive on the network thread.
     private void onResourceRedirect(String oldUrl, String newUrl) {
         CefriumRequestHandler h = mRequestHandler;
         if (h != null) h.onResourceRedirect(oldUrl, newUrl);
+        CefriumResourceInterceptor i = mRequestInterceptor;
+        if (i != null) i.onResourceRedirect(oldUrl, newUrl);
     }
     private void onResourceResponse(String url, int statusCode) {
         CefriumRequestHandler h = mRequestHandler;
         if (h != null) h.onResourceResponse(url, statusCode);
+        CefriumResourceInterceptor i = mRequestInterceptor;
+        if (i != null) i.onResourceResponse(url, statusCode);
     }
     private void onResourceLoadComplete(String url, int statusCode, long receivedBytes) {
         CefriumRequestHandler h = mRequestHandler;
         if (h != null) h.onResourceLoadComplete(url, statusCode, receivedBytes);
+        CefriumResourceInterceptor i = mRequestInterceptor;
+        if (i != null) i.onResourceLoadComplete(url, statusCode, receivedBytes);
     }
     // Called by native code on the IO thread: a request failed because of the
     // proxy. Reported to the profile's listener on the main thread.
@@ -5242,15 +5295,21 @@ public class CefriumBrowser {
     }
     private void onResponseData(String url, java.nio.ByteBuffer chunk) {
         CefriumRequestHandler h = mRequestHandler;
-        if (h != null) h.onResponseData(url, chunk);
+        if (h != null) h.onResponseData(url, chunk.duplicate());
+        CefriumResourceInterceptor i = mRequestInterceptor;
+        if (i != null) i.onResponseData(url, chunk.duplicate());
     }
     private boolean onCanSendCookie(String url, String name, String value) {
         CefriumRequestHandler h = mRequestHandler;
-        return h == null || h.onCanSendCookie(url, name, value);
+        CefriumResourceInterceptor i = mRequestInterceptor;
+        return (h == null || h.onCanSendCookie(url, name, value))
+                && (i == null || i.onCanSendCookie(url, name, value));
     }
     private boolean onCanSaveCookie(String url, String name, String value) {
         CefriumRequestHandler h = mRequestHandler;
-        return h == null || h.onCanSaveCookie(url, name, value);
+        CefriumResourceInterceptor i = mRequestInterceptor;
+        return (h == null || h.onCanSaveCookie(url, name, value))
+                && (i == null || i.onCanSaveCookie(url, name, value));
     }
     @SuppressWarnings({"unused", "deprecation"})
     private void onSelectClientCertificate(final long id, boolean isProxy, String host,

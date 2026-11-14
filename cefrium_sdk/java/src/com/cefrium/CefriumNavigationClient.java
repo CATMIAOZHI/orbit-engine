@@ -56,6 +56,9 @@ public interface CefriumNavigationClient {
     default void onRenderProcessTerminated(CefriumBrowser browser,
             CefriumRendererTerminationStatus status, int errorCode) {}
 
+    /** The page's document exists and its scripts can run (before it has loaded). */
+    default void onDocumentAvailable(CefriumBrowser browser) {}
+
     /** The page's renderer stopped answering (a long-running script, for example). */
     default void onRenderProcessUnresponsive(CefriumBrowser browser) {}
 

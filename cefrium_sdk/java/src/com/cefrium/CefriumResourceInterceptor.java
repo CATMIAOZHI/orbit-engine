@@ -33,4 +33,33 @@ public interface CefriumResourceInterceptor {
     default CefriumContentResponse shouldInterceptRequest(CefriumContentRequest request) {
         return null;
     }
+
+    // Notifications, on the network thread. A method that is not overridden
+    // costs nothing: the engine only calls the ones an interceptor implements.
+
+    /** A request was redirected to {@code newUrl}. Network thread. */
+    default void onResourceRedirect(String oldUrl, String newUrl) {}
+
+    /** A response's headers arrived, with this status code. Network thread. */
+    default void onResourceResponse(String url, int statusCode) {}
+
+    /** A request finished: its status code and the bytes it received. Network thread. */
+    default void onResourceLoadComplete(String url, int statusCode, long receivedBytes) {}
+
+    /**
+     * A chunk of a response body, as it arrives (read only; the page gets it
+     * unchanged). Network thread. Overriding it copies every body across, so
+     * only override it when needed.
+     */
+    default void onResponseData(String url, java.nio.ByteBuffer chunk) {}
+
+    /** Whether a cookie may be sent with a request. Network thread. */
+    default boolean onCanSendCookie(String url, String name, String value) {
+        return true;
+    }
+
+    /** Whether a cookie a response sets may be stored. Network thread. */
+    default boolean onCanSaveCookie(String url, String name, String value) {
+        return true;
+    }
 }
