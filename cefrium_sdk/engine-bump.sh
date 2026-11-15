@@ -219,9 +219,10 @@ if run rebase; then hdr "rebase CEF android-port onto upstream branch $CEFBR (gu
   # bump quietly re-shallowed the clone and the next push of android-port failed
   # -- which read as "Codeberg changed again" when the cause was local and ours.
   # A plain fetch of one branch is incremental and costs little on a full clone.
+  # Always fetch: on a same-branch bump the ref already exists but is stale,
+  # and rebasing onto it misses every upstream commit since the last bump.
   REBASE_REMOTE=origin
-  git rev-parse --verify "origin/$CEFBR" >/dev/null 2>&1 || \
-    git fetch origin "$CEFBR:refs/remotes/origin/$CEFBR" 2>/dev/null || \
+  git fetch origin "+$CEFBR:refs/remotes/origin/$CEFBR" 2>/dev/null || \
     { git remote get-url upstream >/dev/null 2>&1 || git remote add upstream https://github.com/chromiumembedded/cef.git; \
       git fetch upstream "$CEFBR:refs/remotes/upstream/$CEFBR"; REBASE_REMOTE=upstream; }
 
@@ -289,6 +290,19 @@ if run rebase; then hdr "rebase CEF android-port onto upstream branch $CEFBR (gu
   # as juan.mendezr@proton.me.
   MAINTAINER_MAILS='juan.mendezr@proton.me|vejeta@gmail.com'
   foreign=$(git log "$FORK..android-port" --format='%ae' | grep -Evc "$MAINTAINER_MAILS" || true)
+  # Rewritten upstream copies (an earlier rebase re-signed or re-dated them)
+  # are not ancestors of the upstream ref, so the merge-base falls far back.
+  # The newest upstream-authored commit in the range is then the real fork
+  # point, provided its tree matches an upstream commit exactly.
+  if [ "${foreign:-0}" -gt 0 ]; then
+    last=$(git log "$FORK..android-port" --format='%H %ae' | grep -Ev "$MAINTAINER_MAILS" | head -1 | cut -d' ' -f1)
+    tree=$(git rev-parse "$last^{tree}")
+    if git log --format='%T' "$FORK_SRC" | grep -qx "$tree"; then
+      FORK="$last"; FORK_N=$(git rev-list --count "$FORK..android-port")
+      foreign=$(git log "$FORK..android-port" --format='%ae' | grep -Evc "$MAINTAINER_MAILS" || true)
+      echo "  fork point corrected to $FORK (rewritten copy of an upstream commit; $FORK_N to replay)"
+    fi
+  fi
   if [ "${foreign:-0}" -gt 0 ]; then
     echo "  WARNING: $foreign of those $FORK_N commits are authored by neither maintainer"
     echo "           address, which usually means the fork point is too old and the"
