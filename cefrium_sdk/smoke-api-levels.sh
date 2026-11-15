@@ -121,6 +121,12 @@ EOF
   for _ in $(seq 1 30); do kill -0 "$EPID" 2>/dev/null || break; sleep 1; done
   # Still up: it is the emulator this loop started, so its own PID is safe.
   kill -0 "$EPID" 2>/dev/null && kill "$EPID"
+  # -wipe-data recreates these on every boot; left behind they add up to
+  # ~10 GB across the levels and the next level cannot create its userdata.
+  rm -f "$HOME/.android/avd/$AVD.avd/"{userdata-qemu.img.qcow2,cache.img.qcow2,encryptionkey.img.qcow2}
+  if [ "$verdict" = NOBOOT ] && grep -q 'Not enough space' "$WORK/emu-api$L.log"; then
+    verdict="NOBOOT(disk full: $(grep -o 'Available: [0-9.]* MB' "$WORK/emu-api$L.log"))"
+  fi
   if [ "$verdict" = OK ]; then
     echo "OK   api$L"
   else
