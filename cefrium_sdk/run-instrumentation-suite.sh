@@ -101,6 +101,14 @@ if [ "$DEVICES" -gt 1 ] && [ -z "${ANDROID_SERIAL:-}" ]; then
   exit 1
 fi
 
+# Android 16 shows a 32-bit app on a 64-bit device a "deprecated ABI" dialog
+# that takes the window focus, so every key the tests send goes to it. The
+# property only turns that warning off; it is restored on exit.
+ABI_PROP=debug.wm.disable_deprecated_abi_dialog
+ABI_PROP_WAS=$("$ADB" shell getprop "$ABI_PROP" | tr -d '\r')
+"$ADB" shell setprop "$ABI_PROP" true
+trap '"$ADB" shell setprop "$ABI_PROP" "${ABI_PROP_WAS:-\"\"}"' EXIT
+
 echo ">>> staging artifacts into the harness"
 # The wrapper is gitignored here; a fresh clone takes it from a sample.
 WJI="$ITEST/gradle/wrapper/gradle-wrapper.jar"
