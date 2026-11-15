@@ -126,16 +126,19 @@ upload_asset() {
   local file="$1" name; name="$(basename "$file")"
   if asset_present "$name"; then say "asset $name already present"; return; fi
   # A gateway timeout (502/503/504) or a dropped connection can come after the
-  # upload landed: look before trying again.
-  local code attempt
+  # upload landed, and the asset can take minutes to be listed (0.21.0 got a
+  # duplicate after a 30 s wait): look for 5 min before trying again.
+  local code attempt w
   for attempt in 1 2 3 4; do
     code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API/releases/$rid/assets?name=$name" \
             -K "$CURL_AUTH_CFG" -F "attachment=@$file") || true
     [ "$code" = "201" ] && { say "uploaded $name"; return; }
     case "$code" in 502|503|504|000) ;; *) break ;; esac
-    sleep 30
-    if asset_present "$name"; then say "uploaded $name (after HTTP $code)"; return; fi
-    say "upload $name -> HTTP $code, retry $attempt/3"
+    for w in $(seq 1 10); do
+      sleep 30
+      if asset_present "$name"; then say "uploaded $name (after HTTP $code)"; return; fi
+    done
+    say "upload $name -> HTTP $code, not listed after 5 min, retry $attempt/3"
   done
   echo "ERROR: upload $name -> HTTP $code"; exit 1
 }
