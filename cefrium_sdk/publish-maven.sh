@@ -159,6 +159,7 @@ upload() {
     rm -f /tmp/cefrium-upload-resp.$$
     case "$status" in
       400|000) : ;;          # transient: teardown window / API blip -> retry
+      502|503|504) : ;;      # gateway gave up; the PUT may have landed (then 409)
       *) break ;;            # 201/409 success, or a real error code -> stop
     esac
     attempt=$((attempt + 1))
