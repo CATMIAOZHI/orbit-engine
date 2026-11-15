@@ -297,9 +297,11 @@ public class CefriumFileChooserTest {
         CountDownLatch ready = new CountDownLatch(1);
         CountDownLatch done = new CountDownLatch(1);
         AtomicReference<String> title = new AtomicReference<>();
+        java.util.List<String> titles = new java.util.concurrent.CopyOnWriteArrayList<>();
         try (LocalHttpServer server = new LocalHttpServer(PAGE)) {
             activity.runOnUiThread(() -> {
                 b.get().setOnTitleChangedListener(t -> {
+                    titles.add(t);
                     if ("ready".equals(t)) ready.countDown();
                     if (t.startsWith("picked:") || t.equals("cancel")) {
                         title.set(t);
@@ -313,14 +315,16 @@ public class CefriumFileChooserTest {
             Handler main = new Handler(Looper.getMainLooper());
             main.post(() -> {
                 CefriumBrowser browser = b.get();
-                float x = surface ? browser.getSurfaceContainer().getWidth() / 2f : 200;
-                float y = surface ? browser.getSurfaceContainer().getHeight() / 2f : 150;
+                // Touch injection takes DIPs.
+                float d = activity.getResources().getDisplayMetrics().density;
+                float x = surface ? browser.getSurfaceContainer().getWidth() / 2f / d : 200;
+                float y = surface ? browser.getSurfaceContainer().getHeight() / 2f / d : 150;
                 browser.sendTouchDown(x, y);
                 main.postDelayed(() -> { if (!browser.isClosed()) browser.sendTouchUp(x, y); }, 150);
             });
             boolean reported = done.await(20, TimeUnit.SECONDS);
             Assert.assertTrue("the input reported nothing; picker hits " + hits.get()
-                    + ", activities started " + started, reported);
+                    + ", activities started " + started + ", titles " + titles, reported);
             return title.get();
         }
     }
