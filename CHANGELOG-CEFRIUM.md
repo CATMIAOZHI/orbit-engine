@@ -15,7 +15,7 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
-## [Unreleased]
+## [0.21.0] - 2026-11-15
 
 ### Added
 - **`CefriumNavigationClient.onBeforeNavigate`**, WebView's
