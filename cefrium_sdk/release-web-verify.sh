@@ -334,6 +334,23 @@ echo
 echo "shared top bar and footer"
 if "$SCRIPT_DIR/site-chrome.py" . --check; then ok "every content page"; else bad "pages differ"; fi
 
+# The agent block exists twice (agents.md, and pasted in the adopting guide).
+# The guide's copy once kept a rule 0.18.0 had made false; keep them one text.
+echo
+echo "agent instructions"
+if python3 - <<'PY'
+import html, re, sys
+md = open("agents.md").read().split("\n")
+start = next(i for i, l in enumerate(md) if l.startswith("- "))
+want = "\n".join([md[0]] + md[start:]).rstrip("\n")
+g = open("guides/adopting-cefrium/index.html").read()
+m = re.search(r'<h2 id="agents">.*?<pre><code>(.*?)</code></pre>', g, re.S)
+sys.exit(0 if m and html.unescape(m.group(1)) == want else 1)
+PY
+then ok "adopting guide block == agents.md"; else bad "adopting guide #agents block differs from agents.md"; fi
+grep -qF "https://cefrium.com/agents.md" llms.txt && ok "llms.txt links agents.md" \
+  || bad "llms.txt does not link agents.md"
+
 echo
 if [ "$FAIL" = "0" ]; then
   echo "cefrium.com is consistent with $NEW."
