@@ -233,7 +233,9 @@ are in **[BUILD-GUIDE-CEFRIUM.md](BUILD-GUIDE-CEFRIUM.md)**. Before adding or
 regenerating a Chromium patch read **[PATCHING-CEFRIUM.md](PATCHING-CEFRIUM.md)**:
 the storage format (`-p0`, no `a/`/`b/` prefix), `patch.cfg` registration and
 one-file-one-patch ownership are strict, and a clean `apply-patches.py` must
-report `0 failed`.
+report `0 failed`. Coding agents working in this tree: read
+**[AGENTS-CEFRIUM.md](AGENTS-CEFRIUM.md)** (it adds the Android rules to
+upstream's `tools/claude/`).
 
 ## SDK releases
 
