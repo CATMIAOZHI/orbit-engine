@@ -419,6 +419,8 @@ void CefBrowserPlatformDelegate::SendTouchEvent(const CefTouchEvent& event) {
   NOTIMPLEMENTED();
 }
 
+void CefBrowserPlatformDelegate::SetGestureZoomEnabled(bool enabled) {}
+
 void CefBrowserPlatformDelegate::SetFocus(bool setFocus) {}
 
 void CefBrowserPlatformDelegate::SendCaptureLostEvent() {

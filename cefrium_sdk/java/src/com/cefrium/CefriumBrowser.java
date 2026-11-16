@@ -53,51 +53,8 @@ public class CefriumBrowser {
     private OnRenderProcessTerminatedListener mRenderProcessTerminatedListener;
     private volatile OnRequestInterceptedListener mRequestListener;
     private OnFullscreenChangedListener mFullscreenListener;
-    // When false, a small script is injected on each load-finish to neutralize
-    // page/pinch zoom for arbitrary content. See setPinchToZoomEnabled(boolean).
+    // See setPinchToZoomEnabled(boolean).
     private boolean mPinchToZoomEnabled = true;
-
-    // Forces a non-user-scalable viewport and blocks the multi-touch pinch
-    // gesture. Re-applied on every load-finish so it survives navigation. Blink
-    // re-evaluates the viewport when the meta's content attribute changes, so
-    // setting it post-load re-clamps the page scale; the capturing touchmove
-    // listener blocks the pinch gesture itself regardless of the page's viewport.
-    // The handlers are stored on window and the original viewport is saved so
-    // PINCH_ZOOM_ENABLE_JS can fully revert without a page reload.
-    private static final String PINCH_ZOOM_DISABLE_JS =
-            "(function(){"
-            + "var m=document.querySelector('meta[name=\"viewport\"]');"
-            + "if(!m){m=document.createElement('meta');m.setAttribute('name','viewport');"
-            + "(document.head||document.documentElement).appendChild(m);}"
-            + "if(window.__cefriumVp===undefined){"
-            + "window.__cefriumVp=m.getAttribute('content')||'';}"
-            + "m.setAttribute('content','width=device-width, initial-scale=1, "
-            + "minimum-scale=1, maximum-scale=1, user-scalable=no');"
-            + "if(!window.__cefriumNoPinchTM){"
-            + "window.__cefriumNoPinchTM=function(e){"
-            + "if(e.touches&&e.touches.length>1)e.preventDefault();};"
-            + "window.__cefriumNoPinchGS=function(e){e.preventDefault();};"
-            + "document.addEventListener('touchmove',window.__cefriumNoPinchTM,"
-            + "{passive:false,capture:true});"
-            + "document.addEventListener('gesturestart',window.__cefriumNoPinchGS,"
-            + "{passive:false,capture:true});}"
-            + "})();";
-
-    // Reverts PINCH_ZOOM_DISABLE_JS in-place (no reload): restores the original
-    // viewport meta and removes the gesture-blocking listeners.
-    private static final String PINCH_ZOOM_ENABLE_JS =
-            "(function(){"
-            + "var m=document.querySelector('meta[name=\"viewport\"]');"
-            + "if(m){m.setAttribute('content',"
-            + "(window.__cefriumVp!==undefined&&window.__cefriumVp)?"
-            + "window.__cefriumVp:'width=device-width, initial-scale=1');}"
-            + "if(window.__cefriumNoPinchTM){"
-            + "document.removeEventListener('touchmove',window.__cefriumNoPinchTM,"
-            + "{capture:true});"
-            + "document.removeEventListener('gesturestart',window.__cefriumNoPinchGS,"
-            + "{capture:true});"
-            + "window.__cefriumNoPinchTM=null;window.__cefriumNoPinchGS=null;}"
-            + "})();";
 
     // Surface rendering internals — not exposed in public API.
     private android.app.Activity mActivity;
@@ -1031,9 +988,6 @@ public class CefriumBrowser {
         if (mLoadingListener != null) mLoadingListener.onLoadingStateChanged(isLoading, canGoBack, canGoForward);
         CefriumNavigationClient nav = mNavigationClient;
         if (nav != null) nav.onLoadingStateChanged(this, isLoading, canGoBack, canGoForward);
-        if (!isLoading && !mPinchToZoomEnabled) {
-            evaluateJavaScript(PINCH_ZOOM_DISABLE_JS);
-        }
     }
 
     // Called from native CefRequestHandler::OnRenderProcessTerminated.
@@ -1944,31 +1898,22 @@ public class CefriumBrowser {
     }
 
     /**
-     * Enables or disables pinch-to-zoom (and page zoom) for arbitrary page
-     * content. Enabled by default, matching a normal browser.
+     * Enables or disables the pinch and double-tap zoom gestures, as
+     * {@code WebSettings.setSupportZoom} does for WebView. Enabled by default,
+     * matching a normal browser.
      *
-     * <p>When disabled, a small script is injected on every load-finish that
-     * forces a non-user-scalable viewport
-     * ({@code user-scalable=no, maximum-scale=1}) and blocks the multi-touch
-     * pinch gesture. This is applied on top of whatever viewport the page
-     * declares, so it works for pages you do not control. If you DO control the
-     * HTML, declaring that viewport meta yourself is equivalent and takes effect
-     * from first paint.
-     *
-     * <p>Because the neutralizer runs at load-finish (not document-start), a
-     * page could in principle be pinched during the brief pre-load window; for a
-     * hard guarantee from first paint, ship the viewport meta in the page.
+     * <p>The browser stops turning touches into zoom; nothing runs in the page,
+     * so it works with JavaScript off, and the page still receives every touch.
+     * It holds across navigations. It does not change the page's own scale: a
+     * page that sets {@code initial-scale} keeps it, and a page already zoomed
+     * stays at that scale.
      *
      * @param enabled true to allow zoom (default), false to disable it.
      */
     public void setPinchToZoomEnabled(boolean enabled) {
         checkThread("setPinchToZoomEnabled");
         mPinchToZoomEnabled = enabled;
-        // Apply immediately to the loaded document (no reload). Disabling injects
-        // the neutralizer; enabling reverts it in-place.
-        if (isLive()) {
-            evaluateJavaScript(enabled ? PINCH_ZOOM_ENABLE_JS : PINCH_ZOOM_DISABLE_JS);
-        }
+        if (isLive()) nativeSetPinchToZoomEnabled(mNativePtr, enabled);
     }
 
     /** @return whether pinch/page zoom is currently enabled (default true). */
@@ -6070,6 +6015,7 @@ public class CefriumBrowser {
             CefriumBrowser browser, boolean enabled);
     private static native void nativeSetUserAgentOverride(long nativePtr, String userAgent);
     private static native void nativeSetJavaScriptEnabled(long nativePtr, boolean enabled);
+    private static native void nativeSetPinchToZoomEnabled(long nativePtr, boolean enabled);
     private static native void nativeSetMediaPlaybackRequiresUserGesture(long nativePtr, boolean required);
     private static native int nativeAddDocumentStartJavaScript(long nativePtr, String script,
             String[] allowedOriginRules);

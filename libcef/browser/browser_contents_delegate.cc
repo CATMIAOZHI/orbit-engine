@@ -435,6 +435,14 @@ void CefBrowserContentsDelegate::RenderFrameHostChanged(
     content::RenderFrameHost* new_host) {
   // Update tracking for the RFH.
   RenderFrameCreated(new_host);
+
+  // A new main frame can come with a new view, which starts with the default
+  // gesture settings.
+  if (new_host && new_host->IsInPrimaryMainFrame()) {
+    if (auto browser_host = browser_info_->browser()) {
+      browser_host->ApplyGestureZoom();
+    }
+  }
 }
 
 void CefBrowserContentsDelegate::RenderFrameHostStateChanged(
@@ -470,6 +478,7 @@ void CefBrowserContentsDelegate::RenderViewReady() {
 
   if (auto browser_host = browser_info_->browser()) {
     browser_host->ConfigureAutoResize();
+    browser_host->ApplyGestureZoom();
   }
 
   if (auto c = client()) {

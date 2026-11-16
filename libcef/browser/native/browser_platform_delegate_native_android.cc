@@ -11,6 +11,7 @@
 #include "components/input/native_web_keyboard_event.h"
 #include "components/input/input_router.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
+#include "content/browser/renderer_host/render_widget_host_view_android.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
@@ -77,6 +78,20 @@ void CefBrowserPlatformDelegateNativeAndroid::SetFocus(bool setFocus) {
 
 void CefBrowserPlatformDelegateNativeAndroid::SizeTo(int width, int height) {
   // No-op for Android — window sizing is managed by the Android framework.
+}
+
+void CefBrowserPlatformDelegateNativeAndroid::SetGestureZoomEnabled(
+    bool enabled) {
+  if (!web_contents_) {
+    return;
+  }
+  // A windowed browser's view is always a RenderWidgetHostViewAndroid.
+  auto* view = static_cast<content::RenderWidgetHostViewAndroid*>(
+      web_contents_->GetRenderWidgetHostView());
+  if (view) {
+    view->SetMultiTouchZoomSupportEnabled(enabled);
+    view->SetDoubleTapSupportEnabled(enabled);
+  }
 }
 
 content::RenderWidgetHostImpl*

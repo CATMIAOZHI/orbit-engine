@@ -1699,6 +1699,11 @@ bool CefRenderWidgetHostViewOSR::ShouldRouteEvents() const {
   return !!render_widget_host_->delegate()->GetInputEventRouter();
 }
 
+void CefRenderWidgetHostViewOSR::SetGestureZoomEnabled(bool enabled) {
+  gesture_provider_->SetMultiTouchZoomSupportEnabled(enabled);
+  gesture_provider_->SetDoubleTapSupportForPlatformEnabled(enabled);
+}
+
 void CefRenderWidgetHostViewOSR::SetFocus(bool focus) {
   if (!render_widget_host_) {
     return;

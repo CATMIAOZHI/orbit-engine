@@ -1083,6 +1083,25 @@ void CefBrowserHostBase::SetJavaScriptEnabled(std::optional<bool> enabled) {
   }
 }
 
+void CefBrowserHostBase::SetGestureZoomEnabled(bool enabled) {
+  if (!CEF_CURRENTLY_ON_UIT()) {
+    CEF_POST_TASK(CEF_UIT,
+                  base::BindOnce(&CefBrowserHostBase::SetGestureZoomEnabled,
+                                 this, enabled));
+    return;
+  }
+
+  gesture_zoom_enabled_ = enabled;
+  ApplyGestureZoom();
+}
+
+void CefBrowserHostBase::ApplyGestureZoom() {
+  CEF_REQUIRE_UIT();
+  if (platform_delegate_) {
+    platform_delegate_->SetGestureZoomEnabled(gesture_zoom_enabled_);
+  }
+}
+
 void CefBrowserHostBase::SetUserAgentOverride(const std::string& user_agent) {
   if (!CEF_CURRENTLY_ON_UIT()) {
     CEF_POST_TASK(CEF_UIT,

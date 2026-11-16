@@ -1731,6 +1731,20 @@ Java_com_cefrium_CefriumBrowser_nativeSetJavaScriptEnabled(
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetPinchToZoomEnabled(
+    JNIEnv* env, jclass, jlong native_ptr, jboolean enabled) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data) return;
+  RunWhenCreated(data, base::BindOnce(
+                           [](bool enabled, CefRefPtr<CefBrowser> browser) {
+                             static_cast<CefBrowserHostBase*>(
+                                 browser->GetHost().get())
+                                 ->SetGestureZoomEnabled(enabled);
+                           },
+                           enabled == JNI_TRUE));
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_cefrium_CefriumBrowser_nativeSetZoomLevel(
     JNIEnv* env, jclass, jlong native_ptr, jdouble zoom) {
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);

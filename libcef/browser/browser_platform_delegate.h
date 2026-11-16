@@ -246,6 +246,12 @@ class CefBrowserPlatformDelegate {
                                    int deltaY);
   virtual void SendTouchEvent(const CefTouchEvent& event);
 
+  // Enable or disable the pinch and double-tap zoom gestures of the current
+  // view, as Android WebView's WebSettings.setSupportZoom does. A new view
+  // starts with them enabled, so the browser applies this again whenever its
+  // view changes.
+  virtual void SetGestureZoomEnabled(bool enabled);
+
   // Send focus event. The browser's WebContents may be NULL when this method is
   // called.
   virtual void SetFocus(bool setFocus);

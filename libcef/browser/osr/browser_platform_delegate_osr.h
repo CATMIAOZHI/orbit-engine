@@ -47,6 +47,7 @@ class CefBrowserPlatformDelegateOsr
                            int deltaX,
                            int deltaY) override;
   void SendTouchEvent(const CefTouchEvent& event) override;
+  void SetGestureZoomEnabled(bool enabled) override;
   void SetFocus(bool setFocus) override;
   gfx::Point GetScreenPoint(const gfx::Point& view,
                             bool want_dip_coords) const override;

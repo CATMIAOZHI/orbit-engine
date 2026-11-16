@@ -433,6 +433,12 @@ class CefBrowserHostBase : public CefBrowserHost,
   std::optional<bool> javascript_enabled() const { return javascript_enabled_; }
   void SetJavaScriptEnabled(std::optional<bool> enabled);
 
+  // Pinch and double-tap zoom gestures, the Android WebView setting
+  // setSupportZoom. Enabled by default. ApplyGestureZoom() applies the
+  // setting to the current view; called again when the view changes.
+  void SetGestureZoomEnabled(bool enabled);
+  void ApplyGestureZoom();
+
   // The User-Agent string of this browser, as Android WebView's
   // setUserAgentString. Empty restores the default.
   void SetUserAgentOverride(const std::string& user_agent);
@@ -581,6 +587,7 @@ class CefBrowserHostBase : public CefBrowserHost,
   std::optional<SkColor> background_color_;
   std::optional<bool> media_playback_requires_user_gesture_;
   std::optional<bool> javascript_enabled_;
+  bool gesture_zoom_enabled_ = true;
 
  private:
   IMPLEMENT_REFCOUNTING(CefBrowserHostBase);

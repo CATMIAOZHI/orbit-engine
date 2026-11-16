@@ -227,6 +227,13 @@ void CefBrowserPlatformDelegateOsr::SendTouchEvent(const CefTouchEvent& event) {
   view->SendTouchEvent(event);
 }
 
+void CefBrowserPlatformDelegateOsr::SetGestureZoomEnabled(bool enabled) {
+  CefRenderWidgetHostViewOSR* view = GetOSRHostView();
+  if (view) {
+    view->SetGestureZoomEnabled(enabled);
+  }
+}
+
 void CefBrowserPlatformDelegateOsr::SetFocus(bool setFocus) {
   CefRenderWidgetHostViewOSR* view = GetOSRHostView();
   if (view) {
