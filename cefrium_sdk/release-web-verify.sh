@@ -50,6 +50,7 @@ check_has() { # file, label, expected-count-at-least
 }
 check_has quickstart/index.html "quickstart coordinates" 4
 check_has upstream/index.html   "upstream page" 1
+check_has index.html            "homepage coordinates" 1
 
 # The avatar badge states the Chromium MAJOR. It must match the engine this
 # release actually ships, or the most visible number on the site is a lie --

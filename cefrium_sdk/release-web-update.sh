@@ -84,6 +84,10 @@ echo "Web update: $PREV -> $NEW (CEF $BRANCH, Chromium $CHROMIUM, $DATE)"
 apply "$QS" "s{(com\\.cefrium['\"]\\)? version ['\"])[0-9]+\\.[0-9]+\\.[0-9]+(['\"])}{\${1}$NEW\${2}}g; s{(com\\.cefrium:cefrium-(?:sdk|compose)[^:\"]*:)[0-9]+\\.[0-9]+\\.[0-9]+}{\${1}$NEW}g" \
   "$NEW" "quickstart version"
 
+# The homepage "Get started" snippet: it sat at 0.9.2 until 0.21.0.
+apply "$WEB/index.html" "s{(com\\.cefrium:cefrium-(?:sdk|compose)[^:\"']*:)[0-9]+\\.[0-9]+\\.[0-9]+}{\${1}$NEW}g" \
+  ":$NEW" "homepage coordinates"
+
 # 1-bis. The guides show the same coordinates in their build snippets, and no
 # step owned them: the push guide still said 0.14.0 after 0.15.0 shipped.
 for g in "$WEB"/guides/*/index.html; do
