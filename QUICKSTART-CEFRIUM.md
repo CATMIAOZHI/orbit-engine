@@ -4,9 +4,10 @@ Scope: this document is for CEFRIUM (CEF ported to native Android) and its SDK, 
 
 From zero to rendering a web page in 5 minutes.
 
-> **App size.** Cefrium bundles the Chromium engine (~150 MB native per ABI).
-> The dependency AAR is multi-ABI (~240 MB); publish an **Android App Bundle**
-> (or use ABI splits) so each user downloads only their architecture (~150 MB).
+> **App size.** Cefrium bundles the Chromium engine, one `libcef.so` per ABI.
+> Publish an **Android App Bundle** (or use ABI splits) so each user downloads
+> only their architecture. Sizes measured on each release:
+> [what your users download](https://cefrium.com/guides/adopting-cefrium/).
 
 > **Build tooling (0.8.0+).** The SDK ships Chromium 156's Java-25 bytecode, so
 > your app must build with **AGP 9.4+**, **Gradle 9.7.1+**, **JDK 25**, and
@@ -343,9 +344,10 @@ The SDK AAR includes ProGuard rules, so release builds need no extra
 configuration: Cefrium's `proguard.txt` already carries the keep rules for
 Chromium's JNI and reflection use, and R8 strips the unused Java classes.
 
-What does move the number is which ABIs you ship. The AAR is multi-ABI (~240 MB,
-`arm64-v8a` and `x86_64`); a consumer APK or App Bundle carries only one, so the
-per-architecture footprint is ~150 MB.
+What does move the number is which ABIs you ship. The AAR carries `arm64-v8a`,
+`armeabi-v7a` and `x86_64`; a consumer App Bundle delivers only one. The sizes,
+measured on each release, are in
+[what your users download](https://cefrium.com/guides/adopting-cefrium/).
 
 ```groovy
 // app/build.gradle
@@ -370,13 +372,6 @@ android {
     }
 }
 ```
-
-| Configuration | Approximate APK size |
-|--------------|---------------------|
-| Debug (single arch) | ~250 MB |
-| Release + R8 (single arch) | ~150 MB |
-| Release + R8 + ABI split | ~150 MB per arch |
-| AAB (Play Store) | ~100 MB download |
 
 An Android App Bundle gives the smallest download, because Play delivers only
 the architecture each device needs.

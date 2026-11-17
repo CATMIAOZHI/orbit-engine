@@ -301,6 +301,10 @@ FIGURES = [
      "SDK version, download file name"),
     (README, r"/com/cefrium/cefrium-(?:sdk|compose)/([0-9]+\.[0-9]+\.[0-9]+)/",
      [version], "SDK version, registry URL path"),
+    # The release the direct-download links point into. It sat at v0.19.0
+    # while the file names moved to 0.21.0, so every link was a 404.
+    (README, r"releases/(?:tag|download)/v([0-9]+\.[0-9]+\.[0-9]+)", [version],
+     "SDK version, release page links"),
     # -- the shields.io badge row. A badge is a figure like any other: the value
     # lives inside the image URL, so it is spliced there exactly as in prose.
     (README, r"badge/SDK-([0-9]+\.[0-9]+\.[0-9]+)-", [version],

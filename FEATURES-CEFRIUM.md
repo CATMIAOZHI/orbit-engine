@@ -168,20 +168,17 @@ browser.setContentSetting("https://your-app.example",
     CefriumBrowser.PERMISSION_NOTIFICATIONS, CefriumBrowser.SETTING_ALLOW);
 ```
 
-There are three notification/push paths, and the choice matters:
+The notification and push paths:
 
 - **Web Notifications** (`showNotification`, above) - works out of the box, no
   Firebase.
-- **Web Push** (`PushManager.subscribe`) - the W3C API is present and registers
-  with FCM, but **production delivery is gated by Google to Chrome's identity**
-  (a structural limit for every Chromium fork: the subscription lands on the
-  `preprod` channel). Standards-correct, not deliverable in production without
-  your own push service.
-- **Native FCM** - the production-capable path, using your own Firebase project.
-  Because the SDK AAR **vendors** the Firebase classes, you do **not** add
-  `firebase-messaging` (it would duplicate classes); you declare the firebase
-  manifest entries yourself. Requires a **Play-certified device**
-  (`getToken()` hangs on uncertified GMS). Validated end-to-end.
+- **Web Push** (`PushManager.subscribe`) - over FCM by default, or over a
+  transport the app installs (`cefrium-unifiedpush`, or a relay through the
+  app's own Firebase project). An app without the Google libraries has no
+  default transport, so it installs one.
+- **Native FCM** - the app's own Firebase project; `firebase-messaging` comes
+  in through `cefrium-gms`. Requires a **Play-certified device** (`getToken()`
+  hangs on uncertified GMS).
 
 Full walkthrough (with the manifest, Gradle, token retrieval, and sending a test
 push): **<https://cefrium.com/guides/push-notifications/>** and the

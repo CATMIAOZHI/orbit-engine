@@ -312,7 +312,8 @@ CefriumWebView(
 
 ## What WebView has that Cefrium doesn't (yet)
 
-- Smaller size (0 MB vs ~150 MB per ABI)
+- Smaller size: WebView adds nothing to your APK; Cefrium adds the engine
+  ([what your users download](https://cefrium.com/guides/adopting-cefrium/))
 
 (Android Accessibility/TalkBack, the Autofill framework, Widevine DRM, and
 WebAuthn/passkeys are all supported - see the README "What works" table.)

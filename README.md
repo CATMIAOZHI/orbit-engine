@@ -8,7 +8,7 @@
 
 [![SDK](https://img.shields.io/badge/SDK-0.21.0-22d3ee)](https://codeberg.org/cefrium/cef-android/releases)
 [![Chromium](https://img.shields.io/badge/Chromium-156.0.8078.96-4285f4)](https://cefrium.com/upstream/)
-[![Android patches](https://img.shields.io/badge/Android%20patches-45-6b7280)](patch/patches/android)
+[![Android patches](https://img.shields.io/badge/Android%20patches-46-6b7280)](patch/patches/android)
 [![Maven](https://img.shields.io/badge/Maven-Codeberg-1f6feb)](https://codeberg.org/cefrium/-/packages)
 [![Min API](https://img.shields.io/badge/min%20API-29-3ddc84)](QUICKSTART-CEFRIUM.md)
 [![License](https://img.shields.io/badge/license-LGPL--3.0--or--later-green)](LICENSE-CEFRIUM.md)
@@ -43,11 +43,13 @@ run it on your own device at
 [cefrium.com/kiosk](https://cefrium.com/kiosk/) and it will measure whatever
 engine you point at it.
 
-> **App size.** Cefrium bundles the Chromium engine, so it adds ~150 MB of native
-> code per ABI to your app. The dependency AAR is multi-ABI (~240 MB); publish an
-> **Android App Bundle** (or use ABI splits / `ndk.abiFilters`) so each user
-> downloads only their architecture (~150 MB), not all ABIs - the same approach
-> GeckoView, Flutter, and other engine-bundling SDKs use.
+> **App size.** Cefrium bundles the Chromium engine, one `libcef.so` per ABI.
+> Publish an **Android App Bundle** (or use ABI splits / `ndk.abiFilters`) so
+> each user downloads only their architecture - the same approach GeckoView,
+> Flutter, and other engine-bundling SDKs use. Sizes measured on each release:
+> [what your users download](https://cefrium.com/guides/adopting-cefrium/).
+> Every module and library the SDK pulls in:
+> [what is inside](https://cefrium.com/components/).
 
 **[Quick Start](QUICKSTART-CEFRIUM.md)** | [API Docs](https://cefrium.com/docs) | [Compose API](https://cefrium.com/docs/compose) | [Migration from WebView](MIGRATION-CEFRIUM.md) | [Build from Source](BUILD-GUIDE-CEFRIUM.md) | [Samples](https://codeberg.org/cefrium/cefrium-sample) | [Sponsor](https://liberapay.com/cefrium/donate)
 
@@ -183,7 +185,7 @@ Android.
   framework, no X11, no Wayland
 - **Multi-process** with renderer running as an Android `Service`,
   replacing Unix `fork()`/`execve()`
-- **45 Android-specific Chromium patches** for Android adaptations, managed via
+- **46 Android-specific Chromium patches** for Android adaptations, managed via
   CEF's existing patch infrastructure (`cef/patch/patches/android/`)
 - **Gradle Plugin** generates R.java for Chromium packages in consumer
   projects, solving the multi-package resource ID problem
@@ -208,7 +210,7 @@ Cefrium is built from three deliberately-tracked source inputs:
   [codeberg.org/cefrium/cef-android](https://codeberg.org/cefrium/cef-android).
 - **Patches** - applied to the Chromium tree by `cef/cefrium_sdk/apply-patches.py`
   (a patcher.py wrapper that activates the android condition): CEF's own
-  Chromium patches plus **45 Android-specific** patches
+  Chromium patches plus **46 Android-specific** patches
   (`cef/patch/patches/android/`, all registered in `patch/patch.cfg`). **No Debian
   Chromium patches** - only CEF + Android adaptations.
 
@@ -287,10 +289,10 @@ summary of the docs for tools: [cefrium.com/llms.txt](https://cefrium.com/llms.t
 ### Direct download
 
 Alternatively, download the single-file AARs from the
-[v0.19.0 release page](https://codeberg.org/cefrium/cef-android/releases/tag/v0.19.0):
+[release page](https://codeberg.org/cefrium/cef-android/releases/tag/v0.21.0):
 
 **SDK (multi-ABI, H.264/AAC + VP8/VP9/Opus):**
-- [cefrium-sdk-0.21.0.aar](https://codeberg.org/cefrium/cef-android/releases/download/v0.19.0/cefrium-sdk-0.21.0.aar) (~280 MB; the consumer's APK/App Bundle ships only the device's ABI)
+- [cefrium-sdk-0.21.0.aar](https://codeberg.org/cefrium/cef-android/releases/download/v0.21.0/cefrium-sdk-0.21.0.aar) (every ABI; the consumer's APK/App Bundle ships only the device's)
 
 **Jetpack Compose wrapper (all architectures):**
 - [cefrium-compose-0.21.0.aar](https://maven.cefrium.com/com/cefrium/cefrium-compose/0.21.0/cefrium-compose-0.21.0.aar) (28 KB)
@@ -299,13 +301,18 @@ Place in `app/libs/` and use `implementation files('libs/cefrium-sdk.aar')`.
 
 ### Variants
 
-Each artifact is a single **multi-ABI** AAR (arm64-v8a + x86_64; only the device's
-ABI is shipped per APK/App Bundle). They differ only by codec policy:
+Each artifact carries every ABI (arm64-v8a, armeabi-v7a, x86_64; only the
+device's ABI is shipped per APK/App Bundle). They differ only by codec policy:
 
 | Artifact | Codecs | Use case |
 |----------|--------|----------|
-| `cefrium-sdk` | H.264, H.265, AAC, VP8, VP9, Opus | Full site compatibility (published) |
-| `cefrium-sdk-libre` | VP8, VP9, Opus, Vorbis | Royalty-free only (planned) |
+| `cefrium-sdk` | H.264, AAC, VP8, VP9, Opus, Vorbis | Full site compatibility |
+| `cefrium-sdk-libre` | VP8, VP9, Opus, Vorbis | Royalty-free only |
+
+Both are POMs over `cefrium-sdk-core`, `cefrium-gms` (the Google Play services
+and Firebase libraries) and one `cefrium-native-*` module per ABI. An app
+without Google depends on the core and the native modules alone:
+[without Google](https://cefrium.com/components/#without-google).
 
 **Patent note:** H.264 patents expire by [November 2027](https://www.osnews.com/story/24954/us-patent-expiration-for-mp3-mpeg-2-h264/)
 (last US patent: [US 7826532](https://patents.google.com/patent/US7826532B2), expires 2027-11-29).
@@ -332,7 +339,7 @@ cef/
 |-- cefrium_compose/               # Jetpack Compose wrapper (cefrium-compose.aar)
 |-- cefrium_instrumentation_test/  # On-device instrumented test harness (SDK + Compose)
 |-- tests/cef_android_test/        # Test APK
-`-- patch/patches/android/         # 45 Android-specific Chromium patches
+`-- patch/patches/android/         # 46 Android-specific Chromium patches
 ```
 
 ## Testing
@@ -340,8 +347,8 @@ cef/
 The authoritative on-device suite is `cefrium_instrumentation_test/`, a
 self-contained Gradle module (not part of the GN/ninja build) that consumes the
 built AARs and exercises the public SDK exactly as a consumer would, so a clone
-of this repo is self-verifying, independent of the samples repo: **88 test
-classes, 279 `@Test` methods** across the Java SDK (core, hardening, the
+of this repo is self-verifying, independent of the samples repo: **90 test
+classes, 286 `@Test` methods** across the Java SDK (core, hardening, the
 `window.cefriumQuery` JS bridge, navigation, cookies, settings, the request
 interceptor, permissions, PDF, media, popups, JS dialogs, nested scroll, SSL
 and HTTP auth) and the Compose API (`CefriumView` tab keep-alive,
@@ -383,7 +390,7 @@ All Android changes are isolated and reviewable:
   git format-patch origin/8078..android-port -- \
     ':!README.md' ':!assets/screenshots'
   ```
-- **Chromium patches** (`patch/patches/android/`): 45 Android-specific patches
+- **Chromium patches** (`patch/patches/android/`): 46 Android-specific patches
   applied via `apply-patches.py` (CEF's `patcher.py`, `-p0`). Each addresses a
   specific incompatibility between Chromium's assumptions and the Android
   embedding environment. Format, registration and regeneration are documented in
@@ -407,7 +414,7 @@ platform integrations it wires up:
 | Autofill framework (password managers) | Done |
 | Widevine DRM (Netflix, Disney+, Spotify) | Done |
 | Web permissions (geolocation, camera, microphone) | Done - routed to your `PermissionHandler` |
-| WebAuthn / Passkeys | Limited - requires Google Play Services browser verification (same constraint as Brave/Firefox). SDK apps can use APP mode + Digital Asset Links for specific domains. |
+| WebAuthn / Passkeys | Done - through the Android Credential Manager (Android 14+). Creating a passkey in a third-party manager needs the app on Google's privileged-apps list ([FEATURES](FEATURES-CEFRIUM.md#webauthn-passkeys-050)). |
 | System media controls (lock-screen MediaSession) | Done - `setMediaSessionEnabled(true)` (ships a foreground service; needs POST_NOTIFICATIONS) |
 | Web Notifications (system notification shade) | Done - service-worker `showNotification()` posts to the Android shade; permission via `PermissionHandler` (or pre-grant with `setContentSetting`); needs `androidx.browser` + `POST_NOTIFICATIONS` |
 | Web Push (PushManager / push subscriptions) | API exposed; full FCM registration needs a consumer Firebase project (`google-services.json`) - see docs |
@@ -429,12 +436,13 @@ Cefrium is in early validation.
 
 **What Cefrium gives you:** A complete Chromium engine under your control,
 with the same CEF API that powers Steam, Spotify, and Discord - now on
-Android. Every commit is tested on real devices. All 45 Chromium patches
+Android. Every commit is tested on real devices. All 46 Chromium patches
 are auditable in `patch/patches/android/`.
 
 **What you should know:**
-- **APK size:** ~150 MB per architecture (comparable to Chrome itself; the
-  multi-ABI AAR is ~240 MB but each device ships only one ABI).
+- **APK size:** one engine per architecture, comparable to Chrome itself;
+  each device ships only its own ABI. Measured sizes:
+  [what your users download](https://cefrium.com/guides/adopting-cefrium/).
   Use R8/ProGuard, ABI splits, and AAB format to optimize delivery -- see
   [QUICKSTART-CEFRIUM.md](QUICKSTART-CEFRIUM.md#proguard-r8-and-apk-size).
 - **Security updates:** Cefrium tracks Debian Chromium releases for
@@ -454,7 +462,7 @@ use, and extend.
 ## Supporting Cefrium
 
 Cefrium is maintained by one person. What recurring donations pay for is the
-part nobody sees: every Chromium release moves the ground under the 45
+part nobody sees: every Chromium release moves the ground under the 46
 Android-specific patches this port carries, and each one has to be
 re-validated, regenerated where it conflicts, and re-tested on real devices
 before an engine bump can ship. That work is what keeps a pinned engine
