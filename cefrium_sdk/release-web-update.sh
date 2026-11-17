@@ -100,6 +100,16 @@ done
 # cut published.
 "$SCRIPT_DIR/update-web-aar-figures.py" "$NEW" "$CEF_DIR/../out/release/cefrium-sdk.aar"
 
+# 1-quater. /components/: every library of this release with what it is for,
+# every library Gradle resolves for it (resolved from maven.cefrium.com, where
+# the cut has just published it), and every component in its NOTICE
+# (components-resolve.sh, components-page.py, components.json).
+RESOLVED="$CEF_DIR/../out/release/cefrium-sdk-$NEW-resolved.txt"
+"$SCRIPT_DIR/components-resolve.sh" "$NEW" "$RESOLVED" || exit 1
+"$SCRIPT_DIR/components-page.py" --aar "$CEF_DIR/../out/release/cefrium-sdk.aar" \
+  --notice "$CEF_DIR/../out/release/cefrium-sdk-$NEW-NOTICE.txt" \
+  --resolved "$RESOLVED" --page "$WEB/components/index.html" || exit 1
+
 # 1. The site avatar carries the Chromium MAJOR as a badge. It is the most
 # visible version statement on the whole site and it was hand-edited, so it
 # aged silently: the live badge still read 154 after 156 shipped. Derived from

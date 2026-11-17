@@ -104,6 +104,8 @@ Individual phases, runnable on their own:
 | Find a figure that has no owner | `cef/cefrium_sdk/sweep-doc-figures.py` |
 | Update cefrium.com + docs | `cef/cefrium_sdk/release-web-update.sh <version> <prev>` |
 | Verify cefrium.com matches | `cef/cefrium_sdk/release-web-verify.sh <version> [prev]` |
+| Every library Gradle resolves for a release, deterministic (the `web` phase runs it) | `cef/cefrium_sdk/components-resolve.sh <version> [<out-file>]` |
+| Regenerate or check cefrium.com/components/ (libraries, resolution, NOTICE) | `python3 cef/cefrium_sdk/components-page.py --aar <aar> --notice <NOTICE> --resolved <resolved> --page <web>/components/index.html [--check]` |
 | Google Play (apps) | `cef/cefrium_sdk/release-play.sh <version> [track]` |
 | Drop old registry versions and old release binaries (plan without `--yes`) | `cef/cefrium_sdk/prune-old-versions.sh <version> [--yes]` |
 

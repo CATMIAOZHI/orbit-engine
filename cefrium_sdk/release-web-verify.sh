@@ -189,6 +189,18 @@ else
   bad "adopting guide: $AAR missing, cannot check its figures"
 fi
 
+# ---- 2c. /components/ lists this release's libraries and components ------
+NOTICE="$CEF_DIR/../out/release/cefrium-sdk-$NEW-NOTICE.txt"
+RESOLVED="$CEF_DIR/../out/release/cefrium-sdk-$NEW-resolved.txt"
+if [ -f "$AAR" ] && [ -f "$NOTICE" ] && [ -f "$RESOLVED" ]; then
+  "$SCRIPT_DIR/components-page.py" --aar "$AAR" --notice "$NOTICE" \
+      --resolved "$RESOLVED" --page "$WEB/components/index.html" --check \
+    && ok "components page: the $NEW libraries, resolution and NOTICE" \
+    || bad "components page does not match the $NEW AAR, resolution and NOTICE"
+else
+  bad "components page: $AAR, $NOTICE or $RESOLVED missing (release-web-update.sh writes the last)"
+fi
+
 # ---- 3. the API docs were regenerated -----------------------------------
 echo
 echo "API docs"
