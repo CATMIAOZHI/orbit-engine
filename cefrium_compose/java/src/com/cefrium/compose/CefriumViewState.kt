@@ -199,6 +199,14 @@ class CefriumViewState(
                 contextMenu = ContextMenuInfo(menuItems, url)
             }
         })
+        // An adopted window has been loading on its own: take what it already
+        // reported, which the callback above would never repeat.
+        if (adopted != null) {
+            adopted.url?.let { lastLoadedUrl = it }
+            adopted.title?.let { pageTitle = it }
+            canGoBack = adopted.canGoBack()
+            canGoForward = adopted.canGoForward()
+        }
         // Renderer-process termination is a separate SDK listener (not part of
         // Callback): surface it as hoisted state so the UI can show a reload banner.
         b.setOnRenderProcessTerminatedListener { status, errorCode ->

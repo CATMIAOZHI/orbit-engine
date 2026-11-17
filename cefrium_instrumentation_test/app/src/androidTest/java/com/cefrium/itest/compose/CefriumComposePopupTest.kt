@@ -95,6 +95,59 @@ class CefriumComposePopupTest {
         "</script><div id=v style='height:50px'>v</div></body></html>"
 
     /**
+     * A window adopted after its page already set its title and URL reports
+     * them: forWindow takes what the window has, not only what changes later.
+     * (The window loads on its own; a title set before the tab was composed
+     * was lost, and the tab stayed untitled.)
+     */
+    @Test
+    fun windowAdoptedLateKeepsItsTitleAndUrl() {
+        val server = com.cefrium.itest.LocalHttpServer(tabPage)
+        val opener = CefriumViewState(server.url())
+        try {
+            var openerBrowser: CefriumBrowser? = null
+            var popup: CefriumBrowser? = null
+            var popupUrl: String? = null
+            var tab by mutableStateOf<CefriumViewState?>(null)
+            composeRule.setContent {
+                val t = tab
+                if (t == null) {
+                    CefriumView(
+                        state = opener,
+                        onBrowserReady = { openerBrowser = it },
+                        onCreateWindow = { p, url ->
+                            popup = p
+                            popupUrl = url
+                            true
+                        },
+                    )
+                } else {
+                    CefriumView(state = t)
+                }
+            }
+            composeRule.waitUntil(20_000) { opener.pageTitle == "ready" }
+            composeRule.runOnUiThread {
+                openerBrowser!!.executeDevToolsMethod(
+                    "Runtime.evaluate",
+                    "{\"expression\":\"window.open('/?tab','w');1\",\"userGesture\":true}",
+                ) { _, _ -> }
+            }
+            // Adopt only once the window's page has titled itself.
+            composeRule.waitUntil(20_000) {
+                var title: String? = null
+                composeRule.runOnUiThread { title = popup?.title }
+                title == "child"
+            }
+            composeRule.runOnUiThread { tab = CefriumViewState.forWindow(popup!!, popupUrl!!) }
+            composeRule.waitUntil(10_000) { tab?.pageTitle == "child" }
+            Assert.assertTrue("url: " + tab!!.lastLoadedUrl,
+                tab!!.lastLoadedUrl?.endsWith("/?tab") == true)
+        } finally {
+            server.close()
+        }
+    }
+
+    /**
      * A browser shows the window as a tab: CefriumViewState.forWindow gives it
      * its URL, title, history and fullscreen, and keeps window.opener. (Shown
      * bare, a window's fullscreen never reached the app: the bars stayed and
