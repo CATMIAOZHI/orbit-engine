@@ -22,7 +22,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_DIR="$(pwd)"
 SLIM_AAR="$SCRIPT_DIR/slim_aar.py"
-RELEASE_DIR="$SRC_DIR/out/release"
+# CEFRIUM_RELEASE_DIR puts the AARs elsewhere, so a dev build of one variant
+# does not overwrite the last cut's intermediates in out/release.
+RELEASE_DIR="${CEFRIUM_RELEASE_DIR:-$SRC_DIR/out/release}"
 
 # Put depot_tools' pinned python (3.11.8) ahead of the system one. Chromium 156
 # invokes its own `third_party/cpython3` for gn actions, so this is currently
