@@ -705,6 +705,7 @@ public final class Cefrium {
             cacheDir = root.getAbsolutePath();
         }
         String dataDir = appContext.getFilesDir().getAbsolutePath();
+        CefriumPush.installDefaultTransport();
         int result = nativeInitialize(cacheDir, dataDir, downloadDir(appContext));
         if (result != 0) {
             return false;

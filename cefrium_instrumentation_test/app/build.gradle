@@ -9,6 +9,8 @@ plugins {
     id 'com.cefrium'
 }
 
+def noGms = providers.gradleProperty('cefriumNoGms').isPresent()
+
 android {
     packaging { jniLibs { useLegacyPackaging = true } }
     namespace 'com.cefrium.itest'
@@ -37,6 +39,7 @@ android {
 
     buildFeatures {
         compose true
+        resValues noGms
     }
 
     // The same suite against an app minified the way a consumer minifies it:
@@ -55,6 +58,12 @@ android {
         testBuildType 'minified'
     }
 
+    // -PcefriumNoGms: the app without the Google libraries (see the
+    // dependencies block). The manifest's com.google.android.gms.version
+    // reads this integer from play-services-basement, which is then absent.
+    if (noGms) {
+        defaultConfig { resValue 'integer', 'google_play_services_version', '0' }
+    }
 }
 
 // CefriumContractSweepTest sweeps the public methods of CefriumBrowser. R8's
@@ -140,4 +149,18 @@ dependencies {
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
     minifiedImplementation 'androidx.compose.ui:ui-test-manifest'
 
+}
+
+// -PcefriumNoGms runs the suite on an app with none of the Google libraries,
+// as a consumer that excludes them gets it. Only the runtime classpaths: a
+// push test still compiles against InstanceID, and its class is then absent
+// from the APKs like every other Google class.
+if (noGms) {
+    configurations.matching { it.name.endsWith('RuntimeClasspath') }.configureEach {
+        exclude group: 'com.google.android.gms'
+        exclude group: 'com.google.firebase'
+        exclude group: 'com.google.mlkit'
+        exclude group: 'com.google.android.play'
+        exclude group: 'com.google.android.datatransport'
+    }
 }

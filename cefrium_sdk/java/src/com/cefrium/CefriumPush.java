@@ -14,6 +14,9 @@ import android.util.Log;
 import org.chromium.components.gcm_driver.GCMDriver;
 import org.chromium.components.gcm_driver.GCMMessage;
 import org.chromium.components.gcm_driver.instance_id.InstanceIDWithSubtype;
+import org.chromium.gms.ChromiumPlayServicesAvailability;
+
+import java.io.IOException;
 
 import java.util.Map;
 
@@ -97,12 +100,45 @@ public final class CefriumPush {
      * FCM. Call it in {@code Application.onCreate()}, so the transport is in
      * place when a message or an unsubscribe arrives after a restart.
      * Subscriptions made before keep the service they were made with.
+     *
+     * <p>In an app without Google Play services (no {@code com.google.android.gms}
+     * libraries), null means no push service: a page's subscribe fails.</p>
      */
     public static void setTransport(CefriumPushTransport transport) {
-        InstanceIDWithSubtype.setFactory(transport == null ? null : subtype ->
-                subtype.startsWith(WEB_PUSH_APP_ID_PREFIX)
-                        ? new PushTransportInstanceID(subtype, transport) : null);
+        sTransportSet = true;
+        install(transport);
     }
+
+    private static boolean sTransportSet;
+
+    // Without the Play services libraries the FCM InstanceID class is missing,
+    // so every subtype is served by a transport, even one that only fails.
+    private static void install(CefriumPushTransport transport) {
+        if (transport == null && !ChromiumPlayServicesAvailability.isGmsLinked()) {
+            transport = NO_SERVICE;
+        }
+        final CefriumPushTransport t = transport;
+        boolean all = !ChromiumPlayServicesAvailability.isGmsLinked();
+        InstanceIDWithSubtype.setFactory(t == null ? null : subtype ->
+                all || subtype.startsWith(WEB_PUSH_APP_ID_PREFIX)
+                        ? new PushTransportInstanceID(subtype, t) : null);
+    }
+
+    /** Called before the engine starts: no FCM without the Play services libraries. */
+    static void installDefaultTransport() {
+        if (!sTransportSet && !ChromiumPlayServicesAvailability.isGmsLinked()) install(null);
+    }
+
+    private static final CefriumPushTransport NO_SERVICE = new CefriumPushTransport() {
+        @Override
+        public String subscribe(String appId, String applicationServerKey) throws IOException {
+            throw new IOException("no push service: the app has no Google Play services;"
+                    + " install a CefriumPushTransport (com.cefrium:cefrium-unifiedpush)");
+        }
+
+        @Override
+        public void unsubscribe(String appId) {}
+    };
 
     /**
      * Hands a message that a {@link CefriumPushTransport} received to the

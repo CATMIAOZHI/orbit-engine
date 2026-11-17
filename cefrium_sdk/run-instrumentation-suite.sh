@@ -17,6 +17,8 @@
 # CEFRIUM_SDK_AAR=<path> (no version) tests that SDK AAR instead, e.g. the
 # dev-iterate.sh output. Like CEFRIUM_TEST_CLASS, never set by a cut.
 #
+# CEFRIUM_NO_GMS=1 runs it on an app without the Google libraries.
+#
 # CEFRIUM_TEST_CLASS=<SimpleName> runs only that class of com.cefrium.itest.sdk
 # (compose.<SimpleName> for the Compose tests), for iterating on one feature. It is not a gate: a cut never sets it, and the
 # declared-tests check then covers only that class. One class: AGP runs only the
@@ -60,6 +62,9 @@ fi
 # CEFRIUM_TEST_ABI=<abi> packages only that ABI, so the suite runs as that
 # process type (armeabi-v7a on an arm64 device that also runs 32-bit apps).
 [ -n "${CEFRIUM_TEST_ABI:-}" ] && GRADLE_PROPS+=("-PcefriumAbi=$CEFRIUM_TEST_ABI")
+# CEFRIUM_NO_GMS=1 builds the app without the Google libraries (Play services,
+# Firebase, ML Kit, Play Core, datatransport), as a consumer that excludes them.
+[ "${CEFRIUM_NO_GMS:-}" = 1 ] && GRADLE_PROPS+=("-PcefriumNoGms=1")
 
 if [ ! -f "$SRC/.gn" ]; then
   echo "ERROR: run this from chromium/src" >&2
