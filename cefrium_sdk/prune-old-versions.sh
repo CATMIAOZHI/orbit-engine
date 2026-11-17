@@ -44,7 +44,7 @@ REG="https://codeberg.org/api/packages/cefrium/maven/com/cefrium"
 # All Maven coordinates the publish step creates. This list is also the SCOPE of
 # the registry policy: nothing outside it is ever considered for deletion (other
 # com.cefrium products version independently).
-COORDS="cefrium-sdk cefrium-sdk-libre cefrium-sdk-core cefrium-native-codecs-arm64-v8a cefrium-native-codecs-x86_64 cefrium-native-codecs-armeabi-v7a cefrium-native-libre-arm64-v8a cefrium-native-libre-x86_64 cefrium-native-libre-armeabi-v7a cefrium-compose cefrium-unifiedpush cefrium-gradle-plugin com.cefrium.gradle.plugin"
+COORDS="cefrium-sdk cefrium-sdk-libre cefrium-sdk-core cefrium-gms cefrium-native-codecs-arm64-v8a cefrium-native-codecs-x86_64 cefrium-native-codecs-armeabi-v7a cefrium-native-libre-arm64-v8a cefrium-native-libre-x86_64 cefrium-native-libre-armeabi-v7a cefrium-compose cefrium-unifiedpush cefrium-gradle-plugin com.cefrium.gradle.plugin"
 
 # ---- plan: registry ---------------------------------------------------------
 versions=$(curl -s "$API?type=maven&limit=100" -K "$CURL_AUTH_CFG" \

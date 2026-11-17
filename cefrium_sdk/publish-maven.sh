@@ -249,21 +249,25 @@ echo ""
 
 published_any=0
 # The SDK ships as modules (modular_artifacts.py, run by the cut's merge
-# phase): cefrium-sdk-core, one cefrium-native-<flavour>-<abi> per library,
-# and cefrium-sdk / cefrium-sdk-libre as POMs that pull them in.
+# phase): cefrium-sdk-core, cefrium-gms (POM: the Google libraries), one
+# cefrium-native-<flavour>-<abi> per library, and cefrium-sdk /
+# cefrium-sdk-libre as POMs that pull them in.
 MODULES="$RELEASE_DIR/modular"
 if [ -f "$MODULES/coordinates.tsv" ]; then
   while IFS=$'\t' read -r artifact packaging file desc deps; do
     echo "Publishing $artifact ($packaging)..."
     xml=""
     for d in $deps; do
-      if [ "$d" = MAVEN ]; then
-        libs="$(python3 "$SCRIPT_DIR/maven_vendored.py" --pom "$RELEASE_DIR/cefrium-sdk.aar")" \
-          || { echo "ERROR: no dependency list in $RELEASE_DIR/cefrium-sdk.aar" >&2; exit 1; }
-        xml+="$libs"$'\n'
-      else
-        xml+="    <dependency><groupId>com.cefrium</groupId><artifactId>$d</artifactId><version>$VERSION</version><type>aar</type></dependency>"$'\n'
-      fi
+      case "$d" in
+        MAVEN:*)
+          libs="$(python3 "$SCRIPT_DIR/maven_vendored.py" --pom "$RELEASE_DIR/cefrium-sdk.aar" --part "${d#MAVEN:}")" \
+            || { echo "ERROR: no dependency list in $RELEASE_DIR/cefrium-sdk.aar" >&2; exit 1; }
+          xml+="$libs"$'\n' ;;
+        *@pom)
+          xml+="    <dependency><groupId>com.cefrium</groupId><artifactId>${d%@pom}</artifactId><version>$VERSION</version><type>pom</type></dependency>"$'\n' ;;
+        *)
+          xml+="    <dependency><groupId>com.cefrium</groupId><artifactId>$d</artifactId><version>$VERSION</version><type>aar</type></dependency>"$'\n' ;;
+      esac
     done
     pom=$(generate_pom "$artifact" "$desc Embeds Chromium $CHROMIUM_VERSION." \
       "$(printf '  <dependencies>\n%s  </dependencies>' "$xml")" "$packaging")

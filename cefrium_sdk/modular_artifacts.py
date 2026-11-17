@@ -6,8 +6,13 @@
 """Split the two multi-ABI SDK AARs into the published modules.
 
   cefrium-sdk-core                     Java, resources, assets (both flavours)
+  cefrium-gms                          POM only: the Google libraries
   cefrium-native-<flavour>-<abi>       jni/<abi>/libcef.so only
-  cefrium-sdk, cefrium-sdk-libre       POM only: core + that flavour's natives
+  cefrium-sdk, cefrium-sdk-libre       POM only: core + gms + that flavour's
+                                       natives
+
+An app without Google Play services depends on cefrium-sdk-core and the
+cefrium-native-* modules it needs, and leaves cefrium-gms out.
 
 The codecs and libre AARs differ only in libcef.so; anything else that differs
 is a build error, and this fails. Apps keep depending on cefrium-sdk or
@@ -18,7 +23,9 @@ across flavours and ABIs.
 
 writes <dir>/<artifact>.aar for every module with a file, and
 <dir>/coordinates.tsv: artifact, packaging, file (or -), description, and the
-dependencies (space separated; MAVEN = the core's Maven libraries).
+dependencies, space separated: MAVEN:other / MAVEN:google = the core's Maven
+libraries without / only the Google ones (maven_vendored.py --part), NAME@pom
+a POM-only module, any other NAME an AAR module.
 """
 
 import argparse
@@ -29,6 +36,7 @@ import sys
 import zipfile
 
 CORE = 'cefrium-sdk-core'
+GMS = 'cefrium-gms'
 # Read-ahead lists, named after the build-id of the libcef.so they describe:
 # they go with that library's module, not with the core.
 HOT_RANGES = 'assets/cefrium/hot-ranges/'
@@ -111,7 +119,13 @@ def build(args):
     rows.append((CORE, 'aar', CORE + '.aar',
                  'Cefrium SDK: Java API, resources and engine assets. '
                  'Its native engine comes from a cefrium-native-* module.',
-                 'MAVEN'))
+                 'MAVEN:other'))
+    rows.append((GMS, 'pom', '-',
+                 'Google Play services, Firebase, ML Kit and Play Core '
+                 'libraries the engine uses when they are present (push over '
+                 'FCM, Cast, WebOTP, fused location, barcode detection, '
+                 'on-device AI). Leave it out for an app without Google.',
+                 'MAVEN:google'))
     for flavour, aggregate in FLAVOURS.items():
         if flavour not in flavours:
             continue
@@ -138,7 +152,7 @@ def build(args):
                      % (flavour, sorted(lists)))
         rows.append((aggregate, 'pom', '-',
                      'Cefrium SDK: CEF for native Android, %s, every ABI.'
-                     % flavour, ' '.join([CORE] + natives)))
+                     % flavour, ' '.join([CORE, GMS + '@pom'] + natives)))
     with open(os.path.join(args.out, 'coordinates.tsv'), 'w') as f:
         for row in rows:
             f.write('\t'.join(row) + '\n')

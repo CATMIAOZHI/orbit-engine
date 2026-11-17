@@ -17,6 +17,7 @@ result; a Chromium bump that changes it shows up as a diff of that file.
     maven_vendored.py --jar classes.jar --write maven-deps.txt
     maven_vendored.py --jar classes.jar --check maven-deps.txt
     maven_vendored.py --pom cefrium-sdk.aar   # <dependency> lines for its POM
+    maven_vendored.py --pom cefrium-sdk.aar --part google|other
 """
 
 import argparse
@@ -160,14 +161,36 @@ def runtime_dependencies(path=DEPS_FILE):
     return list(EXTRA_RUNTIME) + read_deps(path)
 
 
-def pom_dependencies(path=DEPS_FILE, indent='    '):
+# The Google libraries the engine uses only when they are present (Play
+# services, Firebase, ML Kit, Play Core, datatransport). The cefrium-gms module
+# carries them, so an app can leave them out by depending on the core alone.
+GOOGLE_GROUPS = ('com.google.android.gms', 'com.google.firebase',
+                 'com.google.mlkit', 'com.google.android.play',
+                 'com.google.android.datatransport')
+
+
+# androidx groups whose only user is one of those libraries (no Chromium or
+# Cefrium class references them): datastore is Firebase Installations' store.
+GOOGLE_ONLY_GROUPS = ('androidx.datastore',)
+
+
+def is_google(coordinate):
+    return coordinate.split(':')[0] in GOOGLE_GROUPS + GOOGLE_ONLY_GROUPS
+
+
+def pom_dependencies(path=DEPS_FILE, indent='    ', part='all'):
+    """part: 'all', 'google' (is_google) or 'other' (the rest)."""
     out = []
     for c in read_deps(POM_DEPS_FILE):
+        if part != 'all' and is_google(c) != (part == 'google'):
+            continue
         g, a, v = c.split(':')
         out.append('%s<dependency><groupId>%s</groupId><artifactId>%s</artifactId>'
                    '<version>%s</version></dependency>' % (indent, g, a, v))
     # runtime: the app does not compile against these, its R8 and APK need them.
     for c in runtime_dependencies(path):
+        if part != 'all' and is_google(c) != (part == 'google'):
+            continue
         g, a, v = c.split(':')
         out.append('%s<dependency><groupId>%s</groupId><artifactId>%s</artifactId>'
                    '<version>%s</version><scope>runtime</scope></dependency>'
@@ -182,9 +205,11 @@ def main():
     g.add_argument('--write', nargs='?', const=DEPS_FILE)
     g.add_argument('--check', nargs='?', const=DEPS_FILE)
     g.add_argument('--pom', nargs='?', const=DEPS_FILE)
+    p.add_argument('--part', choices=('all', 'google', 'other'), default='all',
+                   help='with --pom: every dependency, the Google ones, or the rest')
     args = p.parse_args()
     if args.pom:
-        print(pom_dependencies(args.pom))
+        print(pom_dependencies(args.pom, part=args.part))
         return
     if not args.jar:
         p.error('--jar is required with --write and --check')

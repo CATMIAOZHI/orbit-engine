@@ -47,7 +47,7 @@ auth() { [ -n "$CURL_AUTH_CFG" ] && printf -- '-K\n%s\n' "$CURL_AUTH_CFG"; }
 
 # artifact:extension. The plugin marker is a packaging=pom coordinate, so asking
 # for a .jar there is a guaranteed 404 and says nothing about whether it exists.
-ARTIFACTS="cefrium-sdk:pom cefrium-sdk-libre:pom cefrium-sdk-core:aar cefrium-native-codecs-arm64-v8a:aar cefrium-native-codecs-x86_64:aar cefrium-native-codecs-armeabi-v7a:aar cefrium-native-libre-arm64-v8a:aar cefrium-native-libre-x86_64:aar cefrium-native-libre-armeabi-v7a:aar cefrium-compose:aar cefrium-unifiedpush:aar cefrium-gradle-plugin:jar com.cefrium.gradle.plugin:pom"
+ARTIFACTS="cefrium-sdk:pom cefrium-sdk-libre:pom cefrium-sdk-core:aar cefrium-gms:pom cefrium-native-codecs-arm64-v8a:aar cefrium-native-codecs-x86_64:aar cefrium-native-codecs-armeabi-v7a:aar cefrium-native-libre-arm64-v8a:aar cefrium-native-libre-x86_64:aar cefrium-native-libre-armeabi-v7a:aar cefrium-compose:aar cefrium-unifiedpush:aar cefrium-gradle-plugin:jar com.cefrium.gradle.plugin:pom"
 
 fail=0
 # A single byte is enough to prove the object is served, and avoids pulling
@@ -123,7 +123,7 @@ echo
 echo "Registry retention (SDK coordinates only)"
 curl -s $(auth) "$PKGAPI?type=maven&limit=100" | python3 -c '
 import json, sys, collections
-want = {"cefrium-sdk","cefrium-sdk-libre","cefrium-sdk-core",
+want = {"cefrium-sdk","cefrium-sdk-libre","cefrium-sdk-core","cefrium-gms",
         "cefrium-native-codecs-arm64-v8a","cefrium-native-codecs-x86_64",
         "cefrium-native-codecs-armeabi-v7a",
         "cefrium-native-libre-arm64-v8a","cefrium-native-libre-x86_64",
