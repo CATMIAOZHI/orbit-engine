@@ -372,6 +372,8 @@ if run rebase; then hdr "rebase CEF android-port onto upstream branch $CEFBR (gu
   echo "      commits rebuild the final doc), then 'git rebase --continue'."
   echo "    - a commit that goes empty (its change is already in $CEFBR): 'git rebase --skip'."
   echo "    - real source conflicts: resolve by hand, then continue."
+  echo "  After each stop: resolve, then cef/cefrium_sdk/rebase-assist.sh (continues;"
+  echo "  resolves README.md, patch.cfg and core-patch conflicts by rule, logs them)."
   echo "  When the rebase is clean, fast-forward android-port to it, then re-run:"
   echo "    $0 $CTAG $CEFBR --from apply"
   exit 0

@@ -305,6 +305,9 @@ cef/cefrium_sdk/probe-engine-bump.sh <chromium-tag>    # price it, no sync
 cef/cefrium_sdk/engine-bump.sh <tag> <branch> --to sync          # pin + sync
 cef/cefrium_sdk/engine-bump.sh <tag> <branch> --from rebase --to rebase  # print the rebase
 cef/cefrium_sdk/engine-bump.sh <tag> <branch> --from apply --to report   # patches
+cef/cefrium_sdk/rebase-assist.sh                       # continue the rebase, mechanical conflicts only
+cef/cefrium_sdk/regen-android-patch.sh start|finish <name>   # regenerate a failed patch
+python3 cef/cefrium_sdk/verify-patch-order.py <name...>      # clean reapply, simulated
 ```
 
 The whole sequence, gates included: `RELEASING-CEFRIUM.md`, "Engine bump".
