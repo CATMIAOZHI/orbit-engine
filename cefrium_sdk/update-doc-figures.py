@@ -3,6 +3,7 @@
 
     cef/cefrium_sdk/update-doc-figures.py            # rewrite the docs
     cef/cefrium_sdk/update-doc-figures.py --check    # assert only, exit 1 if wrong
+    cef/cefrium_sdk/update-doc-figures.py --owned    # the files a rewrite changes
 
 Owns README.md, QUICKSTART-CEFRIUM.md, MIGRATION-CEFRIUM.md and
 BUILD-GUIDE-CEFRIUM.md. Every figure in them that states something this repo
@@ -682,6 +683,13 @@ def check_references(texts):
 
 
 texts = {p: read(p) for p in DOCS + (LOGO,)}
+
+if "--owned" in sys.argv[1:]:
+    # Every file a rewrite may change, one per line, relative to cef/: what a
+    # caller that commits the rewrite (engine-bump.sh's pin) must stage.
+    for p in REWRITTEN:
+        print(p)
+    sys.exit(0)
 
 if "--list" in sys.argv[1:]:
     # The figure table as data: <file> TAB <regex> TAB <wanted group values>.

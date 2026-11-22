@@ -6,10 +6,14 @@
 # print a per-patch CONFLICT REPORT with the exact regeneration commands.
 #
 # Usage:
-#   cef/cefrium_sdk/engine-bump.sh <chromium-tag> <cef-branch> [--from <phase>]
+#   cef/cefrium_sdk/engine-bump.sh <chromium-tag> <cef-branch> [--from <phase>] [--to <phase>]
 #     e.g. engine-bump.sh 149.0.7827.53 7827        # Debian-tracked Chromium 149
 # Phases: preflight pin sync rebase apply report brand
 #   Run report-only against the CURRENT tree any time:  --from report
+#   --to <phase> stops after that phase (e.g. --to sync, then the maintainer
+#   rebases; then --from rebase or --from apply).
+# Which tag to bump to: cef/cefrium_sdk/upstream-status.sh (CEF Preferred
+# Stable); RELEASING-CEFRIUM.md "Engine bump" is the whole runbook.
 #
 # Destructive phases (sync, rebase) require typing the chromium tag to confirm;
 # CEFRIUM_YES=1 bypasses (CI). The port's patches live in cef/patch/ (committed),
@@ -23,7 +27,12 @@ CTAG="${1:?usage: engine-bump.sh <chromium-tag> [cef-branch] [--from phase]}"; s
 CEFBR="$(echo "$CTAG" | cut -d. -f3)"
 if [ $# -gt 0 ] && [ "${1#--}" = "$1" ]; then CEFBR="$1"; shift; fi
 FROM="preflight"
-while [ $# -gt 0 ]; do case "$1" in --from) FROM="$2"; shift 2;; *) echo "unknown arg: $1"; exit 1;; esac; done
+TO="brand"
+while [ $# -gt 0 ]; do case "$1" in
+  --from) FROM="$2"; shift 2;;
+  --to) TO="$2"; shift 2;;
+  *) echo "unknown arg: $1"; exit 1;;
+esac; done
 
 # Core CEF patches that are large and routinely apply with fuzz on a new Chromium
 # (Debian handles the same class via a skip-list + `--fuzz=3`). They are NOT real
@@ -72,7 +81,9 @@ SYNC_JOBS="${CEFRIUM_SYNC_JOBS:-8}"
 
 idx() { local i=0; for p in $PHASES; do [ "$p" = "$1" ] && { echo $i; return; }; i=$((i+1)); done; echo 999; }
 FROM_I=$(idx "$FROM")
-run() { [ "$(idx "$1")" -ge "$FROM_I" ]; }
+TO_I=$(idx "$TO")
+[ "$FROM_I" != 999 ] && [ "$TO_I" != 999 ] || { echo "unknown phase in --from $FROM / --to $TO (phases: $PHASES)"; exit 1; }
+run() { local i; i="$(idx "$1")"; [ "$i" -ge "$FROM_I" ] && [ "$i" -le "$TO_I" ]; }
 hdr() { echo; echo "============================================================"; echo "  PHASE: $1"; echo "============================================================"; }
 gate() {
   [ "${CEFRIUM_YES:-0}" = "1" ] && { echo "[gate] $1 -- auto (CEFRIUM_YES=1)"; return; }
@@ -95,6 +106,36 @@ if run preflight; then hdr "preflight"
     echo "  remote has refs/tags/$CTAG: yes"
   else
     echo "  WARN: refs/tags/$CTAG not found on origin (check the exact Debian-tracked tag)."
+  fi
+  # Is this the release Cefrium follows (CEF's Preferred Stable)?
+  pref="$(CEFRIUM_PINNED="$CTAG" "$CEF/cefrium_sdk/upstream-status.sh" 2>/dev/null \
+          | grep -oP '^CEF Preferred Stable .*\(Chromium \K[0-9.]+' || true)"
+  if [ -z "$pref" ]; then
+    echo "  WARN: could not read CEF's Preferred Stable (upstream-status.sh)."
+  elif [ "$pref" = "$CTAG" ]; then
+    echo "  target is CEF's Preferred Stable: yes"
+  else
+    echo "  WARN: CEF's Preferred Stable is $pref, not $CTAG."
+  fi
+  # A sync needs room: the new tree's objects plus fresh build dirs.
+  need_gb="${CEFRIUM_BUMP_MIN_FREE_GB:-60}"
+  free_gb=$(( $(df --output=avail -B1G "$SRC" | tail -1) ))
+  if [ "$free_gb" -lt "$need_gb" ]; then
+    echo "  ERROR: $free_gb GB free on $SRC, a bump needs $need_gb (CEFRIUM_BUMP_MIN_FREE_GB)."; exit 1
+  fi
+  echo "  disk: $free_gb GB free (need $need_gb)"
+  # The pin and the rebase make signed commits; a cold hardware key fails them
+  # here, where its prompt cannot be shown. Test it without risking the PIN.
+  key="$(git -C "$CEF" config --get user.signingkey || true)"
+  if [ "$(git -C "$CEF" config --get commit.gpgsign || true)" = true ] && [ -n "$key" ]; then
+    probe="$BUMP_TMP/sign-probe"; mkdir -p "$BUMP_TMP"; echo probe > "$probe"
+    if timeout 20 gpg --batch --yes --local-user "$key" --detach-sign -o "$probe.sig" "$probe" >/dev/null 2>&1; then
+      echo "  signing key: live"
+    else
+      echo "  ERROR: signing key is cold. Prime it in another terminal"
+      echo "         (gpg --clearsign </dev/null), then re-run."; rm -f "$probe" "$probe.sig"; exit 1
+    fi
+    rm -f "$probe" "$probe.sig"
   fi
 fi
 
@@ -127,13 +168,11 @@ if run pin; then hdr "pin new version (config only, non-destructive)"
   # Every doc update-doc-figures.py rewrites must be listed, or the bump leaves
   # a derived figure in the working tree and the next release tags a doc that
   # still states the previous engine.
+  # The doc list comes from update-doc-figures.py itself (--owned), so a file it
+  # starts rewriting is committed too (the brand logo was left behind once).
   PINS="CHROMIUM_BUILD_COMPATIBILITY.txt
 cefrium_sdk/java/src/com/cefrium/Cefrium.java
-SECURITY.md
-README.md
-QUICKSTART-CEFRIUM.md
-MIGRATION-CEFRIUM.md
-BUILD-GUIDE-CEFRIUM.md"
+$("$CEF/cefrium_sdk/update-doc-figures.py" --owned 2>/dev/null)"
   if [ -n "$(git -C "$CEF" status --porcelain -- $PINS)" ]; then
     git -C "$CEF" add -- $PINS
     git -C "$CEF" commit -q -m "Pin Chromium $CTAG (CEF branch $CEFBR)" \
@@ -205,7 +244,11 @@ if run sync; then hdr "gclient sync to $CTAG (DESTRUCTIVE: resets chromium/src w
   # build_config.json/*.turbine.jar is NOT reliable). So wipe the build dirs:
   # every post-bump build must start from a clean out dir.
   echo "  wiping out/ build dirs (stale across a BUILD-number bump -- see above)..."
-  rm -rf "$SRC"/out/* 2>/dev/null || true
+  # Only build dirs (they hold args.gn): out/release keeps the last cut's
+  # artifacts, SBOM and signed sums.
+  for d in "$SRC"/out/*/; do
+    [ -f "$d/args.gn" ] && rm -rf "${d:?}"
+  done
 fi
 
 if run rebase; then hdr "rebase CEF android-port onto upstream branch $CEFBR (guided)"
