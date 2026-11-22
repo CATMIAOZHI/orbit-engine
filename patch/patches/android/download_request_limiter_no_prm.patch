@@ -1,10 +1,10 @@
 diff --git chrome/browser/download/download_request_limiter.cc chrome/browser/download/download_request_limiter.cc
-index 011a277d7647552fcc59dee4c28458e4bdd1df88..94b29551d68b210c0a2135f6e636863c142f0a34 100644
+index 85213800a116e0db72b6c4e3e9c65bb1b92dc963..5b7d37701cf63573f918f53f7f43b2390089c6e8 100644
 --- chrome/browser/download/download_request_limiter.cc
 +++ chrome/browser/download/download_request_limiter.cc
-@@ -621,6 +621,19 @@ void DownloadRequestLimiter::CanDownloadImpl(
+@@ -624,6 +624,19 @@ void DownloadRequestLimiter::CanDownloadImpl(
      Callback callback) {
-   DCHECK(originating_contents);
+   CHECK(originating_contents, base::NotFatalUntil::M161);
  
 +#if BUILDFLAG(IS_ANDROID)
 +  // CEF has no download-permission prompt UI wired to the PermissionRequestManager
@@ -22,7 +22,7 @@ index 011a277d7647552fcc59dee4c28458e4bdd1df88..94b29551d68b210c0a2135f6e636863c
    // Always allow download resulted from a cross-origin redirect from a previous
    // download attempt, and there's no need to update any state.
    if (from_download_cross_origin_redirect) {
-@@ -743,6 +756,7 @@ void DownloadRequestLimiter::CanDownloadImpl(
+@@ -746,6 +759,7 @@ void DownloadRequestLimiter::CanDownloadImpl(
  
    if (!on_can_download_decided_callback_.is_null())
      on_can_download_decided_callback_.Run(ret);

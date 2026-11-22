@@ -1,5 +1,5 @@
 diff --git content/browser/renderer_host/input/fling_scheduler_android.cc content/browser/renderer_host/input/fling_scheduler_android.cc
-index 796b8d683d0d7959c19147e68d7bc5d5a7134a1e..2755936a906cfdb4886e0039a5920cdcd70c304a 100644
+index 1373709..551d339 100644
 --- content/browser/renderer_host/input/fling_scheduler_android.cc
 +++ content/browser/renderer_host/input/fling_scheduler_android.cc
 @@ -10,6 +10,7 @@
@@ -7,10 +7,10 @@ index 796b8d683d0d7959c19147e68d7bc5d5a7134a1e..2755936a906cfdb4886e0039a5920cdc
  #include "content/public/common/content_features.h"
  #include "ui/android/view_android.h"
 +#include "ui/compositor/compositor.h"
- #include "ui/base/ui_base_features.h"
  
  namespace content {
-@@ -21,6 +22,7 @@ FlingSchedulerAndroid::FlingSchedulerAndroid(RenderWidgetHostImpl* host)
+ 
+@@ -20,6 +21,7 @@
  
  FlingSchedulerAndroid::~FlingSchedulerAndroid() {
    RemoveCompositorTick();
@@ -18,7 +18,7 @@ index 796b8d683d0d7959c19147e68d7bc5d5a7134a1e..2755936a906cfdb4886e0039a5920cdc
  }
  
  void FlingSchedulerAndroid::ScheduleFlingProgress(
-@@ -30,6 +32,15 @@ void FlingSchedulerAndroid::ScheduleFlingProgress(
+@@ -29,6 +31,15 @@
    if (observed_compositor_)
      return;
  
@@ -34,7 +34,7 @@ index 796b8d683d0d7959c19147e68d7bc5d5a7134a1e..2755936a906cfdb4886e0039a5920cdc
    ui::WindowAndroid* window = GetRootWindow();
    if (!window)
      return;
-@@ -53,11 +64,15 @@ void FlingSchedulerAndroid::DidStopFlingingOnBrowser(
+@@ -52,11 +63,15 @@
      base::WeakPtr<input::FlingController> fling_controller) {
    CHECK(fling_controller, base::NotFatalUntil::M152);
    RemoveCompositorTick();
@@ -50,7 +50,7 @@ index 796b8d683d0d7959c19147e68d7bc5d5a7134a1e..2755936a906cfdb4886e0039a5920cdc
    ui::WindowAndroid* window = GetRootWindow();
    // If the root window does not have a Compositor (happens on Android
    // WebView), we'll never receive an OnAnimate call. In this case fall back
-@@ -82,7 +97,7 @@ void FlingSchedulerAndroid::ProgressFlingOnBeginFrameIfneeded(
+@@ -78,7 +93,7 @@
      base::TimeTicks current_time) {
    // If a WindowAndroid is being observed, there is no need for BeginFrames
    // coming from the host.
@@ -59,7 +59,7 @@ index 796b8d683d0d7959c19147e68d7bc5d5a7134a1e..2755936a906cfdb4886e0039a5920cdc
      return;
    if (!fling_controller_)
      return;
-@@ -181,4 +196,23 @@ void FlingSchedulerAndroid::OnBeginFrameSourceShuttingDown() {
+@@ -177,4 +192,23 @@
    }
  }
  
@@ -84,7 +84,7 @@ index 796b8d683d0d7959c19147e68d7bc5d5a7134a1e..2755936a906cfdb4886e0039a5920cdc
 +
  }  // namespace content
 diff --git content/browser/renderer_host/input/fling_scheduler_android.h content/browser/renderer_host/input/fling_scheduler_android.h
-index f621d448775e5ccc188e38aedfad20da834115ac..45228ebb5a3559e62fcc18ab1ce08a889c657768 100644
+index f621d44..45228eb 100644
 --- content/browser/renderer_host/input/fling_scheduler_android.h
 +++ content/browser/renderer_host/input/fling_scheduler_android.h
 @@ -12,6 +12,7 @@
@@ -95,7 +95,7 @@ index f621d448775e5ccc188e38aedfad20da834115ac..45228ebb5a3559e62fcc18ab1ce08a88
  #include "ui/compositor/host_begin_frame_observer.h"
  
  namespace content {
-@@ -22,7 +23,8 @@ class CONTENT_EXPORT FlingSchedulerAndroid
+@@ -22,7 +23,8 @@
      : public input::FlingSchedulerBase,
        public ui::ViewAndroidObserver,
        public ui::WindowAndroidObserver,
@@ -105,7 +105,7 @@ index f621d448775e5ccc188e38aedfad20da834115ac..45228ebb5a3559e62fcc18ab1ce08a88
   public:
    explicit FlingSchedulerAndroid(RenderWidgetHostImpl* host);
  
-@@ -73,9 +75,16 @@ class CONTENT_EXPORT FlingSchedulerAndroid
+@@ -73,9 +75,16 @@
        std::optional<base::TimeTicks> first_coalesced_frame_begin_time) override;
    void OnBeginFrameSourceShuttingDown() override;
  

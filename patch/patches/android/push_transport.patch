@@ -1,5 +1,5 @@
 diff --git components/push_messaging/push_messaging_utils.cc components/push_messaging/push_messaging_utils.cc
-index 688417a479794..cc44f2c075288 100644
+index 688417a..cc44f2c 100644
 --- components/push_messaging/push_messaging_utils.cc
 +++ components/push_messaging/push_messaging_utils.cc
 @@ -9,6 +9,7 @@
@@ -10,7 +10,7 @@ index 688417a479794..cc44f2c075288 100644
  
  namespace push_messaging {
  
-@@ -30,6 +31,11 @@ std::string GetGcmEndpointForChannel(version_info::Channel channel) {
+@@ -30,6 +31,11 @@
  
  GURL CreateEndpoint(version_info::Channel channel,
                      const std::string& subscription_id) {
@@ -23,10 +23,10 @@ index 688417a479794..cc44f2c075288 100644
    DCHECK(endpoint.is_valid());
    return endpoint;
 diff --git components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
-index db2aa979ef7ba..a5f78c344adf8 100644
+index db2aa97..a5f78c3 100644
 --- components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
 +++ components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
-@@ -48,6 +48,19 @@ public class InstanceIDWithSubtype {
+@@ -48,6 +48,19 @@
          }
      }
  
@@ -46,7 +46,7 @@ index db2aa979ef7ba..a5f78c344adf8 100644
      protected InstanceIDWithSubtype(InstanceID instanceID) {
          mInstanceID = instanceID;
      }
-@@ -66,7 +79,10 @@ public class InstanceIDWithSubtype {
+@@ -66,7 +79,10 @@
              if (existing == null) {
                  if (sFakeFactoryForTesting != null) {
                      existing = sFakeFactoryForTesting.create(subtype);
@@ -58,7 +58,7 @@ index db2aa979ef7ba..a5f78c344adf8 100644
                      Bundle options = new Bundle();
                      options.putCharSequence(OPTION_SUBTYPE, subtype);
                      InstanceID instanceID =
-@@ -106,6 +122,14 @@ public class InstanceIDWithSubtype {
+@@ -106,6 +122,14 @@
          return mInstanceID.getToken(authorizedEntity, scope);
      }
  

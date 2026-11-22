@@ -1,8 +1,8 @@
 diff --git chrome/app/chrome_main_delegate.cc chrome/app/chrome_main_delegate.cc
-index f1eacda..2682d35 100644
+index 520030c..d11f8bf 100644
 --- chrome/app/chrome_main_delegate.cc
 +++ chrome/app/chrome_main_delegate.cc
-@@ -1043,25 +1043,22 @@ void ChromeMainDelegate::SetupTracing() {
+@@ -1183,23 +1183,22 @@
    // When we're the browser on android, use only libunwindstack for the tracing
    // sampler profiler because it can support java frames which is essential for
    // the main thread.
@@ -15,9 +15,7 @@ index f1eacda..2682d35 100644
 -  // If we are the browser process (missing process type), then use the
 -  // experimental libunwindstack unwinder.
 -  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
--          switches::kProcessType) &&
--      chrome::android::IsJavaDrivenFeatureEnabled(
--          chrome::android::kUseLibunwindstackNativeUnwinderAndroid)) {
+-          switches::kProcessType)) {
 -    tracing_factory = base::BindRepeating(&CreateLibunwindstackUnwinderFactory);
 -    unwinder_type = tracing::TracingSamplerProfiler::UnwinderType::
 -        kLibunwindstackUnwinderAndroid;
@@ -37,10 +35,10 @@ index f1eacda..2682d35 100644
  
  std::optional<int> ChromeMainDelegate::BasicStartupComplete() {
 diff --git chrome/browser/browser_process_impl.cc chrome/browser/browser_process_impl.cc
-index bed9453f156ba5b94a8daa5261085045e288098e..33d7e8f65c5584be8eb4b622202b2df56a2d6e3a 100644
+index 3c239c7..ab50dc5 100644
 --- chrome/browser/browser_process_impl.cc
 +++ chrome/browser/browser_process_impl.cc
-@@ -327,7 +327,7 @@ BrowserProcessImpl::BrowserProcessImpl(StartupData* startup_data)
+@@ -362,7 +362,7 @@
            static_cast<ChromeMetricsServicesManagerClient*>(
                startup_data->chrome_feature_list_creator()
                    ->GetMetricsServicesManagerClient())),
@@ -50,10 +48,10 @@ index bed9453f156ba5b94a8daa5261085045e288098e..33d7e8f65c5584be8eb4b622202b2df5
            std::make_unique<supervised_user::AndroidParentalControls>()),
  #else
 diff --git chrome/renderer/chrome_content_renderer_client.cc chrome/renderer/chrome_content_renderer_client.cc
-index 347d6c4d50..23bd1a4f25 100644
+index 7924129..7a4249d 100644
 --- chrome/renderer/chrome_content_renderer_client.cc
 +++ chrome/renderer/chrome_content_renderer_client.cc
-@@ -381,13 +381,19 @@ ChromeContentRendererClient::~ChromeContentRendererClient() = default;
+@@ -408,13 +408,19 @@
  void ChromeContentRendererClient::RenderThreadStarted() {
    RenderThread* thread = RenderThread::Get();
  
@@ -79,10 +77,10 @@ index 347d6c4d50..23bd1a4f25 100644
    const bool is_extension = IsStandaloneContentExtensionProcess();
  
 diff --git services/device/device_service.cc services/device/device_service.cc
-index ebc9c88793..e00a3f9f9d 100644
+index 913b569..3a3a5a3 100644
 --- services/device/device_service.cc
 +++ services/device/device_service.cc
-@@ -157,7 +157,9 @@ void DeviceService::OverrideUsbDeviceManagerBinderForTesting(
+@@ -157,7 +157,9 @@
  void DeviceService::BindBatteryMonitor(
      mojo::PendingReceiver<mojom::BatteryMonitor> receiver) {
  #if BUILDFLAG(IS_ANDROID)
@@ -93,7 +91,7 @@ index ebc9c88793..e00a3f9f9d 100644
  #elif !BUILDFLAG(IS_IOS_TVOS)
    BatteryMonitorImpl::Create(std::move(receiver));
  #endif
-@@ -190,8 +192,11 @@ void DeviceService::BindNFCProvider(
+@@ -190,8 +192,11 @@
    const auto& binder_override = internal::GetNFCProviderBinderOverride();
    if (binder_override)
      binder_override.Run(std::move(receiver));
@@ -107,7 +105,7 @@ index ebc9c88793..e00a3f9f9d 100644
  }
  #endif
  
-@@ -368,6 +373,11 @@ void DeviceService::BindUsbDeviceManagerTest(
+@@ -366,6 +371,11 @@
  #if BUILDFLAG(IS_ANDROID)
  service_manager::InterfaceProvider* DeviceService::GetJavaInterfaceProvider() {
    if (!java_interface_provider_initialized_) {

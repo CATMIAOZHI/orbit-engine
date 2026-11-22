@@ -1,8 +1,8 @@
 diff --git components/externalauth/android/java/src/org/chromium/components/externalauth/ExternalAuthUtils.java components/externalauth/android/java/src/org/chromium/components/externalauth/ExternalAuthUtils.java
-index bb934c1ca7fec..d22288d518d46 100644
+index bb934c1..d22288d 100644
 --- components/externalauth/android/java/src/org/chromium/components/externalauth/ExternalAuthUtils.java
 +++ components/externalauth/android/java/src/org/chromium/components/externalauth/ExternalAuthUtils.java
-@@ -196,6 +196,7 @@ public class ExternalAuthUtils {
+@@ -196,6 +196,7 @@
          Context context = ContextUtils.getApplicationContext();
          final int resultCode = checkGooglePlayServicesAvailable(context);
          if (resultCode == ConnectionResult.SUCCESS) return true;
@@ -11,22 +11,22 @@ index bb934c1ca7fec..d22288d518d46 100644
          Log.v(TAG, "Unable to use Google Play Services: %s", describeError(resultCode));
          if (isUserRecoverableError(resultCode)) {
 diff --git components/media_router/browser/android/BUILD.gn components/media_router/browser/android/BUILD.gn
-index e06293db1e798..88eceabcbdadd 100644
+index f5f488e..af9ab95 100644
 --- components/media_router/browser/android/BUILD.gn
 +++ components/media_router/browser/android/BUILD.gn
-@@ -21,6 +21,7 @@ android_library("java") {
+@@ -19,6 +19,7 @@
      "//components/browser_ui/media/android:java",
      "//content/public/android:content_java",
      "//services/media_session/public/cpp/android:media_session_java",
 +    "//third_party/android_deps:chromium_play_services_availability_java",
-     "//third_party/android_media:android_media_java",
      "//third_party/androidx:androidx_annotation_annotation_java",
      "//third_party/androidx:androidx_collection_collection_java",
+     "//third_party/androidx:androidx_fragment_fragment_java",
 diff --git components/media_router/browser/android/java/src/org/chromium/components/media_router/BrowserMediaRouter.java components/media_router/browser/android/java/src/org/chromium/components/media_router/BrowserMediaRouter.java
-index 5f0528dbd314d..2e337d1d55fd0 100644
+index 3310635..b9db7e1 100644
 --- components/media_router/browser/android/java/src/org/chromium/components/media_router/BrowserMediaRouter.java
 +++ components/media_router/browser/android/java/src/org/chromium/components/media_router/BrowserMediaRouter.java
-@@ -27,6 +27,7 @@ import org.chromium.build.annotations.Nullable;
+@@ -31,6 +31,7 @@
  import org.chromium.components.media_router.caf.CafMediaRouteProvider;
  import org.chromium.components.media_router.caf.remoting.CafRemotingMediaRouteProvider;
  import org.chromium.content_public.browser.WebContents;
@@ -34,7 +34,7 @@ index 5f0528dbd314d..2e337d1d55fd0 100644
  
  import java.util.ArrayList;
  import java.util.HashMap;
-@@ -47,6 +48,7 @@ public class BrowserMediaRouter implements MediaRouteManager {
+@@ -62,6 +63,7 @@
              new MediaRouteProvider.Factory() {
                  @Override
                  public void addProviders(MediaRouteManager manager) {
@@ -43,10 +43,10 @@ index 5f0528dbd314d..2e337d1d55fd0 100644
                              GoogleApiAvailability.getInstance()
                                      .isGooglePlayServicesAvailable(
 diff --git content/public/android/BUILD.gn content/public/android/BUILD.gn
-index 40e5ffe9618b4..48306dac7b571 100644
+index df985d0..1247f7a 100644
 --- content/public/android/BUILD.gn
 +++ content/public/android/BUILD.gn
-@@ -206,6 +206,7 @@ android_library("content_full_java") {
+@@ -206,6 +206,7 @@
      "//services/shape_detection:shape_detection_java",
      "//services/shape_detection/public/mojom:mojom_java",
      "//skia/public/mojom:mojom_java",
@@ -55,10 +55,10 @@ index 40e5ffe9618b4..48306dac7b571 100644
      "//third_party/android_deps:guava_android_java",
      "//third_party/android_sdk:android_window_extensions_java",
 diff --git content/public/android/java/src/org/chromium/content/browser/sms/SmsProviderGms.java content/public/android/java/src/org/chromium/content/browser/sms/SmsProviderGms.java
-index 6297f95063464..23a837bb87f51 100644
+index 6297f95..23a837b 100644
 --- content/public/android/java/src/org/chromium/content/browser/sms/SmsProviderGms.java
 +++ content/public/android/java/src/org/chromium/content/browser/sms/SmsProviderGms.java
-@@ -18,6 +18,7 @@ import org.chromium.base.Log;
+@@ -18,6 +18,7 @@
  import org.chromium.base.ResettersForTesting;
  import org.chromium.build.annotations.NullMarked;
  import org.chromium.build.annotations.Nullable;
@@ -66,7 +66,7 @@ index 6297f95063464..23a837bb87f51 100644
  import org.chromium.ui.base.WindowAndroid;
  
  /**
-@@ -61,7 +62,8 @@ public class SmsProviderGms {
+@@ -61,7 +62,8 @@
              mVerificationReceiver = new SmsVerificationReceiver(this, mContext);
          }
  
@@ -76,7 +76,7 @@ index 6297f95063464..23a837bb87f51 100644
              mUserConsentReceiver = new SmsUserConsentReceiver(this, mContext);
          }
  
-@@ -93,11 +95,12 @@ public class SmsProviderGms {
+@@ -93,11 +95,12 @@
      private static SmsProviderGms create(long smsProviderGmsAndroid, @GmsBackend int backend) {
          Log.d(TAG, "Creating SmsProviderGms");
          boolean isVerificationBackendAvailable =
@@ -95,10 +95,10 @@ index 6297f95063464..23a837bb87f51 100644
      }
  
 diff --git third_party/android_deps/util/org/chromium/gms/ChromiumPlayServicesAvailability.java third_party/android_deps/util/org/chromium/gms/ChromiumPlayServicesAvailability.java
-index 17eaa4a96ec9f..f2b5db9db4127 100644
+index 17eaa4a..f2b5db9 100644
 --- third_party/android_deps/util/org/chromium/gms/ChromiumPlayServicesAvailability.java
 +++ third_party/android_deps/util/org/chromium/gms/ChromiumPlayServicesAvailability.java
-@@ -32,6 +32,30 @@ public final class ChromiumPlayServicesAvailability {
+@@ -32,6 +32,30 @@
          ResettersForTesting.register(() -> sIsAvailableForTesting = null);
      }
  
@@ -129,7 +129,7 @@ index 17eaa4a96ec9f..f2b5db9db4127 100644
      /**
       * Checks if Play Services is available in this context.
       *
-@@ -45,6 +69,7 @@ public final class ChromiumPlayServicesAvailability {
+@@ -45,6 +69,7 @@
          if (sIsAvailableForTesting != null) {
              return sIsAvailableForTesting;
          }
@@ -137,7 +137,7 @@ index 17eaa4a96ec9f..f2b5db9db4127 100644
          return GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(
                         context, GMS_VERSION_NUMBER)
                  == ConnectionResult.SUCCESS;
-@@ -68,6 +93,7 @@ public final class ChromiumPlayServicesAvailability {
+@@ -68,6 +93,7 @@
          if (sIsAvailableForTesting != null) {
              return sIsAvailableForTesting ? ConnectionResult.SUCCESS : ConnectionResult.SERVICE_VERSION_UPDATE_REQUIRED;
          }

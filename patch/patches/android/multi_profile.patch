@@ -1,13 +1,14 @@
 diff --git chrome/browser/chrome_browser_main_android.cc chrome/browser/chrome_browser_main_android.cc
-index 91ca9fcee02c946e895b1c67da95b394977286d0..7e896fa227ae096a858f0385b7fc7046da23009c 100644
+index 77dc601..734c736 100644
 --- chrome/browser/chrome_browser_main_android.cc
 +++ chrome/browser/chrome_browser_main_android.cc
-@@ -62,8 +62,12 @@ int ChromeBrowserMainPartsAndroid::PreCreateThreads() {
+@@ -62,9 +62,12 @@
  
  void ChromeBrowserMainPartsAndroid::PostProfileInit(Profile* profile,
                                                      bool is_initial_profile) {
--  DCHECK(is_initial_profile);  // No multiprofile on Android, only the initial
--                               // call should happen.
+-  CHECK(is_initial_profile,
+-        base::NotFatalUntil::M162);  // No multiprofile on Android, only the
+-                                     // initial call should happen.
 +  if (!is_initial_profile) {
 +    // An embedder's additional disk profile. Chrome on Android has only the
 +    // initial one, and the process-wide setup below already ran with it.
@@ -18,9 +19,10 @@ index 91ca9fcee02c946e895b1c67da95b394977286d0..7e896fa227ae096a858f0385b7fc7046
    // Get the OS Data Saver setting. This will be needed later on, so we want to
    // fetch this setting as soon as possible to avoid blocking on it.
 diff --git chrome/browser/profiles/profile_impl.cc chrome/browser/profiles/profile_impl.cc
+index fcf4a0b..8004e02 100644
 --- chrome/browser/profiles/profile_impl.cc
 +++ chrome/browser/profiles/profile_impl.cc
-@@ -141,6 +141,7 @@
+@@ -152,6 +152,7 @@
  #include "components/keyed_service/core/simple_keyed_service_factory.h"
  #include "components/language/core/browser/pref_names.h"
  #include "components/language/core/common/locale_util.h"
@@ -28,11 +30,12 @@ diff --git chrome/browser/profiles/profile_impl.cc chrome/browser/profiles/profi
  #include "components/metrics/metrics_service.h"
  #include "components/omnibox/browser/autocomplete_classifier.h"
  #include "components/payments/core/payment_request_metrics.h"
-@@ -537,9 +538,23 @@ ProfileImpl::ProfileImpl(
+@@ -548,10 +549,23 @@
  
  #if BUILDFLAG(IS_ANDROID)
    auto* startup_data = g_browser_process->startup_data();
--  DCHECK(startup_data && startup_data->GetProfileKey());
+-  CHECK(startup_data && startup_data->GetProfileKey(),
+-        base::NotFatalUntil::M162);
 -  TakePrefsFromStartupData();
 -  async_prefs = false;
 +  if (startup_data && startup_data->GetProfileKey()) {
@@ -55,7 +58,7 @@ diff --git chrome/browser/profiles/profile_impl.cc chrome/browser/profiles/profi
  #else
    LoadPrefsForNormalStartup(async_prefs);
  #endif
-@@ -1512,6 +1527,9 @@ ProfileImpl::TakeDefaultProtoDatabaseProvider() {
+@@ -1590,6 +1604,9 @@
  #if BUILDFLAG(IS_ANDROID)
    // On Android StartupData creates proto database provider for the profile
    // before profile is created, so move ownership to storage partition.
@@ -66,10 +69,10 @@ diff --git chrome/browser/profiles/profile_impl.cc chrome/browser/profiles/profi
  #else
    return nullptr;
 diff --git chrome/browser/profiles/profile_impl.h chrome/browser/profiles/profile_impl.h
-index 5fd22e22cbfe535d4100b2a40ee0e6b0b57b0526..ec1e247cd4140761c1f8ffc2f200f9e544a6aca3 100644
+index 5fd22e2..ec1e247 100644
 --- chrome/browser/profiles/profile_impl.h
 +++ chrome/browser/profiles/profile_impl.h
-@@ -305,6 +305,13 @@ class ProfileImpl : public Profile {
+@@ -305,6 +305,13 @@
    // SimpleKeyedServiceFactory.
    std::unique_ptr<ProfileKey> key_;
  
@@ -84,10 +87,10 @@ index 5fd22e22cbfe535d4100b2a40ee0e6b0b57b0526..ec1e247cd4140761c1f8ffc2f200f9e5
    std::unique_ptr<ash::Preferences> chromeos_preferences_;
  
 diff --git chrome/browser/safe_browsing/android/services_delegate_android.cc chrome/browser/safe_browsing/android/services_delegate_android.cc
-index 114c33179ad2ac1ffcece70434287cdd4bf31247..070ac570b519849bf74bf742cdf1385ad647b887 100644
+index 3fa08d5..4239d27 100644
 --- chrome/browser/safe_browsing/android/services_delegate_android.cc
 +++ chrome/browser/safe_browsing/android/services_delegate_android.cc
-@@ -79,7 +79,7 @@ void ServicesDelegateAndroid::SetDatabaseManagerForTest(
+@@ -79,7 +79,7 @@
  }
  
  void ServicesDelegateAndroid::ShutdownServices() {
@@ -96,19 +99,19 @@ index 114c33179ad2ac1ffcece70434287cdd4bf31247..070ac570b519849bf74bf742cdf1385a
    download_service_.reset();
    ServicesDelegate::ShutdownServices();
  }
-@@ -123,14 +123,14 @@ void ServicesDelegateAndroid::CreateTelemetryService(Profile* profile) {
+@@ -123,14 +123,14 @@
    if (profile->IsOffTheRecord())
      return;
  
--  DCHECK(!telemetry_service_);
+-  CHECK(!telemetry_service_, base::NotFatalUntil::M162);
 -  telemetry_service_ = std::make_unique<AndroidTelemetryService>(profile);
-+  DCHECK(!telemetry_services_.contains(profile));
++  CHECK(!telemetry_services_.contains(profile), base::NotFatalUntil::M162);
 +  telemetry_services_[profile] =
 +      std::make_unique<AndroidTelemetryService>(profile);
  }
  
  void ServicesDelegateAndroid::RemoveTelemetryService(Profile* profile) {
-   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+   CHECK_CURRENTLY_ON(content::BrowserThread::UI, base::NotFatalUntil::M162);
 -  if (telemetry_service_ && telemetry_service_->profile() == profile)
 -    telemetry_service_.reset();
 +  telemetry_services_.erase(profile);
@@ -116,7 +119,7 @@ index 114c33179ad2ac1ffcece70434287cdd4bf31247..070ac570b519849bf74bf742cdf1385a
  
  DownloadProtectionService*
 diff --git chrome/browser/safe_browsing/android/services_delegate_android.h chrome/browser/safe_browsing/android/services_delegate_android.h
-index 6f09d8e52169456ff9d10dc7f5e8d0eb6ef441b2..067fb0723c044aba11195e96e3f385e259147652 100644
+index 6f09d8e..067fb07 100644
 --- chrome/browser/safe_browsing/android/services_delegate_android.h
 +++ chrome/browser/safe_browsing/android/services_delegate_android.h
 @@ -5,6 +5,8 @@
@@ -128,7 +131,7 @@ index 6f09d8e52169456ff9d10dc7f5e8d0eb6ef441b2..067fb0723c044aba11195e96e3f385e2
  #include "chrome/browser/safe_browsing/services_delegate.h"
  #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
  
-@@ -60,8 +62,9 @@ class ServicesDelegateAndroid : public ServicesDelegate {
+@@ -60,8 +62,9 @@
    // Notifies DownloadProtectionService of profile shutdown.
    void OnProfileWillBeDestroyed(Profile* profile) override;
  
@@ -141,10 +144,10 @@ index 6f09d8e52169456ff9d10dc7f5e8d0eb6ef441b2..067fb0723c044aba11195e96e3f385e2
    std::unique_ptr<DownloadProtectionService> download_service_;
  
 diff --git components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
-index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..f0c635583d3515e3ad68f27d869f01c178351cbc 100644
+index 721271e..f0c6355 100644
 --- components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
 +++ components/gcm_driver/android/java/src/org/chromium/components/gcm_driver/GCMDriver.java
-@@ -11,6 +11,7 @@ import org.jni_zero.JNINamespace;
+@@ -11,6 +11,7 @@
  import org.jni_zero.JniType;
  import org.jni_zero.NativeMethods;
  
@@ -152,7 +155,7 @@ index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..f0c635583d3515e3ad68f27d869f01c1
  import org.chromium.base.Log;
  import org.chromium.base.ResettersForTesting;
  import org.chromium.base.ThreadUtils;
-@@ -19,6 +20,8 @@ import org.chromium.build.annotations.NullMarked;
+@@ -19,6 +20,8 @@
  import org.chromium.build.annotations.Nullable;
  
  import java.io.IOException;
@@ -161,7 +164,7 @@ index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..f0c635583d3515e3ad68f27d869f01c1
  import java.util.Set;
  
  /**
-@@ -34,14 +37,33 @@ public class GCMDriver {
+@@ -34,14 +37,33 @@
      private static final String TAG = "GCMDriver";
  
      // The instance of GCMDriver currently owned by a C++ GCMDriverAndroid, if any.
@@ -196,7 +199,7 @@ index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..f0c635583d3515e3ad68f27d869f01c1
      }
  
      /** Sets a test instance. */
-@@ -57,11 +79,16 @@ public class GCMDriver {
+@@ -57,11 +79,16 @@
       * @param nativeGCMDriverAndroid The C++ object that owns us.
       */
      @CalledByNative
@@ -216,7 +219,7 @@ index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..f0c635583d3515e3ad68f27d869f01c1
          // TODO(crbug.com/40620351): This has been in added in M75 to migrate the
          // way we store if there are persisted messages. It should be removed in
          // M77.
-@@ -75,11 +102,43 @@ public class GCMDriver {
+@@ -75,11 +102,43 @@
       */
      @CalledByNative
      private void destroy() {
@@ -262,7 +265,7 @@ index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..f0c635583d3515e3ad68f27d869f01c1
      @CalledByNative
      private void replayPersistedMessages(@JniType("std::string") final String appId) {
          Set<String> subscriptionsWithPersistedMessagesForAppId =
-@@ -90,8 +149,10 @@ public class GCMDriver {
+@@ -90,8 +149,10 @@
  
          for (String id : subscriptionsWithPersistedMessagesForAppId) {
              GCMMessage[] messages = LazySubscriptionsManager.readMessages(id);
@@ -274,7 +277,7 @@ index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..f0c635583d3515e3ad68f27d869f01c1
              }
              LazySubscriptionsManager.deletePersistedMessagesForSubscriptionId(id);
          }
-@@ -116,6 +177,8 @@ public class GCMDriver {
+@@ -116,6 +177,8 @@
  
              @Override
              protected void onPostExecute(String registrationId) {
@@ -283,7 +286,7 @@ index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..f0c635583d3515e3ad68f27d869f01c1
                  GCMDriverJni.get()
                          .onRegisterFinished(
                                  mNativeGCMDriverAndroid,
-@@ -145,6 +208,7 @@ public class GCMDriver {
+@@ -145,6 +208,7 @@
  
              @Override
              protected void onPostExecute(Boolean success) {
@@ -291,7 +294,7 @@ index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..f0c635583d3515e3ad68f27d869f01c1
                  GCMDriverJni.get().onUnregisterFinished(mNativeGCMDriverAndroid, appId, success);
              }
          }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-@@ -154,13 +218,25 @@ public class GCMDriver {
+@@ -154,13 +218,25 @@
      public static void dispatchMessage(GCMMessage message) {
          ThreadUtils.assertOnUiThread();
  
@@ -320,7 +323,7 @@ index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..f0c635583d3515e3ad68f27d869f01c1
                          message.getAppId(),
                          message.getSenderId(),
                          message.getMessageId(),
-@@ -170,9 +246,11 @@ public class GCMDriver {
+@@ -170,9 +246,11 @@
      }
  
      public static void overrideSubscriberForTesting(GoogleCloudMessagingSubscriber subscriber) {
@@ -335,10 +338,10 @@ index 721271eb26cb6e07cc3525c93cb5dbb87f2d9cb3..f0c635583d3515e3ad68f27d869f01c1
  
      @NativeMethods
 diff --git components/gcm_driver/gcm_driver.cc components/gcm_driver/gcm_driver.cc
-index f9d36ac71a0cfe1be306ab56d6ff00f25671fd0e..70fe166aae1518915a9af641dfe0f96541a181a5 100644
+index ed7f625..400e1b8 100644
 --- components/gcm_driver/gcm_driver.cc
 +++ components/gcm_driver/gcm_driver.cc
-@@ -53,7 +53,8 @@ void InstanceIDHandler::DeleteAllTokensForApp(const std::string& app_id,
+@@ -53,7 +53,8 @@
  
  GCMDriver::GCMDriver(
      const base::FilePath& store_path,
@@ -349,7 +352,7 @@ index f9d36ac71a0cfe1be306ab56d6ff00f25671fd0e..70fe166aae1518915a9af641dfe0f965
    // encryption capabilities of the GCMDriver class.
    if (blocking_task_runner)
 diff --git components/gcm_driver/gcm_driver.h components/gcm_driver/gcm_driver.h
-index 96eeebe5d5027c49e14ecf6efc2f0f2fc6e87aee..50e04da382811cbb31b07c001dc5d7a078270f1e 100644
+index a3dbc5f..dc33cb1 100644
 --- components/gcm_driver/gcm_driver.h
 +++ components/gcm_driver/gcm_driver.h
 @@ -11,6 +11,7 @@
@@ -368,7 +371,7 @@ index 96eeebe5d5027c49e14ecf6efc2f0f2fc6e87aee..50e04da382811cbb31b07c001dc5d7a0
  class SequencedTaskRunner;
  }  // namespace base
  
-@@ -121,6 +121,9 @@ class GCMDriver {
+@@ -124,6 +124,9 @@
  
    virtual ~GCMDriver();
  
@@ -378,7 +381,7 @@ index 96eeebe5d5027c49e14ecf6efc2f0f2fc6e87aee..50e04da382811cbb31b07c001dc5d7a0
    // Registers |sender_ids| for an app. *Use |InstanceID| instead in new code.*
    //
    // A registration ID will be returned by the GCM server. On Android, only a
-@@ -424,6 +427,8 @@ class GCMDriver {
+@@ -408,6 +411,8 @@
    base::flat_map<std::string, base::circular_deque<BufferedMessage>>
        buffered_messages_;
  
@@ -388,7 +391,7 @@ index 96eeebe5d5027c49e14ecf6efc2f0f2fc6e87aee..50e04da382811cbb31b07c001dc5d7a0
  };
  
 diff --git components/gcm_driver/gcm_driver_android.cc components/gcm_driver/gcm_driver_android.cc
-index 7201b3c75f07c810b4f003e992177c04abb29926..885689f5638ee7f8ea3515a8c564e47a0bf462f3 100644
+index 1cbedbc..cb2b555 100644
 --- components/gcm_driver/gcm_driver_android.cc
 +++ components/gcm_driver/gcm_driver_android.cc
 @@ -11,6 +11,7 @@
@@ -399,7 +402,7 @@ index 7201b3c75f07c810b4f003e992177c04abb29926..885689f5638ee7f8ea3515a8c564e47a
  #include "base/logging.h"
  #include "base/notimplemented.h"
  #include "base/task/sequenced_task_runner.h"
-@@ -29,7 +30,10 @@ GCMDriverAndroid::GCMDriverAndroid(
+@@ -30,7 +31,10 @@
      const scoped_refptr<base::SequencedTaskRunner>& blocking_task_runner)
      : GCMDriver(store_path, blocking_task_runner), recorder_(this) {
    JNIEnv* env = AttachCurrentThread();
@@ -412,7 +415,7 @@ index 7201b3c75f07c810b4f003e992177c04abb29926..885689f5638ee7f8ea3515a8c564e47a
  
  GCMDriverAndroid::~GCMDriverAndroid() {
 diff --git components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java
-index 370ae28ef8e02..829ea0b3b0671 100644
+index 370ae28..829ea0b 100644
 --- components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java
 +++ components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDBridge.java
 @@ -4,6 +4,8 @@
@@ -424,7 +427,7 @@ index 370ae28ef8e02..829ea0b3b0671 100644
  import org.jni_zero.CalledByNative;
  import org.jni_zero.JNINamespace;
  import org.jni_zero.JniType;
-@@ -11,6 +13,7 @@ import org.jni_zero.NativeMethods;
+@@ -11,6 +13,7 @@
  
  import org.chromium.base.task.AsyncTask;
  import org.chromium.build.annotations.NullMarked;
@@ -432,7 +435,7 @@ index 370ae28ef8e02..829ea0b3b0671 100644
  import org.chromium.components.gcm_driver.InstanceIDFlags;
  import org.chromium.components.gcm_driver.LazySubscriptionsManager;
  import org.chromium.components.gcm_driver.SubscriptionFlagManager;
-@@ -36,9 +39,14 @@ public class InstanceIDBridge {
+@@ -36,9 +39,14 @@
  
      private static boolean sBlockOnAsyncTasksForTesting;
  
@@ -448,7 +451,7 @@ index 370ae28ef8e02..829ea0b3b0671 100644
      }
  
      /**
-@@ -47,8 +55,10 @@ public class InstanceIDBridge {
+@@ -47,8 +55,10 @@
       */
      @CalledByNative
      public static InstanceIDBridge create(
@@ -461,7 +464,7 @@ index 370ae28ef8e02..829ea0b3b0671 100644
      }
  
      /**
-@@ -130,7 +140,9 @@ public class InstanceIDBridge {
+@@ -130,7 +140,9 @@
                              SubscriptionFlagManager.buildSubscriptionUniqueId(
                                      mSubtype, authorizedEntity),
                              flags);
@@ -472,7 +475,7 @@ index 370ae28ef8e02..829ea0b3b0671 100644
                  } catch (IOException ex) {
                      return "";
                  }
-@@ -164,6 +176,7 @@ public class InstanceIDBridge {
+@@ -164,6 +176,7 @@
                      SubscriptionFlagManager.clearFlags(
                              SubscriptionFlagManager.buildSubscriptionUniqueId(
                                      mSubtype, authorizedEntity));
@@ -480,7 +483,7 @@ index 370ae28ef8e02..829ea0b3b0671 100644
                      return true;
                  } catch (IOException ex) {
                      return false;
-@@ -186,6 +199,7 @@ public class InstanceIDBridge {
+@@ -186,6 +199,7 @@
              protected Boolean doBackgroundWork() {
                  try {
                      mInstanceID.deleteInstanceID();
@@ -489,10 +492,10 @@ index 370ae28ef8e02..829ea0b3b0671 100644
                  } catch (IOException ex) {
                      return false;
 diff --git components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
-index ccbe7bb9eeea0..db2aa979ef7ba 100644
+index ccbe7bb..db2aa97 100644
 --- components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
 +++ components/gcm_driver/instance_id/android/java/src/org/chromium/components/gcm_driver/instance_id/InstanceIDWithSubtype.java
-@@ -40,6 +40,14 @@ public class InstanceIDWithSubtype {
+@@ -40,6 +40,14 @@
      /** Fake subclasses can set this so getInstance creates instances of them. */
      @VisibleForTesting protected static @Nullable FakeFactory sFakeFactoryForTesting;
  
@@ -508,7 +511,7 @@ index ccbe7bb9eeea0..db2aa979ef7ba 100644
          mInstanceID = instanceID;
      }
 diff --git components/gcm_driver/instance_id/instance_id_android.cc components/gcm_driver/instance_id/instance_id_android.cc
-index a2bf1dd93b350f3009f263dec8c9d71b8a170292..140ff83337856dfb2a64ea2d32c802e631622a33 100644
+index a2bf1dd..140ff83 100644
 --- components/gcm_driver/instance_id/instance_id_android.cc
 +++ components/gcm_driver/instance_id/instance_id_android.cc
 @@ -15,6 +15,7 @@
@@ -519,7 +522,7 @@ index a2bf1dd93b350f3009f263dec8c9d71b8a170292..140ff83337856dfb2a64ea2d32c802e6
  
  // Must come after all headers that specialize FromJniType() / ToJniType().
  #include "components/gcm_driver/instance_id/android/jni_headers/InstanceIDBridge_jni.h"
-@@ -55,8 +56,11 @@ InstanceIDAndroid::InstanceIDAndroid(const std::string& app_id,
+@@ -55,8 +56,11 @@
    std::string subtype = app_id;
  
    JNIEnv* env = AttachCurrentThread();

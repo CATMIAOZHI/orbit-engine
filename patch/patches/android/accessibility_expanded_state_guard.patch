@@ -1,8 +1,8 @@
 diff --git content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
-index c7b45e0926213afceb0bf35e64d310ce8eb16779..229eba3960b4d1af9c337f87f9751acfb2939e15 100644
+index 443088e..30cc0ae 100644
 --- content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
 +++ content/public/android/java/src/org/chromium/content/browser/accessibility/AccessibilityNodeInfoBuilder.java
-@@ -236,13 +236,17 @@ public class AccessibilityNodeInfoBuilder {
+@@ -234,10 +234,14 @@
          node.setScrollable(scrollable);
          node.setSelected(selected);
          node.setVisibleToUser(visibleToUser);
@@ -15,15 +15,12 @@ index c7b45e0926213afceb0bf35e64d310ce8eb16779..229eba3960b4d1af9c337f87f9751acf
 +        try { node.setFieldRequired(isRequired); } catch (NoSuchMethodError e) {}
 +        try { node.setContentInvalid(contentInvalid); } catch (NoSuchMethodError e) {}
          node.setHeading(isHeading);
- 
-         if (ContentFeatureMap.isEnabled(
-                 ContentFeatureList.ACCESSIBILITY_SET_SELECTABLE_ON_ALL_NODES_WITH_TEXT)) {
--            node.setTextSelectable(textSelectable);
-+            try { node.setTextSelectable(textSelectable); } catch (NoSuchMethodError e) {}
-         }
+-        node.setTextSelectable(textSelectable);
++        try { node.setTextSelectable(textSelectable); } catch (NoSuchMethodError e) {}
  
          List<String> availableExtraData = new ArrayList<>();
-@@ -452,7 +456,7 @@ public class AccessibilityNodeInfoBuilder {
+         if (hasImage) {
+@@ -446,7 +450,7 @@
          node.setInputType(inputType);
          node.setHintText(hint);
          node.setTooltipText(tooltipText);
@@ -32,7 +29,7 @@ index c7b45e0926213afceb0bf35e64d310ce8eb16779..229eba3960b4d1af9c337f87f9751acf
  
          node.setLiveRegion(liveRegion);
  
-@@ -467,11 +471,14 @@ public class AccessibilityNodeInfoBuilder {
+@@ -461,11 +465,14 @@
              bundle.putInt(EXTRAS_KEY_CLICKABLE_SCORE, clickableScore);
          }
  
@@ -51,7 +48,7 @@ index c7b45e0926213afceb0bf35e64d310ce8eb16779..229eba3960b4d1af9c337f87f9751acf
      }
  
      @SuppressLint("NewApi")
-@@ -518,7 +525,7 @@ public class AccessibilityNodeInfoBuilder {
+@@ -512,7 +519,7 @@
  
          // We add the supplementalDescription attribute when it is non-null and not empty.
          if (supplementalDescription != null && !supplementalDescription.isEmpty()) {
@@ -60,7 +57,7 @@ index c7b45e0926213afceb0bf35e64d310ce8eb16779..229eba3960b4d1af9c337f87f9751acf
          }
  
          // We expose the nested structure of links, which results in the roles of all nested nodes
-@@ -591,7 +598,7 @@ public class AccessibilityNodeInfoBuilder {
+@@ -585,7 +592,7 @@
  
          // We add the supplementalDescription attribute when it is non-null and not empty.
          if (supplementalDescription != null && !supplementalDescription.isEmpty()) {
@@ -69,7 +66,7 @@ index c7b45e0926213afceb0bf35e64d310ce8eb16779..229eba3960b4d1af9c337f87f9751acf
          }
  
          // We expose the nested structure of links, which results in the roles of all nested nodes
-@@ -739,12 +746,19 @@ public class AccessibilityNodeInfoBuilder {
+@@ -733,12 +740,19 @@
              int endVirtualViewId,
              int endOffset,
              int endOffsetType) {
@@ -95,7 +92,7 @@ index c7b45e0926213afceb0bf35e64d310ce8eb16779..229eba3960b4d1af9c337f87f9751acf
          node.getExtras().putInt(EXTRA_SELECTION_START_OFFSET_TYPE, startOffsetType);
          node.getExtras().putInt(EXTRA_SELECTION_END_OFFSET_TYPE, endOffsetType);
      }
-@@ -752,7 +766,7 @@ public class AccessibilityNodeInfoBuilder {
+@@ -746,7 +760,7 @@
      @CalledByNative
      protected void clearAccessibilityNodeInfoExtendedSelectionAttrs(
              AccessibilityNodeInfoCompat node) {
