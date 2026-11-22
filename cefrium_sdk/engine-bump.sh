@@ -140,12 +140,14 @@ if run preflight; then hdr "preflight"
 fi
 
 if run pin; then hdr "pin new version (config only, non-destructive)"
-  cp "$GCLIENT" "$GCLIENT.bak"; cp "$COMPAT" "$COMPAT.bak"
+  # Backups outside the cef tree: a .bak there makes the next preflight fail.
+  mkdir -p "$BUMP_TMP"
+  cp "$GCLIENT" "$BUMP_TMP/gclient.bak"; cp "$COMPAT" "$BUMP_TMP/CHROMIUM_BUILD_COMPATIBILITY.txt.bak"
   perl -0777 -i -pe "s{(refs/tags/)[0-9.]+}{\${1}$CTAG}" "$GCLIENT"
   perl -0777 -i -pe "s{(refs/tags/)[0-9.]+}{\${1}$CTAG}" "$COMPAT"
   perl -0777 -i -pe "s{(CHROMIUM_VERSION = \")[0-9.]+(\")}{\${1}$CTAG\${2}}" "$CEFJAVA"
   echo "  pinned .gclient + CHROMIUM_BUILD_COMPATIBILITY + Cefrium.CHROMIUM_VERSION -> $CTAG"
-  echo "  (backups at *.bak; .gclient is local config and is not committed)"
+  echo "  (backups in $BUMP_TMP; .gclient is local config and is not committed)"
 
   # The consumer docs state the engine in several places -- one under
   # "Security updates" where an evaluator reads it, one in the quickstart's
@@ -549,4 +551,4 @@ if run brand; then hdr "brand mark (atomic number auto-follows CHROMIUM_VERSION)
 fi
 
 echo; echo "Engine-bump scaffolding done for $CTAG. Manual next: resolve any CONFLICT patches,"
-echo "fix Chromium-149 API breaks at build time, then cut a release with cut-release.sh."
+echo "fix Chromium $(echo "$CTAG" | cut -d. -f1) API breaks at build time, then the gates and the cut (RELEASING-CEFRIUM.md, Engine bump)."
