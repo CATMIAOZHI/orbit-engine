@@ -13,7 +13,7 @@
   <circle cx="356" cy="390" r="6" fill="#22d3ee" opacity="0.4"/>
   
   <!-- Text -->
-  <text x="256" y="130" font-family="system-ui,sans-serif" font-size="72" font-weight="400" fill="#94a3b8" text-anchor="middle">156</text>
+  <text x="256" y="130" font-family="system-ui,sans-serif" font-size="72" font-weight="400" fill="#94a3b8" text-anchor="middle">158</text>
   <text x="256" y="310" font-family="system-ui,sans-serif" font-size="220" font-weight="800" fill="#22d3ee" text-anchor="middle">Ce</text>
   <text x="256" y="420" font-family="system-ui,sans-serif" font-size="68" font-weight="400" fill="#94a3b8" text-anchor="middle">Cefrium</text>
 </svg>
