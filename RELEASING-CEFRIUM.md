@@ -138,44 +138,67 @@ spot-check a "signature line" to decide whether a patch applied, a test that
 reports applied patches as failures. Two copies of a procedure means one of
 them is wrong and you cannot tell which.
 
-## Engine bump - new Chromium / CEF (e.g. 148 -> 149)
+## Engine bump - new Chromium / CEF
 
 A release *cut* recompiles the **same** engine. An engine *bump* moves the port
-onto a **new** Chromium/CEF release - a different, harder operation: most patches
-will conflict because Chromium changed the files, and Chromium API breaks need
-fixing by hand. It is **not** fully automatable. The assistant
-`cef/cefrium_sdk/engine-bump.sh` does the **mechanical scaffolding + a per-patch
-conflict report**; it does not auto-resolve conflicts or fix API breaks.
+onto a **new** Chromium/CEF release. The scripts make every step but two
+deterministic: regenerating a patch whose context moved, and fixing a Chromium
+API break, need judgment. Everything else is one command with a fixed answer.
 
-```bash
-cef/cefrium_sdk/engine-bump.sh <chromium-tag> <cef-branch> [--from <phase>]
-#   e.g.  engine-bump.sh 149.0.7827.53 7827      # Debian-tracked Chromium 149
-#   read-only audit of the current tree:  --from report
-```
+**Which release.** Cefrium follows CEF's **Current Stable Build (Preferred)**,
+the newest stable entry of `https://cef-builds.spotifycdn.com/index.json`. When
+CEF moves its Preferred Stable to a new branch, the old branch gets no more
+updates, so staying on it means shipping without security fixes.
 
-Phases: `preflight pin sync rebase apply report brand`.
-- **preflight** - verify the cef tree is committed (patches are safe in git), record
-  current vs target, confirm the tag is on the remote.
-- **pin** - set the new version in the three sources of truth: `.gclient`
-  (`@refs/tags/<tag>`), `cef/CHROMIUM_BUILD_COMPATIBILITY.txt`, and
-  `Cefrium.CHROMIUM_VERSION`. Config-only, with `.bak` backups. The two tracked
-  files are committed here as `Pin Chromium <tag> (CEF branch <br>)`; `.gclient`
-  is local config and stays out of git. Only those two paths are staged, so
-  in-flight work elsewhere is untouched.
-- **sync** *(gated, destructive)* - checkout the new Chromium tag + `gclient sync`.
-  Resets `chromium/src`; the port's patches live in `cef/patch/` so nothing is
-  lost - they get re-applied onto the new tree.
-- **rebase** *(gated, guided)* - fetch the matching upstream CEF branch and rebase
-  `android-port` onto it (core CEF patch conflicts are CEF's, resolved here).
-- **apply** - run `patcher.py` on the new tree.
-- **report** - per Android patch: `OK` (applied) / `PENDING` (applies clean) /
-  `CONFLICT` (regenerate by the patch methodology - see `PATCHING-CEFRIUM.md`).
-- **brand** - `regenerate-icons.sh` (the atomic number auto-follows the new
-  `CHROMIUM_VERSION`; no argument needed).
+### The runbook
 
-Version target follows **Debian Chromium** for CVE parity (149 = `149.0.7827.53`,
-installed on the workstation). After the bump: resolve every `CONFLICT` patch, fix
-Chromium-version API breaks at build time, then cut a release with `cut-release.sh`.
+Run from `chromium/src`. `<tag>` and `<branch>` are what step 1 prints.
+
+1. **Is there a bump, and which kind?**
+   `cef/cefrium_sdk/upstream-status.sh --probe` prints the tree's engine, the
+   newest published SDK's engine, CEF's Preferred Stable and the newest build
+   on our branch, the verdict and the exact next command. Exit 0 = up to date,
+   10 = newer build on the same branch, 20 = Preferred Stable is on a newer
+   branch. `--probe` also prices the patch side (`probe-engine-bump.sh`: clean /
+   minor drift / real drift / files gone), without a sync.
+2. **Pin and sync.** `cef/cefrium_sdk/engine-bump.sh <tag> <branch> --to sync`.
+   Preflight stops unless the cef tree is committed, the tag exists, there is
+   `CEFRIUM_BUMP_MIN_FREE_GB` (60) free, and the signing key is live (it warns
+   if the tag is not the Preferred Stable). Pin writes the three sources of
+   truth (`.gclient`, `CHROMIUM_BUILD_COMPATIBILITY.txt`,
+   `Cefrium.CHROMIUM_VERSION`), rewrites every derived doc figure and commits
+   them with every file `update-doc-figures.py --owned` lists. Sync resets
+   `chromium/src` to the tag (the patches are in `cef/patch/`), runs `gclient
+   sync`, and wipes the build dirs (those with an `args.gn`; `out/release` stays).
+3. **Rebase android-port onto upstream `<branch>`** (branch bump only; the
+   maintainer, signed, it rewrites history).
+   `cef/cefrium_sdk/engine-bump.sh <tag> <branch> --from rebase --to rebase`
+   fetches the branch, cleans untracked files in `cef/` (commit new files
+   first), finds the fork point and PRINTS the rebase commands and the
+   conflict playbook. Run them, fast-forward `android-port`, and push only
+   after step 7 passes (`push.sh cef --force` backs the old head up first).
+4. **Apply and report.** `cef/cefrium_sdk/engine-bump.sh <tag> <branch> --from apply --to report`,
+   then `cef/cefrium_sdk/check-patches-applied.sh` and
+   `cef/cefrium_sdk/check-patch-format.sh`. Every `CONFLICT` and every patch
+   whose file is gone is regenerated by `PATCHING-CEFRIUM.md` (`python3
+   cef/tools/patch_updater.py --resave --patch android/<name>`), until a clean
+   reapply reports 0 failed.
+5. **Build a dev engine.** `cef/cefrium_sdk/build-all-variants.sh arm64 codecs`
+   (and `x64 codecs` for the emulator gate; `CEFRIUM_RELEASE_DIR` keeps a dev
+   build out of `out/release`). API breaks surface here; fix them in the patch
+   that owns the file, upstream-style.
+6. **Brand.** `cef/cefrium_sdk/engine-bump.sh <tag> <branch> --from brand`.
+7. **Gates on the dev AAR**, every one, before the cut:
+   `run-instrumentation-suite.sh` with `CEFRIUM_SDK_AAR=<dev aar>`, with and
+   without `CEFRIUM_NO_GMS=1`, on the W90; `suite-on-emulator.sh <x64 aar>
+   --level 36` (AOSP, no Google Play) both ways; `smoke-samples.sh`. A test that
+   fails is root-caused before the cut, not retried.
+8. **Cut.** `cef/cefrium_sdk/cut-release.sh <version> <prev>`.
+
+Phases of `engine-bump.sh`: `preflight pin sync rebase apply report brand`;
+`--from` and `--to` select a range, and `--from report` is a read-only audit
+of the current tree any time. Destructive phases (`sync`, `rebase`) ask for the
+tag to be typed; `CEFRIUM_YES=1` answers for CI.
 
 > CRITICAL (build dirs after a bump): a BUILD-number bump leaves STALE Java build
 > metadata (`build_config.json` + turbine graph) in any pre-existing `out/` dir,

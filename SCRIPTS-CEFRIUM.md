@@ -300,9 +300,14 @@ and it gates the prune.
 ## Engine bump
 
 ```bash
-cef/cefrium_sdk/probe-engine-bump.sh <chromium-tag>   # price it, no sync
-cef/cefrium_sdk/engine-bump.sh                        # do it (guided)
+cef/cefrium_sdk/upstream-status.sh [--probe]           # is there one? which tag? (0/10/20)
+cef/cefrium_sdk/probe-engine-bump.sh <chromium-tag>    # price it, no sync
+cef/cefrium_sdk/engine-bump.sh <tag> <branch> --to sync          # pin + sync
+cef/cefrium_sdk/engine-bump.sh <tag> <branch> --from rebase --to rebase  # print the rebase
+cef/cefrium_sdk/engine-bump.sh <tag> <branch> --from apply --to report   # patches
 ```
+
+The whole sequence, gates included: `RELEASING-CEFRIUM.md`, "Engine bump".
 
 `probe` fetches only our patch targets over HTTP and reports, per patch, clean /
 minor drift / real drift. `engine-bump.sh` stops and PRINTS the rebase commands
