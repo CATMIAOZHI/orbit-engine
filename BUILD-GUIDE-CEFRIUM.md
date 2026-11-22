@@ -23,7 +23,7 @@ export PATH="$PWD/depot_tools:$PATH"
 mkdir chromium && cd chromium
 fetch --nohooks android
 cd src
-git checkout 156.0.8078.96
+git checkout 158.0.8127.18
 gclient sync --with_branch_heads --with_tags
 
 # Clone CEF android-port branch
@@ -289,13 +289,13 @@ Then create the release (Codeberg -> Releases -> *New release*, or the API) with
 notes following this template:
 
 ```
-CEF branch 8078, Chromium 156.0.8078.96.
+CEF branch 8127, Chromium 158.0.8127.18.
 
 <one paragraph: what changed in this version>
 
 Published to the Codeberg Maven registry on <YYYY-MM-DD>.
 
-Includes Chromium security fixes through 156.0.8078.96.
+Includes Chromium security fixes through 158.0.8127.18.
 ```
 
 - The **exact Chromium version** is `chrome/VERSION` in the checkout (the Debian

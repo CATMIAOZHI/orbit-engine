@@ -293,7 +293,7 @@ CefriumWebView(
 | Feature | WebView | Cefrium |
 |---------|---------|---------|
 | Off-screen rendering | No | Yes (OnPaint pixel buffer) |
-| Pinned Chromium version | No (system) | Yes (156) |
+| Pinned Chromium version | No (system) | Yes (158) |
 | Multi-process control | No | Yes |
 | Network request interception (full) | Partial (GET) | Yes (all) |
 | App content on an https origin, no socket | `WebViewAssetLoader`, per WebView | `CefriumProfile.registerContentServer`, per profile, service workers and Range included |

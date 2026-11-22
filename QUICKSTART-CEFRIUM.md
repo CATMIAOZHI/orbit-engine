@@ -9,7 +9,7 @@ From zero to rendering a web page in 5 minutes.
 > only their architecture. Sizes measured on each release:
 > [what your users download](https://cefrium.com/guides/adopting-cefrium/).
 
-> **Build tooling (0.8.0+).** The SDK ships Chromium 156's Java-25 bytecode, so
+> **Build tooling (0.8.0+).** The SDK ships Chromium 158's Java-25 bytecode, so
 > your app must build with **AGP 9.4+**, **Gradle 9.7.1+**, **JDK 25**, and
 > **compileSdk 37**. JDK 25 is a hard floor, not a preference: Chromium 152 and
 > newer compile their own Java at `--release 25`, so nearly every class in the
@@ -305,7 +305,7 @@ public class MainActivity extends Activity {
 ## 6. Run
 
 Build and run on an arm64 device (most modern Android phones).
-You should see `example.com` rendered with full Chromium 156.
+You should see `example.com` rendered with full Chromium 158.
 
 ## Beyond the basics -- full feature guide
 

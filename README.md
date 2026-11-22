@@ -7,7 +7,7 @@
 **The full Chromium engine in your Android app, through the CEF C API.**
 
 [![SDK](https://img.shields.io/badge/SDK-0.21.0-22d3ee)](https://codeberg.org/cefrium/cef-android/releases)
-[![Chromium](https://img.shields.io/badge/Chromium-156.0.8078.96-4285f4)](https://cefrium.com/upstream/)
+[![Chromium](https://img.shields.io/badge/Chromium-158.0.8127.18-4285f4)](https://cefrium.com/upstream/)
 [![Android patches](https://img.shields.io/badge/Android%20patches-46-6b7280)](patch/patches/android)
 [![Maven](https://img.shields.io/badge/Maven-Codeberg-1f6feb)](https://codeberg.org/cefrium/-/packages)
 [![Min API](https://img.shields.io/badge/min%20API-29-3ddc84)](QUICKSTART-CEFRIUM.md)
@@ -87,7 +87,7 @@ may be outdated, broken by manufacturer customization, or missing features
 your app depends on. Cefrium solves three problems that WebView cannot:
 
 **1. Version consistency.** Cefrium pins to a specific Chromium version
-(currently 156). Your web code runs identically on every device, regardless
+(currently 158). Your web code runs identically on every device, regardless
 of the system WebView version. No more "works on Pixel, breaks on Samsung."
 
 **2. Full network control.** WebView's `shouldInterceptRequest` is limited
@@ -109,7 +109,7 @@ at all.*
 
 | Capability | Cefrium | Android WebView |
 |------------|---------|-----------------|
-| Chromium version control | Pinned (156) | Varies by device |
+| Chromium version control | Pinned (158) | Varies by device |
 | Off-screen rendering (pixel buffer) | Yes (OnPaint) | No |
 | Network-level ad blocking | Yes (filter lists, by resource type and page) | By URL only (shouldInterceptRequest) |
 | Multi-process control | Yes | No |
@@ -197,7 +197,7 @@ Cefrium is built from three deliberately-tracked source inputs:
 - **Chromium** - upstream Google source,
   `https://chromium.googlesource.com/chromium/src.git`, via depot_tools/gclient.
   Pinned (in `.gclient`) to the **exact tag Debian packages**
-  (`apt-cache policy chromium`; currently `156.0.8078.96`) for **CVE parity** - we
+  (`apt-cache policy chromium`; currently `158.0.8127.18`) for **CVE parity** - we
   inherit the security fixes in that upstream release. The bytes are **vanilla
   upstream**, not Debian's patched source: we use Chromium's bundled deps + the
   Android NDK toolchain, *not* Debian's system libraries. (The sibling
@@ -206,7 +206,7 @@ Cefrium is built from three deliberately-tracked source inputs:
   patches via Multiple Upstream Tarballs, system `gn`/`ninja`, no depot_tools.)
 - **CEF** - `cef/`, the `android-port` branch forked from the upstream CEF branch
   that matches Chromium's build number, the 3rd version component:
-  Chromium 156 -> branch 8078 (see `cef/CHROMIUM_BUILD_COMPATIBILITY.txt`). Hosted at
+  Chromium 158 -> branch 8127 (see `cef/CHROMIUM_BUILD_COMPATIBILITY.txt`). Hosted at
   [codeberg.org/cefrium/cef-android](https://codeberg.org/cefrium/cef-android).
 - **Patches** - applied to the Chromium tree by `cef/cefrium_sdk/apply-patches.py`
   (a patcher.py wrapper that activates the android condition): CEF's own
@@ -221,7 +221,7 @@ Engine-version tracking and how to upgrade it (e.g. 148 -> 149) are in
 ## Building from source
 
 Prerequisites: a Chromium source tree at the pinned tag (see **Sources** above --
-currently `156.0.8078.96`), ~400 GB disk, 64 GB RAM.
+currently `158.0.8127.18`), ~400 GB disk, 64 GB RAM.
 
 ```bash
 cd chromium/src
@@ -371,7 +371,7 @@ Woodpecker CI that builds every sample and compiles the test APK on each push.
 
 ## Relationship to upstream CEF
 
-Fork of CEF branch 8078, tracking Chromium 156.0.8078.96.
+Fork of CEF branch 8127, tracking Chromium 158.0.8127.18.
 Branch `android-port` contains all Android changes.
 
 Upstream CEF's own README is kept verbatim in
@@ -387,7 +387,7 @@ All Android changes are isolated and reviewable:
 - **CEF changes** (`libcef/browser/android/`, `cefrium_sdk/`): on the
   `android-port` branch. Generate patches with:
   ```bash
-  git format-patch origin/8078..android-port -- \
+  git format-patch origin/8127..android-port -- \
     ':!README.md' ':!assets/screenshots'
   ```
 - **Chromium patches** (`patch/patches/android/`): 46 Android-specific patches
@@ -446,7 +446,7 @@ are auditable in `patch/patches/android/`.
   Use R8/ProGuard, ABI splits, and AAB format to optimize delivery -- see
   [QUICKSTART-CEFRIUM.md](QUICKSTART-CEFRIUM.md#proguard-r8-and-apk-size).
 - **Security updates:** Cefrium tracks Debian Chromium releases for
-  CVE patches. Currently pinned to 156.0.8078.96.
+  CVE patches. Currently pinned to 158.0.8127.18.
 - **Not a WebView replacement:** Cefrium bundles its own Chromium.
   It does not reuse the system WebView. This is by design - it's what
   gives you version control and full API access.
