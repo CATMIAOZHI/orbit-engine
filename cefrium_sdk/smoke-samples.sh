@@ -111,11 +111,27 @@ fi
 # The two browsers live in their own repo (cefrium/cefrium-browser); the rest are
 # in cefrium-sample.
 is_browser() { case "$1" in cefrium-browser|compose-browser) return 0 ;; *) return 1 ;; esac; }
+# Activities without configChanges are recreated on a rotation and their page
+# starts again from its first URL; adopters copy these manifests.
+activities_without_config_changes() {
+  python3 - "$1" <<'PY'
+import re, sys
+s = open(sys.argv[1]).read()
+for tag in re.findall(r'<activity\b[^>]*>', s, re.S):
+    if 'configChanges' not in tag:
+        m = re.search(r'android:name="([^"]*)"', tag)
+        print(m.group(1) if m else '?')
+PY
+}
 fails=0
 echo "=== sample launch-smoke (engine: $(git -C "$SRC" describe --tags 2>/dev/null)) ==="
 for s in $SAMPLES; do
   if is_browser "$s"; then d="$ROOT/cefrium-browser/$s"; else d="$ROOT/cefrium-sample/$s"; fi
   [ -d "$d" ] || { echo "  $s: SKIP (missing)"; continue; }
+  missing="$(activities_without_config_changes "$d/app/src/main/AndroidManifest.xml" | tr '\n' ' ')"
+  if [ -n "$missing" ]; then
+    echo "  $s: FAIL (no android:configChanges on: $missing)"; fails=$((fails+1)); continue
+  fi
   GA=""
   # Every consumer resolves com.cefrium:* from maven.cefrium.com by default
   # (cefriumSource=registry, cefriumVersion in its gradle.properties).
