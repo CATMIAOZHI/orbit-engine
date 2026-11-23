@@ -12,6 +12,8 @@
 # Each level gets its own AVD (cefrium-smoke-api<N>), booted with -wipe-data
 # so an exit record can only come from this run, and stopped through its own
 # console (adb -s emulator-<port> emu kill) -- never by name or pattern.
+# On a level whose image has no Google Play services (tag "default") the no-gms
+# sample also runs and must write a PASS verdict.
 # Exit:   0 = every level launched clean; 1 = a level failed or could not boot.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -50,6 +52,20 @@ echo ">>> build java-sample against $(basename "$AAR")"
   || { echo "FAIL: java-sample build"; tail -20 "$WORK/gradle.log"; exit 1; }
 APK="$WORK/java-sample/app/build/outputs/apk/debug/app-debug.apk"
 
+# On an image without Google Play services (tag "default") the no-gms sample
+# runs too and must write a PASS verdict: an app without the Google libraries,
+# on a device without them (FEATURE-093).
+rsync -a --exclude build --exclude .gradle --exclude 'app/libs/*.aar' \
+  "$ROOT/cefrium-sample/no-gms/" "$WORK/no-gms/"
+mkdir -p "$WORK/no-gms/app/libs"
+cp "$AAR" "$WORK/no-gms/app/libs/cefrium-sdk.aar"
+echo ">>> build no-gms against $(basename "$AAR")"
+( cd "$WORK/no-gms" && ./gradlew -q assembleDebug -PcefriumSource=local --no-daemon ) \
+  > "$WORK/gradle-nogms.log" 2>&1 \
+  || { echo "FAIL: no-gms build"; tail -20 "$WORK/gradle-nogms.log"; exit 1; }
+NOGMS_APK="$WORK/no-gms/app/build/outputs/apk/debug/app-debug.apk"
+NOGMS_PKG=com.cefrium.nogms
+
 image_for() {  # an installed x86_64 image for an API level, google_apis first
   local d t
   for d in "$ANDROID_HOME/system-images/android-$1.0" "$ANDROID_HOME/system-images/android-$1"; do
@@ -87,26 +103,28 @@ EOF
   "$EMU" -avd "$AVD" -port "$port" -no-window -no-audio -no-snapshot -wipe-data \
       -no-boot-anim -gpu swiftshader_indirect > "$WORK/emu-api$L.log" 2>&1 &
   EPID=$!
+  # Every adb call has a time limit: adb shell can block for good on an
+  # emulator that is not ready, and the boot wait then never ends.
   booted=0
   for _ in $(seq 1 120); do
-    [ "$("$ADB" -s "$SER" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && { booted=1; break; }
+    [ "$(timeout 10 "$ADB" -s "$SER" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && { booted=1; break; }
     kill -0 "$EPID" 2>/dev/null || break
     sleep 3
   done
   verdict=""
   if [ "$booted" != 1 ]; then
     verdict="NOBOOT"
-  elif ! "$ADB" -s "$SER" install -r "$APK" > "$WORK/install-api$L.log" 2>&1; then
+  elif ! timeout 300 "$ADB" -s "$SER" install -r "$APK" > "$WORK/install-api$L.log" 2>&1; then
     verdict="NOINSTALL"
   else
-    "$ADB" -s "$SER" logcat -c
-    "$ADB" -s "$SER" shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+    timeout 20 "$ADB" -s "$SER" logcat -c
+    timeout 30 "$ADB" -s "$SER" shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
     # A renderer on a software-GPU emulator takes a while; a crash at startup
     # (the case this exists for) happens within the first second.
     sleep 30
-    "$ADB" -s "$SER" logcat -d > "$WORK/logcat-api$L.txt" 2>&1
-    "$ADB" -s "$SER" shell dumpsys activity exit-info "$PKG" > "$WORK/exitinfo-api$L.txt" 2>&1
-    top="$("$ADB" -s "$SER" shell dumpsys activity activities | grep -m1 -E 'topResumedActivity|mResumedActivity')"
+    timeout 60 "$ADB" -s "$SER" logcat -d > "$WORK/logcat-api$L.txt" 2>&1
+    timeout 30 "$ADB" -s "$SER" shell dumpsys activity exit-info "$PKG" > "$WORK/exitinfo-api$L.txt" 2>&1
+    top="$(timeout 30 "$ADB" -s "$SER" shell dumpsys activity activities | grep -m1 -E 'topResumedActivity|mResumedActivity')"
     if grep -qE 'FATAL EXCEPTION|Fatal signal' "$WORK/logcat-api$L.txt"; then
       verdict="CRASH"
     elif grep -qE 'reason=(4|5|6) ' "$WORK/exitinfo-api$L.txt"; then
@@ -117,7 +135,23 @@ EOF
       verdict="OK"
     fi
   fi
-  "$ADB" -s "$SER" emu kill >/dev/null 2>&1
+  if [ "$verdict" = OK ] && [[ "$img" == *";default;"* ]]; then
+    if ! timeout 300 "$ADB" -s "$SER" install -r "$NOGMS_APK" > "$WORK/install-nogms-api$L.log" 2>&1; then
+      verdict="NOGMS:NOINSTALL"
+    else
+      timeout 30 "$ADB" -s "$SER" shell monkey -p "$NOGMS_PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+      # run-as: from Android 11 adb shell cannot read Android/data.
+      ng=""
+      for _ in $(seq 1 45); do
+        ng="$(timeout 10 "$ADB" -s "$SER" shell run-as "$NOGMS_PKG" cat files/verdict.txt 2>/dev/null | tr -d '\r')"
+        [ -n "$ng" ] && break
+        sleep 2
+      done
+      echo "     api$L no-gms: ${ng:-no verdict in 90 s}"
+      case "$ng" in PASS*) ;; *) verdict="NOGMS:${ng:-NONE}" ;; esac
+    fi
+  fi
+  timeout 20 "$ADB" -s "$SER" emu kill >/dev/null 2>&1
   for _ in $(seq 1 30); do kill -0 "$EPID" 2>/dev/null || break; sleep 1; done
   # Still up: it is the emulator this loop started, so its own PID is safe.
   kill -0 "$EPID" 2>/dev/null && kill "$EPID"
