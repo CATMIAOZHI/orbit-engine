@@ -57,6 +57,7 @@ public final class com.cefrium.Cefrium
   public static boolean isInitialized();
   public static java.lang.String getVersion();
   public static java.lang.String getChromiumVersion();
+  public static java.lang.String diagnostics(android.content.Context);
   public static int loadAdBlockList(java.lang.String);
   public static int loadYouTubeAdRules();
   [deprecated] public static boolean setSecureDns(java.lang.String, java.lang.String);
