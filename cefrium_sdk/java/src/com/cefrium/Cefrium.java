@@ -864,10 +864,13 @@ public final class Cefrium {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("interrupted while the engine started", e);
             } catch (java.util.concurrent.ExecutionException e) {
-                throw new IllegalStateException("the engine failed to start", e.getCause());
+                throw new IllegalStateException(
+                        "the engine failed to start." + Diagnostics.REPORT, e.getCause());
             }
         }
-        if (!started) throw new IllegalStateException("the engine failed to start");
+        if (!started) {
+            throw new IllegalStateException("the engine failed to start." + Diagnostics.REPORT);
+        }
     }
 
     /** Cefrium SDK version. Kept in lockstep with the release by cut-release.sh. */
@@ -888,6 +891,20 @@ public final class Cefrium {
      */
     public static String getChromiumVersion() {
         return CHROMIUM_VERSION;
+    }
+
+    /**
+     * A text block to paste into a bug report: SDK and engine versions, device
+     * and ABIs, whether the Google libraries and Play services are present, the
+     * app's Application class and component factory, the WebView version and
+     * the app's recent process exits (Android 11+), the engine's included.
+     * Works before {@link #initialize}. Nothing in it identifies the device or
+     * its user. The format is for people and may change.
+     *
+     * <p>Report bugs at https://codeberg.org/cefrium/cef-android/issues with it.
+     */
+    public static String diagnostics(Context context) {
+        return Diagnostics.collect(context);
     }
 
     // ----- Ad blocking -------------------------------------------------------

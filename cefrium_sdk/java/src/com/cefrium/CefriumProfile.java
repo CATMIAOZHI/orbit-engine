@@ -371,7 +371,8 @@ public final class CefriumProfile {
         root();
         if (!nativeRegisterContentServer(mIncognito, nameForNative(), host, server,
                 ContentServerHost.class)) {
-            throw new IllegalStateException("the engine refused the content server for " + origin);
+            throw new IllegalStateException("the engine refused the content server for " + origin
+                    + "." + Diagnostics.REPORT);
         }
     }
 
@@ -814,7 +815,8 @@ public final class CefriumProfile {
         Cefrium.ensureInitialized();
         synchronized (CefriumProfile.class) {
             if (sRoot == null) {
-                throw new IllegalStateException("The engine did not report its data root");
+                throw new IllegalStateException(
+                        "The engine did not report its data root." + Diagnostics.REPORT);
             }
             return sRoot;
         }

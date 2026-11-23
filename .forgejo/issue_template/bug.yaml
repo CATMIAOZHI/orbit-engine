@@ -1,0 +1,34 @@
+name: Bug report
+about: Something in the SDK or the engine does not work.
+body:
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Cefrium.diagnostics(context)
+      description: Paste the text it returns, from the app on the device where it fails.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you did
+      description: The calls or the page, in order. A small sample that shows it is best.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What you expected, and what happened
+      description: Include the crash or log lines, if any.
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Browser mode
+      options:
+        - Surface (createWithSurface / CefriumView)
+        - Off-screen (OSR)
+        - Both
+        - Not sure
