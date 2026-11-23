@@ -5,7 +5,9 @@ package com.cefrium;
 
 import android.content.Context;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.ViewParent;
 import android.widget.FrameLayout;
 
 import androidx.core.view.NestedScrollingChild3;
@@ -63,9 +65,22 @@ public class CefriumSurfaceContainer extends FrameLayout
         // created and attached before the native browser exists), and in that case
         // no further onWindowFocusChanged will arrive. Seed from the current state
         // instead of waiting for an edge that already happened.
-        if (sink != null && hasWindowFocus()) {
+        if (sink != null && hasWindowFocus() && !anotherViewHasFocus()) {
             sink.onWindowFocus(true);
         }
+    }
+
+    // Focusing the page requests Android focus for the browser's view
+    // (RenderWidgetHostViewAndroid::Focus). When the window regains focus while
+    // another view holds it, a native text field for example, the page must not
+    // take it: the user is typing there. A tap on the page still focuses it.
+    private boolean anotherViewHasFocus() {
+        View focused = getRootView().findFocus();
+        if (focused == null) return false;
+        for (ViewParent p = focused.getParent(); p != null; p = p.getParent()) {
+            if (p == this) return false;
+        }
+        return focused != this;
     }
 
     // Issue #10: nothing used to deliver focus to the browser, so the page's
@@ -80,7 +95,7 @@ public class CefriumSurfaceContainer extends FrameLayout
     public void onWindowFocusChanged(boolean hasWindowFocus) {
         super.onWindowFocusChanged(hasWindowFocus);
         FocusSink sink = mFocusSink;
-        if (sink != null) {
+        if (sink != null && !(hasWindowFocus && anotherViewHasFocus())) {
             sink.onWindowFocus(hasWindowFocus);
         }
     }
