@@ -16,6 +16,10 @@ import com.cefrium.compose.CefriumView
 import com.cefrium.compose.CefriumViewState
 import com.cefrium.compose.CefriumWindow
 
+import android.os.SystemClock
+import android.view.InputDevice
+import android.view.MotionEvent
+import android.view.View
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
@@ -92,7 +96,8 @@ class CefriumComposePopupTest {
         "}" +
         "document.addEventListener('fullscreenchange', () =>" +
         " document.title = document.fullscreenElement ? 'in' : 'out');" +
-        "</script><div id=v style='height:50px'>v</div></body></html>"
+        "</script><div id=v style='height:100vh' onclick='this.requestFullscreen()'>" +
+        "v</div></body></html>"
 
     /**
      * A window adopted after its page already set its title and URL reports
@@ -191,13 +196,10 @@ class CefriumComposePopupTest {
             Assert.assertFalse(t.canGoBack)
             composeRule.waitUntil(10_000) { opener.pageTitle == "got:from-tab" }
 
-            composeRule.runOnUiThread {
-                tabBrowser!!.executeDevToolsMethod(
-                    "Runtime.evaluate",
-                    "{\"expression\":\"document.getElementById('v').requestFullscreen();1\"," +
-                        "\"userGesture\":true}",
-                ) { _, _ -> }
-            }
+            // A tap, as on a real site: Chromium refuses fullscreen to a view
+            // without focus, and the tap gives the browser's view focus.
+            Thread.sleep(1000)
+            tap(tabBrowser!!)
             composeRule.waitUntil(10_000) { t.isFullscreen && t.pageTitle == "in" }
             composeRule.runOnUiThread {
                 tabBrowser!!.executeDevToolsMethod(
@@ -231,6 +233,22 @@ class CefriumComposePopupTest {
         } finally {
             composeRule.runOnUiThread { opener.close() }
             server.close()
+        }
+    }
+
+    /** A touch at the centre of the browser's view, dispatched on the UI thread. */
+    private fun tap(b: CefriumBrowser) {
+        val down = SystemClock.uptimeMillis()
+        for (action in intArrayOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
+            composeRule.runOnUiThread {
+                val v: View = b.surfaceContainer
+                val ev = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action,
+                    v.width / 2f, v.height / 2f, 0)
+                ev.source = InputDevice.SOURCE_TOUCHSCREEN
+                v.dispatchTouchEvent(ev)
+                ev.recycle()
+            }
+            Thread.sleep(60)
         }
     }
 }

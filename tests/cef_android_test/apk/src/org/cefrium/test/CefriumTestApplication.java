@@ -13,7 +13,6 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.PathUtils;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
-import org.chromium.ui.base.ResourceBundle;
 
 /**
  * Application class for Cefrium test APK. Handles initialization shared
@@ -31,7 +30,6 @@ public class CefriumTestApplication extends Application {
         ContextUtils.initApplicationContext(this);
 
         // Configure locale paks before library loading.
-        ResourceBundle.setAvailablePakLocales(new String[]{"en-US"});
 
         // Tell LibraryLoader which process type this is. This must happen
         // before ensureInitialized() is called.

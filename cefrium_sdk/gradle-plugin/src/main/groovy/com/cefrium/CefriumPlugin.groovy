@@ -38,6 +38,9 @@ class CefriumPlugin implements Plugin<Project> {
     // Add packages here as ClassNotFoundException for R$type surfaces.
     // Do NOT add all 131 packages — that causes D8 OOM (260K+ fields).
     static final CHROMIUM_R_PACKAGES = [
+        // WebXR (Chromium 158+): the Cardboard SDK's QrCodeCaptureActivity reads
+        // its R.id/R.layout/R.string; without them R8 stops on missing classes.
+        'com.google.cardboard.sdk',
         'gen.base_module',
         'org.chromium.base',
         'org.chromium.chrome',

@@ -18,6 +18,11 @@
 #
 # Usage:  cef/cefrium_sdk/smoke-minified.sh
 # Env:    JAVA_HOME (JDK 25), ANDROID_HOME. One connected device, or ANDROID_SERIAL.
+#         CEFRIUM_SDK_AAR / CEFRIUM_COMPOSE_AAR: test these AARs instead.
+#         CEFRIUM_SMOKE_ABI=arm64-v8a: package only that ABI (the browser's
+#         -PcefriumAbi), for a one-ABI dev AAR: the plugin otherwise stops a
+#         release build that packages an ABI without libcef.so. Never set by a
+#         cut, which ships every ABI.
 # Exit:   0 = R8 >= 25% in all three categories and the app ran clean; 1 otherwise.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -45,8 +50,10 @@ cp "$SDK_AAR" "$APP/app/libs/cefrium-sdk.aar" || fail "staging the SDK AAR"
 cp "$COMPOSE_AAR" "$APP/app/libs/cefrium-compose.aar" || fail "staging the Compose AAR"
 
 echo ">>> minified build (R8 on, local AARs)"
+ABI_ARG=()
+[ -n "${CEFRIUM_SMOKE_ABI:-}" ] && ABI_ARG=("-PcefriumAbi=$CEFRIUM_SMOKE_ABI")
 ( cd "$APP" && ./gradlew clean bundleRelease assembleRelease -PcefriumSource=local \
-    -PcefriumR8Smoke=1 --no-daemon -q ) || fail "the minified build failed (R8 missing classes or rules)"
+    -PcefriumR8Smoke=1 "${ABI_ARG[@]}" --no-daemon -q ) || fail "the minified build failed (R8 missing classes or rules)"
 
 AAB="$(ls "$APP"/app/build/outputs/bundle/release/*.aab | head -1)"
 APK="$(ls "$APP"/app/build/outputs/apk/release/*.apk | head -1)"

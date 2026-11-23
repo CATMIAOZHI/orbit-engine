@@ -155,13 +155,11 @@ import org.chromium.base.ContextUtils
 import org.chromium.base.PathUtils
 import org.chromium.base.library_loader.LibraryLoader
 import org.chromium.base.library_loader.LibraryProcessType
-import org.chromium.ui.base.ResourceBundle
 class CefriumApp : Application() {
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(base)
         val isBrowser = !ContextUtils.getProcessName().contains(":")
         ContextUtils.initApplicationContext(this)
-        ResourceBundle.setAvailablePakLocales(arrayOf("en-US"))
         LibraryLoader.getInstance().setLibraryProcessType(
             if (isBrowser) LibraryProcessType.PROCESS_BROWSER
             else LibraryProcessType.PROCESS_CHILD)

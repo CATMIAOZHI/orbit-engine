@@ -13,7 +13,6 @@ import org.chromium.base.ContextUtils
 import org.chromium.base.PathUtils
 import org.chromium.base.library_loader.LibraryLoader
 import org.chromium.base.library_loader.LibraryProcessType
-import org.chromium.ui.base.ResourceBundle
 
 /**
  * CEF process init for the instrumentation harness. Mirrors the canonical
@@ -27,7 +26,6 @@ class TestHostApplication : Application() {
         super.attachBaseContext(base)
         val isBrowserProcess = !ContextUtils.getProcessName().contains(":")
         ContextUtils.initApplicationContext(this)
-        ResourceBundle.setAvailablePakLocales(arrayOf("en-US"))
         LibraryLoader.getInstance().setLibraryProcessType(
             if (isBrowserProcess) LibraryProcessType.PROCESS_BROWSER
             else LibraryProcessType.PROCESS_CHILD

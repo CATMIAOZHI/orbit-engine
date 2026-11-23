@@ -8,6 +8,9 @@ import com.cefrium.itest.HostActivity;
 import com.cefrium.itest.LocalHttpServer;
 
 import android.os.SystemClock;
+import android.view.InputDevice;
+import android.view.MotionEvent;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
@@ -41,8 +44,12 @@ public class CefriumFullscreenExitTest {
     @Rule(order = 1)
     public final BrowserRule browsers = new BrowserRule();
 
+    // The page enters on a tap, as on a real site: Chromium refuses fullscreen
+    // to a view without focus (SuppressFullscreenFromUnfocusedView), and the
+    // tap is what gives the browser's view focus.
     private static final String PAGE = "<!doctype html><title>ready</title>"
-            + "<div id=v style='height:80px;background:#08f'>v</div>"
+            + "<body style='margin:0'><div id=v style='height:100vh;background:#08f'"
+            + " onclick='this.requestFullscreen()'>v</div>"
             + "<script>document.addEventListener('fullscreenchange', () =>"
             + " document.title = document.fullscreenElement ? 'in' : 'out');</script>";
 
@@ -57,6 +64,25 @@ public class CefriumFullscreenExitTest {
             }
             Thread.sleep(100);
         }
+    }
+
+    private void tap(CefriumBrowser b) throws Exception {
+        long down = SystemClock.uptimeMillis();
+        send(b, down, MotionEvent.ACTION_DOWN);
+        Thread.sleep(60);
+        send(b, down, MotionEvent.ACTION_UP);
+    }
+
+    /** A touch at the centre of the browser's view, dispatched on the UI thread. */
+    private void send(CefriumBrowser b, long down, int action) {
+        activityRule.getActivity().runOnUiThread(() -> {
+            View v = b.getSurfaceContainer();
+            MotionEvent ev = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action,
+                    v.getWidth() / 2f, v.getHeight() / 2f, 0);
+            ev.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+            v.dispatchTouchEvent(ev);
+            ev.recycle();
+        });
     }
 
     private void eval(AtomicReference<CefriumBrowser> b, String js) {
@@ -86,7 +112,8 @@ public class CefriumFullscreenExitTest {
             });
             await("no load", () -> titles.contains("ready"));
 
-            eval(browser, "document.getElementById('v').requestFullscreen()");
+            Thread.sleep(1000);
+            tap(browser.get());
             await("the page did not enter", () -> titles.contains("in"));
             await("the app did not hear the entry", () -> edges.contains(true));
 
@@ -139,7 +166,8 @@ public class CefriumFullscreenExitTest {
             eval(opener, "window.open('/?w', 'w')");
             await("no window", () -> titles.contains("ready"));
 
-            eval(window, "document.getElementById('v').requestFullscreen()");
+            Thread.sleep(1000);
+            tap(window.get());
             await("the page did not enter", () -> titles.contains("in"));
             await("the app did not hear the entry", () -> edges.contains(true));
 
