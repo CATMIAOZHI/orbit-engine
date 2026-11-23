@@ -3535,13 +3535,62 @@ public class CefriumBrowser {
      * keeps background audio playing). Resumable via {@link #onResume()}. Call
      * from Activity.onPause()/onStop(); the Compose {@code CefriumView} wires this
      * automatically (see its {@code backgroundMediaPolicy}).
+     *
+     * <p>In picture-in-picture the activity is paused but still on screen, so
+     * the page keeps showing and playing; the pause then happens when the
+     * activity stops (the PiP window closed).
      */
     public void onPause() {
         checkThread("onPause");
         if (mClosed) return;  // an activity hook: nothing to pause
+        if (mActivity != null && mActivity.isInPictureInPictureMode()) {
+            deferPauseUntilStopped();
+            return;
+        }
+        pauseNow();
+    }
+
+    private void pauseNow() {
         setPageVisible(false);
         suspendMedia();
         setAudioMuted(true);
+    }
+
+    private boolean mPauseDeferred;
+    private android.app.Application.ActivityLifecycleCallbacks mStopWatcher;
+
+    private void deferPauseUntilStopped() {
+        mPauseDeferred = true;
+        if (mStopWatcher != null) return;
+        final android.app.Activity activity = mActivity;
+        mStopWatcher = new android.app.Application.ActivityLifecycleCallbacks() {
+            @Override
+            public void onActivityStopped(android.app.Activity a) {
+                if (a != activity || !mPauseDeferred) return;
+                mPauseDeferred = false;
+                if (!mClosed) pauseNow();
+            }
+
+            @Override public void onActivityCreated(android.app.Activity a,
+                    android.os.Bundle b) {}
+            @Override public void onActivityStarted(android.app.Activity a) {}
+            @Override public void onActivityResumed(android.app.Activity a) {}
+            @Override public void onActivityPaused(android.app.Activity a) {}
+            @Override public void onActivitySaveInstanceState(android.app.Activity a,
+                    android.os.Bundle b) {}
+            @Override public void onActivityDestroyed(android.app.Activity a) {
+                if (a == activity) stopWatchingStop();
+            }
+        };
+        activity.getApplication().registerActivityLifecycleCallbacks(mStopWatcher);
+    }
+
+    private void stopWatchingStop() {
+        if (mStopWatcher != null && mActivity != null) {
+            mActivity.getApplication().unregisterActivityLifecycleCallbacks(mStopWatcher);
+        }
+        mStopWatcher = null;
+        mPauseDeferred = false;
     }
 
     /**
@@ -3552,6 +3601,7 @@ public class CefriumBrowser {
     public void onResume() {
         checkThread("onResume");
         if (mClosed) return;  // an activity hook: nothing to resume
+        mPauseDeferred = false;
         setAudioMuted(false);
         setPageVisible(true);
         resumeMedia();
@@ -3626,6 +3676,7 @@ public class CefriumBrowser {
         checkThread("close");
         if (mClosed) return;
         mClosed = true;
+        stopWatchingStop();
         CefriumProfile.browserClosed(mProfile);
         if (mMediaSession != null) {
             mMediaSession.destroy();
@@ -5855,7 +5906,9 @@ public class CefriumBrowser {
      * Gives or takes keyboard focus for this browser.
      *
      * <p>On-screen browsers receive focus from their Android {@code View}, so you
-     * rarely need this. <b>Off-screen (OSR) browsers have no view</b>, so nothing
+     * rarely need this; there, {@code setFocus(true)} also moves Android focus to
+     * the browser's view, away from a native text field. The SDK itself never does
+     * that while another view holds focus. <b>Off-screen (OSR) browsers have no view</b>, so nothing
      * ever focuses them unless you call this, and their document stays unfocused
      * for its whole lifetime.
      *

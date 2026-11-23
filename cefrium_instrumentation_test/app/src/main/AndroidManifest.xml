@@ -36,6 +36,13 @@
             android:name=".HostActivity"
             android:exported="false" />
 
+        <!-- Picture-in-picture (CefriumPipTest). -->
+        <activity
+            android:name=".PipHostActivity"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
+            android:exported="false" />
+
         <!-- An AndroidX host (CefriumFileChooserTest). -->
         <activity
             android:name=".ComponentHostActivity"
