@@ -62,6 +62,7 @@ public final class com.cefrium.compose.CefriumBrowserPoolKt
   public final void clearCache();
   public final void printToPdf(java.lang.String, com.cefrium.CefriumBrowser$PdfCallback);
   public final void setUserAgentOverride(java.lang.String);
+  [experimental] public final void setUserAgentOverride(java.lang.String, com.cefrium.CefriumUserAgentMetadata);
   public final void setJavaScriptEnabled(boolean);
   public final void setZoomLevel(double);
   public final void setPinchToZoomEnabled(boolean);

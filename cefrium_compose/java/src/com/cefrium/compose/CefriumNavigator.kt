@@ -237,6 +237,15 @@ class CefriumNavigator {
         run("setUserAgentOverride") { it.setUserAgentOverride(userAgent) }
     }
 
+    /**
+     * Overrides the User-Agent and sends [metadata] as its client hints. See
+     * [com.cefrium.CefriumBrowser.setUserAgentOverride].
+     */
+    @com.cefrium.CefriumExperimental
+    fun setUserAgentOverride(userAgent: String, metadata: com.cefrium.CefriumUserAgentMetadata) {
+        run("setUserAgentOverride") { it.setUserAgentOverride(userAgent, metadata) }
+    }
+
     /** Enables/disables JavaScript at runtime. */
     fun setJavaScriptEnabled(enabled: Boolean) {
         run("setJavaScriptEnabled") { it.setJavaScriptEnabled(enabled) }
