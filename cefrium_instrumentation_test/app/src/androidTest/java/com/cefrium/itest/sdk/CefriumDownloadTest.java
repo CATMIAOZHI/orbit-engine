@@ -33,7 +33,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * A download the app allows without a path is saved in the app's own
  * Downloads directory, in both modes. Before, it went to /sdcard/Download
  * (on-screen) or the filesystem root (off-screen), and failed with access
- * denied.
+ * denied. startDownload() is the context menu's "save link" path, which
+ * crashed in Chrome's offline-pages download UI before it was removed.
  */
 @RunWith(AndroidJUnit4.class)
 public class CefriumDownloadTest {
@@ -55,14 +56,23 @@ public class CefriumDownloadTest {
         download(true);
     }
 
+    @Test
+    public void startDownloadCompletes() throws Exception {
+        download(true, true);
+    }
+
     private void download(boolean onScreen) throws Exception {
+        download(onScreen, false);
+    }
+
+    private void download(boolean onScreen, boolean viaApi) throws Exception {
         Activity activity = activityRule.getActivity();
         String name = "cefrium-dl-" + System.nanoTime() + ".txt";
         String page = "<html><body><a id=a download='" + name
                 + "' href='data:text/plain," + CONTENT.replace(" ", "%20") + "'>x</a>"
                 + "<script>document.title='ready';</script></body></html>";
-        File expected = new File(
-                activity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), name);
+        File dir = activity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+        File expected = new File(dir, name);
         AtomicReference<String> title = new AtomicReference<>("");
         AtomicReference<String> finished = new AtomicReference<>();
         CountDownLatch done = new CountDownLatch(1);
@@ -107,6 +117,22 @@ public class CefriumDownloadTest {
                 Thread.sleep(100);
             }
             Assert.assertEquals("ready", title.get());
+            if (viaApi) {
+                String url = server.url() + "?save";
+                activity.runOnUiThread(() -> holder[0].startDownload(url));
+                Assert.assertTrue("the download never finished",
+                        done.await(20, TimeUnit.SECONDS));
+                Assert.assertTrue(finished.get(),
+                        finished.get().startsWith("complete " + dir.getAbsolutePath()));
+                File saved = new File(finished.get().substring("complete ".length()));
+                try {
+                    Assert.assertEquals(page, new String(
+                            Files.readAllBytes(saved.toPath()), StandardCharsets.UTF_8));
+                } finally {
+                    saved.delete();
+                }
+                return;
+            }
             activity.runOnUiThread(() ->
                     holder[0].evaluateJavaScript("document.getElementById('a').click();"));
             Assert.assertTrue("the download never finished", done.await(20, TimeUnit.SECONDS));
