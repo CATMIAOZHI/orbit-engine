@@ -145,6 +145,15 @@ window.cefriumQuery({
 });
 ```
 
+The handler may answer later, from any thread: return true and call the
+callback when the work is done. To send events to the page, call
+`evaluateJavaScript` from the app.
+
+A native (C/C++) consumer of the CEF C API cannot register a `CefApp` of its
+own in the renderer: the SDK registers one there (`cef_jni_onload.cc`) to
+provide `window.cefriumQuery`. For renderer-side work, use the bridge, or the
+DevTools protocol (`executeDevToolsMethod`).
+
 ## Web Notifications & Push
 
 A page's **service worker** can post a real Android notification to the system
