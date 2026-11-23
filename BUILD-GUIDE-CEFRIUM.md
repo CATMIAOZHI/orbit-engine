@@ -317,6 +317,26 @@ In the `pages` repo, add one `<tr>` to the static table in
 to its Codeberg release tag and showing the Gradle coordinate. Keep newest
 first.
 
+## Reproduce a published libcef.so
+
+A clean build of one cef commit gives the same `libcef.so` byte for byte
+(measured: two clean arm64 builds of one commit, same out dir; another
+machine or out-dir path is not measured yet). The library embeds the cef
+commit it was built from, so build exactly that commit:
+
+```bash
+cd chromium/src
+# 1. Which commit? Prints it, then compares (it will differ until step 3).
+cef/cefrium_sdk/verify-reproducible.sh 0.22.0 out/Official_android_arm64_codecs
+# 2. That cef commit, the Chromium tag its CHROMIUM_BUILD_COMPATIBILITY.txt
+#    names, patches applied (sections 1-2).
+# 3. A clean build of the variant, then the same command: "OK: identical".
+cef/cefrium_sdk/build-all-variants.sh arm64 codecs
+cef/cefrium_sdk/verify-reproducible.sh 0.22.0 out/Official_android_arm64_codecs
+```
+
+The AARs are reproducible too: every entry has a fixed date (2001-01-01).
+
 ## Build times (reference: Ryzen 9 7900X, 64 GB DDR5, NVMe)
 
 | Build | Time |

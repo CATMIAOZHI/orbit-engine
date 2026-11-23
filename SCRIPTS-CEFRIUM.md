@@ -383,6 +383,7 @@ handler is never consulted). `--skip-build` for sample-only edits.
 | R8 consumer rules: Play's 25% bar + minified run | `cef/cefrium_sdk/smoke-minified.sh` |
 | Test a published release e2e | `cef/cefrium_sdk/test-published-release.sh <version>` |
 | Verify an artifact's engine/ABIs | `cef/cefrium_sdk/verify-release-artifacts.sh <version>` |
+| Is a published libcef.so the one this source builds? (prints the cef commit it was built from) | `cef/cefrium_sdk/verify-reproducible.sh <version> <out-dir> [codecs\|libre]` |
 | Audit the engine's network calls | `cef/cefrium_sdk/audit-engine-network.sh` |
 | cefrium.com/benchmarks (per device, then the page) | `cefrium-sample/benchmark-suite/run-benchmarks.sh -s <serial> -r <version>`, then `bench-page.py`; see that directory's README |
 | Days from each Chrome stable update to the Cefrium release carrying it (the basis of any security-response commitment) | `cef/cefrium_sdk/security-latency.py [--since YYYY-MM-DD] [--csv out.csv]` |
