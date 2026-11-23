@@ -49,12 +49,17 @@ def is_standard_res(name):
 
 
 def is_non_english_locale(name):
+    """res/values-<locale>[-...]/: translations, dropped. Other qualifiers
+    (sw600dp, night, land, ...) select resources the engine reads, e.g.
+    min_screen_width_bucket, so they stay."""
     if not name.startswith('res/values-'):
         return False
-    locale = name.split('/')[1]
-    if locale.startswith('values-v') and locale[8:].isdigit():
+    quals = name.split('/')[1].split('-')[1:]
+    while quals and re.match(r'(mcc|mnc)\d+$', quals[0]):
+        quals.pop(0)
+    if not quals or quals[0] == 'car':  # 'car' is a UI mode
         return False
-    return True
+    return bool(re.match(r'([a-z]{2,3}|b\+.+)$', quals[0]))
 
 
 STRIPPABLE_RES_TYPES = (

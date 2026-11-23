@@ -93,6 +93,17 @@ public class CefriumUserAgentHintsTest {
         Assert.assertTrue(s.title, s.title.contains("mobile=" + uaMobile));
     }
 
+    /** As Chrome: "Mobile" on a phone (smallest width under 600dp), not on a tablet. */
+    @Test
+    public void mobileOnPhonesOnly() throws Exception {
+        boolean phone = activityRule.getActivity().getResources().getConfiguration()
+                .smallestScreenWidthDp < 600;
+        Seen s = load(b -> {});
+        Assert.assertEquals("phone=" + phone + " UA " + s.ua, phone, s.ua.contains(" Mobile "));
+        Assert.assertEquals(phone ? "?1" : "?0", s.chMobile);
+        Assert.assertTrue(s.title, s.title.contains("mobile=" + phone));
+    }
+
     @Test
     public void anOverrideAloneSendsNoHints() throws Exception {
         Seen s = load(b -> b.setUserAgentOverride("Foo/1.0"));
