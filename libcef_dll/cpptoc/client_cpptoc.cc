@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=51b11a6ef695da2f9d9b228701412d07dd6c4076$
+// $hash=7ab5cb838f703f82b9de36632ff5a1ac2850cae3$
 //
 
 #include "libcef_dll/cpptoc/audio_handler_cpptoc.h"
@@ -25,6 +25,7 @@
 #include "libcef_dll/cpptoc/focus_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/frame_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/identity_request_handler_cpptoc.h"
+#include "libcef_dll/cpptoc/input_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/jsdialog_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/keyboard_handler_cpptoc.h"
 #include "libcef_dll/cpptoc/life_span_handler_cpptoc.h"
@@ -379,6 +380,23 @@ int CEF_CALLBACK client_on_process_message_received(struct _cef_client_t* self, 
   return _retval;
 }
 
+#if CEF_API_ADDED(15800)
+struct _cef_input_handler_t* CEF_CALLBACK client_get_input_handler(struct _cef_client_t* self) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return NULL;
+  }
+
+  // Execute
+  CefRefPtr<CefInputHandler> _retval = CefClientCppToC::Get(self)->GetInputHandler();
+
+  // Return type: refptr_same
+  return CefInputHandlerCppToC_Wrap(_retval);
+}
+#endif  // CEF_API_ADDED(15800)
+
 }  // namespace
 
 // CONSTRUCTOR - Do not edit by hand.
@@ -403,6 +421,9 @@ CefClientCppToC::CefClientCppToC() {
   GetStruct()->get_render_handler = client_get_render_handler;
   GetStruct()->get_request_handler = client_get_request_handler;
   GetStruct()->on_process_message_received = client_on_process_message_received;
+#if CEF_API_ADDED(15800)
+  GetStruct()->get_input_handler = client_get_input_handler;
+#endif
 #if CEF_API_ADDED(CEF_EXPERIMENTAL)
   GetStruct()->get_device_chooser_handler = client_get_device_chooser_handler;
 #endif

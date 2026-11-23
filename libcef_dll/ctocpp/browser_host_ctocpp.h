@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=c395174dfa9141a57337ace14c358005844ba7c0$
+// $hash=6c20c9d12b90580f1d8d7c39a8446676a1ed34ea$
 //
 
 #ifndef CEF_LIBCEF_DLL_CTOCPP_BROWSER_HOST_CTOCPP_H_
@@ -106,6 +106,18 @@ class CefBrowserHostCToCpp
   cef_runtime_style_t GetRuntimeStyle() override;
 #if CEF_API_ADDED(CEF_EXPERIMENTAL)
   void SetAxViewportCollapse(bool enabled) override;
+#endif
+#if CEF_API_ADDED(15800)
+  void SendKeyboardEvent(const CefKeyboardInputEvent& event) override;
+#endif
+#if CEF_API_ADDED(15800)
+  void SendMouseEvent(const CefMouseInputEvent& event) override;
+#endif
+#if CEF_API_ADDED(15800)
+  void SendGestureEvent(const CefGestureInputEvent& event) override;
+#endif
+#if CEF_API_ADDED(15800)
+  void SendWheelEvent(const CefWheelInputEvent& event) override;
 #endif
 };
 

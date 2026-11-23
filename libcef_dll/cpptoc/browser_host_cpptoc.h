@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=edd899c3696df3b3bdcf5d8d6ca331bcbb07af2f$
+// $hash=e6b336c78c3cafd3c63cb1b8a4daf36ab542805c$
 //
 
 #ifndef CEF_LIBCEF_DLL_CPPTOC_BROWSER_HOST_CPPTOC_H_
@@ -33,6 +33,15 @@ class CefBrowserHost_0_CppToC
  public:
   CefBrowserHost_0_CppToC();
   virtual ~CefBrowserHost_0_CppToC();
+};
+
+// Wrap a C++ class with a C structure at API version 15800.
+// This class may be instantiated and accessed DLL-side only.
+class CefBrowserHost_15800_CppToC
+    : public CefCppToCRefCounted<CefBrowserHost_15800_CppToC, CefBrowserHost, cef_browser_host_15800_t> {
+ public:
+  CefBrowserHost_15800_CppToC();
+  virtual ~CefBrowserHost_15800_CppToC();
 };
 
 // Wrap a C++ class with a C structure at API version 999999.

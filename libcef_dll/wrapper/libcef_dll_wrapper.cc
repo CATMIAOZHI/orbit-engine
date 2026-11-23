@@ -9,13 +9,14 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=a55e760b5a7b2fe6ce030d87bfe6a3fcceac2620$
+// $hash=8c3041829df459e637a2a5e029eabf1c204e26d1$
 //
 
 #include "include/capi/cef_app_capi.h"
 #include "include/capi/cef_crash_util_capi.h"
 #include "include/capi/cef_file_util_capi.h"
 #include "include/capi/cef_i18n_util_capi.h"
+#include "include/capi/cef_input_event_utils_capi.h"
 #include "include/capi/cef_origin_whitelist_capi.h"
 #include "include/capi/cef_parser_capi.h"
 #include "include/capi/cef_path_util_capi.h"
@@ -31,6 +32,7 @@
 #include "include/cef_crash_util.h"
 #include "include/cef_file_util.h"
 #include "include/cef_i18n_util.h"
+#include "include/cef_input_event_utils.h"
 #include "include/cef_origin_whitelist.h"
 #include "include/cef_parser.h"
 #include "include/cef_path_util.h"
@@ -46,12 +48,14 @@
 #include "libcef_dll/cpptoc/end_tracing_callback_cpptoc.h"
 #include "libcef_dll/cpptoc/scheme_handler_factory_cpptoc.h"
 #include "libcef_dll/cpptoc/task_cpptoc.h"
+#include "libcef_dll/cpptoc/test/capture_browser_window_callback_cpptoc.h"
 #include "libcef_dll/cpptoc/v8_handler_cpptoc.h"
 #include "libcef_dll/ctocpp/binary_value_ctocpp.h"
 #include "libcef_dll/ctocpp/browser_ctocpp.h"
 #include "libcef_dll/ctocpp/command_line_ctocpp.h"
 #include "libcef_dll/ctocpp/frame_ctocpp.h"
 #include "libcef_dll/ctocpp/value_ctocpp.h"
+#include "libcef_dll/ctocpp/views/window_ctocpp.h"
 #include "libcef_dll/shutdown_checker.h"
 #include "libcef_dll/transfer_util.h"
 
@@ -323,6 +327,129 @@ NO_SANITIZE("cfi-icall") CEF_GLOBAL bool CefIsRTL() {
   // Return type: bool
   return _retval?true:false;
 }
+
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") CEF_GLOBAL int CefWindowsKeyCodeFromDomCodeAndKey(uint32_t dom_code, uint32_t dom_key) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  int _retval = cef_windows_key_code_from_dom_code_and_key(
+      dom_code,
+      dom_key);
+
+  // Return type: simple
+  return _retval;
+}
+#endif  // CEF_API_ADDED(15800)
+
+#if defined(OS_WIN)
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") CEF_GLOBAL bool CefKeyboardInputEventFromWindowsMessage(uint32_t message, uint64_t wparam, int64_t lparam, CefKeyboardInputEvent& event) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  int _retval = cef_keyboard_input_event_from_windows_message(
+      message,
+      wparam,
+      lparam,
+      &event);
+
+  // Return type: bool
+  return _retval?true:false;
+}
+#endif  // CEF_API_ADDED(15800)
+#endif  // defined(OS_WIN)
+
+#if defined(OS_WIN)
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") CEF_GLOBAL bool CefKeyboardInputEventFromWindowsMessageEx(uint32_t message, uint64_t wparam, int64_t lparam, const std::vector<int>& keyboard_state, uint64_t keyboard_layout, int64_t timestamp, CefKeyboardInputEvent& event) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Translate param: keyboard_state; type: simple_vec_byref_const
+  const size_t keyboard_stateCount = keyboard_state.size();
+  int* keyboard_stateList = NULL;
+  if (keyboard_stateCount > 0) {
+    keyboard_stateList = new int[keyboard_stateCount];
+    DCHECK(keyboard_stateList);
+    if (keyboard_stateList) {
+      for (size_t i = 0; i < keyboard_stateCount; ++i) {
+        keyboard_stateList[i] = keyboard_state[i];
+      }
+    }
+  }
+
+  // Execute
+  int _retval = cef_keyboard_input_event_from_windows_message_ex(
+      message,
+      wparam,
+      lparam,
+      keyboard_stateCount,
+      keyboard_stateList,
+      keyboard_layout,
+      timestamp,
+      &event);
+
+  // Restore param:keyboard_state; type: simple_vec_byref_const
+  if (keyboard_stateList) {
+    delete [] keyboard_stateList;
+  }
+
+  // Return type: bool
+  return _retval?true:false;
+}
+#endif  // CEF_API_ADDED(15800)
+#endif  // defined(OS_WIN)
+
+#if defined(OS_MAC)
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") CEF_GLOBAL bool CefKeyboardInputEventFromMacEvent(CefEventHandle native_event, CefKeyboardInputEvent& event) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  int _retval = cef_keyboard_input_event_from_mac_event(
+      native_event,
+      &event);
+
+  // Return type: bool
+  return _retval?true:false;
+}
+#endif  // CEF_API_ADDED(15800)
+#endif  // defined(OS_MAC)
+
+#if defined(OS_MAC)
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") CEF_GLOBAL bool CefKeyboardInputEventFromMacEventEx(CefEventHandle native_event, const CefString& input_source_id, int keyboard_type, CefKeyboardInputEvent& event) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Unverified params: input_source_id
+
+  // Execute
+  int _retval = cef_keyboard_input_event_from_mac_event_ex(
+      native_event,
+      input_source_id.GetStruct(),
+      keyboard_type,
+      &event);
+
+  // Return type: bool
+  return _retval?true:false;
+}
+#endif  // CEF_API_ADDED(15800)
+#endif  // defined(OS_MAC)
+
+#if defined(OS_LINUX)
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") CEF_GLOBAL uint32_t CefNonPrintableDomKeyFromXKeysym(uint32_t keysym) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  uint32_t _retval = cef_non_printable_dom_key_from_xkeysym(
+      keysym);
+
+  // Return type: simple
+  return _retval;
+}
+#endif  // CEF_API_ADDED(15800)
+#endif  // defined(OS_LINUX)
 
 NO_SANITIZE("cfi-icall") CEF_GLOBAL bool CefAddCrossOriginWhitelistEntry(const CefString& source_origin, const CefString& target_protocol, const CefString& target_domain, bool allow_target_subdomains) {
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
@@ -890,6 +1017,47 @@ NO_SANITIZE("cfi-icall") CEF_GLOBAL bool CefIsFeatureEnabledForTests(const CefSt
   // Return type: bool
   return _retval?true:false;
 }
+
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") CEF_GLOBAL void CefCaptureBrowserWindowForTests(CefRefPtr<CefBrowser> browser, bool native, CefRefPtr<CefCaptureBrowserWindowCallback> callback) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: callback; type: refptr_diff
+  DCHECK(callback.get());
+  if (!callback.get()) {
+    return;
+  }
+  // Unverified params: browser
+
+  // Execute
+  cef_capture_browser_window_for_tests(
+      CefBrowserCToCpp_Unwrap(browser),
+      native,
+      CefCaptureBrowserWindowCallbackCppToC_Wrap(callback));
+}
+#endif  // CEF_API_ADDED(15800)
+
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") CEF_GLOBAL bool CefSendMouseClickForTesting(CefRefPtr<CefWindow> owner, int target_id, bool is_menu, uint32_t modifiers) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: owner; type: refptr_same
+  DCHECK(owner.get());
+  if (!owner.get()) {
+    return false;
+  }
+
+  // Execute
+  int _retval = cef_send_mouse_click_for_testing(
+      CefWindowCToCpp_Unwrap(owner),
+      target_id,
+      is_menu,
+      modifiers);
+
+  // Return type: bool
+  return _retval?true:false;
+}
+#endif  // CEF_API_ADDED(15800)
 
 #if CEF_API_ADDED(CEF_EXPERIMENTAL)
 NO_SANITIZE("cfi-icall") CEF_GLOBAL int CefGetChromeBrowserOwnedWidgetCountForTests(CefRefPtr<CefBrowser> browser) {

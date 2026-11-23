@@ -8,7 +8,7 @@
 # by hand. See the translator.README.txt file in the tools directory for
 # more information.
 #
-# $hash=7f42aa1d76f1b9a3c5ccf2ff23e7fe51622c4d3d$
+# $hash=66b2ad208bf9c95c7ff6bbba1949d9350e22bd7b$
 #
 
 {
@@ -45,6 +45,8 @@
       'include/cef_i18n_util.h',
       'include/cef_identity_request_handler.h',
       'include/cef_image.h',
+      'include/cef_input_event_utils.h',
+      'include/cef_input_handler.h',
       'include/cef_jsdialog_handler.h',
       'include/cef_keyboard_handler.h',
       'include/cef_life_span_handler.h',
@@ -153,6 +155,8 @@
       'include/capi/cef_i18n_util_capi.h',
       'include/capi/cef_identity_request_handler_capi.h',
       'include/capi/cef_image_capi.h',
+      'include/capi/cef_input_event_utils_capi.h',
+      'include/capi/cef_input_handler_capi.h',
       'include/capi/cef_jsdialog_handler_capi.h',
       'include/capi/cef_keyboard_handler_capi.h',
       'include/capi/cef_life_span_handler_capi.h',
@@ -261,6 +265,8 @@
       'include/capi/cef_i18n_util_capi_versions.h',
       'include/capi/cef_identity_request_handler_capi_versions.h',
       'include/capi/cef_image_capi_versions.h',
+      'include/capi/cef_input_event_utils_capi_versions.h',
+      'include/capi/cef_input_handler_capi_versions.h',
       'include/capi/cef_jsdialog_handler_capi_versions.h',
       'include/capi/cef_keyboard_handler_capi_versions.h',
       'include/capi/cef_life_span_handler_capi_versions.h',
@@ -402,6 +408,8 @@
       'libcef_dll/ctocpp/views/button_delegate_ctocpp.h',
       'libcef_dll/cpptoc/callback_cpptoc.cc',
       'libcef_dll/cpptoc/callback_cpptoc.h',
+      'libcef_dll/ctocpp/test/capture_browser_window_callback_ctocpp.cc',
+      'libcef_dll/ctocpp/test/capture_browser_window_callback_ctocpp.h',
       'libcef_dll/ctocpp/client_ctocpp.cc',
       'libcef_dll/ctocpp/client_ctocpp.h',
       'libcef_dll/ctocpp/command_handler_ctocpp.cc',
@@ -482,6 +490,8 @@
       'libcef_dll/ctocpp/identity_request_handler_ctocpp.h',
       'libcef_dll/cpptoc/image_cpptoc.cc',
       'libcef_dll/cpptoc/image_cpptoc.h',
+      'libcef_dll/ctocpp/input_handler_ctocpp.cc',
+      'libcef_dll/ctocpp/input_handler_ctocpp.h',
       'libcef_dll/cpptoc/jsdialog_callback_cpptoc.cc',
       'libcef_dll/cpptoc/jsdialog_callback_cpptoc.h',
       'libcef_dll/ctocpp/jsdialog_handler_ctocpp.cc',
@@ -784,6 +794,8 @@
       'libcef_dll/cpptoc/views/button_delegate_cpptoc.h',
       'libcef_dll/ctocpp/callback_ctocpp.cc',
       'libcef_dll/ctocpp/callback_ctocpp.h',
+      'libcef_dll/cpptoc/test/capture_browser_window_callback_cpptoc.cc',
+      'libcef_dll/cpptoc/test/capture_browser_window_callback_cpptoc.h',
       'libcef_dll/cpptoc/client_cpptoc.cc',
       'libcef_dll/cpptoc/client_cpptoc.h',
       'libcef_dll/cpptoc/command_handler_cpptoc.cc',
@@ -864,6 +876,8 @@
       'libcef_dll/cpptoc/identity_request_handler_cpptoc.h',
       'libcef_dll/ctocpp/image_ctocpp.cc',
       'libcef_dll/ctocpp/image_ctocpp.h',
+      'libcef_dll/cpptoc/input_handler_cpptoc.cc',
+      'libcef_dll/cpptoc/input_handler_cpptoc.h',
       'libcef_dll/ctocpp/jsdialog_callback_ctocpp.cc',
       'libcef_dll/ctocpp/jsdialog_callback_ctocpp.h',
       'libcef_dll/cpptoc/jsdialog_handler_cpptoc.cc',

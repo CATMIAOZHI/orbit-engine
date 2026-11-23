@@ -8,7 +8,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=3ca3d857474b58b33740b9e6d504207e16fd4cb4$
+// $hash=b52ab084296b613a6fab6b85a642c9d8b5c4c662$
 //
 
 #ifndef CEF_INCLUDE_CAPI_VIEWS_CEF_TEXTFIELD_DELEGATE_CAPI_VERSIONS_H_
@@ -33,6 +33,13 @@ typedef struct _cef_textfield_delegate_0_t {
   int (CEF_CALLBACK *on_key_event)(struct _cef_textfield_delegate_0_t* self, struct _cef_textfield_0_t* textfield, const cef_key_event_t* event);
   void (CEF_CALLBACK *on_after_user_action)(struct _cef_textfield_delegate_0_t* self, struct _cef_textfield_0_t* textfield);
 } cef_textfield_delegate_0_t;
+
+typedef struct _cef_textfield_delegate_15800_t {
+  cef_view_delegate_0_t base;
+  int (CEF_CALLBACK *on_key_event)(struct _cef_textfield_delegate_15800_t* self, struct _cef_textfield_0_t* textfield, const cef_key_event_t* event);
+  void (CEF_CALLBACK *on_after_user_action)(struct _cef_textfield_delegate_15800_t* self, struct _cef_textfield_0_t* textfield);
+  int (CEF_CALLBACK *on_keyboard_event)(struct _cef_textfield_delegate_15800_t* self, struct _cef_textfield_0_t* textfield, const struct _cef_keyboard_input_event_t* event);
+} cef_textfield_delegate_15800_t;
 
 #ifdef __cplusplus
 }

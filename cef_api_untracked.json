@@ -1,18 +1,18 @@
 {
   "hashes": {
     "999998": {
-      "comment": "Next version last updated November 09, 2026.",
-      "linux": "6dc09eb2834fe5b61d7d8c42bbb8d8c27a2bb1b6",
-      "mac": "e01e9208f887490aa249d57f56761ab9c0c3f7ac",
-      "sandbox_compat": "3b66cadf26145637",
-      "windows": "8f211699a44daedd96ae2a89bbf3a8f2abc229f3"
+      "comment": "Next version last updated November 23, 2026.",
+      "linux": "8897ebe542a667ae7611766e9f5be0d6d3d4d471",
+      "mac": "ef54ab815fa59ca460eb89037ac5fbab8c2f6299",
+      "sandbox_compat": "289b33a8be8a12a3",
+      "windows": "30117326d4dc19db39e31a890ef52c85b8680e76"
     },
     "999999": {
-      "comment": "Experimental version last updated November 09, 2026.",
-      "linux": "1c123effe7c3ecc7e2ac5c03c332aa046ba9d850",
-      "mac": "e6cc8fc989675255ee602fdf8db039906fd6028a",
-      "sandbox_compat": "3b66cadf26145637",
-      "windows": "cba8ed37b34e594b1deee5ce659020e06c63f8a7"
+      "comment": "Experimental version last updated November 23, 2026.",
+      "linux": "ec724013c65760513aa2804c01ed3af2eed4cdc6",
+      "mac": "299dfa1c28fb2c533bb24729ea8d1dfb526bc594",
+      "sandbox_compat": "289b33a8be8a12a3",
+      "windows": "5e342529e2a8e4edd6f5da0062532968c0b9d0c6"
     }
   }
 }

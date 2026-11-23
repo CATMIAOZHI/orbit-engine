@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=6326c9e297b37248555eed7ca639195fbe2fa6d4$
+// $hash=cff07b4847c6fe69a9bb982f282b242daacedf89$
 //
 
 #ifndef CEF_LIBCEF_DLL_CTOCPP_VIEWS_TEXTFIELD_DELEGATE_CTOCPP_H_
@@ -35,6 +35,7 @@ class CefTextfieldDelegate_0_CToCpp
   virtual ~CefTextfieldDelegate_0_CToCpp();
 
   // CefTextfieldDelegate methods.
+  bool OnKeyboardEvent(CefRefPtr<CefTextfield> textfield, const CefKeyboardInputEvent& event) override;
   bool OnKeyEvent(CefRefPtr<CefTextfield> textfield, const CefKeyEvent& event) override;
   void OnAfterUserAction(CefRefPtr<CefTextfield> textfield) override;
 
@@ -52,7 +53,35 @@ class CefTextfieldDelegate_0_CToCpp
   void OnThemeChanged(CefRefPtr<CefView> view) override;
 };
 
-constexpr auto CefTextfieldDelegateCToCpp_Wrap = CefTextfieldDelegate_0_CToCpp::Wrap;
-constexpr auto CefTextfieldDelegateCToCpp_Unwrap = CefTextfieldDelegate_0_CToCpp::Unwrap;
+// Wrap a C structure with a C++ class at API version 15800.
+// This class may be instantiated and accessed DLL-side only.
+class CefTextfieldDelegate_15800_CToCpp
+    : public CefCToCppRefCounted<CefTextfieldDelegate_15800_CToCpp, CefTextfieldDelegate, cef_textfield_delegate_15800_t> {
+ public:
+  CefTextfieldDelegate_15800_CToCpp();
+  virtual ~CefTextfieldDelegate_15800_CToCpp();
+
+  // CefTextfieldDelegate methods.
+  bool OnKeyboardEvent(CefRefPtr<CefTextfield> textfield, const CefKeyboardInputEvent& event) override;
+  bool OnKeyEvent(CefRefPtr<CefTextfield> textfield, const CefKeyEvent& event) override;
+  void OnAfterUserAction(CefRefPtr<CefTextfield> textfield) override;
+
+  // CefViewDelegate methods.
+  CefSize GetPreferredSize(CefRefPtr<CefView> view) override;
+  CefSize GetMinimumSize(CefRefPtr<CefView> view) override;
+  CefSize GetMaximumSize(CefRefPtr<CefView> view) override;
+  int GetHeightForWidth(CefRefPtr<CefView> view, int width) override;
+  void OnParentViewChanged(CefRefPtr<CefView> view, bool added, CefRefPtr<CefView> parent) override;
+  void OnChildViewChanged(CefRefPtr<CefView> view, bool added, CefRefPtr<CefView> child) override;
+  void OnWindowChanged(CefRefPtr<CefView> view, bool added) override;
+  void OnLayoutChanged(CefRefPtr<CefView> view, const CefRect& new_bounds) override;
+  void OnFocus(CefRefPtr<CefView> view) override;
+  void OnBlur(CefRefPtr<CefView> view) override;
+  void OnThemeChanged(CefRefPtr<CefView> view) override;
+};
+
+// Helpers to return objects at the globally configured API version.
+CefRefPtr<CefTextfieldDelegate> CefTextfieldDelegateCToCpp_Wrap(cef_textfield_delegate_0_t* s);
+cef_textfield_delegate_0_t* CefTextfieldDelegateCToCpp_Unwrap(CefRefPtr<CefTextfieldDelegate> c);
 
 #endif  // CEF_LIBCEF_DLL_CTOCPP_VIEWS_TEXTFIELD_DELEGATE_CTOCPP_H_

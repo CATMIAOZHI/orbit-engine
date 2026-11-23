@@ -8,7 +8,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=922395b88164d0b04cd3f45b7c971069f7e6f903$
+// $hash=a7a8a493634d01d497871331dc8fff4f075de87c$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_BROWSER_CAPI_VERSIONS_H_
@@ -33,8 +33,10 @@ extern "C" {
 #endif
 
 struct _cef_browser_host_0_t;
+struct _cef_browser_host_15800_t;
 struct _cef_browser_host_999999_t;
 struct _cef_client_0_t;
+struct _cef_client_15800_t;
 struct _cef_client_999999_t;
 
 typedef struct _cef_browser_0_t {
@@ -154,6 +156,82 @@ typedef struct _cef_browser_host_0_t {
   cef_runtime_style_t (CEF_CALLBACK *get_runtime_style)(struct _cef_browser_host_0_t* self);
 } cef_browser_host_0_t;
 
+typedef struct _cef_browser_host_15800_t {
+  cef_base_ref_counted_t base;
+  struct _cef_browser_0_t* (CEF_CALLBACK *get_browser)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *close_browser)(struct _cef_browser_host_15800_t* self, int force_close);
+  int (CEF_CALLBACK *try_close_browser)(struct _cef_browser_host_15800_t* self);
+  int (CEF_CALLBACK *is_ready_to_be_closed)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *set_focus)(struct _cef_browser_host_15800_t* self, int focus);
+  cef_window_handle_t (CEF_CALLBACK *get_window_handle)(struct _cef_browser_host_15800_t* self);
+  cef_window_handle_t (CEF_CALLBACK *get_opener_window_handle)(struct _cef_browser_host_15800_t* self);
+  int (CEF_CALLBACK *get_opener_identifier)(struct _cef_browser_host_15800_t* self);
+  int (CEF_CALLBACK *has_view)(struct _cef_browser_host_15800_t* self);
+  struct _cef_client_0_t* (CEF_CALLBACK *get_client)(struct _cef_browser_host_15800_t* self);
+  struct _cef_request_context_0_t* (CEF_CALLBACK *get_request_context)(struct _cef_browser_host_15800_t* self);
+  int (CEF_CALLBACK *can_zoom)(struct _cef_browser_host_15800_t* self, cef_zoom_command_t command);
+  void (CEF_CALLBACK *zoom)(struct _cef_browser_host_15800_t* self, cef_zoom_command_t command);
+  double (CEF_CALLBACK *get_default_zoom_level)(struct _cef_browser_host_15800_t* self);
+  double (CEF_CALLBACK *get_zoom_level)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *set_zoom_level)(struct _cef_browser_host_15800_t* self, double zoomLevel);
+  void (CEF_CALLBACK *run_file_dialog)(struct _cef_browser_host_15800_t* self, cef_file_dialog_mode_t mode, const cef_string_t* title, const cef_string_t* default_file_path, cef_string_list_t accept_filters, struct _cef_run_file_dialog_callback_0_t* callback);
+  void (CEF_CALLBACK *start_download)(struct _cef_browser_host_15800_t* self, const cef_string_t* url);
+  void (CEF_CALLBACK *download_image)(struct _cef_browser_host_15800_t* self, const cef_string_t* image_url, int is_favicon, uint32_t max_image_size, int bypass_cache, struct _cef_download_image_callback_0_t* callback);
+  void (CEF_CALLBACK *print)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *print_to_pdf)(struct _cef_browser_host_15800_t* self, const cef_string_t* path, const struct _cef_pdf_print_settings_t* settings, struct _cef_pdf_print_callback_0_t* callback);
+  void (CEF_CALLBACK *find)(struct _cef_browser_host_15800_t* self, const cef_string_t* searchText, int forward, int matchCase, int findNext);
+  void (CEF_CALLBACK *stop_finding)(struct _cef_browser_host_15800_t* self, int clearSelection);
+  void (CEF_CALLBACK *show_dev_tools)(struct _cef_browser_host_15800_t* self, const struct _cef_window_info_t* windowInfo, struct _cef_client_0_t* client, const struct _cef_browser_settings_t* settings, const cef_point_t* inspect_element_at);
+  void (CEF_CALLBACK *close_dev_tools)(struct _cef_browser_host_15800_t* self);
+  int (CEF_CALLBACK *has_dev_tools)(struct _cef_browser_host_15800_t* self);
+  int (CEF_CALLBACK *send_dev_tools_message)(struct _cef_browser_host_15800_t* self, const void* message, size_t message_size);
+  int (CEF_CALLBACK *execute_dev_tools_method)(struct _cef_browser_host_15800_t* self, int message_id, const cef_string_t* method, struct _cef_dictionary_value_0_t* params);
+  struct _cef_registration_0_t* (CEF_CALLBACK *add_dev_tools_message_observer)(struct _cef_browser_host_15800_t* self, struct _cef_dev_tools_message_observer_0_t* observer);
+  void (CEF_CALLBACK *get_navigation_entries)(struct _cef_browser_host_15800_t* self, struct _cef_navigation_entry_visitor_0_t* visitor, int current_only);
+  void (CEF_CALLBACK *replace_misspelling)(struct _cef_browser_host_15800_t* self, const cef_string_t* word);
+  void (CEF_CALLBACK *add_word_to_dictionary)(struct _cef_browser_host_15800_t* self, const cef_string_t* word);
+  int (CEF_CALLBACK *is_window_rendering_disabled)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *was_resized)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *was_hidden)(struct _cef_browser_host_15800_t* self, int hidden);
+  void (CEF_CALLBACK *notify_screen_info_changed)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *invalidate)(struct _cef_browser_host_15800_t* self, cef_paint_element_type_t type);
+  void (CEF_CALLBACK *send_external_begin_frame)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *send_key_event)(struct _cef_browser_host_15800_t* self, const cef_key_event_t* event);
+  void (CEF_CALLBACK *send_mouse_click_event)(struct _cef_browser_host_15800_t* self, const cef_mouse_event_t* event, cef_mouse_button_type_t type, int mouseUp, int clickCount);
+  void (CEF_CALLBACK *send_mouse_move_event)(struct _cef_browser_host_15800_t* self, const cef_mouse_event_t* event, int mouseLeave);
+  void (CEF_CALLBACK *send_mouse_wheel_event)(struct _cef_browser_host_15800_t* self, const cef_mouse_event_t* event, int deltaX, int deltaY);
+  void (CEF_CALLBACK *send_touch_event)(struct _cef_browser_host_15800_t* self, const cef_touch_event_t* event);
+  void (CEF_CALLBACK *send_capture_lost_event)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *notify_move_or_resize_started)(struct _cef_browser_host_15800_t* self);
+  int (CEF_CALLBACK *get_windowless_frame_rate)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *set_windowless_frame_rate)(struct _cef_browser_host_15800_t* self, int frame_rate);
+  void (CEF_CALLBACK *ime_set_composition)(struct _cef_browser_host_15800_t* self, const cef_string_t* text, size_t underlinesCount, cef_composition_underline_t const* underlines, const cef_range_t* replacement_range, const cef_range_t* selection_range);
+  void (CEF_CALLBACK *ime_commit_text)(struct _cef_browser_host_15800_t* self, const cef_string_t* text, const cef_range_t* replacement_range, int relative_cursor_pos);
+  void (CEF_CALLBACK *ime_finish_composing_text)(struct _cef_browser_host_15800_t* self, int keep_selection);
+  void (CEF_CALLBACK *ime_cancel_composition)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *drag_target_drag_enter)(struct _cef_browser_host_15800_t* self, struct _cef_drag_data_0_t* drag_data, const cef_mouse_event_t* event, cef_drag_operations_mask_t allowed_ops);
+  void (CEF_CALLBACK *drag_target_drag_over)(struct _cef_browser_host_15800_t* self, const cef_mouse_event_t* event, cef_drag_operations_mask_t allowed_ops);
+  void (CEF_CALLBACK *drag_target_drag_leave)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *drag_target_drop)(struct _cef_browser_host_15800_t* self, const cef_mouse_event_t* event);
+  void (CEF_CALLBACK *drag_source_ended_at)(struct _cef_browser_host_15800_t* self, int x, int y, cef_drag_operations_mask_t op);
+  void (CEF_CALLBACK *drag_source_system_drag_ended)(struct _cef_browser_host_15800_t* self);
+  struct _cef_navigation_entry_0_t* (CEF_CALLBACK *get_visible_navigation_entry)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *set_accessibility_state)(struct _cef_browser_host_15800_t* self, cef_state_t accessibility_state);
+  void (CEF_CALLBACK *set_auto_resize_enabled)(struct _cef_browser_host_15800_t* self, int enabled, const cef_size_t* min_size, const cef_size_t* max_size);
+  void (CEF_CALLBACK *set_audio_muted)(struct _cef_browser_host_15800_t* self, int mute);
+  int (CEF_CALLBACK *is_audio_muted)(struct _cef_browser_host_15800_t* self);
+  int (CEF_CALLBACK *is_fullscreen)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *exit_fullscreen)(struct _cef_browser_host_15800_t* self, int will_cause_resize);
+  int (CEF_CALLBACK *can_execute_chrome_command)(struct _cef_browser_host_15800_t* self, int command_id);
+  void (CEF_CALLBACK *execute_chrome_command)(struct _cef_browser_host_15800_t* self, int command_id, cef_window_open_disposition_t disposition);
+  int (CEF_CALLBACK *is_render_process_unresponsive)(struct _cef_browser_host_15800_t* self);
+  cef_runtime_style_t (CEF_CALLBACK *get_runtime_style)(struct _cef_browser_host_15800_t* self);
+  void (CEF_CALLBACK *send_keyboard_event)(struct _cef_browser_host_15800_t* self, const struct _cef_keyboard_input_event_t* event);
+  void (CEF_CALLBACK *send_mouse_event)(struct _cef_browser_host_15800_t* self, const struct _cef_mouse_input_event_t* event);
+  void (CEF_CALLBACK *send_gesture_event)(struct _cef_browser_host_15800_t* self, const struct _cef_gesture_input_event_t* event);
+  void (CEF_CALLBACK *send_wheel_event)(struct _cef_browser_host_15800_t* self, const struct _cef_wheel_input_event_t* event);
+} cef_browser_host_15800_t;
+
 typedef struct _cef_browser_host_999999_t {
   cef_base_ref_counted_t base;
   struct _cef_browser_0_t* (CEF_CALLBACK *get_browser)(struct _cef_browser_host_999999_t* self);
@@ -224,6 +302,10 @@ typedef struct _cef_browser_host_999999_t {
   void (CEF_CALLBACK *execute_chrome_command)(struct _cef_browser_host_999999_t* self, int command_id, cef_window_open_disposition_t disposition);
   int (CEF_CALLBACK *is_render_process_unresponsive)(struct _cef_browser_host_999999_t* self);
   cef_runtime_style_t (CEF_CALLBACK *get_runtime_style)(struct _cef_browser_host_999999_t* self);
+  void (CEF_CALLBACK *send_keyboard_event)(struct _cef_browser_host_999999_t* self, const struct _cef_keyboard_input_event_t* event);
+  void (CEF_CALLBACK *send_mouse_event)(struct _cef_browser_host_999999_t* self, const struct _cef_mouse_input_event_t* event);
+  void (CEF_CALLBACK *send_gesture_event)(struct _cef_browser_host_999999_t* self, const struct _cef_gesture_input_event_t* event);
+  void (CEF_CALLBACK *send_wheel_event)(struct _cef_browser_host_999999_t* self, const struct _cef_wheel_input_event_t* event);
   void (CEF_CALLBACK *set_ax_viewport_collapse)(struct _cef_browser_host_999999_t* self, int enabled);
 } cef_browser_host_999999_t;
 

@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=bdd7c0364bf0e6a7f10fdda8056c5574c0bbadb6$
+// $hash=79d37098becf587284c97095dcb60eeb5d58b076$
 //
 
 #include "libcef_dll/cpptoc/views/window_delegate_cpptoc.h"
@@ -485,6 +485,47 @@ int CEF_CALLBACK window_delegate_on_accelerator(struct _cef_window_delegate_t* s
   return _retval;
 }
 
+#if CEF_API_ADDED(15800)
+int CEF_CALLBACK window_delegate_on_keyboard_event(struct _cef_window_delegate_t* self, struct _cef_window_t* window, const struct _cef_keyboard_input_event_t* event) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return 0;
+  }
+  // Verify param: window; type: refptr_diff
+  DCHECK(window);
+  if (!window) {
+    return 0;
+  }
+  // Verify param: event; type: struct_byref_const
+  DCHECK(event);
+  if (!event) {
+    return 0;
+  }
+  if (!template_util::has_valid_size(event)) {
+    DCHECK(false) << "invalid event->[base.]size";
+    return 0;
+  }
+
+  // Translate param: event; type: struct_byref_const
+  CefKeyboardInputEvent eventObj;
+  if (event) {
+    eventObj.Set(*event, false);
+  }
+
+  // Execute
+  bool _retval = CefWindowDelegateCppToC::Get(self)->OnKeyboardEvent(
+      CefWindowCToCpp_Wrap(window),
+      eventObj);
+
+  // Return type: bool
+  return _retval;
+}
+#endif  // CEF_API_ADDED(15800)
+
 int CEF_CALLBACK window_delegate_on_key_event(struct _cef_window_delegate_t* self, struct _cef_window_t* window, const cef_key_event_t* event) {
   shutdown_checker::AssertNotShutdown();
 
@@ -884,6 +925,9 @@ CefWindowDelegateCppToC::CefWindowDelegateCppToC() {
   GetStruct()->on_theme_colors_changed = window_delegate_on_theme_colors_changed;
   GetStruct()->get_window_runtime_style = window_delegate_get_window_runtime_style;
   GetStruct()->get_linux_window_properties = window_delegate_get_linux_window_properties;
+#if CEF_API_ADDED(15800)
+  GetStruct()->on_keyboard_event = window_delegate_on_keyboard_event;
+#endif
   GetStruct()->base.base.get_preferred_size = window_delegate_get_preferred_size;
   GetStruct()->base.base.get_minimum_size = window_delegate_get_minimum_size;
   GetStruct()->base.base.get_maximum_size = window_delegate_get_maximum_size;

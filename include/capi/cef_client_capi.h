@@ -33,7 +33,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=1ecf27c025e29d6e7ef464924b702cef8b516fda$
+// $hash=6ee8aa0f03a2c8cdbcb0e83c8e1a00358bad8670$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_CLIENT_CAPI_H_
@@ -57,6 +57,7 @@
 #include "include/capi/cef_focus_handler_capi.h"
 #include "include/capi/cef_frame_handler_capi.h"
 #include "include/capi/cef_identity_request_handler_capi.h"
+#include "include/capi/cef_input_handler_capi.h"
 #include "include/capi/cef_jsdialog_handler_capi.h"
 #include "include/capi/cef_keyboard_handler_capi.h"
 #include "include/capi/cef_life_span_handler_capi.h"
@@ -84,7 +85,9 @@ typedef struct _cef_client_t {
   cef_base_ref_counted_t base;
 
   ///
-  /// Return the handler for audio rendering events.
+  /// Return the handler for audio capture events. Only supported with Alloy
+  /// style browsers. If no handler is provided normal audio playback will be
+  /// used. See cef_audio_handler_t for audio capture behavior.
   ///
   struct _cef_audio_handler_t* (CEF_CALLBACK *get_audio_handler)(struct _cef_client_t* self);
 
@@ -152,7 +155,9 @@ typedef struct _cef_client_t {
   struct _cef_jsdialog_handler_t* (CEF_CALLBACK *get_jsdialog_handler)(struct _cef_client_t* self);
 
   ///
-  /// Return the handler for keyboard events.
+  /// Return the handler for keyboard events. DEPRECATED: Implement
+  /// get_input_handler() and use cef_input_handler_t for keyboard callbacks
+  /// instead.
   ///
   struct _cef_keyboard_handler_t* (CEF_CALLBACK *get_keyboard_handler)(struct _cef_client_t* self);
 
@@ -188,6 +193,15 @@ typedef struct _cef_client_t {
   /// keep a reference to |message| outside of this callback.
   ///
   int (CEF_CALLBACK *on_process_message_received)(struct _cef_client_t* self, struct _cef_browser_t* browser, struct _cef_frame_t* frame, cef_process_id_t source_process, struct _cef_process_message_t* message);
+
+#if CEF_API_ADDED(15800)
+  ///
+  /// Return the unified input handler. Its keyboard callbacks run before
+  /// cef_keyboard_handler_t callbacks, which are called when the unified
+  /// callback is unhandled.
+  ///
+  struct _cef_input_handler_t* (CEF_CALLBACK *get_input_handler)(struct _cef_client_t* self);
+#endif
 
 #if CEF_API_ADDED(CEF_EXPERIMENTAL)
   ///

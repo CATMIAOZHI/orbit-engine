@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=7102a020937730233d60340d00a88b47f78f2878$
+// $hash=dda7ae80d8282a7bbfeb393bfed69de27caffc88$
 //
 
 #include "include/cef_api_hash.h"
@@ -18,8 +18,37 @@
 #include "libcef_dll/ctocpp/views/textfield_delegate_ctocpp.h"
 #include "libcef_dll/shutdown_checker.h"
 
+// HELPER FUNCTIONS - Do not edit by hand.
+
+CefRefPtr<CefTextfieldDelegate> CefTextfieldDelegateCToCpp_Wrap(cef_textfield_delegate_0_t* s) {
+  const int version = cef_api_version();
+  if (version >= 15800) {
+    return CefTextfieldDelegate_15800_CToCpp::Wrap(reinterpret_cast<cef_textfield_delegate_15800_t*>(s));
+  }
+  if (version >= 0) {
+    return CefTextfieldDelegate_0_CToCpp::Wrap(s);
+  }
+  NOTREACHED() << __func__ << " called with invalid version " << version;
+}
+
+cef_textfield_delegate_0_t* CefTextfieldDelegateCToCpp_Unwrap(CefRefPtr<CefTextfieldDelegate> c) {
+  const int version = cef_api_version();
+  if (version >= 15800) {
+    return reinterpret_cast<cef_textfield_delegate_0_t*>(CefTextfieldDelegate_15800_CToCpp::Unwrap(c));
+  }
+  if (version >= 0) {
+    return CefTextfieldDelegate_0_CToCpp::Unwrap(c);
+  }
+  NOTREACHED() << __func__ << " called with invalid version " << version;
+}
+
 
 // VIRTUAL METHODS FOR VERSION 0 - Body may be edited by hand.
+
+NO_SANITIZE("cfi-icall") bool CefTextfieldDelegate_0_CToCpp::OnKeyboardEvent(CefRefPtr<CefTextfield> textfield, const CefKeyboardInputEvent& event) {
+  // AUTO-GENERATED CONTENT
+  NOTREACHED() << __func__ << " should not be called at version 0";
+}
 
 NO_SANITIZE("cfi-icall") bool CefTextfieldDelegate_0_CToCpp::OnKeyEvent(CefRefPtr<CefTextfield> textfield, const CefKeyEvent& event) {
   shutdown_checker::AssertNotShutdown();
@@ -331,7 +360,7 @@ NO_SANITIZE("cfi-icall") void CefTextfieldDelegate_0_CToCpp::OnThemeChanged(CefR
 
 CefTextfieldDelegate_0_CToCpp::CefTextfieldDelegate_0_CToCpp() {
   const int version = cef_api_version();
-  LOG_IF(FATAL, version < 0) << __func__ << " called with invalid version " << version;
+  LOG_IF(FATAL, version < 0 || version >= 15800) << __func__ << " called with invalid version " << version;
 }
 
 // DESTRUCTOR FOR VERSION 0 - Do not edit by hand.
@@ -345,5 +374,358 @@ template<> cef_textfield_delegate_0_t* CefCToCppRefCounted<CefTextfieldDelegate_
 }
 
 template<> CefWrapperType CefCToCppRefCounted<CefTextfieldDelegate_0_CToCpp, CefTextfieldDelegate, cef_textfield_delegate_0_t>::kWrapperType = WT_TEXTFIELD_DELEGATE;
+
+
+// VIRTUAL METHODS FOR VERSION 15800 - Body may be edited by hand.
+
+NO_SANITIZE("cfi-icall") bool CefTextfieldDelegate_15800_CToCpp::OnKeyboardEvent(CefRefPtr<CefTextfield> textfield, const CefKeyboardInputEvent& event) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->on_keyboard_event) {
+    return false;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: textfield; type: refptr_diff
+  DCHECK(textfield.get());
+  if (!textfield.get()) {
+    return false;
+  }
+
+  // Execute
+  int _retval = _struct->on_keyboard_event(_struct,
+      CefTextfieldCppToC_Wrap(textfield),
+      &event);
+
+  // Return type: bool
+  return _retval?true:false;
+}
+
+NO_SANITIZE("cfi-icall") bool CefTextfieldDelegate_15800_CToCpp::OnKeyEvent(CefRefPtr<CefTextfield> textfield, const CefKeyEvent& event) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->on_key_event) {
+    return false;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: textfield; type: refptr_diff
+  DCHECK(textfield.get());
+  if (!textfield.get()) {
+    return false;
+  }
+
+  // Execute
+  int _retval = _struct->on_key_event(_struct,
+      CefTextfieldCppToC_Wrap(textfield),
+      &event);
+
+  // Return type: bool
+  return _retval?true:false;
+}
+
+NO_SANITIZE("cfi-icall") void CefTextfieldDelegate_15800_CToCpp::OnAfterUserAction(CefRefPtr<CefTextfield> textfield) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->on_after_user_action) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: textfield; type: refptr_diff
+  DCHECK(textfield.get());
+  if (!textfield.get()) {
+    return;
+  }
+
+  // Execute
+  _struct->on_after_user_action(_struct,
+      CefTextfieldCppToC_Wrap(textfield));
+}
+
+NO_SANITIZE("cfi-icall") CefSize CefTextfieldDelegate_15800_CToCpp::GetPreferredSize(CefRefPtr<CefView> view) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = reinterpret_cast<cef_view_delegate_0_t*>(GetStruct());
+  if (!_struct->get_preferred_size) {
+    return CefSize();
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: view; type: refptr_diff
+  DCHECK(view.get());
+  if (!view.get()) {
+    return CefSize();
+  }
+
+  // Execute
+  cef_size_t _retval = _struct->get_preferred_size(_struct,
+      CefViewCppToC_Wrap(view));
+
+  // Return type: simple
+  return _retval;
+}
+
+NO_SANITIZE("cfi-icall") CefSize CefTextfieldDelegate_15800_CToCpp::GetMinimumSize(CefRefPtr<CefView> view) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = reinterpret_cast<cef_view_delegate_0_t*>(GetStruct());
+  if (!_struct->get_minimum_size) {
+    return CefSize();
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: view; type: refptr_diff
+  DCHECK(view.get());
+  if (!view.get()) {
+    return CefSize();
+  }
+
+  // Execute
+  cef_size_t _retval = _struct->get_minimum_size(_struct,
+      CefViewCppToC_Wrap(view));
+
+  // Return type: simple
+  return _retval;
+}
+
+NO_SANITIZE("cfi-icall") CefSize CefTextfieldDelegate_15800_CToCpp::GetMaximumSize(CefRefPtr<CefView> view) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = reinterpret_cast<cef_view_delegate_0_t*>(GetStruct());
+  if (!_struct->get_maximum_size) {
+    return CefSize();
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: view; type: refptr_diff
+  DCHECK(view.get());
+  if (!view.get()) {
+    return CefSize();
+  }
+
+  // Execute
+  cef_size_t _retval = _struct->get_maximum_size(_struct,
+      CefViewCppToC_Wrap(view));
+
+  // Return type: simple
+  return _retval;
+}
+
+NO_SANITIZE("cfi-icall") int CefTextfieldDelegate_15800_CToCpp::GetHeightForWidth(CefRefPtr<CefView> view, int width) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = reinterpret_cast<cef_view_delegate_0_t*>(GetStruct());
+  if (!_struct->get_height_for_width) {
+    return 0;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: view; type: refptr_diff
+  DCHECK(view.get());
+  if (!view.get()) {
+    return 0;
+  }
+
+  // Execute
+  int _retval = _struct->get_height_for_width(_struct,
+      CefViewCppToC_Wrap(view),
+      width);
+
+  // Return type: simple
+  return _retval;
+}
+
+NO_SANITIZE("cfi-icall") void CefTextfieldDelegate_15800_CToCpp::OnParentViewChanged(CefRefPtr<CefView> view, bool added, CefRefPtr<CefView> parent) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = reinterpret_cast<cef_view_delegate_0_t*>(GetStruct());
+  if (!_struct->on_parent_view_changed) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: view; type: refptr_diff
+  DCHECK(view.get());
+  if (!view.get()) {
+    return;
+  }
+  // Verify param: parent; type: refptr_diff
+  DCHECK(parent.get());
+  if (!parent.get()) {
+    return;
+  }
+
+  // Execute
+  _struct->on_parent_view_changed(_struct,
+      CefViewCppToC_Wrap(view),
+      added,
+      CefViewCppToC_Wrap(parent));
+}
+
+NO_SANITIZE("cfi-icall") void CefTextfieldDelegate_15800_CToCpp::OnChildViewChanged(CefRefPtr<CefView> view, bool added, CefRefPtr<CefView> child) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = reinterpret_cast<cef_view_delegate_0_t*>(GetStruct());
+  if (!_struct->on_child_view_changed) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: view; type: refptr_diff
+  DCHECK(view.get());
+  if (!view.get()) {
+    return;
+  }
+  // Verify param: child; type: refptr_diff
+  DCHECK(child.get());
+  if (!child.get()) {
+    return;
+  }
+
+  // Execute
+  _struct->on_child_view_changed(_struct,
+      CefViewCppToC_Wrap(view),
+      added,
+      CefViewCppToC_Wrap(child));
+}
+
+NO_SANITIZE("cfi-icall") void CefTextfieldDelegate_15800_CToCpp::OnWindowChanged(CefRefPtr<CefView> view, bool added) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = reinterpret_cast<cef_view_delegate_0_t*>(GetStruct());
+  if (!_struct->on_window_changed) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: view; type: refptr_diff
+  DCHECK(view.get());
+  if (!view.get()) {
+    return;
+  }
+
+  // Execute
+  _struct->on_window_changed(_struct,
+      CefViewCppToC_Wrap(view),
+      added);
+}
+
+NO_SANITIZE("cfi-icall") void CefTextfieldDelegate_15800_CToCpp::OnLayoutChanged(CefRefPtr<CefView> view, const CefRect& new_bounds) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = reinterpret_cast<cef_view_delegate_0_t*>(GetStruct());
+  if (!_struct->on_layout_changed) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: view; type: refptr_diff
+  DCHECK(view.get());
+  if (!view.get()) {
+    return;
+  }
+
+  // Execute
+  _struct->on_layout_changed(_struct,
+      CefViewCppToC_Wrap(view),
+      &new_bounds);
+}
+
+NO_SANITIZE("cfi-icall") void CefTextfieldDelegate_15800_CToCpp::OnFocus(CefRefPtr<CefView> view) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = reinterpret_cast<cef_view_delegate_0_t*>(GetStruct());
+  if (!_struct->on_focus) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: view; type: refptr_diff
+  DCHECK(view.get());
+  if (!view.get()) {
+    return;
+  }
+
+  // Execute
+  _struct->on_focus(_struct,
+      CefViewCppToC_Wrap(view));
+}
+
+NO_SANITIZE("cfi-icall") void CefTextfieldDelegate_15800_CToCpp::OnBlur(CefRefPtr<CefView> view) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = reinterpret_cast<cef_view_delegate_0_t*>(GetStruct());
+  if (!_struct->on_blur) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: view; type: refptr_diff
+  DCHECK(view.get());
+  if (!view.get()) {
+    return;
+  }
+
+  // Execute
+  _struct->on_blur(_struct,
+      CefViewCppToC_Wrap(view));
+}
+
+NO_SANITIZE("cfi-icall") void CefTextfieldDelegate_15800_CToCpp::OnThemeChanged(CefRefPtr<CefView> view) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = reinterpret_cast<cef_view_delegate_0_t*>(GetStruct());
+  if (!_struct->on_theme_changed) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: view; type: refptr_diff
+  DCHECK(view.get());
+  if (!view.get()) {
+    return;
+  }
+
+  // Execute
+  _struct->on_theme_changed(_struct,
+      CefViewCppToC_Wrap(view));
+}
+
+// CONSTRUCTOR FOR VERSION 15800 - Do not edit by hand.
+
+CefTextfieldDelegate_15800_CToCpp::CefTextfieldDelegate_15800_CToCpp() {
+  const int version = cef_api_version();
+  LOG_IF(FATAL, version < 15800) << __func__ << " called with invalid version " << version;
+}
+
+// DESTRUCTOR FOR VERSION 15800 - Do not edit by hand.
+
+CefTextfieldDelegate_15800_CToCpp::~CefTextfieldDelegate_15800_CToCpp() {
+  shutdown_checker::AssertNotShutdown();
+}
+
+template<> cef_textfield_delegate_15800_t* CefCToCppRefCounted<CefTextfieldDelegate_15800_CToCpp, CefTextfieldDelegate, cef_textfield_delegate_15800_t>::UnwrapDerived(CefWrapperType type, CefTextfieldDelegate* c) {
+  NOTREACHED() << __func__ << " called with unexpected class type " << type;
+}
+
+template<> CefWrapperType CefCToCppRefCounted<CefTextfieldDelegate_15800_CToCpp, CefTextfieldDelegate, cef_textfield_delegate_15800_t>::kWrapperType = WT_TEXTFIELD_DELEGATE;
 
 

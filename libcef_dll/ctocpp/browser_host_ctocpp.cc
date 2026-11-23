@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=f26dfc049cd214fba69e2c675e26fa24ca0ffda2$
+// $hash=b92a0ef6803e78ade7701f3debc484755f55a06d$
 //
 
 #include "libcef_dll/cpptoc/client_cpptoc.h"
@@ -1322,6 +1322,74 @@ NO_SANITIZE("cfi-icall") void CefBrowserHostCToCpp::SetAxViewportCollapse(bool e
       enabled);
 }
 #endif  // CEF_API_ADDED(CEF_EXPERIMENTAL)
+
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") void CefBrowserHostCToCpp::SendKeyboardEvent(const CefKeyboardInputEvent& event) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->send_keyboard_event) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  _struct->send_keyboard_event(_struct,
+      &event);
+}
+#endif  // CEF_API_ADDED(15800)
+
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") void CefBrowserHostCToCpp::SendMouseEvent(const CefMouseInputEvent& event) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->send_mouse_event) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  _struct->send_mouse_event(_struct,
+      &event);
+}
+#endif  // CEF_API_ADDED(15800)
+
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") void CefBrowserHostCToCpp::SendGestureEvent(const CefGestureInputEvent& event) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->send_gesture_event) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  _struct->send_gesture_event(_struct,
+      &event);
+}
+#endif  // CEF_API_ADDED(15800)
+
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") void CefBrowserHostCToCpp::SendWheelEvent(const CefWheelInputEvent& event) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->send_wheel_event) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  _struct->send_wheel_event(_struct,
+      &event);
+}
+#endif  // CEF_API_ADDED(15800)
 
 // CONSTRUCTOR - Do not edit by hand.
 

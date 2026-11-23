@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=ce119e01e2ae6fe23956e8eb03f9a3e855985f62$
+// $hash=3b1bc7b20e7100b51970cc7f15ed6170e3f11d4c$
 //
 
 
@@ -28,6 +28,7 @@
 #include "include/capi/cef_file_util_capi.h"
 #include "include/capi/cef_i18n_util_capi.h"
 #include "include/capi/cef_image_capi.h"
+#include "include/capi/cef_input_event_utils_capi.h"
 #include "include/capi/cef_media_router_capi.h"
 #include "include/capi/cef_menu_model_capi.h"
 #include "include/capi/cef_origin_whitelist_capi.h"
@@ -118,6 +119,34 @@ decltype(&cef_delete_file) cef_delete_file;
 decltype(&cef_zip_directory) cef_zip_directory;
 decltype(&cef_load_crlsets_file) cef_load_crlsets_file;
 decltype(&cef_is_rtl) cef_is_rtl;
+#if CEF_API_ADDED(15800)
+decltype(&cef_windows_key_code_from_dom_code_and_key) cef_windows_key_code_from_dom_code_and_key;
+#endif
+#if defined(OS_WIN)
+#if CEF_API_ADDED(15800)
+decltype(&cef_keyboard_input_event_from_windows_message) cef_keyboard_input_event_from_windows_message;
+#endif
+#endif
+#if defined(OS_WIN)
+#if CEF_API_ADDED(15800)
+decltype(&cef_keyboard_input_event_from_windows_message_ex) cef_keyboard_input_event_from_windows_message_ex;
+#endif
+#endif
+#if defined(OS_MAC)
+#if CEF_API_ADDED(15800)
+decltype(&cef_keyboard_input_event_from_mac_event) cef_keyboard_input_event_from_mac_event;
+#endif
+#endif
+#if defined(OS_MAC)
+#if CEF_API_ADDED(15800)
+decltype(&cef_keyboard_input_event_from_mac_event_ex) cef_keyboard_input_event_from_mac_event_ex;
+#endif
+#endif
+#if defined(OS_LINUX)
+#if CEF_API_ADDED(15800)
+decltype(&cef_non_printable_dom_key_from_xkeysym) cef_non_printable_dom_key_from_xkeysym;
+#endif
+#endif
 decltype(&cef_add_cross_origin_whitelist_entry) cef_add_cross_origin_whitelist_entry;
 decltype(&cef_remove_cross_origin_whitelist_entry) cef_remove_cross_origin_whitelist_entry;
 decltype(&cef_clear_cross_origin_whitelist) cef_clear_cross_origin_whitelist;
@@ -152,6 +181,12 @@ decltype(&cef_register_extension) cef_register_extension;
 decltype(&cef_execute_java_script_with_user_gesture_for_tests) cef_execute_java_script_with_user_gesture_for_tests;
 decltype(&cef_set_data_directory_for_tests) cef_set_data_directory_for_tests;
 decltype(&cef_is_feature_enabled_for_tests) cef_is_feature_enabled_for_tests;
+#if CEF_API_ADDED(15800)
+decltype(&cef_capture_browser_window_for_tests) cef_capture_browser_window_for_tests;
+#endif
+#if CEF_API_ADDED(15800)
+decltype(&cef_send_mouse_click_for_testing) cef_send_mouse_click_for_testing;
+#endif
 #if CEF_API_ADDED(CEF_EXPERIMENTAL)
 decltype(&cef_get_chrome_browser_owned_widget_count_for_tests) cef_get_chrome_browser_owned_widget_count_for_tests;
 #endif
@@ -412,6 +447,34 @@ INIT_ENTRY(cef_delete_file);
 INIT_ENTRY(cef_zip_directory);
 INIT_ENTRY(cef_load_crlsets_file);
 INIT_ENTRY(cef_is_rtl);
+#if CEF_API_ADDED(15800)
+INIT_ENTRY(cef_windows_key_code_from_dom_code_and_key);
+#endif
+#if defined(OS_WIN)
+#if CEF_API_ADDED(15800)
+INIT_ENTRY(cef_keyboard_input_event_from_windows_message);
+#endif
+#endif
+#if defined(OS_WIN)
+#if CEF_API_ADDED(15800)
+INIT_ENTRY(cef_keyboard_input_event_from_windows_message_ex);
+#endif
+#endif
+#if defined(OS_MAC)
+#if CEF_API_ADDED(15800)
+INIT_ENTRY(cef_keyboard_input_event_from_mac_event);
+#endif
+#endif
+#if defined(OS_MAC)
+#if CEF_API_ADDED(15800)
+INIT_ENTRY(cef_keyboard_input_event_from_mac_event_ex);
+#endif
+#endif
+#if defined(OS_LINUX)
+#if CEF_API_ADDED(15800)
+INIT_ENTRY(cef_non_printable_dom_key_from_xkeysym);
+#endif
+#endif
 INIT_ENTRY(cef_add_cross_origin_whitelist_entry);
 INIT_ENTRY(cef_remove_cross_origin_whitelist_entry);
 INIT_ENTRY(cef_clear_cross_origin_whitelist);
@@ -446,6 +509,12 @@ INIT_ENTRY(cef_register_extension);
 INIT_ENTRY(cef_execute_java_script_with_user_gesture_for_tests);
 INIT_ENTRY(cef_set_data_directory_for_tests);
 INIT_ENTRY(cef_is_feature_enabled_for_tests);
+#if CEF_API_ADDED(15800)
+INIT_ENTRY(cef_capture_browser_window_for_tests);
+#endif
+#if CEF_API_ADDED(15800)
+INIT_ENTRY(cef_send_mouse_click_for_testing);
+#endif
 #if CEF_API_ADDED(CEF_EXPERIMENTAL)
 INIT_ENTRY(cef_get_chrome_browser_owned_widget_count_for_tests);
 #endif
@@ -798,6 +867,52 @@ NO_SANITIZE("cfi-icall") int cef_is_rtl() {
   return g_libcef_pointers.cef_is_rtl();
 }
 
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") int cef_windows_key_code_from_dom_code_and_key(uint32_t dom_code, uint32_t dom_key) {
+  return g_libcef_pointers.cef_windows_key_code_from_dom_code_and_key(dom_code, dom_key);
+}
+#endif
+
+#if defined(OS_WIN)
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") int cef_keyboard_input_event_from_windows_message(uint32_t message, uint64_t wparam, int64_t lparam, struct _cef_keyboard_input_event_t* event) {
+  return g_libcef_pointers.cef_keyboard_input_event_from_windows_message(message, wparam, lparam, event);
+}
+#endif
+#endif
+
+#if defined(OS_WIN)
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") int cef_keyboard_input_event_from_windows_message_ex(uint32_t message, uint64_t wparam, int64_t lparam, size_t keyboard_stateCount, int const* keyboard_state, uint64_t keyboard_layout, int64_t timestamp, struct _cef_keyboard_input_event_t* event) {
+  return g_libcef_pointers.cef_keyboard_input_event_from_windows_message_ex(message, wparam, lparam, keyboard_stateCount, keyboard_state, keyboard_layout, timestamp, event);
+}
+#endif
+#endif
+
+#if defined(OS_MAC)
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") int cef_keyboard_input_event_from_mac_event(cef_event_handle_t native_event, struct _cef_keyboard_input_event_t* event) {
+  return g_libcef_pointers.cef_keyboard_input_event_from_mac_event(native_event, event);
+}
+#endif
+#endif
+
+#if defined(OS_MAC)
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") int cef_keyboard_input_event_from_mac_event_ex(cef_event_handle_t native_event, const cef_string_t* input_source_id, int keyboard_type, struct _cef_keyboard_input_event_t* event) {
+  return g_libcef_pointers.cef_keyboard_input_event_from_mac_event_ex(native_event, input_source_id, keyboard_type, event);
+}
+#endif
+#endif
+
+#if defined(OS_LINUX)
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") uint32_t cef_non_printable_dom_key_from_xkeysym(uint32_t keysym) {
+  return g_libcef_pointers.cef_non_printable_dom_key_from_xkeysym(keysym);
+}
+#endif
+#endif
+
 NO_SANITIZE("cfi-icall") int cef_add_cross_origin_whitelist_entry(const cef_string_t* source_origin, const cef_string_t* target_protocol, const cef_string_t* target_domain, int allow_target_subdomains) {
   return g_libcef_pointers.cef_add_cross_origin_whitelist_entry(source_origin, target_protocol, target_domain, allow_target_subdomains);
 }
@@ -927,6 +1042,18 @@ NO_SANITIZE("cfi-icall") void cef_set_data_directory_for_tests(const cef_string_
 NO_SANITIZE("cfi-icall") int cef_is_feature_enabled_for_tests(const cef_string_t* feature_name) {
   return g_libcef_pointers.cef_is_feature_enabled_for_tests(feature_name);
 }
+
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") void cef_capture_browser_window_for_tests(struct _cef_browser_t* browser, int native, struct _cef_capture_browser_window_callback_t* callback) {
+  g_libcef_pointers.cef_capture_browser_window_for_tests(browser, native, callback);
+}
+#endif
+
+#if CEF_API_ADDED(15800)
+NO_SANITIZE("cfi-icall") int cef_send_mouse_click_for_testing(struct _cef_window_t* owner, int target_id, int is_menu, uint32_t modifiers) {
+  return g_libcef_pointers.cef_send_mouse_click_for_testing(owner, target_id, is_menu, modifiers);
+}
+#endif
 
 #if CEF_API_ADDED(CEF_EXPERIMENTAL)
 NO_SANITIZE("cfi-icall") int cef_get_chrome_browser_owned_widget_count_for_tests(struct _cef_browser_t* browser) {

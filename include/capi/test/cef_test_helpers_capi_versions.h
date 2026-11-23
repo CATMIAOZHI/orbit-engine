@@ -8,7 +8,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=a3a9716bab6b1829ff23ddd31859bc426333ac5d$
+// $hash=1847800eee097d0196cc95e509bf991fe8245b43$
 //
 
 #ifndef CEF_INCLUDE_CAPI_TEST_CEF_TEST_HELPERS_CAPI_VERSIONS_H_
@@ -22,14 +22,23 @@
 #include "include/capi/cef_browser_capi_versions.h"
 #include "include/capi/cef_callback_capi_versions.h"
 #include "include/capi/cef_frame_capi_versions.h"
+#include "include/capi/cef_image_capi_versions.h"
+#include "include/capi/views/cef_window_capi_versions.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+typedef struct _cef_capture_browser_window_callback_15800_t {
+  cef_base_ref_counted_t base;
+  void (CEF_CALLBACK *on_capture_complete)(struct _cef_capture_browser_window_callback_15800_t* self, struct _cef_image_0_t* image);
+} cef_capture_browser_window_callback_15800_t;
+
 CEF_EXPORT void cef_execute_java_script_with_user_gesture_for_tests(struct _cef_frame_0_t* frame, const cef_string_t* javascript);
 CEF_EXPORT void cef_set_data_directory_for_tests(const cef_string_t* dir);
 CEF_EXPORT int cef_is_feature_enabled_for_tests(const cef_string_t* feature_name);
+CEF_EXPORT void cef_capture_browser_window_for_tests(struct _cef_browser_0_t* browser, int native, cef_capture_browser_window_callback_15800_t* callback);
+CEF_EXPORT int cef_send_mouse_click_for_testing(struct _cef_window_0_t* owner, int target_id, int is_menu, uint32_t modifiers);
 CEF_EXPORT int cef_get_chrome_browser_owned_widget_count_for_tests(struct _cef_browser_0_t* browser);
 CEF_EXPORT void cef_clear_chrome_browser_password_dismissal_stats_for_tests(struct _cef_browser_0_t* browser, const cef_string_t* origin, struct _cef_completion_callback_0_t* callback);
 

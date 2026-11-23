@@ -8,7 +8,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=273aded4ee6dc0d084c56c0b1251c43763bf929a$
+// $hash=ab6d7bb0c75af39fcd8d799390d8056348b48c8b$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_LIFE_SPAN_HANDLER_CAPI_VERSIONS_H_
@@ -27,6 +27,7 @@ extern "C" {
 #endif
 
 struct _cef_client_0_t;
+struct _cef_client_15800_t;
 struct _cef_client_999999_t;
 
 typedef struct _cef_life_span_handler_0_t {

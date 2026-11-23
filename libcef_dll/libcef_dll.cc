@@ -9,13 +9,14 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=9f7d9d138b8e995c28b47f07a0945d9c693e4988$
+// $hash=427ed58bafc8f6f47bf77b842001170abfe1a86c$
 //
 
 #include "include/capi/cef_app_capi_versions.h"
 #include "include/capi/cef_crash_util_capi_versions.h"
 #include "include/capi/cef_file_util_capi_versions.h"
 #include "include/capi/cef_i18n_util_capi_versions.h"
+#include "include/capi/cef_input_event_utils_capi_versions.h"
 #include "include/capi/cef_origin_whitelist_capi_versions.h"
 #include "include/capi/cef_parser_capi_versions.h"
 #include "include/capi/cef_path_util_capi_versions.h"
@@ -30,6 +31,7 @@
 #include "include/cef_crash_util.h"
 #include "include/cef_file_util.h"
 #include "include/cef_i18n_util.h"
+#include "include/cef_input_event_utils.h"
 #include "include/cef_origin_whitelist.h"
 #include "include/cef_parser.h"
 #include "include/cef_path_util.h"
@@ -45,11 +47,13 @@
 #include "libcef_dll/cpptoc/command_line_cpptoc.h"
 #include "libcef_dll/cpptoc/frame_cpptoc.h"
 #include "libcef_dll/cpptoc/value_cpptoc.h"
+#include "libcef_dll/cpptoc/views/window_cpptoc.h"
 #include "libcef_dll/ctocpp/app_ctocpp.h"
 #include "libcef_dll/ctocpp/completion_callback_ctocpp.h"
 #include "libcef_dll/ctocpp/end_tracing_callback_ctocpp.h"
 #include "libcef_dll/ctocpp/scheme_handler_factory_ctocpp.h"
 #include "libcef_dll/ctocpp/task_ctocpp.h"
+#include "libcef_dll/ctocpp/test/capture_browser_window_callback_ctocpp.h"
 #include "libcef_dll/ctocpp/v8_handler_ctocpp.h"
 #include "libcef_dll/shutdown_checker.h"
 #include "libcef_dll/template_util.h"
@@ -367,6 +371,206 @@ CEF_EXPORT int cef_is_rtl() {
   // Return type: bool
   return _retval;
 }
+
+#if CEF_API_ADDED(15800)
+CEF_EXPORT int cef_windows_key_code_from_dom_code_and_key(uint32_t dom_code, uint32_t dom_key) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  int _retval = CefWindowsKeyCodeFromDomCodeAndKey(
+      dom_code,
+      dom_key);
+
+  // Return type: simple
+  return _retval;
+}
+#endif  // CEF_API_ADDED(15800)
+
+#if defined(OS_WIN)
+#if CEF_API_ADDED(15800)
+CEF_EXPORT int cef_keyboard_input_event_from_windows_message(uint32_t message, uint64_t wparam, int64_t lparam, struct _cef_keyboard_input_event_t* event) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: event; type: struct_byref
+  DCHECK(event);
+  if (!event) {
+    return 0;
+  }
+  if (!template_util::has_valid_size(event)) {
+    DCHECK(false) << "invalid event->[base.]size";
+    return 0;
+  }
+
+  // Translate param: event; type: struct_byref
+  CefKeyboardInputEvent eventObj;
+  if (event) {
+    eventObj.AttachTo(*event);
+  }
+
+  // Execute
+  bool _retval = CefKeyboardInputEventFromWindowsMessage(
+      message,
+      wparam,
+      lparam,
+      eventObj);
+
+  // Restore param: event; type: struct_byref
+  if (event) {
+    eventObj.DetachTo(*event);
+  }
+
+  // Return type: bool
+  return _retval;
+}
+#endif  // CEF_API_ADDED(15800)
+#endif  // defined(OS_WIN)
+
+#if defined(OS_WIN)
+#if CEF_API_ADDED(15800)
+CEF_EXPORT int cef_keyboard_input_event_from_windows_message_ex(uint32_t message, uint64_t wparam, int64_t lparam, size_t keyboard_stateCount, int const* keyboard_state, uint64_t keyboard_layout, int64_t timestamp, struct _cef_keyboard_input_event_t* event) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: keyboard_state; type: simple_vec_byref_const
+  DCHECK(keyboard_stateCount == 0 || keyboard_state);
+  if (keyboard_stateCount > 0 && !keyboard_state) {
+    return 0;
+  }
+  // Verify param: event; type: struct_byref
+  DCHECK(event);
+  if (!event) {
+    return 0;
+  }
+  if (!template_util::has_valid_size(event)) {
+    DCHECK(false) << "invalid event->[base.]size";
+    return 0;
+  }
+
+  // Translate param: keyboard_state; type: simple_vec_byref_const
+  std::vector<int > keyboard_stateList;
+  if (keyboard_stateCount > 0) {
+    for (size_t i = 0; i < keyboard_stateCount; ++i) {
+      int keyboard_stateVal = keyboard_state[i];
+      keyboard_stateList.push_back(keyboard_stateVal);
+    }
+  }
+  // Translate param: event; type: struct_byref
+  CefKeyboardInputEvent eventObj;
+  if (event) {
+    eventObj.AttachTo(*event);
+  }
+
+  // Execute
+  bool _retval = CefKeyboardInputEventFromWindowsMessageEx(
+      message,
+      wparam,
+      lparam,
+      keyboard_stateList,
+      keyboard_layout,
+      timestamp,
+      eventObj);
+
+  // Restore param: event; type: struct_byref
+  if (event) {
+    eventObj.DetachTo(*event);
+  }
+
+  // Return type: bool
+  return _retval;
+}
+#endif  // CEF_API_ADDED(15800)
+#endif  // defined(OS_WIN)
+
+#if defined(OS_MAC)
+#if CEF_API_ADDED(15800)
+CEF_EXPORT int cef_keyboard_input_event_from_mac_event(cef_event_handle_t native_event, struct _cef_keyboard_input_event_t* event) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: event; type: struct_byref
+  DCHECK(event);
+  if (!event) {
+    return 0;
+  }
+  if (!template_util::has_valid_size(event)) {
+    DCHECK(false) << "invalid event->[base.]size";
+    return 0;
+  }
+
+  // Translate param: event; type: struct_byref
+  CefKeyboardInputEvent eventObj;
+  if (event) {
+    eventObj.AttachTo(*event);
+  }
+
+  // Execute
+  bool _retval = CefKeyboardInputEventFromMacEvent(
+      native_event,
+      eventObj);
+
+  // Restore param: event; type: struct_byref
+  if (event) {
+    eventObj.DetachTo(*event);
+  }
+
+  // Return type: bool
+  return _retval;
+}
+#endif  // CEF_API_ADDED(15800)
+#endif  // defined(OS_MAC)
+
+#if defined(OS_MAC)
+#if CEF_API_ADDED(15800)
+CEF_EXPORT int cef_keyboard_input_event_from_mac_event_ex(cef_event_handle_t native_event, const cef_string_t* input_source_id, int keyboard_type, struct _cef_keyboard_input_event_t* event) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: event; type: struct_byref
+  DCHECK(event);
+  if (!event) {
+    return 0;
+  }
+  if (!template_util::has_valid_size(event)) {
+    DCHECK(false) << "invalid event->[base.]size";
+    return 0;
+  }
+  // Unverified params: input_source_id
+
+  // Translate param: event; type: struct_byref
+  CefKeyboardInputEvent eventObj;
+  if (event) {
+    eventObj.AttachTo(*event);
+  }
+
+  // Execute
+  bool _retval = CefKeyboardInputEventFromMacEventEx(
+      native_event,
+      CefString(input_source_id),
+      keyboard_type,
+      eventObj);
+
+  // Restore param: event; type: struct_byref
+  if (event) {
+    eventObj.DetachTo(*event);
+  }
+
+  // Return type: bool
+  return _retval;
+}
+#endif  // CEF_API_ADDED(15800)
+#endif  // defined(OS_MAC)
+
+#if defined(OS_LINUX)
+#if CEF_API_ADDED(15800)
+CEF_EXPORT uint32_t cef_non_printable_dom_key_from_xkeysym(uint32_t keysym) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  uint32_t _retval = CefNonPrintableDomKeyFromXKeysym(
+      keysym);
+
+  // Return type: simple
+  return _retval;
+}
+#endif  // CEF_API_ADDED(15800)
+#endif  // defined(OS_LINUX)
 
 CEF_EXPORT int cef_add_cross_origin_whitelist_entry(const cef_string_t* source_origin, const cef_string_t* target_protocol, const cef_string_t* target_domain, int allow_target_subdomains) {
   // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
@@ -989,6 +1193,47 @@ CEF_EXPORT int cef_is_feature_enabled_for_tests(const cef_string_t* feature_name
   // Return type: bool
   return _retval;
 }
+
+#if CEF_API_ADDED(15800)
+CEF_EXPORT void cef_capture_browser_window_for_tests(struct _cef_browser_0_t* browser, int native, struct _cef_capture_browser_window_callback_15800_t* callback) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: callback; type: refptr_diff
+  DCHECK(callback);
+  if (!callback) {
+    return;
+  }
+  // Unverified params: browser
+
+  // Execute
+  CefCaptureBrowserWindowForTests(
+      CefBrowserCppToC_Unwrap(browser),
+      native?true:false,
+      CefCaptureBrowserWindowCallbackCToCpp_Wrap(callback));
+}
+#endif  // CEF_API_ADDED(15800)
+
+#if CEF_API_ADDED(15800)
+CEF_EXPORT int cef_send_mouse_click_for_testing(struct _cef_window_0_t* owner, int target_id, int is_menu, uint32_t modifiers) {
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Verify param: owner; type: refptr_same
+  DCHECK(owner);
+  if (!owner) {
+    return 0;
+  }
+
+  // Execute
+  bool _retval = CefSendMouseClickForTesting(
+      CefWindowCppToC_Unwrap(owner),
+      target_id,
+      is_menu?true:false,
+      modifiers);
+
+  // Return type: bool
+  return _retval;
+}
+#endif  // CEF_API_ADDED(15800)
 
 #if CEF_API_ADDED(CEF_EXPERIMENTAL)
 CEF_EXPORT int cef_get_chrome_browser_owned_widget_count_for_tests(struct _cef_browser_0_t* browser) {

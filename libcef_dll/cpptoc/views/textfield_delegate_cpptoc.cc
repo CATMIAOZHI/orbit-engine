@@ -9,17 +9,59 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=497225500760758e25e91c4cb6c11b71e40a1852$
+// $hash=f2ce49ff4fc5eb7fa7f6ab78a0b081d66c2e0eb9$
 //
 
 #include "libcef_dll/cpptoc/views/textfield_delegate_cpptoc.h"
 #include "libcef_dll/ctocpp/views/textfield_ctocpp.h"
 #include "libcef_dll/ctocpp/views/view_ctocpp.h"
 #include "libcef_dll/shutdown_checker.h"
+#include "libcef_dll/template_util.h"
 
 namespace {
 
 // MEMBER FUNCTIONS - Body may be edited by hand.
+
+#if CEF_API_ADDED(15800)
+int CEF_CALLBACK textfield_delegate_on_keyboard_event(struct _cef_textfield_delegate_t* self, struct _cef_textfield_t* textfield, const struct _cef_keyboard_input_event_t* event) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return 0;
+  }
+  // Verify param: textfield; type: refptr_diff
+  DCHECK(textfield);
+  if (!textfield) {
+    return 0;
+  }
+  // Verify param: event; type: struct_byref_const
+  DCHECK(event);
+  if (!event) {
+    return 0;
+  }
+  if (!template_util::has_valid_size(event)) {
+    DCHECK(false) << "invalid event->[base.]size";
+    return 0;
+  }
+
+  // Translate param: event; type: struct_byref_const
+  CefKeyboardInputEvent eventObj;
+  if (event) {
+    eventObj.Set(*event, false);
+  }
+
+  // Execute
+  bool _retval = CefTextfieldDelegateCppToC::Get(self)->OnKeyboardEvent(
+      CefTextfieldCToCpp_Wrap(textfield),
+      eventObj);
+
+  // Return type: bool
+  return _retval;
+}
+#endif  // CEF_API_ADDED(15800)
 
 int CEF_CALLBACK textfield_delegate_on_key_event(struct _cef_textfield_delegate_t* self, struct _cef_textfield_t* textfield, const cef_key_event_t* event) {
   shutdown_checker::AssertNotShutdown();
@@ -337,6 +379,9 @@ void CEF_CALLBACK textfield_delegate_on_theme_changed(struct _cef_view_delegate_
 CefTextfieldDelegateCppToC::CefTextfieldDelegateCppToC() {
   GetStruct()->on_key_event = textfield_delegate_on_key_event;
   GetStruct()->on_after_user_action = textfield_delegate_on_after_user_action;
+#if CEF_API_ADDED(15800)
+  GetStruct()->on_keyboard_event = textfield_delegate_on_keyboard_event;
+#endif
   GetStruct()->base.get_preferred_size = textfield_delegate_get_preferred_size;
   GetStruct()->base.get_minimum_size = textfield_delegate_get_minimum_size;
   GetStruct()->base.get_maximum_size = textfield_delegate_get_maximum_size;
