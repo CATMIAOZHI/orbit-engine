@@ -2797,7 +2797,7 @@ public class CefriumBrowser {
         return setProxy(PROXY_DIRECT, null);
     }
 
-    // ── Device choosers (Web Bluetooth / WebUSB / Web Serial) ──
+    // ── Device choosers (Web Bluetooth / WebUSB / Web Serial / WebHID) ──
 
     /**
      * Device chooser kinds, passed to {@link DeviceChooserHandler}.
@@ -2834,8 +2834,9 @@ public class CefriumBrowser {
 
     /**
      * A live device chooser. When a page calls {@code
-     * navigator.bluetooth.requestDevice()}, {@code navigator.usb.requestDevice()}
-     * or {@code navigator.serial.requestPort()} under a user gesture, the handler
+     * navigator.bluetooth.requestDevice()}, {@code navigator.usb.requestDevice()},
+     * {@code navigator.serial.requestPort()} or {@code navigator.hid.requestDevice()}
+     * under a user gesture, the handler
      * receives a session; candidate devices then stream in via {@link
      * DeviceChooserHandler#onDeviceAdded}. The app presents its own picker and
      * calls {@link #select} or {@link #cancel}. Exactly one of those should be
@@ -3010,6 +3011,7 @@ public class CefriumBrowser {
             switch (mType) {
                 case DEVICE_USB: return CefriumDeviceKind.USB;
                 case DEVICE_SERIAL: return CefriumDeviceKind.SERIAL;
+                case 3: return CefriumDeviceKind.HID; // CEF_DEVICE_CHOOSER_TYPE_HID
                 default: return CefriumDeviceKind.BLUETOOTH;
             }
         }

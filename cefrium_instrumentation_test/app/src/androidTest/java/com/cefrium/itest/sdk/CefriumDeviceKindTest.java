@@ -27,7 +27,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A device chooser says which Web API asked, as an enum: a WebUSB request
- * reaches the handler as USB (and the deprecated int as DEVICE_USB).
+ * reaches the handler as USB (and the deprecated int as DEVICE_USB), a WebHID
+ * request as HID.
  */
 @RunWith(AndroidJUnit4.class)
 public class CefriumDeviceKindTest {
@@ -42,6 +43,18 @@ public class CefriumDeviceKindTest {
     @Test
     @SuppressWarnings("deprecation")
     public void webUsbIsUsb() throws Exception {
+        Assert.assertEquals("USB " + CefriumBrowser.DEVICE_USB,
+                kindOf("navigator.usb.requestDevice({filters: []})"));
+    }
+
+    /** WebHID, exposed on Android since Chromium 158, reaches the same handler. */
+    @Test
+    public void webHidIsHid() throws Exception {
+        Assert.assertEquals("HID 3", kindOf("navigator.hid.requestDevice({filters: []})"));
+    }
+
+    @SuppressWarnings("deprecation")
+    private String kindOf(String request) throws Exception {
         CountDownLatch shown = new CountDownLatch(1);
         AtomicReference<String> seen = new AtomicReference<>();
         AtomicReference<String> title = new AtomicReference<>("");
@@ -77,10 +90,10 @@ public class CefriumDeviceKindTest {
             }
             activityRule.getActivity().runOnUiThread(() -> browser.get().executeDevToolsMethod(
                     "Runtime.evaluate",
-                    "{\"expression\":\"navigator.usb.requestDevice({filters: []})"
-                            + ".catch(() => 0);1\",\"userGesture\":true}", (ok, r) -> {}));
+                    "{\"expression\":\"" + request + ".catch(() => 0);1\","
+                            + "\"userGesture\":true}", (ok, r) -> {}));
             Assert.assertTrue("no device chooser", shown.await(15, TimeUnit.SECONDS));
-            Assert.assertEquals("USB " + CefriumBrowser.DEVICE_USB, seen.get());
+            return seen.get();
         }
     }
 }

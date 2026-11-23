@@ -25,14 +25,15 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Which device APIs (WebUSB, Web Bluetooth, Web Serial, WebHID) a page sees on
- * a secure origin. An engine bump that adds or drops one fails here, so the
+ * a secure origin. WebHID appeared with Chromium 158 and is routed to the
+ * device chooser handler (CefriumDeviceKindTest#webHidIsHid). An engine bump that adds or drops one fails here, so the
  * chooser work (FEATURE-053) follows what the engine exposes.
  */
 @RunWith(AndroidJUnit4.class)
 public class CefriumDeviceApiSurfaceTest {
 
     private static final String EXPECTED =
-            "devices:usb=object;bluetooth=object;serial=object;hid=undefined;secure=true";
+            "devices:usb=object;bluetooth=object;serial=object;hid=object;secure=true";
 
     @Rule(order = 0)
     public ActivityTestRule<HostActivity> activityRule =

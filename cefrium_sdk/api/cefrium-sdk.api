@@ -679,6 +679,7 @@ public final class com.cefrium.CefriumDeviceKind extends java.lang.Enum<com.cefr
   public static final com.cefrium.CefriumDeviceKind BLUETOOTH;
   public static final com.cefrium.CefriumDeviceKind USB;
   public static final com.cefrium.CefriumDeviceKind SERIAL;
+  public static final com.cefrium.CefriumDeviceKind HID;
   public static com.cefrium.CefriumDeviceKind[] values();
   public static com.cefrium.CefriumDeviceKind valueOf(java.lang.String);
 

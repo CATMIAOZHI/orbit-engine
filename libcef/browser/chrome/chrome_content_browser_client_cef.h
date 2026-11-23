@@ -17,6 +17,7 @@ class ChromeBrowserMainExtraPartsCef;
 class CefBluetoothDelegate;
 class CefUsbDelegate;
 class CefSerialDelegate;
+class CefHidDelegate;
 
 // CEF override of ChromeContentBrowserClient.
 class ChromeContentBrowserClientCef : public ChromeContentBrowserClient {
@@ -165,6 +166,7 @@ class ChromeContentBrowserClientCef : public ChromeContentBrowserClient {
   content::BluetoothDelegate* GetBluetoothDelegate() override;
   content::UsbDelegate* GetUsbDelegate() override;
   content::SerialDelegate* GetSerialDelegate() override;
+  content::HidDelegate* GetHidDelegate() override;
   std::unique_ptr<content::IdentityRequestDialogController>
   CreateIdentityRequestDialogController(
       content::WebContents* web_contents) override;
@@ -183,6 +185,7 @@ class ChromeContentBrowserClientCef : public ChromeContentBrowserClient {
   std::unique_ptr<CefBluetoothDelegate> cef_bluetooth_delegate_;
   std::unique_ptr<CefUsbDelegate> cef_usb_delegate_;
   std::unique_ptr<CefSerialDelegate> cef_serial_delegate_;
+  std::unique_ptr<CefHidDelegate> cef_hid_delegate_;
 };
 
 #endif  // CEF_LIBCEF_BROWSER_CHROME_CHROME_CONTENT_BROWSER_CLIENT_CEF_

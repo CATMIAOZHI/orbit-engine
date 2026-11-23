@@ -12,6 +12,7 @@
 #include "cef/include/cef_client.h"
 #include "cef/include/cef_frame.h"
 #include "cef/libcef/browser/browser_host_base.h"
+#include "chrome/browser/ui/hid/hid_chooser_controller.h"
 #include "chrome/browser/ui/serial/serial_chooser_controller.h"
 #include "chrome/browser/usb/usb_chooser_controller.h"
 #include "content/public/browser/browser_thread.h"
@@ -329,4 +330,25 @@ std::unique_ptr<content::SerialChooser> CefSerialDelegate::RunChooser(
       browser, handler, CEF_DEVICE_CHOOSER_TYPE_SERIAL, origin,
       std::move(controller));
   return std::make_unique<CefSerialChooser>(std::move(view));
+}
+
+std::unique_ptr<content::HidChooser> CefHidDelegate::RunChooser(
+    content::RenderFrameHost* frame,
+    std::vector<blink::mojom::HidDeviceFilterPtr> filters,
+    std::vector<blink::mojom::HidDeviceFilterPtr> exclusion_filters,
+    content::HidChooser::Callback callback) {
+  CefRefPtr<CefBrowserHostBase> browser;
+  CefRefPtr<CefDeviceChooserHandler> handler = HandlerForHost(frame, &browser);
+  if (!handler) {
+    std::move(callback).Run({});
+    return nullptr;
+  }
+  CefString origin(frame->GetLastCommittedOrigin().Serialize());
+  auto controller = std::make_unique<HidChooserController>(
+      frame, std::move(filters), std::move(exclusion_filters),
+      std::move(callback));
+  auto view = std::make_unique<CefDeviceChooserView>(
+      browser, handler, CEF_DEVICE_CHOOSER_TYPE_HID, origin,
+      std::move(controller));
+  return std::make_unique<CefHidChooser>(std::move(view));
 }

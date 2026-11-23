@@ -10,5 +10,7 @@ public enum CefriumDeviceKind {
     /** {@code navigator.usb.requestDevice()}. */
     USB,
     /** {@code navigator.serial.requestPort()}. */
-    SERIAL
+    SERIAL,
+    /** {@code navigator.hid.requestDevice()}. */
+    HID
 }

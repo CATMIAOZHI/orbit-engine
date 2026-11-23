@@ -902,6 +902,14 @@ content::SerialDelegate* ChromeContentBrowserClientCef::GetSerialDelegate() {
   return cef_serial_delegate_.get();
 }
 
+content::HidDelegate* ChromeContentBrowserClientCef::GetHidDelegate() {
+  // Route the WebHID chooser to the embedder's CefDeviceChooserHandler.
+  if (!cef_hid_delegate_) {
+    cef_hid_delegate_ = std::make_unique<CefHidDelegate>();
+  }
+  return cef_hid_delegate_.get();
+}
+
 std::unique_ptr<content::IdentityRequestDialogController>
 ChromeContentBrowserClientCef::CreateIdentityRequestDialogController(
     content::WebContents* web_contents) {

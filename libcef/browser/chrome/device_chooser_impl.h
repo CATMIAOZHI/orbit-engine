@@ -13,10 +13,12 @@
 #include "base/memory/weak_ptr.h"
 #include "cef/include/cef_device_chooser_handler.h"
 #include "chrome/browser/bluetooth/chrome_bluetooth_delegate.h"
+#include "chrome/browser/hid/chrome_hid_delegate.h"
 #include "chrome/browser/serial/chrome_serial_delegate.h"
 #include "chrome/browser/usb/chrome_usb_delegate.h"
 #include "components/permissions/chooser_controller.h"
 #include "content/public/browser/bluetooth_chooser.h"
+#include "content/public/browser/hid_chooser.h"
 #include "content/public/browser/serial_chooser.h"
 #include "content/public/browser/usb_chooser.h"
 
@@ -155,6 +157,16 @@ class CefSerialChooser : public content::SerialChooser {
   std::unique_ptr<CefDeviceChooserView> view_;
 };
 
+class CefHidChooser : public content::HidChooser {
+ public:
+  explicit CefHidChooser(std::unique_ptr<CefDeviceChooserView> view)
+      : view_(std::move(view)) {}
+  ~CefHidChooser() override = default;
+
+ private:
+  std::unique_ptr<CefDeviceChooserView> view_;
+};
+
 // A ChromeBluetoothDelegate that inherits all permission/device logic but swaps
 // RunBluetoothChooser to route to the app's CefDeviceChooserHandler.
 class CefBluetoothDelegate : public ChromeBluetoothDelegate {
@@ -190,6 +202,19 @@ class CefSerialDelegate : public ChromeSerialDelegate {
       std::vector<blink::mojom::SerialPortFilterPtr> filters,
       std::vector<::device::BluetoothUUID> allowed_bluetooth_service_class_ids,
       content::SerialChooser::Callback callback) override;
+};
+
+// A ChromeHidDelegate that inherits all WebHID logic but routes the chooser to
+// the app's CefDeviceChooserHandler.
+class CefHidDelegate : public ChromeHidDelegate {
+ public:
+  using ChromeHidDelegate::ChromeHidDelegate;
+
+  std::unique_ptr<content::HidChooser> RunChooser(
+      content::RenderFrameHost* frame,
+      std::vector<blink::mojom::HidDeviceFilterPtr> filters,
+      std::vector<blink::mojom::HidDeviceFilterPtr> exclusion_filters,
+      content::HidChooser::Callback callback) override;
 };
 
 #endif  // CEF_LIBCEF_BROWSER_CHROME_DEVICE_CHOOSER_IMPL_H_
