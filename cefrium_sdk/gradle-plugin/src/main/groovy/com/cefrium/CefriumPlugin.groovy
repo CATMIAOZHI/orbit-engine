@@ -167,6 +167,41 @@ class CefriumPlugin implements Plugin<Project> {
             }
         }
 
+        // The SDK manifest sets android:appComponentFactory with tools:replace
+        // (it keeps the app's Application out of the engine's processes). A
+        // library that declares a factory of its own and merges after the SDK
+        // loses it without a word, and then that library's factory never runs.
+        // Fail and say how to keep both. The app's own factory wins the merge
+        // and is checked at run time instead.
+        if (app) {
+            project.tasks.matching { it.name ==~ /process\w*MainManifest/ }.configureEach { t ->
+                t.doLast {
+                    def factoryOf = { File f ->
+                        def m = f.getText('UTF-8') =~ /android:appComponentFactory\s*=\s*"([^"]+)"/
+                        m.find() ? m.group(1) : null
+                    }
+                    def merged = t.outputs.files.files.collectMany { out ->
+                        out.isDirectory()
+                            ? out.listFiles().findAll { it.name == 'AndroidManifest.xml' }
+                            : (out.name == 'AndroidManifest.xml' ? [out] : [])
+                    }
+                    if (merged.isEmpty() || factoryOf(merged[0]) != CEFRIUM_FACTORY) return
+                    def own = project.projectDir.toPath()
+                    def foreign = t.inputs.files.files.findAll {
+                        it.name == 'AndroidManifest.xml' && it.isFile() && !it.toPath().startsWith(own)
+                    }.collect { [it, factoryOf(it)] }.findAll { it[1] && !(it[1] in COMPATIBLE_FACTORIES) }
+                    if (foreign.isEmpty()) return
+                    def list = foreign.collect { "${it[1]} (${it[0].parentFile})" }.join(', ')
+                    throw new org.gradle.api.GradleException(
+                        "Cefrium: a library declares android:appComponentFactory ${list}, and " +
+                        "the Cefrium SDK's factory replaced it in the manifest merge, so it would " +
+                        "never run. Write a factory that extends ${CEFRIUM_FACTORY}, does what " +
+                        "that one does, and set it in your manifest with " +
+                        "tools:replace=\"android:appComponentFactory\".")
+                }
+            }
+        }
+
         // Configure-time lint for a silent AGP 9 pitfall: registering a shared
         // source root via sourceSets.main.java.srcDir(...) does NOT feed those
         // files to AGP 9's built-in Kotlin compiler -- kotlin.srcDir(...) must be
@@ -275,6 +310,12 @@ class CefriumPlugin implements Plugin<Project> {
             }
         }
     }
+
+    static final String CEFRIUM_FACTORY = 'com.cefrium.CefriumAppComponentFactory'
+    // Factories the SDK's one already does the work of (it delegates to androidx).
+    static final COMPATIBLE_FACTORIES = [CEFRIUM_FACTORY,
+        'androidx.core.app.CoreComponentFactory',
+        'android.support.v4.app.CoreComponentFactory']
 
     static final int JAVALESS_MIN_COMPILE_SDK = 37
 

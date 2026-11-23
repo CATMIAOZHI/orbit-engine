@@ -149,67 +149,21 @@ dependencies {
 }
 ```
 
-## 3. Create the Application class
+## 3. No Application class needed
 
-Cefrium needs initialization before any browser can be created.
-This boilerplate is required because CEF manages its own process
-model (multi-process with renderer as Android Service).
+The SDK sets itself up when the app starts (a content provider in its
+manifest) and starts the engine the first time a browser is created. There is
+no `Cefrium.initialize()` to call and no Application class to write.
 
-**MyApp.java:**
-```java
-package com.example.myapp;
-
-import android.app.Application;
-import android.util.Log;
-import com.cefrium.Cefrium;
-import org.chromium.base.ApplicationStatus;
-import org.chromium.base.ContextUtils;
-import org.chromium.base.PathUtils;
-import org.chromium.base.library_loader.LibraryLoader;
-import org.chromium.base.library_loader.LibraryProcessType;
-import org.chromium.ui.base.ResourceBundle;
-
-public class MyApp extends Application {
-    @Override
-    protected void attachBaseContext(android.content.Context base) {
-        super.attachBaseContext(base);
-        boolean isBrowser = !ContextUtils.getProcessName().contains(":");
-        ContextUtils.initApplicationContext(this);
-        ResourceBundle.setAvailablePakLocales(new String[]{"en-US"});
-        LibraryLoader.getInstance().setLibraryProcessType(
-            isBrowser ? LibraryProcessType.PROCESS_BROWSER
-                      : LibraryProcessType.PROCESS_CHILD);
-        if (isBrowser) {
-            PathUtils.setPrivateDataDirectorySuffix("cefrium");
-            ApplicationStatus.initialize(this);
-        }
-    }
-
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        boolean isBrowser = !ContextUtils.getProcessName().contains(":");
-        if (isBrowser) {
-            boolean ok = Cefrium.initialize(this);
-            Log.i("MyApp", "Cefrium: " + (ok ? "OK" : "FAILED"));
-        }
-    }
-}
-```
-
-> **Do not simplify this boilerplate - each line prevents a hard crash:**
-> - Pass `this`, **not** `getApplicationContext()`, to
->   `initApplicationContext()`. `getApplicationContext()` is `null` inside
->   `attachBaseContext()` -> `AssertionError` (`appContext != null`).
-> - `setLibraryProcessType(...)` must be called for the **browser** process too
->   (`PROCESS_BROWSER`), not only child processes. Skipping it -> `AssertionError`
->   in `LibraryLoader` (`PROCESS_UNINITIALIZED`) when `Cefrium.initialize` loads
->   the native library.
-> - All of the above must run in `attachBaseContext()` (before `onCreate()`),
->   and `Cefrium.initialize()` only in the browser process.
->
-> Kotlin is identical (see the `compose-browser` / `cefrium-browser` apps in the
-> cefrium/cefrium-browser repo).
+If your app already has an Application class, keep it. Android creates it in
+every process of the app, including the engine's renderer processes, which
+cannot open your files or preferences. Since 0.22.0 the SDK's
+`CefriumAppComponentFactory` keeps it out of those processes. If your
+manifest sets its own `android:appComponentFactory`, extend
+`com.cefrium.CefriumAppComponentFactory`; before 0.22.0, return early from
+`onCreate()` when
+`Application.getProcessName()` matches `:(sandboxed|privileged)_process<N>`.
+Do not compare against the package name: that also skips your own processes.
 
 ## 4. Configure AndroidManifest.xml
 
@@ -219,9 +173,7 @@ public class MyApp extends Application {
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:name=".MyApp"
-        android:label="My Cefrium App"
-        android:extractNativeLibs="true">
+        android:label="My Cefrium App">
 
         <!-- Do NOT declare Chromium child-process services here. The SDK AAR
              provides them (40 sandboxed + 3 privileged) and merges them into your
@@ -378,9 +330,10 @@ the architecture each device needs.
 
 ## Troubleshooting
 
-**App crashes on launch:** Check that `android:name=".MyApp"` is set in the
-manifest. Do NOT declare child-process services or `NUM_SANDBOXED_SERVICES`
-yourself -- the SDK provides them; a value of your own caps the
+**No page at all, not even a local one:** your Application class does
+main-process work (files, preferences) and runs in the engine's processes too;
+see step 3. **App crashes on launch:** do NOT declare child-process services
+or `NUM_SANDBOXED_SERVICES` yourself -- the SDK provides them; a value of your own caps the
 render-process pool and crashes multi-browser apps (see step 4).
 
 **Crash opening many pages ("isolated not needed"):** Your app manifest declares

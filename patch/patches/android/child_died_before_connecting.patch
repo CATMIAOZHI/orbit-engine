@@ -1,0 +1,149 @@
+diff --git base/android/java/src/org/chromium/base/process_launcher/ChildProcessConnection.java base/android/java/src/org/chromium/base/process_launcher/ChildProcessConnection.java
+index 80a360b..8861fcb 100644
+--- base/android/java/src/org/chromium/base/process_launcher/ChildProcessConnection.java
++++ base/android/java/src/org/chromium/base/process_launcher/ChildProcessConnection.java
+@@ -6,10 +6,13 @@
+ 
+ import static org.chromium.build.NullUtil.assumeNonNull;
+ 
++import android.app.ActivityManager;
++import android.app.ApplicationExitInfo;
+ import android.content.ComponentName;
+ import android.content.Context;
+ import android.content.Intent;
+ import android.content.pm.PackageInfo;
++import android.os.Build;
+ import android.os.Bundle;
+ import android.os.Handler;
+ import android.os.IBinder;
+@@ -22,6 +25,7 @@
+ 
+ import org.chromium.base.ApkInfo;
+ import org.chromium.base.ChildBindingState;
++import org.chromium.base.ContextUtils;
+ import org.chromium.base.JavaExceptionReporter;
+ import org.chromium.base.Log;
+ import org.chromium.base.MemoryPressureListener;
+@@ -48,6 +52,11 @@
+ public class ChildProcessConnection {
+     private static final String TAG = "ChildProcessConn";
+     private static final int FALLBACK_TIMEOUT_IN_SECONDS = 10;
++
++    // How often, and how long, a connection that has not connected yet looks for
++    // its process in the exit records (see checkDiedBeforeConnecting()).
++    private static final int START_CRASH_POLL_MS = 3000;
++    private static final int START_CRASH_POLL_LIMIT_MS = 120 * 1000;
+     private static final String HISTOGRAM_NAME = "Android.ChildProcessConectionEventCounts";
+ 
+     /**
+@@ -206,6 +215,11 @@
+     private final Handler mLauncherHandler;
+     private final Executor mLauncherExecutor;
+     private final ComponentName mServiceName;
++    // The service actually bound (mServiceName or, after a fallback,
++    // mFallbackServiceName), its process name, and when it was first bound.
++    private @Nullable ComponentName mBoundServiceName;
++    private @Nullable String mServiceProcessName;
++    private long mBindTimeMs;
+     private final @Nullable ComponentName mFallbackServiceName;
+ 
+     // Parameters passed to the child process through the service binding intent.
+@@ -405,10 +419,11 @@
+                 };
+ 
+         Intent bindIntent = new Intent();
+-        bindIntent.setComponent(
++        mBoundServiceName =
+                 getAlwaysFallback() && mFallbackServiceName != null
+                         ? mFallbackServiceName
+-                        : mServiceName);
++                        : mServiceName;
++        bindIntent.setComponent(mBoundServiceName);
+         if (mServiceBundle != null) {
+             bindIntent.putExtras(mServiceBundle);
+         }
+@@ -884,6 +899,11 @@
+             }
+         }
+ 
++        if (success && mBindTimeMs == 0) {
++            mBindTimeMs = System.currentTimeMillis();
++            mLauncherHandler.postDelayed(this::checkDiedBeforeConnecting, START_CRASH_POLL_MS);
++        }
++
+         if (success && !usedFallback && canFallback) {
+             mLauncherHandler.postDelayed(
+                     this::checkBindTimeOut, FALLBACK_TIMEOUT_IN_SECONDS * 1000);
+@@ -900,6 +920,63 @@
+         return success;
+     }
+ 
++    // Android delivers no ServiceConnection callback when the service's process
++    // dies before the service is created, in the app's Application.onCreate()
++    // for example: the binding stays pending and the launch never completes or
++    // fails. The exit records do show that death; treat it as the child dying.
++    private void checkDiedBeforeConnecting() {
++        assert isRunningOnLauncherThread();
++        if (mDidOnServiceConnected || mServiceDisconnected || mConnectionController.isUnbound()) {
++            return;
++        }
++        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return;
++        ApplicationExitInfo died = findExitSinceBind();
++        if (died != null) {
++            Log.e(
++                    TAG,
++                    "%s died before it connected: exit reason %d (%s). If the app has its own"
++                            + " Application class, it ran in this process too.",
++                    died.getProcessName(),
++                    died.getReason(),
++                    died.getDescription());
++            onServiceDisconnectedOnLauncherThread();
++            return;
++        }
++        if (System.currentTimeMillis() - mBindTimeMs < START_CRASH_POLL_LIMIT_MS) {
++            mLauncherHandler.postDelayed(this::checkDiedBeforeConnecting, START_CRASH_POLL_MS);
++        }
++    }
++
++    private @Nullable ApplicationExitInfo findExitSinceBind() {
++        Context context = ContextUtils.getApplicationContext();
++        try {
++            if (mServiceProcessName == null) {
++                mServiceProcessName =
++                        context.getPackageManager()
++                                .getServiceInfo(assumeNonNull(mBoundServiceName), 0)
++                                .processName;
++            }
++            List<ApplicationExitInfo> exits =
++                    assumeNonNull(context.getSystemService(ActivityManager.class))
++                            .getHistoricalProcessExitReasons(null, 0, 16);
++            for (ApplicationExitInfo info : exits) {
++                String name = info.getProcessName();
++                int reason = info.getReason();
++                if (info.getTimestamp() >= mBindTimeMs
++                        && (name.equals(mServiceProcessName)
++                                || name.startsWith(mServiceProcessName + ":"))
++                        && (reason == ApplicationExitInfo.REASON_CRASH
++                                || reason == ApplicationExitInfo.REASON_CRASH_NATIVE
++                                || reason == ApplicationExitInfo.REASON_INITIALIZATION_FAILURE)) {
++                    return info;
++                }
++            }
++        } catch (Exception e) {
++            // No answer: keep waiting, as without this check.
++        }
++        return null;
++    }
++
+     private void checkBindTimeOut() {
+         assert isRunningOnLauncherThread();
+         assert mFallbackServiceName != null;
+@@ -973,6 +1050,8 @@
+ 
+         Intent bindIntent = new Intent();
+         bindIntent.setComponent(mFallbackServiceName);
++        mBoundServiceName = mFallbackServiceName;
++        mServiceProcessName = null;
+         if (mServiceBundle != null) {
+             bindIntent.putExtras(mServiceBundle);
+         }

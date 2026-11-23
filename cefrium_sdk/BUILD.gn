@@ -41,6 +41,7 @@ android_library("cefrium_java") {
     "java/src/com/cefrium/payments/CefPaymentRequestService.java",
     "java/src/com/cefrium/webauthn/CefAuthenticatorInterfaceRegistrar.java",
     "java/src/com/cefrium/CefriumBrowser.java",
+    "java/src/com/cefrium/CefriumAppComponentFactory.java",
     "java/src/com/cefrium/CefriumInitProvider.java",
     "java/src/com/cefrium/CefriumMediaService.java",
     "java/src/com/cefrium/CefriumMediaSession.java",

@@ -2,6 +2,7 @@
 <!-- Cefrium SDK AndroidManifest.
      Merged into the consuming app's manifest automatically by Gradle. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.cefrium">
 
     <!-- Without a targetSdkVersion the app's manifest merger takes this library
@@ -58,9 +59,14 @@
     <!-- The app zygote loads libcef.so once and renderers fork from it with
          the library already relocated, as Chrome does: 4 to 8 MB less per
          renderer on a W90. An app with its own zygotePreloadName keeps it
-         with tools:replace and loses this. -->
+         with tools:replace and loses this.
+         The factory keeps the app's Application out of the engine's child
+         processes (see CefriumAppComponentFactory); it replaces androidx's,
+         which it extends. -->
     <application
-        android:zygotePreloadName="org.chromium.content_public.app.ZygotePreload">
+        android:zygotePreloadName="org.chromium.content_public.app.ZygotePreload"
+        android:appComponentFactory="com.cefrium.CefriumAppComponentFactory"
+        tools:replace="android:appComponentFactory">
         <!-- Zero-config init. The framework instantiates this provider at app
              launch (browser process, before any Activity); its onCreate runs the
              per-process Chromium plumbing so consumers need no custom Application

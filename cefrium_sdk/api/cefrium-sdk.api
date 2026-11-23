@@ -75,6 +75,16 @@ public final class com.cefrium.Cefrium$RendererServices
   public final int count;
   public java.lang.String toString();
 
+public class com.cefrium.CefriumAppComponentFactory extends android.app.AppComponentFactory
+  public com.cefrium.CefriumAppComponentFactory();
+  public android.app.Application instantiateApplication(java.lang.ClassLoader, java.lang.String) throws java.lang.InstantiationException, java.lang.IllegalAccessException, java.lang.ClassNotFoundException;
+  public java.lang.ClassLoader instantiateClassLoader(java.lang.ClassLoader, android.content.pm.ApplicationInfo);
+  public android.app.Activity instantiateActivity(java.lang.ClassLoader, java.lang.String, android.content.Intent) throws java.lang.InstantiationException, java.lang.IllegalAccessException, java.lang.ClassNotFoundException;
+  public android.content.BroadcastReceiver instantiateReceiver(java.lang.ClassLoader, java.lang.String, android.content.Intent) throws java.lang.InstantiationException, java.lang.IllegalAccessException, java.lang.ClassNotFoundException;
+  public android.app.Service instantiateService(java.lang.ClassLoader, java.lang.String, android.content.Intent) throws java.lang.InstantiationException, java.lang.IllegalAccessException, java.lang.ClassNotFoundException;
+  public android.content.ContentProvider instantiateProvider(java.lang.ClassLoader, java.lang.String) throws java.lang.InstantiationException, java.lang.IllegalAccessException, java.lang.ClassNotFoundException;
+  public static boolean isEngineProcess(java.lang.String);
+
 public interface com.cefrium.CefriumAudioHandler
   public default void onAudioStreamStarted(int, int);
   public default void onAudioStreamPacket(java.nio.ByteBuffer, int, long);
