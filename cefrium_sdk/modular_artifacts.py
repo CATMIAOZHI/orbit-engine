@@ -81,17 +81,28 @@ def write_zip(path, items):
             z.writestr(info, data)
 
 
+# A fixed date for the entries written here, so a rebuild reproduces the AAR.
+ZIP_DATE = (2001, 1, 1, 0, 0, 0)
+
+
+def entry(name):
+    info = zipfile.ZipInfo(name, date_time=ZIP_DATE)
+    info.compress_type = zipfile.ZIP_DEFLATED
+    info.external_attr = 0o644 << 16
+    return info
+
+
 def native_aar(path, flavour, abi, items):
     package = 'com.cefrium.nativelib.%s.%s' % (flavour, abi.replace('-', '_'))
     empty = io.BytesIO()
     zipfile.ZipFile(empty, 'w').close()
     with zipfile.ZipFile(path, 'w') as z:
-        z.writestr('AndroidManifest.xml',
+        z.writestr(entry('AndroidManifest.xml'),
                    '<?xml version="1.0" encoding="utf-8"?>\n'
                    '<manifest xmlns:android="http://schemas.android.com/apk/'
                    'res/android" package="%s" />\n' % package)
-        z.writestr('classes.jar', empty.getvalue())
-        z.writestr('R.txt', '')
+        z.writestr(entry('classes.jar'), empty.getvalue())
+        z.writestr(entry('R.txt'), '')
         for info, data in items:
             z.writestr(info, data)
 

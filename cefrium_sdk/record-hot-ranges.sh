@@ -142,7 +142,10 @@ PY
 if [ "$INJECT" = "--inject" ]; then
   mkdir -p "$WORK/assets/cefrium/hot-ranges"
   cp "$OUT" "$WORK/$ASSET"
-  ( cd "$WORK" && zip -q "$AAR" "$ASSET" )
+  # The fixed date and no extra fields of every AAR entry (slim_aar.py), so
+  # a rebuild reproduces the AAR.
+  ( cd "$WORK" && TZ=UTC touch -d '2001-01-01 00:00:00' "$ASSET" \
+      && TZ=UTC zip -q -X "$AAR" "$ASSET" )
   echo ">>> added $ASSET to $AAR"
 else
   cp "$OUT" "$ROOT/tmp/libcef-hot-ranges.txt"

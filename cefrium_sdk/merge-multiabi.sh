@@ -65,12 +65,13 @@ PY
 # Base = arm64 AAR (carries classes.jar, assets, R, manifest, jni/arm64-v8a),
 # plus the other architectures' libcef.so.
 cp "$ARM64" "$OUT"
-unzip -o -q "$X64" "jni/x86_64/*" -d "$WORK"
-unzip -o -q "$ARM" "jni/armeabi-v7a/*" -d "$WORK"
+TZ=UTC unzip -o -q "$X64" "jni/x86_64/*" -d "$WORK"
+TZ=UTC unzip -o -q "$ARM" "jni/armeabi-v7a/*" -d "$WORK"
 for aar in "$X64" "$ARM"; do
-  unzip -o -q "$aar" "assets/cefrium/hot-ranges/*" -d "$WORK" 2>/dev/null || true
+  TZ=UTC unzip -o -q "$aar" "assets/cefrium/hot-ranges/*" -d "$WORK" 2>/dev/null || true
 done
-( cd "$WORK" && zip -q -g -r -D "$OUT" jni $( [ -d assets ] && echo assets ) )
+# -X and UTC: the entries keep the fixed dates unzip restored, nothing else.
+( cd "$WORK" && TZ=UTC zip -q -X -g -r -D "$OUT" jni $( [ -d assets ] && echo assets ) )
 
 echo ">>> multi-ABI AAR: $OUT ($(du -h "$OUT" | cut -f1))"
 unzip -l "$OUT" | grep -E "jni/.*libcef.so"

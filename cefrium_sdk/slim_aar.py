@@ -148,6 +148,18 @@ def merge_values_xml(existing_xml, new_xml, global_names, config):
                        xml_declaration=True)
 
 
+# Every entry gets this date (dist_aar's), so the same inputs give the same
+# AAR byte for byte, and a rebuild can be compared with the published one.
+ZIP_DATE = (2001, 1, 1, 0, 0, 0)
+
+
+def zip_entry(name, compress_type):
+    info = zipfile.ZipInfo(name, date_time=ZIP_DATE)
+    info.compress_type = compress_type
+    info.external_attr = 0o644 << 16
+    return info
+
+
 BUILD_CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             'java', 'src', 'org', 'chromium', 'build',
                             'BuildConfig.java')
@@ -418,8 +430,7 @@ def main():
     # Phase 7: Write compressed AAR.
     with zipfile.ZipFile(args.output, 'w') as zout:
         for name, data in standard_entries.items():
-            zout.writestr(name, data,
-                          compress_type=zipfile.ZIP_DEFLATED,
+            zout.writestr(zip_entry(name, zipfile.ZIP_DEFLATED), data,
                           compresslevel=9)
 
     # Phase 8: Inject CEF assets (STORED for mmap access).
@@ -456,8 +467,8 @@ def main():
         for src, dst in assets.items():
             path = os.path.join(build_dir, src)
             if os.path.exists(path):
-                zout.writestr(dst + suffix, open(path, 'rb').read(),
-                              compress_type=zipfile.ZIP_STORED)
+                zout.writestr(zip_entry(dst + suffix, zipfile.ZIP_STORED),
+                              open(path, 'rb').read())
 
     in_size = os.path.getsize(args.input)
     out_size = os.path.getsize(args.output)
