@@ -195,6 +195,7 @@ public class com.cefrium.CefriumBrowser
   [experimental] public android.print.PrintDocumentAdapter createPrintDocumentAdapter(java.lang.String);
   [experimental] public void print();
   public void setUserAgentOverride(java.lang.String);
+  [experimental] public void setUserAgentOverride(java.lang.String, com.cefrium.CefriumUserAgentMetadata);
   public void setJavaScriptEnabled(boolean);
   public void setZoomLevel(double);
   public void setPinchToZoomEnabled(boolean);
@@ -1123,6 +1124,22 @@ public final class com.cefrium.CefriumTextInputMode extends java.lang.Enum<com.c
   public static final com.cefrium.CefriumTextInputMode SEARCH;
   public static com.cefrium.CefriumTextInputMode[] values();
   public static com.cefrium.CefriumTextInputMode valueOf(java.lang.String);
+
+[experimental] public final class com.cefrium.CefriumUserAgentMetadata
+  public static com.cefrium.CefriumUserAgentMetadata engineDefault();
+
+public final class com.cefrium.CefriumUserAgentMetadata$Builder
+  public com.cefrium.CefriumUserAgentMetadata$Builder();
+  public com.cefrium.CefriumUserAgentMetadata$Builder addBrand(java.lang.String, java.lang.String);
+  public com.cefrium.CefriumUserAgentMetadata$Builder setFullVersion(java.lang.String);
+  public com.cefrium.CefriumUserAgentMetadata$Builder setPlatform(java.lang.String);
+  public com.cefrium.CefriumUserAgentMetadata$Builder setPlatformVersion(java.lang.String);
+  public com.cefrium.CefriumUserAgentMetadata$Builder setArchitecture(java.lang.String);
+  public com.cefrium.CefriumUserAgentMetadata$Builder setModel(java.lang.String);
+  public com.cefrium.CefriumUserAgentMetadata$Builder setMobile(boolean);
+  public com.cefrium.CefriumUserAgentMetadata$Builder setBitness(java.lang.String);
+  public com.cefrium.CefriumUserAgentMetadata$Builder addFormFactor(java.lang.String);
+  public com.cefrium.CefriumUserAgentMetadata build();
 
 [experimental] public final class com.cefrium.CefriumWebRtcIpPolicy extends java.lang.Enum<com.cefrium.CefriumWebRtcIpPolicy>
   public static final com.cefrium.CefriumWebRtcIpPolicy DEFAULT;

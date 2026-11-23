@@ -34,6 +34,10 @@ import org.chromium.chrome.browser.profiles.ProfileManagerUtils;
  *     Chrome/&lt;engine version&gt; Cefrium/1.0 Mobile Safari/537.36
  * </pre>
  *
+ * <p>As in Chrome, {@code Mobile} and {@code Sec-CH-UA-Mobile: ?1} are sent on
+ * a phone and neither on a tablet (smallest width 600 dp or more), so a site
+ * may serve its desktop layout there.</p>
+ *
  * <p>The Chrome token carries the bundled engine version, a build constant of
  * the SDK -- see {@link #getChromiumVersion()}. It is not your app's
  * {@code android:versionName}. The {@code Cefrium/1.0} token identifies the

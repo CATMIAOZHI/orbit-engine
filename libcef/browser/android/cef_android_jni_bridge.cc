@@ -18,6 +18,10 @@
 #include "cef/include/cef_render_handler.h"
 #include "cef/include/cef_version.h"
 
+#include "base/command_line.h"
+#include "components/embedder_support/switches.h"
+#include "ui/base/device_form_factor.h"
+
 #include <android/log.h>
 
 #define TAG "Cefrium"
@@ -170,8 +174,14 @@ Java_org_cefrium_test_CefriumTestActivity_nativeInitCef(
   std::string ua_product =
       "Chrome/" MAKE_STRING(CHROME_VERSION_MAJOR) "." MAKE_STRING(
           CHROME_VERSION_MINOR) "." MAKE_STRING(CHROME_VERSION_BUILD) "." MAKE_STRING(CHROME_VERSION_PATCH)
-      " Cefrium/1.0 Mobile";
+      " Cefrium/1.0";
   CefString(&settings.user_agent_product).FromASCII(ua_product.c_str());
+  // As Chrome: a phone says "Mobile" in the User-Agent and ?1 in
+  // Sec-CH-UA-Mobile, a tablet neither. The switch drives both.
+  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE) {
+    base::CommandLine::ForCurrentProcess()->AppendSwitch(
+        embedder_support::kUseMobileUserAgent);
+  }
 
   LOGI("Calling CefInitialize...");
   bool result = CefInitialize(main_args, settings, nullptr, nullptr);

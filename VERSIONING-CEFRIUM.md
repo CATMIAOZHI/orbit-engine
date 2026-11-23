@@ -22,8 +22,8 @@ stability commitment.
 
 ## The User-Agent carries no SDK version
 
-The User-Agent reads `Chrome/<engine version> Cefrium/1.0 Mobile`. Two tokens,
-two meanings:
+The User-Agent reads `Chrome/<engine version> Cefrium/1.0`, followed by
+`Mobile` on a phone (as Chrome: not on a tablet). Two tokens, two meanings:
 
 - `Chrome/<engine version>` is the bundled engine, a build constant. It moves on
   an engine bump and on nothing else. It is never the host app's

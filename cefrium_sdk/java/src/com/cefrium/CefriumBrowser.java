@@ -1870,16 +1870,38 @@ public class CefriumBrowser {
      * Overrides the User-Agent string (Emulation.setUserAgentOverride), for
      * the documents loaded from now on. Can be called right after the
      * constructor. A window the page opens keeps it from its first request.
-     * It does not change User-Agent Client Hints
-     * ({@code navigator.userAgentData}); for those, call
-     * {@code Emulation.setUserAgentOverride} with {@code userAgentMetadata}
-     * through {@link #executeDevToolsMethod}.
+     * While it overrides, no User-Agent Client Hints are sent ({@code
+     * Sec-CH-UA*}, {@code navigator.userAgentData} brands); to send some, use
+     * {@link #setUserAgentOverride(String, CefriumUserAgentMetadata)}.
      *
      * @param userAgent the User-Agent; null or empty restores the engine's own
      */
     public void setUserAgentOverride(String userAgent) {
         checkThread("setUserAgentOverride");
         if (isLive()) nativeSetUserAgentOverride(mNativePtr, userAgent);
+    }
+
+    /**
+     * Overrides the User-Agent and the User-Agent Client Hints sent with it,
+     * as Android WebView's {@code setUserAgentMetadata}. Pass {@link
+     * CefriumUserAgentMetadata#engineDefault()} to keep the engine's hints,
+     * for example when only appending your app's token to the User-Agent.
+     *
+     * @param userAgent the User-Agent; null or empty restores the engine's own
+     *     User-Agent and hints, and {@code metadata} is then ignored
+     * @param metadata the hints to send
+     */
+    @CefriumExperimental
+    public void setUserAgentOverride(String userAgent, CefriumUserAgentMetadata metadata) {
+        checkThread("setUserAgentOverride");
+        if (metadata == null) throw new IllegalArgumentException("metadata must not be null");
+        if (!isLive()) return;
+        nativeSetUserAgentOverrideWithMetadata(mNativePtr, userAgent, metadata.engineDefault,
+                metadata.brands.toArray(new String[0]),
+                metadata.brandVersions.toArray(new String[0]), metadata.fullVersion,
+                metadata.platform, metadata.platformVersion, metadata.architecture,
+                metadata.model, metadata.mobile, metadata.bitness,
+                metadata.formFactors.toArray(new String[0]));
     }
 
     /**
@@ -6069,6 +6091,10 @@ public class CefriumBrowser {
     private static native void nativeSetDevToolsEventsEnabled(long nativePtr,
             CefriumBrowser browser, boolean enabled);
     private static native void nativeSetUserAgentOverride(long nativePtr, String userAgent);
+    private static native void nativeSetUserAgentOverrideWithMetadata(long nativePtr,
+            String userAgent, boolean engineDefault, String[] brands, String[] brandVersions,
+            String fullVersion, String platform, String platformVersion, String architecture,
+            String model, boolean mobile, String bitness, String[] formFactors);
     private static native void nativeSetJavaScriptEnabled(long nativePtr, boolean enabled);
     private static native void nativeSetPinchToZoomEnabled(long nativePtr, boolean enabled);
     private static native void nativeSetMediaPlaybackRequiresUserGesture(long nativePtr, boolean required);

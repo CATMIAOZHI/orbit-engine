@@ -15,9 +15,12 @@
 #include <vector>
 
 #include "base/base64.h"
+#include "base/command_line.h"
 #include "cef/include/cef_app.h"
 #include "cef/libcef/browser/android/cef_autofill_client_android.h"
 #include "components/android_autofill/browser/autofill_provider.h"
+#include "components/embedder_support/switches.h"
+#include "components/embedder_support/user_agent_utils.h"
 #include "cef/include/cef_browser.h"
 #include "cef/include/cef_client.h"
 #include "cef/include/cef_cookie.h"
@@ -95,6 +98,7 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "third_party/blink/public/common/page_state/page_state.h"
 #include "ui/android/window_android.h"
+#include "ui/base/device_form_factor.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
 #include "cef/libcef/browser/request_context_impl.h"
@@ -791,8 +795,14 @@ Java_com_cefrium_Cefrium_nativeInitialize(
   std::string ua_product =
       "Chrome/" MAKE_STRING(CHROME_VERSION_MAJOR) "." MAKE_STRING(
           CHROME_VERSION_MINOR) "." MAKE_STRING(CHROME_VERSION_BUILD) "." MAKE_STRING(CHROME_VERSION_PATCH)
-      " Cefrium/1.0 Mobile";
+      " Cefrium/1.0";
   CefString(&settings.user_agent_product).FromASCII(ua_product.c_str());
+  // As Chrome: a phone says "Mobile" in the User-Agent and ?1 in
+  // Sec-CH-UA-Mobile, a tablet neither. The switch drives both.
+  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE) {
+    base::CommandLine::ForCurrentProcess()->AppendSwitch(
+        embedder_support::kUseMobileUserAgent);
+  }
 
   std::string locales_dir = std::string(data_dir) + "/locales";
   CefString(&settings.locales_dir_path).FromASCII(locales_dir.c_str());
@@ -1719,6 +1729,62 @@ Java_com_cefrium_CefriumBrowser_nativeSetUserAgentOverride(
                                  ->SetUserAgentOverride(user_agent);
                            },
                            JStr(env, ua_j).ToString()));
+}
+
+namespace {
+std::vector<std::string> JStrings(JNIEnv* env, jobjectArray array) {
+  std::vector<std::string> out;
+  const jsize n = array ? env->GetArrayLength(array) : 0;
+  for (jsize i = 0; i < n; ++i) {
+    auto item = static_cast<jstring>(env->GetObjectArrayElement(array, i));
+    out.push_back(cefrium_sdk::JStr(env, item).ToString());
+    env->DeleteLocalRef(item);
+  }
+  return out;
+}
+
+std::string MajorVersion(const std::string& version) {
+  return version.substr(0, version.find('.'));
+}
+}  // namespace
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_cefrium_CefriumBrowser_nativeSetUserAgentOverrideWithMetadata(
+    JNIEnv* env, jclass, jlong native_ptr, jstring ua_j,
+    jboolean engine_default, jobjectArray brands_j,
+    jobjectArray brand_versions_j, jstring full_version_j, jstring platform_j,
+    jstring platform_version_j, jstring architecture_j, jstring model_j,
+    jboolean mobile, jstring bitness_j, jobjectArray form_factors_j) {
+  auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
+  if (!data) return;
+  blink::UserAgentMetadata metadata;
+  if (engine_default) {
+    metadata = embedder_support::GetUserAgentMetadata();
+  } else {
+    const auto brands = JStrings(env, brands_j);
+    const auto versions = JStrings(env, brand_versions_j);
+    for (size_t i = 0; i < brands.size() && i < versions.size(); ++i) {
+      metadata.brand_version_list.emplace_back(brands[i],
+                                               MajorVersion(versions[i]));
+      metadata.brand_full_version_list.emplace_back(brands[i], versions[i]);
+    }
+    metadata.full_version = JStr(env, full_version_j).ToString();
+    metadata.platform = JStr(env, platform_j).ToString();
+    metadata.platform_version = JStr(env, platform_version_j).ToString();
+    metadata.architecture = JStr(env, architecture_j).ToString();
+    metadata.model = JStr(env, model_j).ToString();
+    metadata.mobile = mobile;
+    metadata.bitness = JStr(env, bitness_j).ToString();
+    metadata.form_factors = JStrings(env, form_factors_j);
+  }
+  RunWhenCreated(
+      data, base::BindOnce(
+                [](std::string user_agent, blink::UserAgentMetadata metadata,
+                   CefRefPtr<CefBrowser> browser) {
+                  static_cast<CefBrowserHostBase*>(browser->GetHost().get())
+                      ->SetUserAgentOverride(user_agent, std::move(metadata));
+                },
+                JStr(env, ua_j).ToString(), std::move(metadata)));
 }
 
 extern "C" JNIEXPORT void JNICALL

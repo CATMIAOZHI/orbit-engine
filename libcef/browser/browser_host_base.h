@@ -6,6 +6,8 @@
 #define CEF_LIBCEF_BROWSER_BROWSER_HOST_BASE_H_
 #pragma once
 
+#include <optional>
+
 #include "base/memory/raw_ptr.h"
 #include "base/observer_list.h"
 #include "base/synchronization/lock.h"
@@ -24,6 +26,7 @@
 #include "cef/libcef/browser/media_stream_registrar.h"
 #include "cef/libcef/browser/request_context_impl.h"
 #include "components/find_in_page/find_notification_details.h"
+#include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 
 class RenderViewContextMenuObserver;
 
@@ -440,8 +443,13 @@ class CefBrowserHostBase : public CefBrowserHost,
   void ApplyGestureZoom();
 
   // The User-Agent string of this browser, as Android WebView's
-  // setUserAgentString. Empty restores the default.
+  // setUserAgentString. Empty restores the default. Sends no User-Agent
+  // Client Hints while overriding.
   void SetUserAgentOverride(const std::string& user_agent);
+  // The same, with the User-Agent Client Hints to send (WebView's
+  // setUserAgentMetadata).
+  void SetUserAgentOverride(const std::string& user_agent,
+                            std::optional<blink::UserAgentMetadata> metadata);
 
   // Returns true if windowless rendering is enabled.
   virtual bool IsWindowless() const = 0;

@@ -1103,10 +1103,20 @@ void CefBrowserHostBase::ApplyGestureZoom() {
 }
 
 void CefBrowserHostBase::SetUserAgentOverride(const std::string& user_agent) {
+  SetUserAgentOverride(user_agent, std::nullopt);
+}
+
+void CefBrowserHostBase::SetUserAgentOverride(
+    const std::string& user_agent,
+    std::optional<blink::UserAgentMetadata> metadata) {
   if (!CEF_CURRENTLY_ON_UIT()) {
-    CEF_POST_TASK(CEF_UIT,
-                  base::BindOnce(&CefBrowserHostBase::SetUserAgentOverride,
-                                 this, user_agent));
+    CEF_POST_TASK(
+        CEF_UIT,
+        base::BindOnce(
+            static_cast<void (CefBrowserHostBase::*)(
+                const std::string&, std::optional<blink::UserAgentMetadata>)>(
+                &CefBrowserHostBase::SetUserAgentOverride),
+            this, user_agent, std::move(metadata)));
     return;
   }
 
@@ -1117,9 +1127,13 @@ void CefBrowserHostBase::SetUserAgentOverride(const std::string& user_agent) {
   const bool overriding = !user_agent.empty();
   // Navigations a page starts read the WebContents flag; loads from the app
   // inherit it from the current entry.
-  web_contents->SetUserAgentOverride(
-      blink::UserAgentOverride::UserAgentOnly(user_agent),
-      /*override_in_new_tabs=*/overriding);
+  blink::UserAgentOverride ua_override =
+      blink::UserAgentOverride::UserAgentOnly(user_agent);
+  if (overriding) {
+    ua_override.ua_metadata_override = std::move(metadata);
+  }
+  web_contents->SetUserAgentOverride(ua_override,
+                                     /*override_in_new_tabs=*/overriding);
   if (auto* entry = web_contents->GetController().GetLastCommittedEntry()) {
     entry->SetIsOverridingUserAgent(overriding);
   }
