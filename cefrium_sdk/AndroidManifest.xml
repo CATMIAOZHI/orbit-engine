@@ -77,6 +77,16 @@
             android:authorities="${applicationId}.cefriuminit"
             android:exported="false"
             android:initOrder="100" />
+        <!-- A file chooser's "take a photo": the camera app writes there. -->
+        <provider
+            android:name="com.cefrium.CefriumFileProvider"
+            android:authorities="${applicationId}.cefrium.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/cefrium_file_paths" />
+        </provider>
         <!-- FEATURE-073: Web Push for apps without a FirebaseMessagingService
              of their own. Disabled so it never takes messages from the app's
              own service; an app enables it in its manifest, or calls

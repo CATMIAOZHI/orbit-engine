@@ -9,9 +9,12 @@
 
 #include <memory>
 #include <set>
+#include <string>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "build/build_config.h"
 #include "cef/include/cef_browser.h"
 #include "third_party/blink/public/mojom/choosers/file_chooser.mojom.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
@@ -72,6 +75,15 @@ class CefFileDialogManager {
   // Must be called when the |listener| passed to RunSelectFile is destroyed.
   void SelectFileListenerDestroyed(ui::SelectFileDialog::Listener* listener);
 
+#if BUILDFLAG(IS_ANDROID)
+  // The accept types and capture flag for the next RunSelectFile.
+  void SetAndroidOptions(std::vector<std::u16string> accept_types,
+                         bool use_media_capture) {
+    accept_types_ = std::move(accept_types);
+    use_media_capture_ = use_media_capture;
+  }
+#endif
+
  private:
   using Extensions = std::vector<std::vector<base::FilePath::StringType>>;
   using Descriptions = std::vector<std::u16string>;
@@ -102,6 +114,11 @@ class CefFileDialogManager {
 
   // List of all currently active listeners.
   std::set<raw_ptr<ui::SelectFileDialog::Listener>> active_listeners_;
+
+#if BUILDFLAG(IS_ANDROID)
+  std::vector<std::u16string> accept_types_;
+  bool use_media_capture_ = false;
+#endif
 
   base::WeakPtrFactory<CefFileDialogManager> weak_ptr_factory_{this};
 };

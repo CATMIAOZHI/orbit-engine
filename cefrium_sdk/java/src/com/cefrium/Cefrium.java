@@ -485,6 +485,7 @@ public final class Cefrium {
             // predates it never declares it: its client hints would carry the
             // app's versionName. Measured: brand "1", uaFullVersion "1.0".
             declareEngineVersionToApkInfo(ContextUtils.getApplicationContext());
+            CefriumFileProvider.register(ContextUtils.getApplicationContext());
             sProcessSetUp = true;
             return;
         }
@@ -492,6 +493,7 @@ public final class Cefrium {
         Context appContext = context.getApplicationContext();
         ContextUtils.initApplicationContext(appContext);
         declareEngineVersionToApkInfo(appContext);
+        CefriumFileProvider.register(appContext);
         LibraryLoader.getInstance()
                 .setLibraryProcessType(LibraryProcessType.PROCESS_BROWSER);
         PathUtils.setPrivateDataDirectorySuffix("cefrium");

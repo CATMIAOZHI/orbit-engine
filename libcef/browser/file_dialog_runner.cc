@@ -117,6 +117,9 @@ class CefSelectFileDialog final : public ui::SelectFileDialog {
     has_multiple_file_choices_ =
         file_types ? file_types->extensions.size() > 1 : true;
 
+#if BUILDFLAG(IS_ANDROID)
+    browser_->SetSelectFileAndroidOptions(accept_types_, use_media_capture_);
+#endif
     browser_->RunSelectFile(listener_, std::move(select_file_policy_), type,
                             title, default_path, file_types, file_type_index,
                             default_extension, owning_window);
@@ -137,9 +140,23 @@ class CefSelectFileDialog final : public ui::SelectFileDialog {
     return has_multiple_file_choices_;
   }
 
+#if BUILDFLAG(IS_ANDROID)
+  // Set by FileSelectHelper; the platform dialog needs them.
+  void SetAcceptTypes(std::vector<std::u16string> types) override {
+    accept_types_ = std::move(types);
+  }
+  void SetUseMediaCapture(bool use_media_capture) override {
+    use_media_capture_ = use_media_capture;
+  }
+#endif
+
  private:
   gfx::NativeWindow owning_window_ = gfx::NativeWindow();
   bool has_multiple_file_choices_ = false;
+#if BUILDFLAG(IS_ANDROID)
+  std::vector<std::u16string> accept_types_;
+  bool use_media_capture_ = false;
+#endif
 
   CefRefPtr<CefBrowserHostBase> browser_;
 };

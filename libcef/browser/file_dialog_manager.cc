@@ -475,6 +475,10 @@ void CefFileDialogManager::RunSelectFile(
   __android_log_print(ANDROID_LOG_INFO, "CefriumFile",
       "RunSelectFile: calling dialog_->SelectFile, owning_window=%p",
       static_cast<void*>(owning_window));
+  dialog_->SetAcceptTypes(std::move(accept_types_));
+  dialog_->SetUseMediaCapture(use_media_capture_);
+  accept_types_.clear();
+  use_media_capture_ = false;
 #endif
   dialog_->SelectFile(type, title, default_path, file_types, file_type_index,
                       default_extension, owning_window);

@@ -1718,6 +1718,17 @@ void CefBrowserHostBase::RunSelectFile(
                                       default_extension, owning_window);
 }
 
+#if BUILDFLAG(IS_ANDROID)
+void CefBrowserHostBase::SetSelectFileAndroidOptions(
+    std::vector<std::u16string> accept_types,
+    bool use_media_capture) {
+  if (EnsureFileDialogManager()) {
+    file_dialog_manager_->SetAndroidOptions(std::move(accept_types),
+                                            use_media_capture);
+  }
+}
+#endif
+
 void CefBrowserHostBase::SelectFileListenerDestroyed(
     ui::SelectFileDialog::Listener* listener) {
 #if !BUILDFLAG(IS_ANDROID)

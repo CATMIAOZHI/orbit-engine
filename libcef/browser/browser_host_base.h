@@ -370,6 +370,11 @@ class CefBrowserHostBase : public CefBrowserHost,
                      const base::FilePath::StringType& default_extension,
                      gfx::NativeWindow owning_window);
   void SelectFileListenerDestroyed(ui::SelectFileDialog::Listener* listener);
+#if BUILDFLAG(IS_ANDROID)
+  // For the next RunSelectFile.
+  void SetSelectFileAndroidOptions(std::vector<std::u16string> accept_types,
+                                   bool use_media_capture);
+#endif
 
   // Called from AlloyBrowserHostImpl::GetJavaScriptDialogManager and
   // ChromeBrowserDelegate::GetJavaScriptDialogManager.

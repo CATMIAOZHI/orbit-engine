@@ -22,6 +22,7 @@ android_resources("cefrium_resources") {
     # classes (FirebaseApp / FCM) but not their resources; gms.common code reads
     # them by R.string id (FEATURE-041).
     "res/values/play_services_strings.xml",
+    "res/xml/cefrium_file_paths.xml",
   ]
 }
 
@@ -42,6 +43,7 @@ android_library("cefrium_java") {
     "java/src/com/cefrium/webauthn/CefAuthenticatorInterfaceRegistrar.java",
     "java/src/com/cefrium/CefriumBrowser.java",
     "java/src/com/cefrium/CefriumAppComponentFactory.java",
+    "java/src/com/cefrium/CefriumFileProvider.java",
     "java/src/com/cefrium/CefriumInitProvider.java",
     "java/src/com/cefrium/CefriumMediaService.java",
     "java/src/com/cefrium/CefriumMediaSession.java",
