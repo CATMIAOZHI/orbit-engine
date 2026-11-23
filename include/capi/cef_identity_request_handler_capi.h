@@ -33,7 +33,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=2647338ac0d4f1f8ffde59149b7c7b84ac3dc5c2$
+// $hash=fa7ddc8aea281023f49fc9f76914ef9cfa137ba6$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_IDENTITY_REQUEST_HANDLER_CAPI_H_
@@ -46,6 +46,7 @@
 
 #include "include/capi/cef_base_capi.h"
 #include "include/capi/cef_browser_capi.h"
+#include "include/capi/cef_image_capi.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -102,6 +103,50 @@ typedef struct _cef_identity_account_t {
   /// before.
   ///
   int (CEF_CALLBACK *is_returning_user)(struct _cef_identity_account_t* self);
+
+  ///
+  /// The account's given name, or NULL.
+  ///
+  // The resulting string must be freed by calling cef_string_userfree_free().
+  cef_string_userfree_t (CEF_CALLBACK *get_given_name)(struct _cef_identity_account_t* self);
+
+  ///
+  /// The account's picture as fetched by the browser, or NULL.
+  ///
+  struct _cef_image_t* (CEF_CALLBACK *get_picture)(struct _cef_identity_account_t* self);
+
+  ///
+  /// The identity provider's brand icon as fetched by the browser, or NULL.
+  ///
+  struct _cef_image_t* (CEF_CALLBACK *get_identity_provider_icon)(struct _cef_identity_account_t* self);
+
+  ///
+  /// The relying party's privacy policy URL, as the identity provider gives it,
+  /// or NULL.
+  ///
+  // The resulting string must be freed by calling cef_string_userfree_free().
+  cef_string_userfree_t (CEF_CALLBACK *get_privacy_policy_url)(struct _cef_identity_account_t* self);
+
+  ///
+  /// The relying party's terms of service URL, as the identity provider gives
+  /// it, or NULL.
+  ///
+  // The resulting string must be freed by calling cef_string_userfree_free().
+  cef_string_userfree_t (CEF_CALLBACK *get_terms_of_service_url)(struct _cef_identity_account_t* self);
+
+  ///
+  /// The fields the identity provider will share with the relying party if this
+  /// account is selected ("name", "email", "picture", "phone", "username"). A
+  /// chooser should disclose them to a user who is not returning.
+  ///
+  void (CEF_CALLBACK *get_disclosure_fields)(struct _cef_identity_account_t* self, cef_string_list_t fields);
+
+  ///
+  /// What the relying party asks for, for the chooser's title: "signin",
+  /// "signup", "use" or "continue".
+  ///
+  // The resulting string must be freed by calling cef_string_userfree_free().
+  cef_string_userfree_t (CEF_CALLBACK *get_context)(struct _cef_identity_account_t* self);
 } cef_identity_account_t;
 
 #endif  // CEF_API_ADDED(CEF_EXPERIMENTAL)

@@ -8,7 +8,7 @@
 // by hand. See the translator.README.txt file in the tools directory for
 // more information.
 //
-// $hash=df17fe338e961e4d2484277796730956f135f892$
+// $hash=78f293118914a03d7d8ae7478e523e786d3f4ade$
 //
 
 #ifndef CEF_INCLUDE_CAPI_CEF_IDENTITY_REQUEST_HANDLER_CAPI_VERSIONS_H_
@@ -21,6 +21,7 @@
 
 #include "include/capi/cef_base_capi.h"
 #include "include/capi/cef_browser_capi_versions.h"
+#include "include/capi/cef_image_capi_versions.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,6 +35,13 @@ typedef struct _cef_identity_account_999999_t {
   cef_string_userfree_t (CEF_CALLBACK *get_picture_url)(struct _cef_identity_account_999999_t* self);
   cef_string_userfree_t (CEF_CALLBACK *get_identity_provider)(struct _cef_identity_account_999999_t* self);
   int (CEF_CALLBACK *is_returning_user)(struct _cef_identity_account_999999_t* self);
+  cef_string_userfree_t (CEF_CALLBACK *get_given_name)(struct _cef_identity_account_999999_t* self);
+  struct _cef_image_0_t* (CEF_CALLBACK *get_picture)(struct _cef_identity_account_999999_t* self);
+  struct _cef_image_0_t* (CEF_CALLBACK *get_identity_provider_icon)(struct _cef_identity_account_999999_t* self);
+  cef_string_userfree_t (CEF_CALLBACK *get_privacy_policy_url)(struct _cef_identity_account_999999_t* self);
+  cef_string_userfree_t (CEF_CALLBACK *get_terms_of_service_url)(struct _cef_identity_account_999999_t* self);
+  void (CEF_CALLBACK *get_disclosure_fields)(struct _cef_identity_account_999999_t* self, cef_string_list_t fields);
+  cef_string_userfree_t (CEF_CALLBACK *get_context)(struct _cef_identity_account_999999_t* self);
 } cef_identity_account_999999_t;
 
 typedef struct _cef_identity_request_callback_999999_t {

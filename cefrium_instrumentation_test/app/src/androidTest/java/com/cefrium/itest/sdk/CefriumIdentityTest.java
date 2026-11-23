@@ -4,6 +4,8 @@
 package com.cefrium.itest.sdk;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
+import android.graphics.Color;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.rule.ActivityTestRule;
@@ -14,6 +16,14 @@ import com.cefrium.itest.BrowserRule;
 import com.cefrium.itest.HostActivity;
 import com.cefrium.itest.LocalHttpServer;
 
+import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.RootMatchers.isDialog;
+import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
+import static androidx.test.espresso.matcher.ViewMatchers.withText;
+import static org.hamcrest.CoreMatchers.containsString;
+
 import org.json.JSONObject;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -21,15 +31,19 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -51,13 +65,31 @@ public class CefriumIdentityTest {
 
     private final List<String> idpLog = new CopyOnWriteArrayList<>();
 
+    // A 64x64 PNG for the account picture and the provider's icon.
+    private static final byte[] PNG;
+    static {
+        Bitmap bitmap = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888);
+        bitmap.eraseColor(Color.rgb(0x1a, 0x73, 0xe8));
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+        PNG = out.toByteArray();
+    }
+
     /** A minimal FedCM identity provider on http://localhost:<port>. */
     private final class Idp implements AutoCloseable {
         final ServerSocket server;
         final int port;
         volatile boolean running = true;
+        final boolean single;
 
         Idp() throws Exception {
+            this(false);
+        }
+
+        // |single|: one account only, so the default sheet goes straight to
+        // "Continue as".
+        Idp(boolean single) throws Exception {
+            this.single = single;
             server = new ServerSocket(0, 0, InetAddress.getByName("127.0.0.1"));
             port = server.getLocalPort();
             Thread t = new Thread(this::serve, "test-idp");
@@ -82,6 +114,9 @@ public class CefriumIdentityTest {
                     String path = req == null ? "" : req.split(" ")[1].split("\\?")[0];
                     idpLog.add(path);
                     String body;
+                    String type = "application/json";
+                    byte[] raw = null;
+                    String base = "http://localhost:" + port;
                     switch (path) {
                         case "/.well-known/web-identity":
                             body = "{\"provider_urls\":[\"http://localhost:" + port
@@ -89,14 +124,28 @@ public class CefriumIdentityTest {
                             break;
                         case "/config.json":
                             body = "{\"accounts_endpoint\":\"/accounts\","
+                                    + "\"client_metadata_endpoint\":\"/client_metadata\","
                                     + "\"id_assertion_endpoint\":\"/assert\","
-                                    + "\"login_url\":\"/login\"}";
+                                    + "\"login_url\":\"/login\","
+                                    + "\"branding\":{\"icons\":[{\"url\":\"" + base
+                                    + "/icon.png\",\"size\":64}]}}";
                             break;
                         case "/accounts":
                             body = "{\"accounts\":[{\"id\":\"1\",\"name\":\"Test User\","
-                                    + "\"email\":\"user@example.test\",\"given_name\":\"Test\"},"
-                                    + "{\"id\":\"2\",\"name\":\"Other User\","
-                                    + "\"email\":\"other@example.test\"}]}";
+                                    + "\"email\":\"user@example.test\",\"given_name\":\"Test\","
+                                    + "\"picture\":\"" + base + "/picture.png\"}"
+                                    + (single ? "" : ",{\"id\":\"2\",\"name\":\"Other User\","
+                                    + "\"email\":\"other@example.test\"}") + "]}";
+                            break;
+                        case "/client_metadata":
+                            body = "{\"privacy_policy_url\":\"https://rp.example/privacy\","
+                                    + "\"terms_of_service_url\":\"https://rp.example/terms\"}";
+                            break;
+                        case "/picture.png":
+                        case "/icon.png":
+                            body = "";
+                            type = "image/png";
+                            raw = PNG;
                             break;
                         case "/assert":
                             body = "{\"token\":\"token-for-account\"}";
@@ -104,11 +153,11 @@ public class CefriumIdentityTest {
                         default:
                             body = "{}";
                     }
-                    byte[] b = body.getBytes(StandardCharsets.UTF_8);
+                    byte[] b = raw != null ? raw : body.getBytes(StandardCharsets.UTF_8);
                     String cors = origin.isEmpty() ? "" : "Access-Control-Allow-Origin: "
                             + origin + "\r\nAccess-Control-Allow-Credentials: true\r\n";
                     OutputStream out = s.getOutputStream();
-                    out.write(("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" + cors
+                    out.write(("HTTP/1.1 200 OK\r\nContent-Type: " + type + "\r\n" + cors
                             + "Content-Length: " + b.length + "\r\nConnection: close\r\n\r\n")
                             .getBytes(StandardCharsets.UTF_8));
                     out.write(b);
@@ -253,6 +302,60 @@ public class CefriumIdentityTest {
                     (ok, json) -> {}));
             Assert.assertTrue("onAccountChooserClosed not called",
                     closed.await(10, TimeUnit.SECONDS));
+        }
+    }
+
+    // What a chooser needs to look like Chrome's reaches the handler.
+    @Test
+    public void accountCarriesWhatTheChooserShows() throws Exception {
+        List<CefriumIdentityHandler.Account> offered = new CopyOnWriteArrayList<>();
+        CefriumIdentityHandler handler = (relyingParty, accounts, req) -> {
+            offered.addAll(accounts);
+            req.select(accounts.get(0));
+            return true;
+        };
+        try (Idp idp = new Idp(); LocalHttpServer site = new LocalHttpServer(PAGE)) {
+            CefriumBrowser b = open(true, site.url(), handler);
+            Assert.assertEquals("idp saw " + idpLog, "resolved:token-for-account",
+                    request(b, idp.port));
+            CefriumIdentityHandler.Account a = offered.get(0);
+            Assert.assertEquals("Test", a.givenName);
+            Assert.assertEquals("signin", a.context);
+            Assert.assertEquals("https://rp.example/privacy", a.privacyPolicyUrl);
+            Assert.assertEquals("https://rp.example/terms", a.termsOfServiceUrl);
+            Assert.assertEquals(Arrays.asList("name", "email", "picture"), a.disclosureFields);
+            Assert.assertFalse(a.returningUser);
+            Assert.assertNotNull("no picture; idp saw " + idpLog, a.picture);
+            Assert.assertNotNull("no provider icon; idp saw " + idpLog, a.identityProviderIcon);
+        }
+    }
+
+    // No handler: the SDK's sheet, as Chrome's. "Continue as" signs in.
+    @Test
+    public void defaultSheetSignsIn() throws Exception {
+        try (Idp idp = new Idp(true); LocalHttpServer site = new LocalHttpServer(PAGE)) {
+            CefriumBrowser b = open(false, site.url(), null);
+            Future<String> outcome = Executors.newSingleThreadExecutor()
+                    .submit(() -> request(b, idp.port));
+            String host = "127.0.0.1";
+            long end = System.currentTimeMillis() + 20_000;
+            while (true) {
+                try {
+                    onView(withText("Continue as Test")).inRoot(isDialog())
+                            .check(matches(isDisplayed()));
+                    break;
+                } catch (Throwable t) {
+                    if (System.currentTimeMillis() > end) throw t;
+                    Thread.sleep(200);
+                }
+            }
+            onView(withText(containsString("Sign in to " + host))).inRoot(isDialog())
+                    .check(matches(isDisplayed()));
+            onView(withText(containsString("will share your name, email address"))).inRoot(isDialog())
+                    .check(matches(isDisplayed()));
+            onView(withText("Continue as Test")).inRoot(isDialog()).perform(click());
+            Assert.assertEquals("idp saw " + idpLog, "resolved:token-for-account",
+                    outcome.get(30, TimeUnit.SECONDS));
         }
     }
 }

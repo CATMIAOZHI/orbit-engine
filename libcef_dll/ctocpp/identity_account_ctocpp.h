@@ -9,7 +9,7 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=47115065f5a49e111fb5edaa5e95a6d3949385c4$
+// $hash=00521cb5422dcb7b9af78cf09d8ea6284b5b4912$
 //
 
 #ifndef CEF_LIBCEF_DLL_CTOCPP_IDENTITY_ACCOUNT_CTOCPP_H_
@@ -20,6 +20,7 @@
 #error This file can be included wrapper-side only
 #endif
 
+#include <vector>
 #include "include/cef_identity_request_handler.h"
 #include "include/capi/cef_identity_request_handler_capi.h"
 #include "libcef_dll/ctocpp/ctocpp_ref_counted.h"
@@ -41,6 +42,13 @@ class CefIdentityAccountCToCpp
   CefString GetPictureUrl() override;
   CefString GetIdentityProvider() override;
   bool IsReturningUser() override;
+  CefString GetGivenName() override;
+  CefRefPtr<CefImage> GetPicture() override;
+  CefRefPtr<CefImage> GetIdentityProviderIcon() override;
+  CefString GetPrivacyPolicyUrl() override;
+  CefString GetTermsOfServiceUrl() override;
+  void GetDisclosureFields(std::vector<CefString>& fields) override;
+  CefString GetContext() override;
 };
 
 constexpr auto CefIdentityAccountCToCpp_Wrap = CefIdentityAccountCToCpp::Wrap;

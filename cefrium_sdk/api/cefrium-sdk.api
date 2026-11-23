@@ -742,6 +742,9 @@ public final class com.cefrium.CefriumFileChooserParams$Mode extends java.lang.E
   public static com.cefrium.CefriumFileChooserParams$Mode[] values();
   public static com.cefrium.CefriumFileChooserParams$Mode valueOf(java.lang.String);
 
+public final class com.cefrium.CefriumFileProvider extends androidx.core.content.FileProvider
+  public com.cefrium.CefriumFileProvider();
+
 [experimental] public interface com.cefrium.CefriumFocusHandler
   public default void onTakeFocus(boolean);
   public default boolean onSetFocus(int);
@@ -765,7 +768,15 @@ public final class com.cefrium.CefriumIdentityHandler$Account
   public final java.lang.String pictureUrl;
   public final java.lang.String identityProvider;
   public final boolean returningUser;
+  public final java.lang.String givenName;
+  public final android.graphics.Bitmap picture;
+  public final android.graphics.Bitmap identityProviderIcon;
+  public final java.lang.String privacyPolicyUrl;
+  public final java.lang.String termsOfServiceUrl;
+  public final java.util.List<java.lang.String> disclosureFields;
+  public final java.lang.String context;
   public com.cefrium.CefriumIdentityHandler$Account(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, boolean);
+  public com.cefrium.CefriumIdentityHandler$Account(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String, boolean, java.lang.String, android.graphics.Bitmap, android.graphics.Bitmap, java.lang.String, java.lang.String, java.util.List<java.lang.String>, java.lang.String);
 
 public interface com.cefrium.CefriumIdentityHandler$Request
   public abstract void select(com.cefrium.CefriumIdentityHandler$Account);

@@ -9,12 +9,14 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=f7dff16b284e8ab099455b943836076c2148d725$
+// $hash=f525fe09e6152a32f48d0fb188dd57c7e81b7bbc$
 //
 
 #include "include/cef_api_hash.h"
 #include "libcef_dll/cpptoc/identity_account_cpptoc.h"
+#include "libcef_dll/cpptoc/image_cpptoc.h"
 #include "libcef_dll/shutdown_checker.h"
+#include "libcef_dll/transfer_util.h"
 
 namespace {
 
@@ -122,6 +124,136 @@ int CEF_CALLBACK identity_account_is_returning_user(struct _cef_identity_account
   return _retval;
 }
 
+cef_string_userfree_t CEF_CALLBACK identity_account_get_given_name(struct _cef_identity_account_999999_t* self) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return NULL;
+  }
+
+  // Execute
+  CefString _retval = CefIdentityAccount_999999_CppToC::Get(self)->GetGivenName();
+
+  // Return type: string
+  return _retval.DetachToUserFree();
+}
+
+struct _cef_image_0_t* CEF_CALLBACK identity_account_get_picture(struct _cef_identity_account_999999_t* self) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return NULL;
+  }
+
+  // Execute
+  CefRefPtr<CefImage> _retval = CefIdentityAccount_999999_CppToC::Get(self)->GetPicture();
+
+  // Return type: refptr_same
+  return CefImageCppToC_Wrap(_retval);
+}
+
+struct _cef_image_0_t* CEF_CALLBACK identity_account_get_identity_provider_icon(struct _cef_identity_account_999999_t* self) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return NULL;
+  }
+
+  // Execute
+  CefRefPtr<CefImage> _retval = CefIdentityAccount_999999_CppToC::Get(self)->GetIdentityProviderIcon();
+
+  // Return type: refptr_same
+  return CefImageCppToC_Wrap(_retval);
+}
+
+cef_string_userfree_t CEF_CALLBACK identity_account_get_privacy_policy_url(struct _cef_identity_account_999999_t* self) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return NULL;
+  }
+
+  // Execute
+  CefString _retval = CefIdentityAccount_999999_CppToC::Get(self)->GetPrivacyPolicyUrl();
+
+  // Return type: string
+  return _retval.DetachToUserFree();
+}
+
+cef_string_userfree_t CEF_CALLBACK identity_account_get_terms_of_service_url(struct _cef_identity_account_999999_t* self) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return NULL;
+  }
+
+  // Execute
+  CefString _retval = CefIdentityAccount_999999_CppToC::Get(self)->GetTermsOfServiceUrl();
+
+  // Return type: string
+  return _retval.DetachToUserFree();
+}
+
+void CEF_CALLBACK identity_account_get_disclosure_fields(struct _cef_identity_account_999999_t* self, cef_string_list_t fields) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return;
+  }
+  // Verify param: fields; type: string_vec_byref
+  DCHECK(fields);
+  if (!fields) {
+    return;
+  }
+
+  // Translate param: fields; type: string_vec_byref
+  std::vector<CefString> fieldsList;
+  transfer_string_list_contents(fields, fieldsList);
+
+  // Execute
+  CefIdentityAccount_999999_CppToC::Get(self)->GetDisclosureFields(
+      fieldsList);
+
+  // Restore param: fields; type: string_vec_byref
+  cef_string_list_clear(fields);
+  transfer_string_list_contents(fieldsList, fields);
+}
+
+cef_string_userfree_t CEF_CALLBACK identity_account_get_context(struct _cef_identity_account_999999_t* self) {
+  shutdown_checker::AssertNotShutdown();
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  DCHECK(self);
+  if (!self) {
+    return NULL;
+  }
+
+  // Execute
+  CefString _retval = CefIdentityAccount_999999_CppToC::Get(self)->GetContext();
+
+  // Return type: string
+  return _retval.DetachToUserFree();
+}
+
 }  // namespace
 
 // CONSTRUCTOR FOR VERSION 999999 - Do not edit by hand.
@@ -136,6 +268,13 @@ CefIdentityAccount_999999_CppToC::CefIdentityAccount_999999_CppToC() {
   GetStruct()->get_picture_url = identity_account_get_picture_url;
   GetStruct()->get_identity_provider = identity_account_get_identity_provider;
   GetStruct()->is_returning_user = identity_account_is_returning_user;
+  GetStruct()->get_given_name = identity_account_get_given_name;
+  GetStruct()->get_picture = identity_account_get_picture;
+  GetStruct()->get_identity_provider_icon = identity_account_get_identity_provider_icon;
+  GetStruct()->get_privacy_policy_url = identity_account_get_privacy_policy_url;
+  GetStruct()->get_terms_of_service_url = identity_account_get_terms_of_service_url;
+  GetStruct()->get_disclosure_fields = identity_account_get_disclosure_fields;
+  GetStruct()->get_context = identity_account_get_context;
 }
 
 // DESTRUCTOR FOR VERSION 999999 - Do not edit by hand.

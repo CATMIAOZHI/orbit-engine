@@ -10,9 +10,37 @@
 #include "base/strings/utf_string_conversions.h"
 #include "cef/include/cef_client.h"
 #include "cef/libcef/browser/browser_host_base.h"
+#include "cef/libcef/browser/image_impl.h"
 #include "content/public/browser/browser_thread.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
+#include "ui/gfx/image/image.h"
+#include "ui/gfx/image/image_skia.h"
 
 namespace {
+
+CefRefPtr<CefImage> ToCefImage(const gfx::Image& image) {
+  if (image.IsEmpty()) {
+    return nullptr;
+  }
+  return new CefImageImpl(image.AsImageSkia());
+}
+
+const char* DisclosureFieldName(content::IdentityRequestDialogDisclosureField f) {
+  using Field = content::IdentityRequestDialogDisclosureField;
+  switch (f) {
+    case Field::kName:
+      return "name";
+    case Field::kEmail:
+      return "email";
+    case Field::kUsername:
+      return "username";
+    case Field::kPhoneNumber:
+      return "phone";
+    case Field::kPicture:
+      return "picture";
+  }
+  return "";
+}
 
 class CefIdentityAccountImpl : public CefIdentityAccount {
  public:
@@ -22,12 +50,35 @@ class CefIdentityAccountImpl : public CefIdentityAccount {
         name_(account.name.empty() ? account.display_name : account.name),
         email_(account.email.empty() ? account.display_identifier
                                      : account.email),
+        given_name_(account.given_name),
         picture_(account.picture.spec()),
-        idp_(account.identity_provider
-                 ? account.identity_provider->idp_for_display
-                 : std::string()),
         returning_(account.browser_trusted_login_state ==
-                   content::IdentityRequestAccount::LoginState::kSignIn) {}
+                   content::IdentityRequestAccount::LoginState::kSignIn),
+        decoded_picture_(account.decoded_picture) {
+    if (const auto& idp = account.identity_provider) {
+      idp_ = idp->idp_for_display;
+      idp_icon_ = idp->idp_metadata.brand_decoded_icon;
+      privacy_policy_ = idp->client_metadata.privacy_policy_url.spec();
+      terms_of_service_ = idp->client_metadata.terms_of_service_url.spec();
+      switch (idp->rp_context) {
+        case blink::mojom::RpContext::kSignIn:
+          context_ = "signin";
+          break;
+        case blink::mojom::RpContext::kSignUp:
+          context_ = "signup";
+          break;
+        case blink::mojom::RpContext::kUse:
+          context_ = "use";
+          break;
+        case blink::mojom::RpContext::kContinue:
+          context_ = "continue";
+          break;
+      }
+    }
+    for (auto field : account.fields) {
+      fields_.push_back(DisclosureFieldName(field));
+    }
+  }
 
   CefString GetId() override { return id_; }
   CefString GetName() override { return name_; }
@@ -35,14 +86,34 @@ class CefIdentityAccountImpl : public CefIdentityAccount {
   CefString GetPictureUrl() override { return picture_; }
   CefString GetIdentityProvider() override { return idp_; }
   bool IsReturningUser() override { return returning_; }
+  CefString GetGivenName() override { return given_name_; }
+  CefRefPtr<CefImage> GetPicture() override {
+    return ToCefImage(decoded_picture_);
+  }
+  CefRefPtr<CefImage> GetIdentityProviderIcon() override {
+    return ToCefImage(idp_icon_);
+  }
+  CefString GetPrivacyPolicyUrl() override { return privacy_policy_; }
+  CefString GetTermsOfServiceUrl() override { return terms_of_service_; }
+  void GetDisclosureFields(std::vector<CefString>& fields) override {
+    fields.assign(fields_.begin(), fields_.end());
+  }
+  CefString GetContext() override { return context_; }
 
  private:
   const std::string id_;
   const std::string name_;
   const std::string email_;
+  const std::string given_name_;
   const std::string picture_;
-  const std::string idp_;
   const bool returning_;
+  const gfx::Image decoded_picture_;
+  std::string idp_;
+  gfx::Image idp_icon_;
+  std::string privacy_policy_;
+  std::string terms_of_service_;
+  std::vector<std::string> fields_;
+  std::string context_ = "signin";
 
   IMPLEMENT_REFCOUNTING(CefIdentityAccountImpl);
 };

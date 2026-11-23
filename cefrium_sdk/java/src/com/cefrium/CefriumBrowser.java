@@ -2947,7 +2947,7 @@ public class CefriumBrowser {
         final long mId;
         final java.util.List<CefriumIdentityHandler.Account> mAccounts;
         CefriumIdentityHandler mShownBy;
-        android.app.AlertDialog mDialog;
+        android.app.Dialog mDialog;
         boolean mDone;
 
         IdentityRequestImpl(long id, java.util.List<CefriumIdentityHandler.Account> accounts) {
@@ -2978,11 +2978,16 @@ public class CefriumBrowser {
     // Returns false to fail the request.
     private boolean onShowAccountChooser(long id, String relyingParty, String[] ids,
             String[] names, String[] emails, String[] pictures, String[] idps,
-            boolean[] returning) {
+            boolean[] returning, String[] givenNames, String[] privacy, String[] terms,
+            String[] contexts, String[] fields, byte[][] picturePngs, byte[][] iconPngs) {
         java.util.List<CefriumIdentityHandler.Account> accounts = new java.util.ArrayList<>();
         for (int i = 0; i < ids.length; i++) {
             accounts.add(new CefriumIdentityHandler.Account(ids[i], names[i], emails[i],
-                    pictures[i], idps[i], returning[i]));
+                    pictures[i], idps[i], returning[i], givenNames[i], decodePng(picturePngs[i]),
+                    decodePng(iconPngs[i]), privacy[i], terms[i],
+                    fields[i].isEmpty() ? java.util.Collections.emptyList()
+                            : java.util.Arrays.asList(fields[i].split(",")),
+                    contexts[i]));
         }
         accounts = java.util.Collections.unmodifiableList(accounts);
         IdentityRequestImpl request = new IdentityRequestImpl(id, accounts);
@@ -2999,6 +3004,11 @@ public class CefriumBrowser {
         }
         request.mDialog = CefriumIdentityDialog.show(activity, relyingParty, accounts, request);
         return true;
+    }
+
+    private static android.graphics.Bitmap decodePng(byte[] png) {
+        return png == null || png.length == 0 ? null
+                : android.graphics.BitmapFactory.decodeByteArray(png, 0, png.length);
     }
 
     // Called from native (UI thread): chooser |id| is no longer needed.

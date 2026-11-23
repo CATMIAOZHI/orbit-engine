@@ -30,15 +30,50 @@ public interface CefriumIdentityHandler {
         public final String identityProvider;
         /** The user signed in to this site with this account before. */
         public final boolean returningUser;
+        /** The given name, for "Continue as", or empty. */
+        public final String givenName;
+        /** The account's picture as the engine fetched it, or null. */
+        public final android.graphics.Bitmap picture;
+        /** The identity provider's icon as the engine fetched it, or null. */
+        public final android.graphics.Bitmap identityProviderIcon;
+        /** The site's privacy policy, as the identity provider gives it, or empty. */
+        public final String privacyPolicyUrl;
+        /** The site's terms of service, as the identity provider gives it, or empty. */
+        public final String termsOfServiceUrl;
+        /**
+         * What the identity provider will share with the site: "name", "email",
+         * "picture", "phone", "username". Disclose them to a user who is not
+         * {@link #returningUser}.
+         */
+        public final List<String> disclosureFields;
+        /** What the site asks for: "signin", "signup", "use" or "continue". */
+        public final String context;
 
         public Account(String id, String name, String email, String pictureUrl,
                 String identityProvider, boolean returningUser) {
+            this(id, name, email, pictureUrl, identityProvider, returningUser, "", null, null,
+                    "", "", java.util.Collections.emptyList(), "signin");
+        }
+
+        public Account(String id, String name, String email, String pictureUrl,
+                String identityProvider, boolean returningUser, String givenName,
+                android.graphics.Bitmap picture, android.graphics.Bitmap identityProviderIcon,
+                String privacyPolicyUrl, String termsOfServiceUrl,
+                List<String> disclosureFields, String context) {
             this.id = id;
             this.name = name;
             this.email = email;
             this.pictureUrl = pictureUrl;
             this.identityProvider = identityProvider;
             this.returningUser = returningUser;
+            this.givenName = givenName;
+            this.picture = picture;
+            this.identityProviderIcon = identityProviderIcon;
+            this.privacyPolicyUrl = privacyPolicyUrl;
+            this.termsOfServiceUrl = termsOfServiceUrl;
+            this.disclosureFields = java.util.Collections.unmodifiableList(
+                    new java.util.ArrayList<>(disclosureFields));
+            this.context = context;
         }
     }
 

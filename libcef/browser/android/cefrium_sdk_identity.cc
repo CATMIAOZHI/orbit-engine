@@ -11,6 +11,25 @@
 #include "base/android/jni_string.h"
 #include "cef/libcef/browser/android/cefrium_sdk_client.h"
 
+namespace {
+
+// An image as PNG bytes at the device scale, or empty.
+std::string Png(CefRefPtr<CefImage> image) {
+  if (!image || image->IsEmpty()) {
+    return std::string();
+  }
+  int width = 0, height = 0;
+  CefRefPtr<CefBinaryValue> png = image->GetAsPNG(1.0f, true, width, height);
+  if (!png || png->GetSize() == 0) {
+    return std::string();
+  }
+  std::string bytes(png->GetSize(), '\0');
+  png->GetData(bytes.data(), bytes.size(), 0);
+  return bytes;
+}
+
+}  // namespace
+
 SdkIdentityHandler::SdkIdentityHandler() = default;
 
 SdkIdentityHandler::~SdkIdentityHandler() {
@@ -37,7 +56,8 @@ bool SdkIdentityHandler::OnShowAccountChooser(
   if (!java_browser_ || !env || accounts.empty()) {
     return false;
   }
-  std::vector<std::string> ids, names, emails, pictures, idps;
+  std::vector<std::string> ids, names, emails, pictures, idps, given_names,
+      privacy, terms, contexts, fields, picture_pngs, icon_pngs;
   std::vector<bool> returning;
   for (const auto& account : accounts) {
     ids.push_back(account->GetId().ToString());
@@ -46,6 +66,19 @@ bool SdkIdentityHandler::OnShowAccountChooser(
     pictures.push_back(account->GetPictureUrl().ToString());
     idps.push_back(account->GetIdentityProvider().ToString());
     returning.push_back(account->IsReturningUser());
+    given_names.push_back(account->GetGivenName().ToString());
+    privacy.push_back(account->GetPrivacyPolicyUrl().ToString());
+    terms.push_back(account->GetTermsOfServiceUrl().ToString());
+    contexts.push_back(account->GetContext().ToString());
+    std::vector<CefString> list;
+    account->GetDisclosureFields(list);
+    std::string joined;
+    for (const auto& f : list) {
+      joined += (joined.empty() ? "" : ",") + f.ToString();
+    }
+    fields.push_back(joined);
+    picture_pngs.push_back(Png(account->GetPicture()));
+    icon_pngs.push_back(Png(account->GetIdentityProviderIcon()));
   }
   const int64_t id = next_id_++;
   pending_[id] = callback;
@@ -54,7 +87,9 @@ bool SdkIdentityHandler::OnShowAccountChooser(
   jmethodID mid = env->GetMethodID(
       cls, "onShowAccountChooser",
       "(JLjava/lang/String;[Ljava/lang/String;[Ljava/lang/String;"
-      "[Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/String;[Z)Z");
+      "[Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/String;[Z"
+      "[Ljava/lang/String;[Ljava/lang/String;[Ljava/lang/String;"
+      "[Ljava/lang/String;[Ljava/lang/String;[[B[[B)Z");
   bool shown = false;
   if (mid) {
     using base::android::ToJavaArrayOfStrings;
@@ -66,10 +101,19 @@ bool SdkIdentityHandler::OnShowAccountChooser(
     auto jpictures = ToJavaArrayOfStrings(env, pictures);
     auto jidps = ToJavaArrayOfStrings(env, idps);
     auto jreturning = base::android::ToJavaBooleanArray(env, returning);
-    shown = env->CallBooleanMethod(java_browser_, mid, static_cast<jlong>(id),
-                                   jrp.obj(), jids.obj(), jnames.obj(),
-                                   jemails.obj(), jpictures.obj(), jidps.obj(),
-                                   jreturning.obj());
+    auto jgiven = ToJavaArrayOfStrings(env, given_names);
+    auto jprivacy = ToJavaArrayOfStrings(env, privacy);
+    auto jterms = ToJavaArrayOfStrings(env, terms);
+    auto jcontexts = ToJavaArrayOfStrings(env, contexts);
+    auto jfields = ToJavaArrayOfStrings(env, fields);
+    auto jpicture_pngs =
+        base::android::ToJavaArrayOfByteArray(env, picture_pngs);
+    auto jicon_pngs = base::android::ToJavaArrayOfByteArray(env, icon_pngs);
+    shown = env->CallBooleanMethod(
+        java_browser_, mid, static_cast<jlong>(id), jrp.obj(), jids.obj(),
+        jnames.obj(), jemails.obj(), jpictures.obj(), jidps.obj(),
+        jreturning.obj(), jgiven.obj(), jprivacy.obj(), jterms.obj(),
+        jcontexts.obj(), jfields.obj(), jpicture_pngs.obj(), jicon_pngs.obj());
   } else {
     env->ExceptionClear();
   }

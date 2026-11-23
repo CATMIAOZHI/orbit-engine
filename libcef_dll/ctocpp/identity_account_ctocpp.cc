@@ -9,11 +9,13 @@
 // implementations. See the translator.README.txt file in the tools directory
 // for more information.
 //
-// $hash=a3852d2c0f058a3fc33a3f0144a7f80f60c076df$
+// $hash=ad2c2efe6afcd4a684f264a7c8850cb77e8a528e$
 //
 
 #include "libcef_dll/ctocpp/identity_account_ctocpp.h"
+#include "libcef_dll/ctocpp/image_ctocpp.h"
 #include "libcef_dll/shutdown_checker.h"
+#include "libcef_dll/transfer_util.h"
 
 #if CEF_API_ADDED(CEF_EXPERIMENTAL)
 
@@ -130,6 +132,145 @@ NO_SANITIZE("cfi-icall") bool CefIdentityAccountCToCpp::IsReturningUser() {
 
   // Return type: bool
   return _retval?true:false;
+}
+
+NO_SANITIZE("cfi-icall") CefString CefIdentityAccountCToCpp::GetGivenName() {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->get_given_name) {
+    return CefString();
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  cef_string_userfree_t _retval = _struct->get_given_name(_struct);
+
+  // Return type: string
+  CefString _retvalStr;
+  _retvalStr.AttachToUserFree(_retval);
+  return _retvalStr;
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefImage> CefIdentityAccountCToCpp::GetPicture() {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->get_picture) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_picture(_struct);
+
+  // Return type: refptr_same
+  return CefImageCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefRefPtr<CefImage> CefIdentityAccountCToCpp::GetIdentityProviderIcon() {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->get_identity_provider_icon) {
+    return nullptr;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  auto* _retval = _struct->get_identity_provider_icon(_struct);
+
+  // Return type: refptr_same
+  return CefImageCToCpp_Wrap(_retval);
+}
+
+NO_SANITIZE("cfi-icall") CefString CefIdentityAccountCToCpp::GetPrivacyPolicyUrl() {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->get_privacy_policy_url) {
+    return CefString();
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  cef_string_userfree_t _retval = _struct->get_privacy_policy_url(_struct);
+
+  // Return type: string
+  CefString _retvalStr;
+  _retvalStr.AttachToUserFree(_retval);
+  return _retvalStr;
+}
+
+NO_SANITIZE("cfi-icall") CefString CefIdentityAccountCToCpp::GetTermsOfServiceUrl() {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->get_terms_of_service_url) {
+    return CefString();
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  cef_string_userfree_t _retval = _struct->get_terms_of_service_url(_struct);
+
+  // Return type: string
+  CefString _retvalStr;
+  _retvalStr.AttachToUserFree(_retval);
+  return _retvalStr;
+}
+
+NO_SANITIZE("cfi-icall") void CefIdentityAccountCToCpp::GetDisclosureFields(std::vector<CefString>& fields) {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->get_disclosure_fields) {
+    return;
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Translate param: fields; type: string_vec_byref
+  cef_string_list_t fieldsList = cef_string_list_alloc();
+  DCHECK(fieldsList);
+  if (fieldsList) {
+    transfer_string_list_contents(fields, fieldsList);
+  }
+
+  // Execute
+  _struct->get_disclosure_fields(_struct,
+      fieldsList);
+
+  // Restore param:fields; type: string_vec_byref
+  if (fieldsList) {
+    fields.clear();
+    transfer_string_list_contents(fieldsList, fields);
+    cef_string_list_free(fieldsList);
+  }
+}
+
+NO_SANITIZE("cfi-icall") CefString CefIdentityAccountCToCpp::GetContext() {
+  shutdown_checker::AssertNotShutdown();
+
+  auto* _struct = GetStruct();
+  if (!_struct->get_context) {
+    return CefString();
+  }
+
+  // AUTO-GENERATED CONTENT - DELETE THIS COMMENT BEFORE MODIFYING
+
+  // Execute
+  cef_string_userfree_t _retval = _struct->get_context(_struct);
+
+  // Return type: string
+  CefString _retvalStr;
+  _retvalStr.AttachToUserFree(_retval);
+  return _retvalStr;
 }
 
 // CONSTRUCTOR - Do not edit by hand.

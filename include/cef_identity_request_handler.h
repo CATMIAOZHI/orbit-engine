@@ -42,6 +42,7 @@
 
 #include "include/cef_base.h"
 #include "include/cef_browser.h"
+#include "include/cef_image.h"
 
 ///
 /// An account an identity provider offers for a FedCM request
@@ -87,6 +88,54 @@ class CefIdentityAccount : public virtual CefBaseRefCounted {
   ///
   /*--cef()--*/
   virtual bool IsReturningUser() = 0;
+
+  ///
+  /// The account's given name, or empty.
+  ///
+  /*--cef()--*/
+  virtual CefString GetGivenName() = 0;
+
+  ///
+  /// The account's picture as fetched by the browser, or NULL.
+  ///
+  /*--cef()--*/
+  virtual CefRefPtr<CefImage> GetPicture() = 0;
+
+  ///
+  /// The identity provider's brand icon as fetched by the browser, or NULL.
+  ///
+  /*--cef()--*/
+  virtual CefRefPtr<CefImage> GetIdentityProviderIcon() = 0;
+
+  ///
+  /// The relying party's privacy policy URL, as the identity provider gives
+  /// it, or empty.
+  ///
+  /*--cef()--*/
+  virtual CefString GetPrivacyPolicyUrl() = 0;
+
+  ///
+  /// The relying party's terms of service URL, as the identity provider gives
+  /// it, or empty.
+  ///
+  /*--cef()--*/
+  virtual CefString GetTermsOfServiceUrl() = 0;
+
+  ///
+  /// The fields the identity provider will share with the relying party if
+  /// this account is selected ("name", "email", "picture", "phone",
+  /// "username"). A chooser should disclose them to a user who is not
+  /// returning.
+  ///
+  /*--cef()--*/
+  virtual void GetDisclosureFields(std::vector<CefString>& fields) = 0;
+
+  ///
+  /// What the relying party asks for, for the chooser's title: "signin",
+  /// "signup", "use" or "continue".
+  ///
+  /*--cef()--*/
+  virtual CefString GetContext() = 0;
 };
 
 ///
