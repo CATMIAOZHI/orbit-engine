@@ -57,6 +57,8 @@ public class CefriumCameraCaptureTest {
             android.util.Base64.DEFAULT);
 
     private Instrumentation.ActivityMonitor monitor;
+    private final java.util.List<String> others =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
 
     @After
     public void tearDown() {
@@ -85,7 +87,11 @@ public class CefriumCameraCaptureTest {
         monitor = new Instrumentation.ActivityMonitor() {
             @Override
             public Instrumentation.ActivityResult onStartActivity(Intent intent) {
-                if (!Intent.ACTION_CHOOSER.equals(intent.getAction())) return null;
+                // Answer everything, so a failure never leaves a real picker open.
+                others.add(String.valueOf(intent.getAction()));
+                if (!Intent.ACTION_CHOOSER.equals(intent.getAction())) {
+                    return new Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null);
+                }
                 chooser.set(intent);
                 return new Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null);
             }
@@ -93,7 +99,7 @@ public class CefriumCameraCaptureTest {
         InstrumentationRegistry.getInstrumentation().addMonitor(monitor);
 
         Assert.assertEquals("cancel", tap(page("accept='image/*'")));
-        Assert.assertNotNull("no chooser", chooser.get());
+        Assert.assertNotNull("no chooser; started " + others, chooser.get());
         android.os.Parcelable[] extra =
                 chooser.get().getParcelableArrayExtra(Intent.EXTRA_INITIAL_INTENTS);
         // The page's accept types reach the picker.
@@ -125,11 +131,11 @@ public class CefriumCameraCaptureTest {
             @Override
             public Instrumentation.ActivityResult onStartActivity(Intent intent) {
                 String a = intent.getAction();
-                if (Intent.ACTION_CHOOSER.equals(a)) {
-                    started.set(a);
+                if (!MediaStore.ACTION_IMAGE_CAPTURE.equals(a)) {
+                    // Anything else (the chooser) is a failure; never open it.
+                    started.set(String.valueOf(a));
                     return new Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null);
                 }
-                if (!MediaStore.ACTION_IMAGE_CAPTURE.equals(a)) return null;
                 Uri out = intent.getParcelableExtra(MediaStore.EXTRA_OUTPUT);
                 started.set(a + " " + out);
                 try (OutputStream s = InstrumentationRegistry.getInstrumentation()
@@ -185,7 +191,8 @@ public class CefriumCameraCaptureTest {
                 browser.sendTouchDown(x, y);
                 main.postDelayed(() -> { if (!browser.isClosed()) browser.sendTouchUp(x, y); }, 150);
             });
-            Assert.assertTrue("the input reported nothing", done.await(20, TimeUnit.SECONDS));
+            Assert.assertTrue("the input reported nothing; started " + others,
+                    done.await(20, TimeUnit.SECONDS));
             return title.get();
         }
     }
