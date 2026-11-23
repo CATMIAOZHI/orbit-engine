@@ -10,17 +10,20 @@
 #include "cef/libcef/browser/thread_util.h"
 #include "components/input/native_web_keyboard_event.h"
 #include "components/input/input_router.h"
+#include "components/input/render_input_router.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_view_android.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/common/input/web_mouse_wheel_event.h"
+#include "third_party/blink/public/common/input/web_touch_event.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/dom_key.h"
 #include "ui/events/keycodes/keyboard_code_conversion.h"
+#include "ui/latency/latency_info.h"
 
 CefBrowserPlatformDelegateNativeAndroid::
     CefBrowserPlatformDelegateNativeAndroid(const CefWindowInfo& window_info,
@@ -158,6 +161,21 @@ void CefBrowserPlatformDelegateNativeAndroid::SendMouseWheelEvent(
   blink::WebMouseWheelEvent web_event =
       TranslateWebWheelEvent(event, deltaX, deltaY);
   rwh->ForwardWheelEvent(web_event);
+}
+
+void CefBrowserPlatformDelegateNativeAndroid::SendWebTouchEvent(
+    const blink::WebTouchEvent& event) {
+  content::RenderWidgetHostImpl* rwh = GetRenderWidgetHost();
+  if (!rwh) {
+    return;
+  }
+  ui::LatencyInfo latency_info;
+  if (!event.TimeStamp().is_null()) {
+    latency_info.AddLatencyNumberWithTimestamp(
+        ui::INPUT_EVENT_LATENCY_ORIGINAL_COMPONENT, event.TimeStamp());
+  }
+  rwh->GetRenderInputRouter()->ForwardTouchEventWithLatencyInfo(event,
+                                                                latency_info);
 }
 
 gfx::Point CefBrowserPlatformDelegateNativeAndroid::GetScreenPoint(

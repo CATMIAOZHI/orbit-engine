@@ -30,8 +30,8 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 _SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-_PREBUILTS = 'third_party/android_deps/autorolled/cipd/libs'
-_METADATA = 'third_party/android_deps/autorolled/committed/libs'
+_PREBUILTS = 'third_party/android_deps/cipd/libs'
+_METADATA = 'third_party/android_deps/committed/libs'
 DEPS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          'maven-deps.txt')
 # Inside the AAR, for consumers that add it as a file and so never read the POM.
@@ -46,6 +46,32 @@ POM_AAR_ENTRY = 'cefrium-pom-deps.txt'
 # Not vendored and not owned by a vendored class, but R8 needs it to compile a
 # Chromium lambda the device calls back (see proguard.txt).
 EXTRA_RUNTIME = ('androidx.window.extensions.core:core:1.0.0',)
+
+
+# Packages the consumer's Gradle provides; slim_aar.py strips them from the
+# jar before anything else, so they are never listed as vendored here.
+CONSUMER_PROVIDED = (
+    'androidx/',
+    'android/support/',
+    'com/google/errorprone/',
+    'com/google/thirdparty/',
+    'kotlin/',
+    'kotlinx/',
+    '_COROUTINE/',
+    'org/intellij/',
+    'org/jetbrains/',
+    'org/jspecify/',
+    # okio: 0 classes in the AAR reference it once androidx is stripped, and a
+    # vendored copy collides with the consumer's okio-jvm (androidx.datastore).
+    'okio/',
+)
+
+
+def vendored_candidates(names):
+    """Jar entries left after slim_aar.py strips CONSUMER_PROVIDED."""
+    return (n for n in names
+            if not n.startswith(CONSUMER_PROVIDED + ('META-INF/',))
+            and not n.endswith(('.bin', '.kotlin_module')))
 
 
 def _coordinate(name, src):
@@ -213,7 +239,7 @@ def main():
         return
     if not args.jar:
         p.error('--jar is required with --write and --check')
-    owned = ownership(zipfile.ZipFile(args.jar).namelist())
+    owned = ownership(vendored_candidates(zipfile.ZipFile(args.jar).namelist()))
     if args.check:
         check(owned, args.check)
         print('OK: %d Maven artifacts, %d classes' %

@@ -1,0 +1,86 @@
+diff --git chrome/browser/android/tab_android.cc chrome/browser/android/tab_android.cc
+index 69793da8da4690e1f9d955f0c96fa8ba356f1082..ffc017d38e5d868295db40b70ebd103706182941 100644
+--- chrome/browser/android/tab_android.cc
++++ chrome/browser/android/tab_android.cc
+@@ -121,25 +121,29 @@ const TabAndroid* TabAndroid::FromWebContents(
+     const content::WebContents* web_contents) {
+   const tabs::TabLookupFromWebContents* helper =
+       tabs::TabLookupFromWebContents::FromWebContents(web_contents);
+-  return helper ? static_cast<const TabAndroid*>(helper->model()) : nullptr;
++  return helper ? FromTabInterface(helper->model()) : nullptr;
+ }
+ 
+ // static
+ TabAndroid* TabAndroid::FromWebContents(content::WebContents* web_contents) {
+   tabs::TabLookupFromWebContents* helper =
+       tabs::TabLookupFromWebContents::FromWebContents(web_contents);
+-  return helper ? static_cast<TabAndroid*>(helper->model()) : nullptr;
++  return helper ? FromTabInterface(helper->model()) : nullptr;
+ }
+ 
+ // static
+ TabAndroid* TabAndroid::FromTabInterface(tabs::TabInterface* tab_interface) {
+-  return static_cast<TabAndroid*>(tab_interface);
++  return tab_interface && tab_interface->IsTabAndroid()
++             ? static_cast<TabAndroid*>(tab_interface)
++             : nullptr;
+ }
+ 
+ // static
+ const TabAndroid* TabAndroid::FromTabInterface(
+     const tabs::TabInterface* tab_interface) {
+-  return static_cast<const TabAndroid*>(tab_interface);
++  return tab_interface && tab_interface->IsTabAndroid()
++             ? static_cast<const TabAndroid*>(tab_interface)
++             : nullptr;
+ }
+ 
+ // static
+@@ -984,6 +988,10 @@ const BrowserWindowInterface* TabAndroid::GetBrowserWindowInterface() const {
+   return FindBrowserWindowInterface(session_window_id_);
+ }
+ 
++bool TabAndroid::IsTabAndroid() const {
++  return true;
++}
++
+ tabs::TabFeatures* TabAndroid::GetTabFeatures() {
+   return tab_features_.get();
+ }
+diff --git chrome/browser/android/tab_android.h chrome/browser/android/tab_android.h
+index 0acab48c93d25a8443cf068eb0dd8afc1d29557d..28f4175f6e5011e855a32729c325fa56f1f01024 100644
+--- chrome/browser/android/tab_android.h
++++ chrome/browser/android/tab_android.h
+@@ -302,6 +302,7 @@ class TabAndroid : public tabs::TabInterface,
+   bool IsInNormalWindow() const override;
+   BrowserWindowInterface* GetBrowserWindowInterface() override;
+   const BrowserWindowInterface* GetBrowserWindowInterface() const override;
++  bool IsTabAndroid() const override;
+   tabs::TabFeatures* GetTabFeatures() override;
+   const tabs::TabFeatures* GetTabFeatures() const override;
+   bool IsPinned() const override;
+diff --git components/tabs/public/tab_interface.h components/tabs/public/tab_interface.h
+index 8b9de80a1fa383ab085b9d8f6f1f9b083e5c1e4d..bc2432c15b54327955fbaffff076bf48a5c8329e 100644
+--- components/tabs/public/tab_interface.h
++++ components/tabs/public/tab_interface.h
+@@ -12,6 +12,7 @@
+ #include "base/memory/weak_ptr.h"
+ #include "base/time/time.h"
+ #include "base/types/pass_key.h"
++#include "build/build_config.h"
+ #include "components/tab_groups/tab_group_id.h"
+ #include "components/tabs/public/tab_handle_factory.h"
+ #include "content/public/browser/web_contents_user_data.h"
+@@ -317,6 +318,12 @@ class TabInterface : public SupportsTabHandles {
+   virtual tabs::TabFeatures* GetTabFeatures() = 0;
+   virtual const tabs::TabFeatures* GetTabFeatures() const = 0;
+ 
++#if BUILDFLAG(IS_ANDROID)
++  // True only for TabAndroid. An embedder may register its own TabInterface
++  // for a WebContents, and TabAndroid lookups must not cast it.
++  virtual bool IsTabAndroid() const { return false; }
++#endif
++
+   // Return true if the tab is pinned in its tabstrip, or false otherwise.
+   virtual bool IsPinned() const = 0;
+ 

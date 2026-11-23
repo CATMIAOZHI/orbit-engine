@@ -19,7 +19,9 @@
 #include "include/internal/cef_types_mac.h"
 #elif defined(OS_LINUX)
 #include "include/internal/cef_types_linux.h"
-#endif  // defined(OS_LINUX)
+#elif defined(OS_ANDROID)
+#include "include/internal/cef_types_android.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {

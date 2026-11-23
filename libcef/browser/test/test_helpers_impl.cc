@@ -57,7 +57,7 @@
 
 #if BUILDFLAG(IS_MAC)
 #include "ui/views/test/event_generator_delegate_mac.h"
-#else
+#elif !BUILDFLAG(IS_ANDROID)
 #include "ui/aura/test/default_event_generator_delegate.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_tree_host.h"
@@ -65,6 +65,7 @@
 
 namespace {
 
+#if !BUILDFLAG(IS_ANDROID)
 void CaptureCompositorWindow(base::WeakPtr<views::Widget> widget,
                              base::OnceCallback<void(CefRefPtr<CefImage>)> done,
                              int retry_count) {
@@ -139,6 +140,7 @@ class CefEventGeneratorDelegateAura
   }
 };
 #endif  // !BUILDFLAG(IS_MAC)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
@@ -151,6 +153,10 @@ void CefCaptureBrowserWindowForTests(
   if (!callback) {
     return;
   }
+#if BUILDFLAG(IS_ANDROID)
+  // Browser windows are Views widgets on desktop; there is none to capture.
+  callback->OnCaptureComplete(nullptr);
+#else
   auto done = base::BindPostTask(
       content::GetUIThreadTaskRunner({}),
       base::BindOnce(
@@ -194,6 +200,7 @@ void CefCaptureBrowserWindowForTests(
     return;
   }
   CaptureCompositorWindow(widget->GetWeakPtr(), std::move(done), 0);
+#endif
 }
 
 bool CefSendMouseClickForTesting(CefRefPtr<CefWindow> owner,
@@ -202,6 +209,10 @@ bool CefSendMouseClickForTesting(CefRefPtr<CefWindow> owner,
                                  uint32_t modifiers) {
   CEF_API_REQUIRE_ADDED(15800);
   CEF_REQUIRE_UIT_RETURN(false);
+#if BUILDFLAG(IS_ANDROID)
+  // CefWindow and its Views widgets are desktop-only.
+  return false;
+#else
 
   const auto fail = [target_id, is_menu, modifiers](const char* reason) {
     LOG(WARNING) << "CefSendMouseClickForTesting: " << reason
@@ -303,6 +314,7 @@ bool CefSendMouseClickForTesting(CefRefPtr<CefWindow> owner,
     generator.ReleaseLeftButton();
   }
   return true;
+#endif
 }
 
 void CefSetDataDirectoryForTests(const CefString& dir) {

@@ -15,7 +15,6 @@
 #include "content/public/browser/render_view_host.h"
 #if BUILDFLAG(IS_ANDROID)
 #include "cef/libcef/browser/android/cef_autofill_client_android.h"
-#include "chrome/browser/offline_pages/offline_page_tab_helper.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #endif
 
@@ -207,28 +206,19 @@ void CefBrowserPlatformDelegateAlloy::AttachHelpers(
     }
   }
 
-  // Adopt the WebContents now, so all observers are in place, as the network
-  // requests for its initial navigation will start immediately.
-  AlloyTabInterface::CreateForWebContents(web_contents);
-
 #if BUILDFLAG(IS_ANDROID)
-  // Remove OfflinePageTabHelper on Android. CEF uses CefDownloadHandler for
-  // downloads — Chrome's offline pages system is not initialized in CEF
-  // and crashes when it tries to show Chrome-specific download UI
-  // (DownloadMessageUiController). This is safe because CEF never uses
-  // offline pages functionality.
-  web_contents->RemoveUserData(
-      offline_pages::OfflinePageTabHelper::UserDataKey());
-
-  // Replace ChromeAutofillClient (created by TabHelpers) with
-  // CefriumAutofillClient. ChromeAutofillClient creates BrowserAutofillManager
-  // which doesn't forward form events to Android's AutofillProvider.
-  // CefriumAutofillClient creates AndroidAutofillManager instead.
-  // This must happen immediately after AttachTabHelpers, before any
-  // renderer connects (no active drivers to break).
+  // Install CefAutofillClientAndroid before TabFeatures, which then skips
+  // ChromeAutofillClient (its constructor queries device reauth through
+  // androidx.biometric, which the SDK does not ship). ChromeAutofillClient
+  // creates BrowserAutofillManager, which does not forward form events to
+  // Android's AutofillProvider; ours creates AndroidAutofillManager.
   // Requires patch: android/password_manager_manual_filling_guard.patch
   // to prevent ChromePasswordManagerClient from creating ManualFillingController
   // when AutofillProvider is present.
   cef::CefAutofillClientAndroid::CreateForWebContents(web_contents);
 #endif
+
+  // Adopt the WebContents now, so all observers are in place, as the network
+  // requests for its initial navigation will start immediately.
+  AlloyTabInterface::CreateForWebContents(web_contents);
 }

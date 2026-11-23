@@ -63,6 +63,9 @@ class CefBrowserPlatformDelegateNativeAndroid
       int deltaX,
       int deltaY) const override;
 
+ protected:
+  void SendWebTouchEvent(const blink::WebTouchEvent& event) override;
+
  private:
   // Set common fields on a blink::WebMouseEvent from a CefMouseEvent.
   void TranslateWebMouseEvent(blink::WebMouseEvent& result,

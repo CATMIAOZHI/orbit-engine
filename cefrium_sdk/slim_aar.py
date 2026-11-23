@@ -223,6 +223,49 @@ def main():
                                       values_config(std_path))
         standard_entries[std_path] = merged.encode('utf-8')
 
+    # Phase 3b: One definition per resource across the standard values files.
+    # Libraries that dist_aar packs into one AAR can define the same resource
+    # (identical colors and ids, a declare-styleable with different attrs), and
+    # aapt2 rejects duplicates inside one library. compat_strings go last: a
+    # real definition wins over its placeholder.
+    roots = {}
+    for name in sorted(standard_entries,
+                       key=lambda n: ('/compat_strings' in n, n)):
+        if name.startswith('res/') and '/values' in name and name.endswith('.xml'):
+            try:
+                roots[name] = ET.fromstring(standard_entries[name])
+            except ET.ParseError:
+                pass
+    kept = {}  # (config, kind, name) -> (file, element)
+    dirty = set()
+    for name, root in roots.items():
+        config = values_config(name)
+        for elem in list(root):
+            rname = elem.get('name', '')
+            if not rname:
+                continue
+            kind = elem.get('type') if elem.tag == 'item' and elem.get('type') \
+                else elem.tag
+            key = (config, kind, rname)
+            if key not in kept:
+                kept[key] = (name, elem)
+                continue
+            if elem.tag == 'declare-styleable':
+                owner, first = kept[key]
+                have = {c.get('name') for c in first}
+                for child in elem:
+                    if child.get('name') not in have:
+                        first.append(child)
+                        have.add(child.get('name'))
+                        dirty.add(owner)
+            root.remove(elem)
+            dirty.add(name)
+    for name in dirty:
+        standard_entries[name] = ET.tostring(
+            roots[name], encoding='unicode', xml_declaration=True).encode('utf-8')
+    if dirty:
+        print('Duplicate values resources removed from %d files' % len(dirty))
+
     # Phase 4: Deduplicate <attr> declarations globally.
     global_attrs = set()
     for name in sorted(standard_entries.keys()):
@@ -337,29 +380,7 @@ def main():
         print('Consumer rules: dropped %d app-policy sections' % len(dropped))
 
     # Phase 6: Clean classes.jar.
-    # Strip ONLY AndroidX/support classes (provided by consumer's appcompat dep).
-    # Do NOT strip com.google, kotlin, etc. — their removal causes
-    # Strip third-party classes provided by consumer's Gradle deps,
-    # EXCEPT classes Chromium loads at runtime.
-    STRIP_FROM_JAR = (
-        'androidx/',
-        'android/support/',
-        'com/google/errorprone/',
-        'com/google/thirdparty/',
-        'kotlin/',
-        'kotlinx/',
-        '_COROUTINE/',
-        'org/intellij/',
-        'org/jetbrains/',
-        'org/jspecify/',
-        # okio is an orphaned transitive artifact: its androidx users are stripped
-        # above, so 0 classes in this AAR reference okio (verified). Keeping it only
-        # caused checkDuplicateClasses collisions for any consumer that also pulls
-        # okio-jvm (e.g. via androidx.datastore, which the SDK POM declares for the
-        # native-FCM getToken path). Strip it; the consumer's Gradle provides the
-        # single okio-jvm. Same consumer-provides model as androidx/kotlin above.
-        'okio/',
-    )
+    STRIP_FROM_JAR = maven_vendored.CONSUMER_PROVIDED
     if 'classes.jar' in standard_entries:
         jar_data = standard_entries['classes.jar']
         in_jar = zipfile.ZipFile(io.BytesIO(jar_data))
@@ -368,9 +389,7 @@ def main():
         # fail with "Duplicate class". The POM declares the artifacts listed in
         # maven-deps.txt instead, and this fails if that list is stale.
         owned = maven_vendored.ownership(
-            n for n in in_jar.namelist()
-            if not n.startswith(STRIP_FROM_JAR + ('META-INF/',))
-            and not n.endswith(('.bin', '.kotlin_module')))
+            maven_vendored.vendored_candidates(in_jar.namelist()))
         maven_vendored.check(owned)
         from_maven = set().union(*owned.values()) if owned else set()
         print('Maven-provided classes stripped: %d from %d artifacts'

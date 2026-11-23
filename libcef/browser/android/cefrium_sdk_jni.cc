@@ -48,6 +48,7 @@
 #include <set>
 
 #include "base/functional/callback.h"
+#include "base/memory/self_deleting.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
@@ -704,8 +705,15 @@ class CefShareServiceImpl
       content::RenderFrameHost* render_frame_host,
       mojo::PendingReceiver<blink::mojom::ShareService> receiver) {
     // Owns itself; destroyed when the document goes away or the pipe closes.
-    new CefShareServiceImpl(*render_frame_host, std::move(receiver));
+    base::MakeSelfDeleting<CefShareServiceImpl>(*render_frame_host,
+                                                std::move(receiver));
   }
+
+  CefShareServiceImpl(
+      content::RenderFrameHost& render_frame_host,
+      mojo::PendingReceiver<blink::mojom::ShareService> receiver,
+      base::SelfDeletingPassKey key)
+      : DocumentService(render_frame_host, std::move(receiver), key) {}
 
   // blink::mojom::ShareService:
   void Share(const std::string& title,
@@ -727,10 +735,7 @@ class CefShareServiceImpl
   }
 
  private:
-  CefShareServiceImpl(
-      content::RenderFrameHost& render_frame_host,
-      mojo::PendingReceiver<blink::mojom::ShareService> receiver)
-      : DocumentService(render_frame_host, std::move(receiver)) {}
+  ~CefShareServiceImpl() override = default;
 };
 
 namespace cefrium {

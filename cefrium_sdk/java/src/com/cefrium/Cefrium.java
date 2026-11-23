@@ -16,7 +16,6 @@ import org.chromium.base.PathUtils;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.chrome.browser.profiles.ProfileManagerUtils;
-import org.chromium.ui.base.ResourceBundle;
 
 /**
  * Entry point for the Cefrium SDK. Initialize once before creating browsers.
@@ -474,8 +473,8 @@ public final class Cefrium {
         // Backward compatibility: if the app's own Application already ran the
         // per-process plumbing (the legacy pattern, in attachBaseContext — which
         // runs before this provider's onCreate), do NOT run it again. These are
-        // assert-once setters (e.g. ResourceBundle.setAvailablePakLocales throws
-        // AssertionError on a second call). The application context being set is the
+        // assert-once setters (e.g. LibraryLoader.setLibraryProcessType throws
+        // on a second call with another type). The application context being set is the
         // signal that the plumbing has already started.
         if (ContextUtils.getApplicationContextUnsafe() != null) {
             // The engine version is not part of that plumbing, and an app that
@@ -489,7 +488,6 @@ public final class Cefrium {
         Context appContext = context.getApplicationContext();
         ContextUtils.initApplicationContext(appContext);
         declareEngineVersionToApkInfo(appContext);
-        ResourceBundle.setAvailablePakLocales(new String[] {"en-US"});
         LibraryLoader.getInstance()
                 .setLibraryProcessType(LibraryProcessType.PROCESS_BROWSER);
         PathUtils.setPrivateDataDirectorySuffix("cefrium");
@@ -576,7 +574,7 @@ public final class Cefrium {
             LibraryPrefetch.start(appContext);
         }
 
-        // Per-process plumbing (ContextUtils, ResourceBundle, LibraryProcessType,
+        // Per-process plumbing (ContextUtils, LibraryProcessType,
         // PathUtils, ApplicationStatus). Idempotent — a no-op if CefriumInitProvider
         // already ran it at app launch.
         setupProcess(appContext);

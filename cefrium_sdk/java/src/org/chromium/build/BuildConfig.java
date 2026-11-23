@@ -45,6 +45,8 @@ public class BuildConfig {
         "assets/v8_context_snapshot_64.bin",
     };
     public static String APK_ASSETS_SUFFIX = "+com.cefrium+";
+    // Locale paks shipped in the AAR (stored-locales/).
+    public static String[] LOCALES = {"en-US"};
     // Use in conjunction with FEATURE_PC check to limit desktop-only
     // features to devices with build flag. Should only be used in
     // DeviceInfo.java since this is the source of truth for isDesktop check.

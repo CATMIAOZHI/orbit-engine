@@ -457,7 +457,7 @@ source_set("libcef_static_unittested") {
   if (is_mac) {
     sources += [ "libcef/browser/key_event_util_mac.mm" ]
     frameworks = [ "AppKit.framework" ]
-  } else {
+  } else if (!is_android) {
     sources += [ "libcef/browser/key_event_util_aura.cc" ]
     deps += [ "//ui/events/blink" ]
   }

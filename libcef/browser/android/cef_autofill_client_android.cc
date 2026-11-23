@@ -14,6 +14,8 @@
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/aliases.h"
+#include "components/device_reauth/device_auth_availability_checker.h"
+#include "components/device_reauth/device_authenticator.h"
 #include "components/prefs/pref_service.h"
 #include "components/security_state/content/content_utils.h"
 #include "components/security_state/core/security_state.h"
@@ -264,6 +266,17 @@ bool CefAutofillClientAndroid::IsContextSecure() const {
 autofill::autofill_metrics::FormInteractionsUkmLogger&
 CefAutofillClientAndroid::GetFormInteractionsUkmLogger() {
   return form_interactions_ukm_logger_;
+}
+
+// No device re-authentication UI: callers treat null as unsupported.
+std::unique_ptr<device_reauth::DeviceAuthenticator>
+CefAutofillClientAndroid::GetDeviceAuthenticator(std::string histogram) const {
+  return nullptr;
+}
+
+std::unique_ptr<device_reauth::DeviceAuthAvailabilityChecker>
+CefAutofillClientAndroid::GetDeviceAuthAvailabilityChecker() const {
+  return nullptr;
 }
 
 content::WebContents& CefAutofillClientAndroid::GetWebContents() const {

@@ -5,27 +5,37 @@
 #include "cef/libcef/browser/alloy/alloy_tab_interface.h"
 
 #include "base/notreached.h"
+#include "build/build_config.h"
 #include "cef/libcef/browser/alloy/alloy_browser_host_impl.h"
 #include "chrome/browser/history/history_tab_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/session_tab_helper_factory.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/android/tab_features.h"
+#else
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#endif
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
 
 AlloyTabInterface::AlloyTabInterface(content::WebContents* contents)
     : content::WebContentsObserver(contents),
-      content::WebContentsUserData<AlloyTabInterface>(*contents),
-      tab_features_(std::make_unique<tabs::TabFeatures>()) {
+      content::WebContentsUserData<AlloyTabInterface>(*contents) {
   CHECK(!tabs::TabInterface::MaybeGetFromContents(contents));
   tabs::TabLookupFromWebContents::CreateForWebContents(contents, this);
   CreateSessionServiceTabHelper(contents);
   SetSessionId(sessions::SessionTabHelper::IdForTab(contents).id());
+#if BUILDFLAG(IS_ANDROID)
+  // Android's TabFeatures attaches the tab helpers in its constructor.
+  tab_features_ = std::make_unique<tabs::TabFeatures>(contents, GetProfile());
+#else
+  tab_features_ = std::make_unique<tabs::TabFeatures>();
   tab_features_->Init(*this, GetProfile());
+#endif
 
-  // Support visited links. The HistoryTabHelper object is created in
-  // TabFeatures::Init.
+  // Support visited links. The HistoryTabHelper object is created by
+  // TabFeatures.
   if (auto* history_tab_helper = HistoryTabHelper::FromWebContents(contents)) {
     // Bypass the Chrome-specific check in
     // HistoryTabHelper::DidFinishNavigation.
