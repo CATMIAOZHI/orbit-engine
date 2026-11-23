@@ -5247,11 +5247,15 @@ public class CefriumBrowser {
                     });
             return;
         }
-        if (mDownloadHandler == null && !mWarnedDownloadWithoutClient) {
-            mWarnedDownloadWithoutClient = true;
-            android.util.Log.w(TAG, "a download started with no download client and is saved"
-                    + " in the app's own storage. From the next release a download with no"
-                    + " client is refused, as in WebView: set one with setDownloadClient.");
+        if (mDownloadHandler == null && mDownloadListener == null) {
+            // Nobody decides for the download: refused, as in WebView.
+            if (!mWarnedDownloadWithoutClient) {
+                mWarnedDownloadWithoutClient = true;
+                android.util.Log.w(TAG, "a download was refused: this browser has no download"
+                        + " client. Set one with setDownloadClient.");
+            }
+            if (mNativePtr != 0) nativeRespondBeforeDownload(mNativePtr, id, false, null);
+            return;
         }
         if (mDownloadHandler != null) {
             DownloadItem item = new DownloadItem(this, id, url, suggestedName,
@@ -5271,7 +5275,7 @@ public class CefriumBrowser {
                 }
             });
         } else {
-            // Legacy listener (or none): auto-start to the suggested path.
+            // Legacy listener: auto-start to the suggested path.
             if (mNativePtr != 0) {
                 nativeRespondBeforeDownload(mNativePtr, id, true, defaultPath);
             }

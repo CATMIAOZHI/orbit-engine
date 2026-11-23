@@ -56,6 +56,40 @@ public class CefriumDownloadTest {
         download(true);
     }
 
+    /** With no download client, handler or listener the download is refused. */
+    @Test
+    public void refusedWithoutAClient() throws Exception {
+        Activity activity = activityRule.getActivity();
+        String name = "cefrium-dl-refused-" + System.nanoTime() + ".txt";
+        String page = "<html><body><a id=a download='" + name
+                + "' href='data:text/plain,x'>x</a>"
+                + "<script>document.title='ready';</script></body></html>";
+        File dir = activity.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+        File expected = new File(dir, name);
+        AtomicReference<String> title = new AtomicReference<>("");
+        CefriumBrowser[] holder = new CefriumBrowser[1];
+        try (LocalHttpServer server = new LocalHttpServer(page)) {
+            activity.runOnUiThread(() -> {
+                CefriumBrowser b = browsers.createWithSurface(activity);
+                activity.setContentView(b.getSurfaceContainer());
+                b.setOnTitleChangedListener(title::set);
+                b.loadUrl(server.url());
+                holder[0] = b;
+            });
+            long deadline = System.currentTimeMillis() + 20_000;
+            while (!"ready".equals(title.get()) && System.currentTimeMillis() < deadline) {
+                Thread.sleep(100);
+            }
+            Assert.assertEquals("ready", title.get());
+            activity.runOnUiThread(() ->
+                    holder[0].evaluateJavaScript("document.getElementById('a').click();"));
+            Thread.sleep(5000);
+            Assert.assertFalse("a download with no client was saved", expected.exists());
+        } finally {
+            expected.delete();
+        }
+    }
+
     @Test
     public void startDownloadCompletes() throws Exception {
         download(true, true);
