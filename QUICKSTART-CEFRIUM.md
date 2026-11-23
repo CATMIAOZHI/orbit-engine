@@ -186,7 +186,7 @@ Do not compare against the package name: that also skips your own processes.
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|keyboardHidden">
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -195,6 +195,10 @@ Do not compare against the package name: that also skips your own processes.
     </application>
 </manifest>
 ```
+
+The `configChanges` keep the activity, and so the page, through a rotation;
+without them Android recreates the activity and the page starts again from its
+first URL.
 
 ## 5. Create the Activity
 
