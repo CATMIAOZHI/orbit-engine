@@ -320,8 +320,9 @@ first.
 ## Reproduce a published libcef.so
 
 A clean build of one cef commit gives the same `libcef.so` byte for byte
-(measured: two clean arm64 builds of one commit, same out dir; another
-machine or out-dir path is not measured yet). The library embeds the cef
+(measured on one machine: two clean arm64 builds of one commit, in the same
+out dir and in two differently named out dirs; another machine is not
+measured yet). The library embeds the cef
 commit it was built from, so build exactly that commit:
 
 ```bash

@@ -8,7 +8,7 @@
 # Run from chromium/src. Exit 0 when the two libcef.so are identical.
 #
 # Two clean builds of one cef commit give the same libcef.so byte for byte
-# (measured 2026-11-23, arm64 codecs, same out dir). The library carries the
+# (measured 2026-11-23, arm64 codecs, any out dir name). The library carries the
 # cef commit it was built from (CEF_COMMIT_HASH), and this script prints it:
 # build exactly that commit. Any other, even one that only touches a script,
 # changes the bytes.
