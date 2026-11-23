@@ -91,6 +91,59 @@ public class CefriumBridgeTest {
     }
 
     /**
+     * A handler may answer later, from another thread: it returns true and
+     * calls the callback when its work is done. Both a success and a failure
+     * reach the page.
+     */
+    @Test
+    public void asyncAnswerFromAnotherThread() throws Exception {
+        Activity activity = activityRule.getActivity();
+        final CopyOnWriteArrayList<String> requests = new CopyOnWriteArrayList<>();
+        final CountDownLatch relayed = new CountDownLatch(2);
+        final boolean[] probed = {false};
+        activity.runOnUiThread(() -> {
+            CefriumBrowser browser = browsers.createWithSurface(activity);
+            browser.setQueryHandler(CefriumBrowser.QueryOriginPolicy.anyOrigin(),
+                    (queryId, request, origin, callback) -> {
+                        requests.add(request);
+                        if (request.startsWith("got:")) {
+                            callback.success("");
+                            relayed.countDown();
+                            return true;
+                        }
+                        new Thread(() -> {
+                            try {
+                                Thread.sleep(500);
+                            } catch (InterruptedException ignored) {
+                            }
+                            if (request.equals("ok")) {
+                                callback.success("late:" + request);
+                            } else {
+                                callback.failure(7, "late failure");
+                            }
+                        }).start();
+                        return true;
+                    });
+            browser.setOnLoadingStateChangedListener((loading, back, fwd) -> {
+                if (!loading && !probed[0]) {
+                    probed[0] = true;
+                    browser.evaluateJavaScript(
+                        "function relay(t){window.cefriumQuery({request:'got:'+t});}"
+                        + "window.cefriumQuery({request:'ok',onSuccess:relay,"
+                        + "onFailure:function(c,m){relay('fail:'+c)}});"
+                        + "window.cefriumQuery({request:'no',onSuccess:relay,"
+                        + "onFailure:function(c,m){relay('fail:'+c+':'+m)}});");
+                }
+            });
+            browser.loadUrl("about:blank");
+        });
+        Assert.assertTrue("async answers never reached the page; requests " + requests,
+                relayed.await(20, TimeUnit.SECONDS));
+        Assert.assertTrue(requests.toString(), requests.contains("got:late:ok"));
+        Assert.assertTrue(requests.toString(), requests.contains("got:fail:7:late failure"));
+    }
+
+    /**
      * An unhandled query (handler returns false) fails on the JS side: the
      * page's onFailure runs. We relay that back through a second query so the
      * test can assert it deterministically (no reliance on logcat).

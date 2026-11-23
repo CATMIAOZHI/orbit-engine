@@ -1213,9 +1213,11 @@ public class CefriumBrowser {
      * Handles JavaScript {@code window.cefriumQuery({request, onSuccess,
      * onFailure})} calls from page content (the JS &#8596; native bridge).
      *
-     * <p>Step 4 supports synchronous responses: call {@code callback.success()}
-     * or {@code callback.failure()} from within {@link #onQuery}. Returning
-     * false (or never responding) fails the query with code -1.
+     * <p>Answer with {@code callback.success()} or {@code callback.failure()},
+     * from within {@link #onQuery} or later, from any thread: return true and
+     * keep the callback until the work is done. Returning false fails the
+     * query with code -1. A query not answered stays pending until its page
+     * goes away.
      */
     public interface QueryHandler {
         /**
@@ -1244,7 +1246,10 @@ public class CefriumBrowser {
         }
     }
 
-    /** Resolves a {@link QueryHandler} query back to JavaScript. */
+    /**
+     * Resolves a {@link QueryHandler} query back to JavaScript: the page's
+     * {@code onSuccess} or {@code onFailure}. Callable from any thread, once.
+     */
     public interface QueryCallback {
         void success(String response);
         void failure(int errorCode, String errorMessage);

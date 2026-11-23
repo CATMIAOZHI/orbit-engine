@@ -103,10 +103,9 @@
 // each query to the Java CefriumBrowser (onJsQuery); Java dispatches to the
 // app's QueryHandler and resolves via nativeQueryResult -> ResolveQuery.
 //
-// Step 4 supports SYNCHRONOUS responses (the Java handler calls the callback
-// within onQuery, on the browser UI thread). Asynchronous responses (off the UI
-// thread) are step 4b and require UI-thread posting + a ref-counted handler for
-// lifetime safety; ResolveQuery rejects off-thread calls until then.
+// The Java handler may answer within onQuery or later, from any thread:
+// nativeQueryResult posts to the UI thread, where ResolveQuery finds the query
+// in pending_ (kept until answered or cancelled) under the browser-data lock.
 class CefriumBridgeHandler : public CefMessageRouterBrowserSide::Handler {
  public:
   ~CefriumBridgeHandler() override {
