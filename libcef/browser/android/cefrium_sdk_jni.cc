@@ -1821,10 +1821,24 @@ Java_com_cefrium_CefriumBrowser_nativeSetZoomLevel(
   auto* data = reinterpret_cast<SdkBrowserData*>(native_ptr);
   if (data) {
     RunWhenCreated(data, base::BindOnce(
-                             [](double z, CefRefPtr<CefBrowser> b) {
+                             [](SdkBrowserData* data, double z,
+                                CefRefPtr<CefBrowser> b) {
+                               // Zoom is kept per host, and before the first
+                               // page there is none: the first navigation
+                               // takes it (SdkRequestHandler::OnBeforeBrowse).
+                               auto handler = data->client
+                                                  ? data->client->request_handler()
+                                                  : nullptr;
+                               if (handler && cefrium_sdk::HasNoPageYet(b)) {
+                                 handler->SetZoomForFirstPage(z);
+                                 return;
+                               }
+                               if (handler) {
+                                 handler->SetZoomForFirstPage(std::nullopt);
+                               }
                                b->GetHost()->SetZoomLevel(z);
                              },
-                             zoom));
+                             data, zoom));
   }
 }
 

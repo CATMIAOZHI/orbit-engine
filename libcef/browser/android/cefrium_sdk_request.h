@@ -34,6 +34,7 @@
 #include "components/origin_matcher/origin_matcher.h"
 #include "net/dns/public/dns_over_https_config.h"
 #include "content/public/browser/web_contents_user_data.h"
+#include "content/public/browser/host_zoom_map.h"
 #include "cef/include/cef_values.h"
 #include "cef/include/cef_version.h"
 #include "cef/include/cef_context_menu_handler.h"
@@ -892,6 +893,12 @@ class SdkRequestHandler : public CefRequestHandler {
 
   // FEATURE-023: forward navigation / renderer-termination to the JS bridge
   // router so it can cancel pending queries (no leaks / stale state).
+  // A zoom level set before the first page: given to that page's host before
+  // it commits, so the page starts at it.
+  void SetZoomForFirstPage(std::optional<double> level) {
+    zoom_for_first_page_ = level;
+  }
+
   bool OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
                       CefRefPtr<CefFrame> frame,
                       CefRefPtr<CefRequest> request,
@@ -899,6 +906,17 @@ class SdkRequestHandler : public CefRequestHandler {
                       bool is_redirect) override {
     if (message_router_) {
       message_router_->OnBeforeBrowse(browser, frame);
+    }
+    if (zoom_for_first_page_ && frame->IsMain()) {
+      const GURL url(request->GetURL().ToString());
+      if (url.is_valid() && !url.IsAboutBlank()) {
+        if (auto* wc = static_cast<CefBrowserHostBase*>(browser->GetHost().get())
+                           ->GetWebContents()) {
+          content::HostZoomMap::GetForWebContents(wc)->SetZoomLevelForHost(
+              std::string(url.host()), *zoom_for_first_page_);
+        }
+        zoom_for_first_page_.reset();
+      }
     }
     // FEATURE-092: CefriumNavigationClient.onBeforeNavigate. As in WebView,
     // a load the app started (loadUrl and the like: TT_DIRECT_LOAD_FLAG) is
@@ -1286,6 +1304,7 @@ class SdkRequestHandler : public CefRequestHandler {
   CefRefPtr<SdkResourceRequestHandler> resource_handler_;
   CefRefPtr<CefMessageRouterBrowserSide> message_router_;
   jobject java_browser_ = nullptr;
+  std::optional<double> zoom_for_first_page_;
   base::Lock lock_;
   std::map<uint64_t, CefRefPtr<CefCallback>> pending_ssl_;
   std::map<uint64_t, CefRefPtr<CefAuthCallback>> pending_auth_;

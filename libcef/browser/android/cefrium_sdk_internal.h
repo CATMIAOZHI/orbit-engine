@@ -93,6 +93,17 @@ struct SdkBrowserData {
 
 namespace cefrium_sdk {
 
+// True while the main frame shows no page yet: no URL, or the about:blank a
+// browser starts at.
+inline bool HasNoPageYet(CefRefPtr<CefBrowser> browser) {
+  CefRefPtr<CefFrame> main = browser->GetMainFrame();
+  if (!main) {
+    return true;
+  }
+  const std::string url = main->GetURL().ToString();
+  return url.empty() || url == "about:blank";
+}
+
 // FEATURE-023 step 4b: the live SdkBrowserData pointers, so an asynchronous
 // window.cefriumQuery response (resolved later, possibly after the browser was
 // closed and its data deleted) is dropped instead of dereferencing a dangling
