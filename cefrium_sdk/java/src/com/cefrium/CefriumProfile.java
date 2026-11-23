@@ -332,6 +332,29 @@ public final class CefriumProfile {
         return setPreference("webrtc.ip_handling_policy", org.json.JSONObject.quote(policy));
     }
 
+    /**
+     * The languages this profile's pages are told the user reads, most
+     * preferred first, as in {@code "es-ES,es,en"}: the Accept-Language header
+     * of its requests and {@code navigator.languages}. Without it, they follow
+     * the engine's locale. Applies to requests made after the call.
+     *
+     * @param languages comma-separated language tags.
+     * @return false if the engine rejected the setting.
+     * @throws IllegalArgumentException if {@code languages} is empty or not a
+     *     list of language tags.
+     */
+    @CefriumExperimental
+    public boolean setAcceptLanguages(String languages) {
+        checkThread("setAcceptLanguages");
+        if (languages == null
+                || !languages.matches("[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*"
+                        + "(,[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*)*")) {
+            throw new IllegalArgumentException(
+                    "languages must be comma-separated language tags, e.g. \"es-ES,es,en\"");
+        }
+        return setPreference("intl.accept_languages", org.json.JSONObject.quote(languages));
+    }
+
     private boolean setPreference(String name, String json) {
         root();
         return nativeSetPreference(mIncognito, mName, name, json);
