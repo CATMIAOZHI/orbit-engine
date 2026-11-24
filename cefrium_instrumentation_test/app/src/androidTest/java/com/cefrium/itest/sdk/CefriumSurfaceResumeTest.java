@@ -9,6 +9,7 @@ import com.cefrium.itest.LocalMediaServer;
 
 import android.accessibilityservice.AccessibilityService;
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.os.Handler;
@@ -89,6 +90,7 @@ public class CefriumSurfaceResumeTest {
         Activity activity = activityRule.getActivity();
         CefriumBrowser b = load(activity, video);
         assertAt(b, GREEN, "before the dialog");
+        if (video) assertVideoDraws(b, "before the dialog");
 
         activity.runOnUiThread(() -> {
             b.onPause();
@@ -116,7 +118,10 @@ public class CefriumSurfaceResumeTest {
         activity.runOnUiThread(() -> b.evaluateJavaScript(
                 "document.body.style.background='#0000c0';"));
         assertAt(b, BLUE, "a change after the dialog (a live frame)");
-        if (video) assertVideoAdvances(activity, b);
+        if (video) {
+            assertVideoAdvances(activity, b);
+            assertVideoDraws(b, "after the dialog");
+        }
     }
 
     private CefriumBrowser load(Activity activity, boolean video) throws Exception {
@@ -181,6 +186,7 @@ public class CefriumSurfaceResumeTest {
             });
             Assert.assertTrue("the page did not load", loaded.await(30, TimeUnit.SECONDS));
             assertAt(browser.get(), GREEN, "before the background");
+            if (video) assertVideoDraws(browser.get(), "before the background");
 
             // To the background, as an app forwards its lifecycle.
             activity.runOnUiThread(() -> browser.get().onPause());
@@ -190,13 +196,15 @@ public class CefriumSurfaceResumeTest {
             while (activity.hasWindowFocus() && System.currentTimeMillis() < end) {
                 Thread.sleep(100);
             }
-            Thread.sleep(3000);
+            // Over 5 s: Android 10 refuses an app switch for 5 s after HOME.
+            Thread.sleep(6000);
 
-            // And back.
-            Intent back = new Intent(activity, HostActivity.class)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                            | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-            InstrumentationRegistry.getInstrumentation().getTargetContext().startActivity(back);
+            // And back: bring this activity's task to the front. (On Android 10
+            // a REORDER_TO_FRONT intent makes a second HostActivity instead.)
+            for (ActivityManager.AppTask task : activity.getSystemService(ActivityManager.class)
+                    .getAppTasks()) {
+                if (task.getTaskInfo().taskId == activity.getTaskId()) task.moveToFront();
+            }
             end = System.currentTimeMillis() + 15_000;
             while (!activity.hasWindowFocus() && System.currentTimeMillis() < end) {
                 Thread.sleep(100);
@@ -208,6 +216,9 @@ public class CefriumSurfaceResumeTest {
             activity.runOnUiThread(() -> browser.get().evaluateJavaScript(
                     "document.body.style.background='#0000c0';"));
             assertAt(browser.get(), BLUE, "a change after coming back (a live frame)");
+            // The decoder was released in the background: the picture moves
+            // again, not only currentTime.
+            if (video) assertVideoDraws(browser.get(), "after coming back");
         }
     }
 
@@ -233,6 +244,43 @@ public class CefriumSurfaceResumeTest {
     }
 
     // Below the video, in the page's own background.
+    // The video's picture changes on screen: two screenshots of its box (the
+    // page puts it at 0,0, 160x120 CSS px) differ.
+    private static void assertVideoDraws(CefriumBrowser b, String when) throws Exception {
+        int[] at = new int[2];
+        float[] dp = new float[1];
+        CountDownLatch measured = new CountDownLatch(1);
+        new Handler(Looper.getMainLooper()).post(() -> {
+            View v = b.getSurfaceContainer();
+            v.getLocationOnScreen(at);
+            dp[0] = v.getResources().getDisplayMetrics().density;
+            measured.countDown();
+        });
+        Assert.assertTrue(measured.await(5, TimeUnit.SECONDS));
+        int x0 = at[0] + (int) (10 * dp[0]), x1 = at[0] + (int) (150 * dp[0]);
+        int y0 = at[1] + (int) (10 * dp[0]), y1 = at[1] + (int) (110 * dp[0]);
+        int changed = 0;
+        long end = System.currentTimeMillis() + 10_000;
+        while (System.currentTimeMillis() < end) {
+            Bitmap a = InstrumentationRegistry.getInstrumentation().getUiAutomation()
+                    .takeScreenshot();
+            Thread.sleep(700);
+            Bitmap c = InstrumentationRegistry.getInstrumentation().getUiAutomation()
+                    .takeScreenshot();
+            changed = 0;
+            if (a != null && c != null) {
+                for (int y = y0; y < y1; y += 4) {
+                    for (int x = x0; x < x1; x += 4) {
+                        if (!close(a.getPixel(x, y), c.getPixel(x, y))) changed++;
+                    }
+                }
+            }
+            if (changed >= 20) return;
+        }
+        Assert.fail(when + ": the video's picture did not change (" + changed
+                + " sampled pixels moved)");
+    }
+
     private static long pixelAt(CefriumBrowser b) throws Exception {
         int[] at = new int[2];
         int[] size = new int[2];
