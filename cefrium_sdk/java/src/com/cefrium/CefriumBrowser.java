@@ -3594,6 +3594,9 @@ public class CefriumBrowser {
     }
 
     private boolean mPauseDeferred;
+    // The deferred pause ran when the activity stopped in PiP (the screen went
+    // off); the app has not resumed since.
+    private boolean mPausedAtStop;
     private android.app.Application.ActivityLifecycleCallbacks mStopWatcher;
 
     private void deferPauseUntilStopped() {
@@ -3605,12 +3608,27 @@ public class CefriumBrowser {
             public void onActivityStopped(android.app.Activity a) {
                 if (a != activity || !mPauseDeferred) return;
                 mPauseDeferred = false;
-                if (!mClosed) pauseNow();
+                if (mClosed) return;
+                pauseNow();
+                mPausedAtStop = a.isInPictureInPictureMode();
+            }
+
+            // Back on screen still in PiP: the activity stays paused, so the
+            // app's onResume() does not come. Show the page again and keep the
+            // pause deferred.
+            @Override
+            public void onActivityStarted(android.app.Activity a) {
+                if (a != activity || !mPausedAtStop) return;
+                mPausedAtStop = false;
+                if (mClosed || !a.isInPictureInPictureMode()) return;
+                mPauseDeferred = true;
+                setAudioMuted(false);
+                setPageVisible(true);
+                resumeMedia();
             }
 
             @Override public void onActivityCreated(android.app.Activity a,
                     android.os.Bundle b) {}
-            @Override public void onActivityStarted(android.app.Activity a) {}
             @Override public void onActivityResumed(android.app.Activity a) {}
             @Override public void onActivityPaused(android.app.Activity a) {}
             @Override public void onActivitySaveInstanceState(android.app.Activity a,
@@ -3628,6 +3646,7 @@ public class CefriumBrowser {
         }
         mStopWatcher = null;
         mPauseDeferred = false;
+        mPausedAtStop = false;
     }
 
     /**
@@ -3639,6 +3658,7 @@ public class CefriumBrowser {
         checkThread("onResume");
         if (mClosed) return;  // an activity hook: nothing to resume
         mPauseDeferred = false;
+        mPausedAtStop = false;
         setAudioMuted(false);
         setPageVisible(true);
         resumeMedia();
