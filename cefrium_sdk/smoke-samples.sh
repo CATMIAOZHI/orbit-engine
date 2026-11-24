@@ -45,12 +45,12 @@ N="$("$ADB" devices 2>/dev/null | grep -c 'device$')"
 REGISTRY_VERSION=""
 [ "${1:-}" = "--registry" ] && { REGISTRY_VERSION="${2:?--registry needs a version}"; shift 2; }
 
-SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive kiosk-automotive-v2 kiosk-signage loaddata-baseurl osr-hud firebase-coexistence nested-scroll kotlin-arrow-sample profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process permissions sign-in printing app-content unifiedpush-demo no-gms"
+SAMPLES="cefrium-browser compose-browser java-sample modern-web-showcase push-demo kiosk-pos kiosk-automotive kiosk-automotive-v2 kiosk-signage loaddata-baseurl osr-hud firebase-coexistence nested-scroll kotlin-arrow-sample profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process permissions sign-in printing app-content unifiedpush-demo no-gms picture-in-picture"
 # Samples that write files/verdict.txt: launching without a crash is not enough
 # for them, the verdict must read PASS.
-VERDICT_SAMPLES="firebase-coexistence nested-scroll profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process permissions sign-in app-content no-gms"
+VERDICT_SAMPLES="firebase-coexistence nested-scroll profiles network-privacy document-start engine-contacts drm-provisioning webview-same-process other-process permissions sign-in app-content no-gms picture-in-picture"
 # Launch extras for samples that only run their check when asked.
-launch_extras() { case "$1" in sign-in) echo "--ez auto true" ;; esac; }
+launch_extras() { case "$1" in sign-in|picture-in-picture) echo "--ez auto true" ;; esac; }
 # Samples whose launcher icon is a menu: start an activity that runs the engine.
 launch_activity() { case "$1" in java-sample) echo ".AdBlockActivity" ;; esac; }
 # Samples whose data is cleared before launch (see below).
