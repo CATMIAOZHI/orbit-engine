@@ -76,7 +76,8 @@ Engine: **Chromium 158.0.8127.18 / CEF branch 8127** (was 156.0.8078.96 /
   offered for images, and `capture` opens the camera. The SDK registers its
   own FileProvider for the photo (`${applicationId}.cefrium.fileprovider`).
 - A renderer that dies before it connects is reported to
-  `onRenderProcessTerminated` (`UNKNOWN`).
+  `onRenderProcessTerminated` (`UNKNOWN`), on Android 11 and later (Android
+  10 gives the app no sign of it).
 - Compose `CefriumViewState.forWindow`: a window that set its title or URL
   before its tab was shown kept them unreported.
 - `setZoomLevel` called before the first page loads now applies to that
