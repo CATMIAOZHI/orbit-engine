@@ -15,6 +15,73 @@ matters). Format follows Keep a Changelog; versions are immutable on the Codeber
 Maven registry. Deep rationale, rejected approaches, and root-cause analysis live
 in the internal FEATURE-NNN.md working docs (not published).
 
+## [0.22.0] - 2026-11-24
+
+Engine: **Chromium 158.0.8127.18 / CEF branch 8127** (was 156.0.8078.96 /
+8078), CEF's current stable release.
+
+### Added
+- **Google Play services are optional.** An app that leaves out Play
+  services, Firebase, ML Kit, Play Core and datatransport starts and runs;
+  each web API that needs them (WebOTP, Cast, Web Push through FCM) fails in
+  the page instead of the app dying with `NoClassDefFoundError`. The Google
+  libraries moved to the `cefrium-gms` POM module: `cefrium-sdk` and
+  `cefrium-sdk-libre` still bring them, `cefrium-sdk-core` with a native
+  module does not. Sample `no-gms`.
+- **`CefriumAppComponentFactory`**: the app's `Application` no longer runs in
+  the engine's processes. An app with its own `appComponentFactory` extends
+  it; the Gradle plugin fails the build when a library's factory would be
+  dropped. Sample `child-processes`.
+- **WebHID** (`navigator.hid`, new on Android in Chromium 158) reaches the
+  `DeviceChooserHandler` as `CefriumDeviceKind.HID`. A Kotlin `when` over
+  `CefriumDeviceKind` needs the new branch.
+- **`Cefrium.diagnostics(context)`**: a block to paste into a bug report
+  (versions, device, ABIs, Google libraries, Application class and factory,
+  WebView, recent exits).
+- **`CefriumProfile.setAcceptLanguages`**: the `Accept-Language` header and
+  `navigator.languages` of a profile.
+- Compose: **`CefriumNavigator.setUserAgentOverride(ua, metadata)`**.
+- FedCM (experimental): `CefIdentityAccount` `GetGivenName`, `GetPicture`,
+  `GetIdentityProviderIcon`, `GetPrivacyPolicyUrl`, `GetTermsOfServiceUrl`,
+  `GetDisclosureFields`, `GetContext`; the same fields on
+  `CefriumIdentityHandler.Account`.
+- Sample `picture-in-picture`: a playing video goes on in the PiP window.
+
+### Changed
+- **`setPinchToZoomEnabled` is native**, as WebView's `setSupportZoom`: it
+  turns off pinch and double-tap zoom in the gesture handling instead of
+  injecting a viewport and touch listeners into every page. It works with
+  JavaScript off and leaves the page's touches alone.
+- The default FedCM account chooser ("Sign in with Google" prompts) is a
+  bottom sheet like Chrome's: the provider's icon, the account's picture,
+  "Continue as", and for an account new to the site what will be shared,
+  with the site's privacy policy and terms.
+- A download with no download client is refused, as in WebView (0.21.0
+  warned).
+- As in Chrome, the User-Agent says Mobile, and `Sec-CH-UA-Mobile` is `?1`,
+  on phones only; tablets get neither (some sites then serve their desktop
+  layout).
+- Release builds are reproducible: two builds of one cef commit give the
+  same `libcef.so` and the same AARs. `verify-reproducible.sh` compares a
+  published library with a local build.
+
+### Fixed
+- A page in picture-in-picture kept showing and playing when the app
+  forwards `Activity.onPause()` to `onPause()`. On Android 10 it also showed
+  nothing after the screen went off and on.
+- The browser no longer takes the focus of a native text field when the
+  window regains focus.
+- `<input type=file>`: the page's accept types reach the picker
+  (`accept=image/*` no longer offers video or other files), the camera is
+  offered for images, and `capture` opens the camera. The SDK registers its
+  own FileProvider for the photo (`${applicationId}.cefrium.fileprovider`).
+- A renderer that dies before it connects is reported to
+  `onRenderProcessTerminated` (`UNKNOWN`).
+- Compose `CefriumViewState.forWindow`: a window that set its title or URL
+  before its tab was shown kept them unreported.
+- `setZoomLevel` called before the first page loads now applies to that
+  page.
+
 ## [0.21.0] - 2026-11-15
 
 ### Added
