@@ -65,6 +65,12 @@ fi
 # CEFRIUM_NO_GMS=1 builds the app without the Google libraries (Play services,
 # Firebase, ML Kit, Play Core, datatransport), as a consumer that excludes them.
 [ "${CEFRIUM_NO_GMS:-}" = 1 ] && GRADLE_PROPS+=("-PcefriumNoGms=1")
+# Tests marked @NeedsUnlockedDevice turn the screen off, which a device with a
+# secure lock screen (the W90) cannot come back from. They run only where
+# CEFRIUM_UNLOCKED_DEVICE=1 says there is no such lock: suite-on-emulator.sh.
+UNLOCKED="${CEFRIUM_UNLOCKED_DEVICE:-0}"
+[ "$UNLOCKED" = 1 ] || GRADLE_PROPS+=(
+  "-Pandroid.testInstrumentationRunnerArguments.notAnnotation=com.cefrium.itest.NeedsUnlockedDevice")
 
 if [ ! -f "$SRC/.gn" ]; then
   echo "ERROR: run this from chromium/src" >&2
@@ -143,25 +149,31 @@ echo ">>> $TASK"
 GRADLE_RC=$?
 
 # Gradle's own status is necessary but not sufficient: read the result files.
-python3 - "$RESULTS" "$GRADLE_RC" "$ITEST/app/src/androidTest" "$ONLY" <<'PY'
+python3 - "$RESULTS" "$GRADLE_RC" "$ITEST/app/src/androidTest" "$ONLY" "$UNLOCKED" <<'PY'
 import glob, os, re, sys
 import xml.etree.ElementTree as ET
 
 results, gradle_rc, sources = sys.argv[1], int(sys.argv[2]), sys.argv[3]
 only = sys.argv[4].split(".")[-1]
+unlocked = sys.argv[5] == "1"
 
 # Every @Test in the sources must appear in the results. A crash of the test
 # process ends the run early, and gradle has been seen to exit 0 with a third
 # of the suite never executed.
 declared = set()
+left_out = []
 for src in glob.glob(os.path.join(sources, "**", "*.java"), recursive=True) + \
         glob.glob(os.path.join(sources, "**", "*.kt"), recursive=True):
     cls = os.path.splitext(os.path.basename(src))[0]
     if only and cls != only:
         continue
     text = open(src, encoding="utf-8").read()
-    for m in re.finditer(r"@Test\b[^\n]*\n(?:\s*@[^\n]*\n)*\s*(?:public\s+)?(?:void|fun)\s+`?(\w+)", text):
-        declared.add("%s.%s" % (cls, m.group(1)))
+    for m in re.finditer(r"((?:[ \t]*@[^\n]*\n)*)[ \t]*@Test\b[^\n]*\n((?:\s*@[^\n]*\n)*)\s*(?:public\s+)?(?:void|fun)\s+`?(\w+)", text):
+        name = "%s.%s" % (cls, m.group(3))
+        if not unlocked and "@NeedsUnlockedDevice" in m.group(1) + m.group(2):
+            left_out.append(name)
+            continue
+        declared.add(name)
 files = sorted(glob.glob(os.path.join(results, "**", "*.xml"), recursive=True))
 if not files:
     print("FAIL: no result XML under %s -- the suite did not run." % results)
@@ -192,6 +204,9 @@ for f in files:
 
 print("    tests=%d failures=%d errors=%d skipped=%d  total=%.1fs"
       % (tests, failures, errors, skipped, total))
+if left_out:
+    print("    left out, they need a device without a secure lock (suite-on-emulator.sh"
+          " runs them): %s" % ", ".join(sorted(left_out)))
 
 problems = []
 if gradle_rc != 0:

@@ -70,7 +70,8 @@ done
 fails=0
 for run in $(seq 1 "$RUNS"); do
   echo ">>> api$LEVEL suite run $run/$RUNS"
-  ANDROID_SERIAL="$SER" CEFRIUM_SDK_AAR="$AAR" \
+  # A wiped AVD has no secure lock, so the @NeedsUnlockedDevice tests run here.
+  ANDROID_SERIAL="$SER" CEFRIUM_SDK_AAR="$AAR" CEFRIUM_UNLOCKED_DEVICE=1 \
     "$SCRIPT_DIR/run-instrumentation-suite.sh" > "$WORK/suite-$run.log" 2>&1
   rc=$?
   tail -2 "$WORK/suite-$run.log"
