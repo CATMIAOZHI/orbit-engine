@@ -18,10 +18,15 @@
 -keep class org.junit.** { *; }
 -keep class junit.** { *; }
 -keep class org.hamcrest.** { *; }
+# Espresso needs javax.inject, which the app gets from the Google libraries
+# (datatransport, firebase-annotations) and never calls.
+-keep class javax.inject.** { *; }
 
 # Tests that look inside on purpose: CefriumEngineSettingsTest reads Chromium's
 # command line, which the app never does; CefriumWebPushTest swaps the GCM
-# InstanceID for a fake.
+# InstanceID for a fake; CefriumNoGmsTest asks the engine whether it sees the
+# Google libraries.
 -keep class org.chromium.base.CommandLine { public *; }
 -keep class org.chromium.components.gcm_driver.instance_id.InstanceIDWithSubtype { *; }
 -keep interface org.chromium.components.gcm_driver.instance_id.InstanceIDWithSubtype$FakeFactory { *; }
+-keep class org.chromium.gms.ChromiumPlayServicesAvailability { public static boolean isGmsLinked(); }
