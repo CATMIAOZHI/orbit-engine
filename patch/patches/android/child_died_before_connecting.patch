@@ -1,8 +1,8 @@
 diff --git base/android/java/src/org/chromium/base/process_launcher/ChildProcessConnection.java base/android/java/src/org/chromium/base/process_launcher/ChildProcessConnection.java
-index 80a360b..8861fcb 100644
+index 80a360b0226032a5d4b55fab72052f007aa7f1c1..fbb0cfe30a5f415f19fe22f9c37dc136522ecc2e 100644
 --- base/android/java/src/org/chromium/base/process_launcher/ChildProcessConnection.java
 +++ base/android/java/src/org/chromium/base/process_launcher/ChildProcessConnection.java
-@@ -6,10 +6,13 @@
+@@ -6,10 +6,13 @@ package org.chromium.base.process_launcher;
  
  import static org.chromium.build.NullUtil.assumeNonNull;
  
@@ -16,7 +16,12 @@ index 80a360b..8861fcb 100644
  import android.os.Bundle;
  import android.os.Handler;
  import android.os.IBinder;
-@@ -22,6 +25,7 @@
+@@ -18,10 +21,12 @@ import android.os.RemoteException;
+ import android.text.TextUtils;
+ 
+ import androidx.annotation.IntDef;
++import androidx.annotation.RequiresApi;
+ import androidx.annotation.VisibleForTesting;
  
  import org.chromium.base.ApkInfo;
  import org.chromium.base.ChildBindingState;
@@ -24,7 +29,7 @@ index 80a360b..8861fcb 100644
  import org.chromium.base.JavaExceptionReporter;
  import org.chromium.base.Log;
  import org.chromium.base.MemoryPressureListener;
-@@ -48,6 +52,11 @@
+@@ -48,6 +53,11 @@ import javax.annotation.concurrent.GuardedBy;
  public class ChildProcessConnection {
      private static final String TAG = "ChildProcessConn";
      private static final int FALLBACK_TIMEOUT_IN_SECONDS = 10;
@@ -36,7 +41,7 @@ index 80a360b..8861fcb 100644
      private static final String HISTOGRAM_NAME = "Android.ChildProcessConectionEventCounts";
  
      /**
-@@ -206,6 +215,11 @@
+@@ -206,6 +216,11 @@ public class ChildProcessConnection {
      private final Handler mLauncherHandler;
      private final Executor mLauncherExecutor;
      private final ComponentName mServiceName;
@@ -48,7 +53,7 @@ index 80a360b..8861fcb 100644
      private final @Nullable ComponentName mFallbackServiceName;
  
      // Parameters passed to the child process through the service binding intent.
-@@ -405,10 +419,11 @@
+@@ -405,10 +420,11 @@ public class ChildProcessConnection {
                  };
  
          Intent bindIntent = new Intent();
@@ -62,7 +67,7 @@ index 80a360b..8861fcb 100644
          if (mServiceBundle != null) {
              bindIntent.putExtras(mServiceBundle);
          }
-@@ -884,6 +899,11 @@
+@@ -884,6 +900,11 @@ public class ChildProcessConnection {
              }
          }
  
@@ -74,7 +79,7 @@ index 80a360b..8861fcb 100644
          if (success && !usedFallback && canFallback) {
              mLauncherHandler.postDelayed(
                      this::checkBindTimeOut, FALLBACK_TIMEOUT_IN_SECONDS * 1000);
-@@ -900,6 +920,63 @@
+@@ -900,6 +921,64 @@ public class ChildProcessConnection {
          return success;
      }
  
@@ -105,6 +110,7 @@ index 80a360b..8861fcb 100644
 +        }
 +    }
 +
++    @RequiresApi(Build.VERSION_CODES.R)
 +    private @Nullable ApplicationExitInfo findExitSinceBind() {
 +        Context context = ContextUtils.getApplicationContext();
 +        try {
@@ -138,7 +144,7 @@ index 80a360b..8861fcb 100644
      private void checkBindTimeOut() {
          assert isRunningOnLauncherThread();
          assert mFallbackServiceName != null;
-@@ -973,6 +1050,8 @@
+@@ -973,6 +1052,8 @@ public class ChildProcessConnection {
  
          Intent bindIntent = new Intent();
          bindIntent.setComponent(mFallbackServiceName);
