@@ -183,7 +183,7 @@ tests = failures = errors = skipped = 0
 # Classes whose cases are pure computation on data already in memory: on a
 # fast emulator they finish under the 1 ms the XML can show. They still count
 # as declared tests, so one that never runs is still caught.
-INSTANT = {"CefriumLibraryPrefetchTest"}
+INSTANT = {"CefriumLibraryPrefetchTest", "CefriumDiagnosticsTest"}
 zero_time = []
 executed = set()
 total = 0.0

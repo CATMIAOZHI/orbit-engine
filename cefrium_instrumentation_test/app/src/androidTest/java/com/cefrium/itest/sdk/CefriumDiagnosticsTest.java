@@ -31,7 +31,9 @@ public class CefriumDiagnosticsTest {
         Assert.assertTrue(d, d.contains("device: " + Build.MANUFACTURER + " " + Build.MODEL));
         Assert.assertTrue(d, d.contains("app: " + context.getPackageName() + " "));
         Assert.assertTrue(d, d.contains("appComponentFactory: "));
-        Assert.assertTrue(d, d.contains("recent process exits:"));
+        // Exit records exist from Android 11, as the API documents.
+        Assert.assertEquals(d, Build.VERSION.SDK_INT >= Build.VERSION_CODES.R,
+                d.contains("recent process exits:"));
         Assert.assertFalse("the build fingerprint identifies the device",
                 d.contains(Build.FINGERPRINT));
         for (char c : d.toCharArray()) {
