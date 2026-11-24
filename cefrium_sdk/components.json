@@ -55,5 +55,6 @@
   "com.google.mlkit:genai-schema": "On-device AI (Prompt API through Gemini Nano). The API is off in Cefrium builds.",
   "com.google.android.play:core-common": "Required by feature-delivery.",
   "com.google.android.play:feature-delivery": "Chromium's module installer for Play Feature Delivery; the engine installs no modules. An app that delivers the engine as a feature module declares it itself.",
+  "com.google.android.play:app-update": "Chrome's in-app update prompt (InAppUpdateController), compiled in with Chromium's Java. Cefrium never starts it.",
   "com.google.android.play:review": "Chrome's in-app review prompt. No Chromium or Cefrium class calls it."
 }
