@@ -72,6 +72,97 @@ public class CefriumSurfaceResumeTest {
         backgroundAndBack(true);
     }
 
+    // A system dialog over the app (the share sheet here; a permission dialog
+    // is the same): the activity is paused, not stopped, and the app forwards
+    // that to the browser.
+    @Test
+    public void drawsAfterSystemDialog() throws Exception {
+        dialogAndBack(false);
+    }
+
+    @Test
+    public void drawsAfterSystemDialogWithVideo() throws Exception {
+        dialogAndBack(true);
+    }
+
+    private void dialogAndBack(boolean video) throws Exception {
+        Activity activity = activityRule.getActivity();
+        CefriumBrowser b = load(activity, video);
+        assertAt(b, GREEN, "before the dialog");
+
+        activity.runOnUiThread(() -> {
+            b.onPause();
+            Intent send = new Intent(Intent.ACTION_SEND).setType("text/plain")
+                    .putExtra(Intent.EXTRA_TEXT, "x");
+            activity.startActivity(Intent.createChooser(send, null));
+        });
+        long end = System.currentTimeMillis() + 10_000;
+        while (activity.hasWindowFocus() && System.currentTimeMillis() < end) {
+            Thread.sleep(100);
+        }
+        Assert.assertFalse("the dialog did not open", activity.hasWindowFocus());
+        Thread.sleep(3000);
+
+        InstrumentationRegistry.getInstrumentation().getUiAutomation()
+                .performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
+        end = System.currentTimeMillis() + 15_000;
+        while (!activity.hasWindowFocus() && System.currentTimeMillis() < end) {
+            Thread.sleep(100);
+        }
+        Assert.assertTrue("the dialog did not close", activity.hasWindowFocus());
+        activity.runOnUiThread(b::onResume);
+
+        assertAt(b, GREEN, "after the dialog");
+        activity.runOnUiThread(() -> b.evaluateJavaScript(
+                "document.body.style.background='#0000c0';"));
+        assertAt(b, BLUE, "a change after the dialog (a live frame)");
+        if (video) assertVideoAdvances(activity, b);
+    }
+
+    private CefriumBrowser load(Activity activity, boolean video) throws Exception {
+        AtomicReference<CefriumBrowser> browser = new AtomicReference<>();
+        CountDownLatch loaded = new CountDownLatch(1);
+        String want = video ? "playing" : "ready";
+        LocalMediaServer server = new LocalMediaServer(page(video));
+        servers.add(server);
+        activity.runOnUiThread(() -> {
+            CefriumBrowser b = browsers.createWithSurface(activity);
+            browser.set(b);
+            activity.addContentView(b.getSurfaceContainer(), new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            b.setOnTitleChangedListener(t -> {
+                if (want.equals(t)) loaded.countDown();
+            });
+            b.loadUrl(server.url());
+        });
+        Assert.assertTrue("the page did not load", loaded.await(30, TimeUnit.SECONDS));
+        return browser.get();
+    }
+
+    // The video plays on: its time moves while the test watches.
+    private static void assertVideoAdvances(Activity activity, CefriumBrowser b)
+            throws Exception {
+        CountDownLatch moved = new CountDownLatch(1);
+        activity.runOnUiThread(() -> {
+            b.setOnTitleChangedListener(t -> {
+                if ("advanced".equals(t)) moved.countDown();
+            });
+            b.evaluateJavaScript("(() => { const v = document.getElementById('v');"
+                    + " const t0 = v.currentTime; setInterval(() => {"
+                    + " if (!v.paused && v.currentTime > t0 + 0.5)"
+                    + " document.title = 'advanced'; }, 200); })();");
+        });
+        Assert.assertTrue("the video did not play on after coming back",
+                moved.await(15, TimeUnit.SECONDS));
+    }
+
+    @org.junit.After
+    public void closeServers() throws Exception {
+        for (LocalMediaServer s : servers) s.close();
+    }
+
+    private final java.util.List<LocalMediaServer> servers = new java.util.ArrayList<>();
+
     private void backgroundAndBack(boolean video) throws Exception {
         Activity activity = activityRule.getActivity();
         AtomicReference<CefriumBrowser> browser = new AtomicReference<>();
